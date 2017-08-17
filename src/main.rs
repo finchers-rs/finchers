@@ -7,6 +7,7 @@ pub mod endpoint;
 pub mod responder;
 pub mod input;
 
+use futures::{Future, Stream};
 use hyper::Get;
 use tokio_core::reactor::Core;
 
@@ -21,15 +22,28 @@ fn main() {
     println!("input: {:#?}", input);
     println!();
 
-    let output = endpoint.apply(input).map(|f| {
+    if let Ok(f) = endpoint.apply(input) {
         let mut core = Core::new().unwrap();
-        core.run(f).map(|r| r.respond())
-    });
-    println!("output: {:#?}", output);
-    println!(
-        "body: {:#?}",
-        output.as_ref().map(
-            |res| res.as_ref().map(|res| res.body_ref()),
-        )
-    );
+        let output = core.run(f.map(|r| r.respond()));
+
+        match output {
+            Ok(response) => {
+                println!("success: {:#?}", response);
+                let body = core.run(
+                    response
+                        .body()
+                        .map_err(|_| ())
+                        .fold(Vec::new(), |mut body, chunk| {
+                            body.extend_from_slice(&chunk);
+                            Ok(body)
+                        })
+                        .and_then(|body| String::from_utf8(body).map_err(|_| ())),
+                );
+                println!("..with body: {:?}", body);
+            }
+            Err(err) => eprintln!("failed with: {:?}", err),
+        }
+    } else {
+        eprintln!("no route");
+    }
 }
