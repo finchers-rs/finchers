@@ -7,7 +7,6 @@ pub mod endpoint;
 pub mod responder;
 pub mod input;
 
-use std::sync::Arc;
 use hyper::Get;
 use tokio_core::reactor::Core;
 
@@ -18,14 +17,14 @@ use responder::Responder;
 fn main() {
     let endpoint = param("hello");
 
-    let input = Arc::new(Input::new(Get, "/?hello=world"));
-    let output = endpoint.apply(input.clone()).map(|f| {
+    let input = Input::new(Get, "/?hello=world");
+    println!("input: {:#?}", input);
+    println!();
+
+    let output = endpoint.apply(input).map(|f| {
         let mut core = Core::new().unwrap();
         core.run(f).map(|r| r.respond())
     });
-
-    println!("input: {:#?}", input);
-    println!();
     println!("output: {:#?}", output);
     println!(
         "body: {:#?}",
