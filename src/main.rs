@@ -5,32 +5,31 @@ extern crate url;
 
 pub mod endpoint;
 pub mod responder;
+pub mod input;
 
 use std::sync::Arc;
-use hyper::{Request, Method, Body};
+use hyper::Get;
 use tokio_core::reactor::Core;
 
 use endpoint::{Endpoint, param};
+use input::Input;
 use responder::Responder;
 
 fn main() {
     let endpoint = param("hello");
 
-    let uri = "/?hello=world".parse().unwrap();
-    let req = Request::<Body>::new(Method::Get, uri);
-    let req = Arc::new(req);
-
-    let res = endpoint.apply(req.clone()).map(|f| {
+    let input = Arc::new(Input::new(Get, "/?hello=world"));
+    let output = endpoint.apply(input.clone()).map(|f| {
         let mut core = Core::new().unwrap();
         core.run(f).map(|r| r.respond())
     });
 
-    println!("request: {:#?}", req);
+    println!("input: {:#?}", input);
     println!();
-    println!("response: {:#?}", res);
+    println!("output: {:#?}", output);
     println!(
-        "response body: {:#?}",
-        res.as_ref().map(
+        "body: {:#?}",
+        output.as_ref().map(
             |res| res.as_ref().map(|res| res.body_ref()),
         )
     );

@@ -2,22 +2,23 @@ use std::borrow::Cow;
 use std::sync::Arc;
 use futures::{Future, IntoFuture};
 use futures::future::FutureResult;
-use hyper::Request;
 use url::form_urlencoded;
+
+use input::Input;
 
 pub trait Endpoint {
     type Future: Future;
-    fn apply(&self, req: Arc<Request>) -> Option<Self::Future>;
+    fn apply(&self, input: Arc<Input>) -> Option<Self::Future>;
 }
 
 impl<F, R> Endpoint for F
 where
-    F: Fn(Arc<Request>) -> Option<R>,
+    F: Fn(Arc<Input>) -> Option<R>,
     R: IntoFuture,
 {
     type Future = R::Future;
-    fn apply(&self, req: Arc<Request>) -> Option<Self::Future> {
-        (*self)(req).map(IntoFuture::into_future)
+    fn apply(&self, input: Arc<Input>) -> Option<Self::Future> {
+        (*self)(input).map(IntoFuture::into_future)
     }
 }
 
@@ -29,9 +30,11 @@ pub struct Param {
 impl Endpoint for Param {
     type Future = FutureResult<String, ParamIsNotSet>;
 
-    fn apply(&self, req: Arc<Request>) -> Option<Self::Future> {
+    fn apply(&self, input: Arc<Input>) -> Option<Self::Future> {
         Some(
-            req.query()
+            input
+                .req
+                .query()
                 .and_then(|query| {
                     form_urlencoded::parse(query.as_bytes())
                         .find(|&(ref k, _)| k == &self.name)
