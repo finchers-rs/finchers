@@ -66,6 +66,14 @@ fn case1_1() {
 }
 
 #[test]
+fn case1_2() {
+    let endpoint = path("foo", path("bar", path_end(param("hello"))));
+    let input = Input::new(Get, "/foo/bar/");
+    let output = endpoint.apply(input);
+    assert!(output.is_err());
+}
+
+#[test]
 fn case2() {
     let endpoint = path("foo", path("bar", path_end(param("hello"))));
     let input = Input::new(Get, "/foo/bar/baz?hello=world");

@@ -1,9 +1,8 @@
-use std::borrow::Cow;
+use std::borrow::{Borrow, Cow};
 use futures::{Future, IntoFuture};
 use futures::future::FutureResult;
-use url::form_urlencoded;
-
 use input::Input;
+
 
 pub trait Endpoint {
     type Future: Future;
@@ -32,18 +31,12 @@ impl Endpoint for Param {
     type Future = FutureResult<String, ParamIsNotSet>;
 
     fn apply(&self, input: Input) -> Result<Self::Future, Input> {
-        Ok(
-            input
-                .req
-                .query()
-                .and_then(|query| {
-                    form_urlencoded::parse(query.as_bytes())
-                        .find(|&(ref k, _)| k == &self.name)
-                        .map(|(_, v)| v.into_owned())
-                })
-                .ok_or(ParamIsNotSet(self.name.clone()))
-                .into_future(),
-        )
+        let value = if let Some(value) = input.params.get(self.name.borrow() as &str) {
+            Some(Ok(value.to_owned()))
+        } else {
+            None
+        };
+        value.map(IntoFuture::into_future).ok_or(input)
     }
 }
 
