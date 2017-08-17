@@ -9,3 +9,9 @@ impl Responder for &'static str {
         Response::new().with_body(self)
     }
 }
+
+impl Responder for String {
+    fn respond(self) -> Response {
+        Response::new().with_body(self)
+    }
+}
