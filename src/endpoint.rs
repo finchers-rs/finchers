@@ -23,6 +23,7 @@ where
 }
 
 
+#[derive(Debug)]
 pub struct Param {
     name: Cow<'static, str>,
 }
@@ -51,4 +52,58 @@ pub struct ParamIsNotSet(Cow<'static, str>);
 
 pub fn param<S: Into<Cow<'static, str>>>(name: S) -> Param {
     Param { name: name.into() }
+}
+
+
+
+#[derive(Debug)]
+pub struct PathEnd<E: Endpoint> {
+    endpoint: E,
+}
+
+impl<E: Endpoint> Endpoint for PathEnd<E> {
+    type Future = E::Future;
+
+    fn apply(&self, input: Input) -> Result<Self::Future, Input> {
+        if input.routes.len() > 0 {
+            return Err(input);
+        }
+        self.endpoint.apply(input)
+    }
+}
+
+pub fn path_end<E: Endpoint>(endpoint: E) -> PathEnd<E> {
+    PathEnd { endpoint }
+}
+
+
+#[derive(Debug)]
+pub struct Path<E: Endpoint> {
+    name: Cow<'static, str>,
+    endpoint: E,
+}
+
+impl<E: Endpoint> Endpoint for Path<E> {
+    type Future = E::Future;
+
+    fn apply(&self, mut input: Input) -> Result<Self::Future, Input> {
+        let is_matched = input
+            .routes
+            .get(0)
+            .map(|route| route == &self.name)
+            .unwrap_or(false);
+        if !is_matched {
+            return Err(input);
+        }
+
+        input.routes = input.routes.into_iter().skip(1).collect();
+        self.endpoint.apply(input)
+    }
+}
+
+pub fn path<S: Into<Cow<'static, str>>, E: Endpoint>(name: S, endpoint: E) -> Path<E> {
+    Path {
+        name: name.into(),
+        endpoint,
+    }
 }
