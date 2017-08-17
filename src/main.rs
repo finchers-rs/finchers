@@ -11,7 +11,10 @@ use futures::{Future, Stream};
 use hyper::Get;
 use tokio_core::reactor::Core;
 
-use endpoint::{Endpoint, param, path, path_end};
+use endpoint::Endpoint;
+use endpoint::param::param;
+use endpoint::path::{path, path_end};
+
 use input::Input;
 use responder::Responder;
 
@@ -49,42 +52,3 @@ fn main() {
     }
 }
 
-#[test]
-fn case1() {
-    let endpoint = path("foo", path("bar", path_end(param("hello"))));
-    let input = Input::new(Get, "/foo/bar?hello=world");
-    let output = endpoint.apply(input);
-    assert!(output.is_ok());
-}
-
-#[test]
-fn case1_1() {
-    let endpoint = path("foo", path("bar", path_end(param("hello"))));
-    let input = Input::new(Get, "/foo/bar/?hello=world");
-    let output = endpoint.apply(input);
-    assert!(output.is_ok());
-}
-
-#[test]
-fn case1_2() {
-    let endpoint = path("foo", path("bar", path_end(param("hello"))));
-    let input = Input::new(Get, "/foo/bar/");
-    let output = endpoint.apply(input);
-    assert!(output.is_err());
-}
-
-#[test]
-fn case2() {
-    let endpoint = path("foo", path("bar", path_end(param("hello"))));
-    let input = Input::new(Get, "/foo/bar/baz?hello=world");
-    let output = endpoint.apply(input);
-    assert!(output.is_err());
-}
-
-#[test]
-fn case3() {
-    let endpoint = path("foo", path("bar", path_end(param("hello"))));
-    let input = Input::new(Get, "/foo/?hello=world");
-    let output = endpoint.apply(input);
-    assert!(output.is_err());
-}
