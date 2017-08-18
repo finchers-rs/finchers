@@ -15,6 +15,10 @@ error_chain! {
             description("no route")
             display("no route")
         }
+        InvalidMethod {
+            description("invalid method")
+            display("invalid method")
+        }
     }
 }
 

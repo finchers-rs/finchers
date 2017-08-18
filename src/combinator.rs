@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 use std::str::FromStr;
 use futures::Future;
 use futures::future::{self, ok, FutureResult};
+use hyper::Method;
 
 use either::Either;
 use endpoint::{Context, Endpoint, EndpointResult, EndpointErrorKind};
@@ -238,4 +239,30 @@ impl<T: FromStr> Endpoint for PathSeq<T> {
 
 pub fn path_seq<T: FromStr>() -> PathSeq<T> {
     PathSeq(PhantomData)
+}
+
+
+// ------------------------------------------------------------------
+
+pub struct MatchMethod<E>(Method, E);
+
+impl<E: Endpoint> Endpoint for MatchMethod<E> {
+    type Item = E::Item;
+    type Error = E::Error;
+    type Future = E::Future;
+
+    fn apply<'r>(self, ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
+        if ctx.request.method != self.0 {
+            return Err(EndpointErrorKind::InvalidMethod.into());
+        }
+        self.1.apply(ctx)
+    }
+}
+
+pub fn get<E: Endpoint>(endpoint: E) -> MatchMethod<E> {
+    MatchMethod(Method::Get, endpoint)
+}
+
+pub fn post<E: Endpoint>(endpoint: E) -> MatchMethod<E> {
+    MatchMethod(Method::Post, endpoint)
 }

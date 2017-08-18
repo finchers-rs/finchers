@@ -5,12 +5,12 @@ extern crate futures;
 extern crate hyper;
 extern crate tokio_core;
 
-use finch::combinator::{path, path_seq};
+use finch::combinator::{path, path_seq, get};
 use finch::either::Either;
 use finch::endpoint::{Context, Endpoint, EndpointResult};
 use finch::request::{Request, Body};
 
-use hyper::{Method, Get};
+use hyper::{Method, Get, Post};
 use tokio_core::reactor::Core;
 
 fn run_test<E: Endpoint>(
@@ -38,23 +38,22 @@ where
 
 
 #[derive(Debug)]
-struct Params(u32, Vec<String>);
-
-fn endpoint1() -> impl Endpoint<Item = Params, Error = ()> + 'static {
-    "foo"
-        .with("bar")
-        .with(path::<u32>())
-        .skip("baz")
-        .join(path_seq::<String>())
-        .map(|(id, seq)| Params(id, seq))
+enum Params {
+    A(u32, Vec<String>),
+    B,
 }
 
-fn endpoint2() -> impl Endpoint<Item = (), Error = ()> + 'static {
-    "hello".with("world")
-}
+fn endpoint() -> impl Endpoint<Item = Params, Error = ()> + 'static {
+    let e1 = "foo".with("bar").with(path::<u32>()).skip("baz").join(
+        path_seq::<String>(),
+    );
 
-fn endpoint() -> impl Endpoint<Item = Either<Params, ()>, Error = ()> + 'static {
-    endpoint1().or(endpoint2())
+    let e2 = "hello".with("world");
+
+    get(e1).or(get(e2)).map(|e| match e {
+        Either::A((id, seq)) => Params::A(id, seq),
+        Either::B(()) => Params::B,
+    })
 }
 
 fn main() {
@@ -64,6 +63,12 @@ fn main() {
     );
     // => Ok(Ok(Either::A(Params(42, ["foo", "bar"]))))
 
+    println!(
+        "{:?}",
+        run_test(endpoint(), Post, "/foo/bar/42/baz/foo/bar/")
+    );
+    // => Err(InvalidMethod)
+
     println!("{:?}", run_test(endpoint(), Get, "/hello/world"));
     // => Ok(Ok(Either::B(())))
 
@@ -71,5 +76,5 @@ fn main() {
         "{:?}",
         run_test(endpoint(), Get, "/foo/baz/42/baz/foo/bar/")
     );
-    // => Err(())
+    // => Err(NoRoute)
 }
