@@ -68,7 +68,7 @@ pub trait Endpoint: Sized {
 
     fn or<E>(self, e: E) -> Or<Self, E>
     where
-        E: Endpoint<Error = Self::Error>,
+        E: Endpoint<Item = Self::Item, Error = Self::Error>,
     {
         Or(self, e)
     }

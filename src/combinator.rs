@@ -1,7 +1,8 @@
 use std::borrow::Cow;
 use std::marker::PhantomData;
 use std::str::FromStr;
-use futures::Future;
+
+use futures::{Future, Poll};
 use futures::future::{self, ok, FutureResult};
 use hyper::Method;
 
@@ -169,17 +170,35 @@ pub struct Or<E1, E2>(pub(crate) E1, pub(crate) E2);
 impl<E1, E2> Endpoint for Or<E1, E2>
 where
     E1: Endpoint,
-    E2: Endpoint<Error = E1::Error>,
+    E2: Endpoint<Item = E1::Item, Error = E1::Error>,
 {
-    type Item = Either<E1::Item, E2::Item>;
+    type Item = E1::Item;
     type Error = E1::Error;
-    type Future = Either<E1::Future, E2::Future>;
+    type Future = OrFuture<E1::Future, E2::Future>;
 
     fn apply<'r>(self, ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
         let Or(e1, e2) = self;
         e1.apply(ctx.clone())
             .map(|(ctx, a)| (ctx, Either::A(a)))
             .or_else(|_| e2.apply(ctx).map(|(ctx, b)| (ctx, Either::B(b))))
+            .map(|(ctx, f)| (ctx, OrFuture(f)))
+    }
+}
+
+pub struct OrFuture<E1, E2>(Either<E1, E2>);
+
+impl<E1, E2> Future for OrFuture<E1, E2>
+where
+    E1: Future,
+    E2: Future<Item = E1::Item, Error = E1::Error>,
+{
+    type Item = E1::Item;
+    type Error = E1::Error;
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        match try_ready!(self.0.poll()) {
+            Either::A(a) => Ok(a.into()),
+            Either::B(b) => Ok(b.into()),
+        }
     }
 }
 

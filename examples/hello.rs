@@ -6,7 +6,6 @@ extern crate hyper;
 extern crate tokio_core;
 
 use finch::combinator::{path, path_seq, get};
-use finch::either::Either;
 use finch::endpoint::{Context, Endpoint};
 use finch::errors::EndpointResult;
 use finch::request::{Request, Body};
@@ -44,17 +43,19 @@ enum Params {
     B,
 }
 
-fn endpoint() -> impl Endpoint<Item = Params, Error = ()> + 'static {
-    let e1 = "foo".with("bar").with(path::<u32>()).skip("baz").join(
-        path_seq::<String>(),
+fn endpoint() -> impl Endpoint<Item = Params, Error = &'static str> + 'static {
+    let e1 = "foo"
+        .with("bar")
+        .with(path::<u32>())
+        .skip("baz")
+        .join(path_seq::<String>())
+        .map(|(id, seq)| Params::A(id, seq))
+        .map_err(|_| "endpoint 1");
+    let e2 = "hello".with("world").map(|_| Params::B).map_err(
+        |_| "endpoint 2",
     );
 
-    let e2 = "hello".with("world");
-
-    get(e1).or(get(e2)).map(|e| match e {
-        Either::A((id, seq)) => Params::A(id, seq),
-        Either::B(()) => Params::B,
-    })
+    get(e1).or(get(e2))
 }
 
 fn main() {
