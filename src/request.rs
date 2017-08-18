@@ -5,6 +5,7 @@ pub struct Request {
     pub method: Method,
     pub uri: Uri,
     pub headers: Headers,
+    pub body: Option<Body>,
 }
 
 impl Request {

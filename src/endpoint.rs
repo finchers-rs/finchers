@@ -4,7 +4,7 @@ use futures::Future;
 use url::form_urlencoded;
 
 use combinator::{With, Map, Skip};
-use request::{Request, Body};
+use request::Request;
 
 error_chain! {
     types {
@@ -26,7 +26,7 @@ pub trait Endpoint: Sized {
     type Future: Future<Item = Self::Item, Error = Self::Error>;
 
     /// Run the endpoint.
-    fn apply(self, req: &Request, ctx: &mut Context) -> EndpointResult<Self::Future>;
+    fn apply(self, req: &Request, ctx: Context) -> EndpointResult<(Context, Self::Future)>;
 
 
     fn join<E>(self, e: E) -> (Self, E)
@@ -86,22 +86,17 @@ pub trait Endpoint: Sized {
 }
 
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Context {
     pub routes: VecDeque<String>,
     pub params: HashMap<String, String>,
-    pub body: Option<Body>,
 }
 
 impl Context {
-    pub fn new(req: &Request, body: Body) -> Self {
+    pub fn new(req: &Request) -> Self {
         let routes = to_path_segments(req.path());
         let params = req.query().map(to_query_map).unwrap_or_default();
-        Context {
-            routes,
-            params,
-            body: Some(body),
-        }
+        Context { routes, params }
     }
 }
 

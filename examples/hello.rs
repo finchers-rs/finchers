@@ -7,7 +7,7 @@ extern crate tokio_core;
 
 use finch::combinator::{path, path_seq};
 use finch::endpoint::{Context, Endpoint, EndpointResult};
-use finch::request::Request;
+use finch::request::{Request, Body};
 
 use hyper::{Method, Get};
 use tokio_core::reactor::Core;
@@ -25,10 +25,11 @@ where
         method,
         uri: uri.parse().unwrap(),
         headers: Default::default(),
+        body: Some(Body::default()),
     };
-    let mut ctx = Context::new(&req, Default::default());
+    let ctx = Context::new(&req);
 
-    let f = endpoint.apply(&req, &mut ctx)?;
+    let (_ctx, f) = endpoint.apply(&req, ctx)?;
 
     let mut core = Core::new().unwrap();
     Ok(core.run(f))
