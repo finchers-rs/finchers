@@ -106,6 +106,26 @@ where
 }
 
 
+pub struct Skip<E1, E2>(pub(crate) E1, pub(crate) E2);
+
+impl<E1, E2> Endpoint for Skip<E1, E2>
+where
+    E1: Endpoint,
+    E2: Endpoint<Error = E1::Error>,
+{
+    type Item = E1::Item;
+    type Error = E1::Error;
+    type Future = E1::Future;
+
+    fn apply(self, req: &Request, ctx: &mut Context) -> EndpointResult<Self::Future> {
+        let Skip(e1, e2) = self;
+        let f = e1.apply(req, ctx)?;
+        let _f = e2.apply(req, ctx)?;
+        Ok(f)
+    }
+}
+
+
 pub struct Map<E, F>(pub(crate) E, pub(crate) F);
 
 impl<E, F, R> Endpoint for Map<E, F>

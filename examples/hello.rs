@@ -42,7 +42,8 @@ fn endpoint() -> impl Endpoint<Item = Params, Error = ()> + 'static {
     "foo"
         .with("bar")
         .with(path::<u32>())
-        .join("baz".with(path_seq::<String>()))
+        .skip("baz")
+        .join(path_seq::<String>())
         .map(|(id, seq)| Params(id, seq))
 }
 

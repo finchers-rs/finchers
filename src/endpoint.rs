@@ -5,7 +5,7 @@ use std::error;
 use futures::Future;
 use url::form_urlencoded;
 
-use combinator::{With, Map};
+use combinator::{With, Map, Skip};
 use request::{Request, Body};
 
 
@@ -76,6 +76,13 @@ pub trait Endpoint: Sized {
         E: Endpoint<Error = Self::Error>,
     {
         With(self, e)
+    }
+
+    fn skip<E>(self, e: E) -> Skip<Self, E>
+    where
+        E: Endpoint<Error = Self::Error>,
+    {
+        Skip(self, e)
     }
 
     fn map<F, U>(self, f: F) -> Map<Self, F>
