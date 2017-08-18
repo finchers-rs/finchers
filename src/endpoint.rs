@@ -3,7 +3,7 @@ use std::collections::{HashMap, VecDeque};
 use url::form_urlencoded;
 use request::{Request, Body};
 
-use combinator::With;
+use combinator::{With, Map};
 
 /// A trait represents the HTTP endpoint.
 pub trait Endpoint: Sized {
@@ -54,6 +54,13 @@ pub trait Endpoint: Sized {
         E: Endpoint<Error = Self::Error>,
     {
         With(self, e)
+    }
+
+    fn map<F, U>(self, f: F) -> Map<Self, F>
+    where
+        F: FnOnce(Self::Item) -> U,
+    {
+        Map(self, f)
     }
 }
 

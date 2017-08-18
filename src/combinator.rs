@@ -1,7 +1,8 @@
 use std::borrow::Cow;
 use std::marker::PhantomData;
 use std::str::FromStr;
-use futures::future::{ok, FutureResult};
+use futures::Future;
+use futures::future::{self, ok, FutureResult};
 
 use endpoint::{Context, Endpoint};
 use request::Request;
@@ -87,21 +88,42 @@ pub mod join {
 }
 
 
-pub struct With<P1, P2>(pub P1, pub P2);
+pub struct With<E1, E2>(pub(crate) E1, pub(crate) E2);
 
-impl<P1, P2> Endpoint for With<P1, P2>
+impl<E1, E2> Endpoint for With<E1, E2>
 where
-    P1: Endpoint,
-    P2: Endpoint<Error = P1::Error>,
+    E1: Endpoint,
+    E2: Endpoint<Error = E1::Error>,
 {
-    type Item = P2::Item;
-    type Error = P2::Error;
-    type Future = P2::Future;
+    type Item = E2::Item;
+    type Error = E2::Error;
+    type Future = E2::Future;
+
     fn apply(&self, req: &Request, ctx: &mut Context) -> Result<Self::Future, ()> {
         self.0.apply(req, ctx).and_then(|_| self.1.apply(req, ctx))
     }
 }
 
+
+pub struct Map<E, F>(pub(crate) E, pub(crate) F);
+
+impl<E, F, R> Endpoint for Map<E, F>
+where
+    E: Endpoint,
+    F: FnOnce(E::Item) -> R + Copy, // workaround: the function pointer does not
+{
+    type Item = R;
+    type Error = E::Error;
+    type Future = future::Map<E::Future, F>;
+
+    fn apply(&self, req: &Request, ctx: &mut Context) -> Result<Self::Future, ()> {
+        let f = self.0.apply(req, ctx)?;
+        Ok(f.map(self.1))
+    }
+}
+
+
+// --------------------------------------------------------------------------------------
 
 impl<'a> Endpoint for &'a str {
     type Item = ();
