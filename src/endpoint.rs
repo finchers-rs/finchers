@@ -3,7 +3,7 @@ use std::collections::{HashMap, VecDeque};
 use futures::Future;
 use url::form_urlencoded;
 
-use combinator::{With, Map, Skip};
+use combinator::{With, Map, Skip, Or};
 use request::Request;
 
 error_chain! {
@@ -75,6 +75,13 @@ pub trait Endpoint: Sized {
         E: Endpoint<Error = Self::Error>,
     {
         Skip(self, e)
+    }
+
+    fn or<E>(self, e: E) -> Or<Self, E>
+    where
+        E: Endpoint<Error = Self::Error>,
+    {
+        Or(self, e)
     }
 
     fn map<F, U>(self, f: F) -> Map<Self, F>

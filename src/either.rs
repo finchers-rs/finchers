@@ -1,6 +1,7 @@
 use futures::{Future, Poll};
 
 
+#[derive(Debug)]
 pub enum Either<A, B> {
     A(A),
     B(B),
