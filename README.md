@@ -24,8 +24,8 @@ fn main() {
     // create a factory of endpoints.
     let new_endpoint = || {
         get(
-            "hello".with(string_).with(end_)
-                .map(|()| Json("Hello, world"))
+            "hello".with(string_).skip(end_)
+                .map(|name| Json(format!("Hello, {}", name)))
         )
     };
 
