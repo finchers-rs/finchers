@@ -26,6 +26,10 @@ pub mod errors {
                 description("invalid method")
                 display("invalid method")
             }
+            RemainingPath {
+                description("remaining path")
+                display("remaining path")
+            }
         }
     }
 }

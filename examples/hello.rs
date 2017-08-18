@@ -5,10 +5,12 @@ extern crate futures;
 extern crate hyper;
 extern crate tokio_core;
 
-use finch::combinator::{path, path_seq, get};
 use finch::endpoint::{Context, Endpoint};
 use finch::errors::EndpointResult;
 use finch::request::{Request, Body};
+
+use finch::combinator::get;
+use finch::combinator::path::{u32_, string_vec_, end_};
 
 use hyper::{Method, Get, Post};
 use tokio_core::reactor::Core;
@@ -53,21 +55,16 @@ impl From<(u32, Vec<String>)> for Params {
 #[cfg_attr(rustfmt, rustfmt_skip)]
 fn endpoint() -> impl Endpoint<Item = Params, Error = &'static str> + 'static {
     // "/foo/bar/<id:u32>/baz/<seq...:[String]>" => Params::A(id, seq)
-    let e1 = "foo"
-        .with("bar")
-        .with(path::<u32>())
-        .skip("baz")
-        .join(path_seq::<String>())
+    let e1 = get("foo".with("bar").with(u32_).skip("baz").join(string_vec_))
         .map(Into::into)
         .map_err(|_| "endpoint 1");
 
     // "/hello/world" => Params::B
-    let e2 = "hello"
-        .with("world")
+    let e2 = get("hello".with("world").skip(end_))
         .map(|_| Params::B)
         .map_err(|_| "endpoint 2");
 
-    get(e1).or(get(e2))
+    e1.or(e2)
 }
 
 fn main() {
@@ -91,4 +88,7 @@ fn main() {
         run_test(endpoint(), Post, "/foo/bar/42/baz/foo/bar/")
     );
     // => Err(InvalidMethod)
+
+    println!("{:?}", run_test(endpoint(), Get, "/hello/world/hoge"));
+    // => Err(NoRoute)
 }
