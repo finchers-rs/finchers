@@ -4,7 +4,8 @@ use std::str::FromStr;
 use futures::Future;
 use futures::future::{self, ok, FutureResult};
 
-use endpoint::{Context, Endpoint, EndpointResult, NoRoute};
+use either::Either;
+use endpoint::{Context, Endpoint, EndpointResult, EndpointErrorKind};
 use request::Request;
 
 pub mod join {
@@ -144,6 +145,25 @@ where
 }
 
 
+pub struct Or<E1, E2>(pub(crate) E1, pub(crate) E2);
+
+impl<E1, E2> Endpoint for Or<E1, E2>
+where
+    E1: Endpoint,
+    E2: Endpoint<Error = E1::Error>,
+{
+    type Item = Either<E1::Item, E2::Item>;
+    type Error = E1::Error;
+    type Future = Either<E1::Future, E2::Future>;
+    fn apply(self, req: &Request, ctx: &mut Context) -> EndpointResult<Self::Future> {
+        let Or(e1, e2) = self;
+        e1.apply(req, ctx).map(Either::A).or_else(|_| {
+            e2.apply(req, ctx).map(Either::B)
+        })
+    }
+}
+
+
 // --------------------------------------------------------------------------------------
 
 impl<'a> Endpoint for &'a str {
@@ -154,7 +174,7 @@ impl<'a> Endpoint for &'a str {
     fn apply(self, _req: &Request, ctx: &mut Context) -> EndpointResult<Self::Future> {
         match ctx.routes.get(0) {
             Some(s) if s == self => {}
-            _ => return Err(NoRoute),
+            _ => return Err(EndpointErrorKind::NoRoute.into()),
         }
         ctx.routes.pop_front();
         Ok(ok(()))
@@ -192,7 +212,7 @@ impl<T: FromStr> Endpoint for Path<T> {
     fn apply(self, _req: &Request, ctx: &mut Context) -> EndpointResult<Self::Future> {
         let value: T = match ctx.routes.get(0).and_then(|s| s.parse().ok()) {
             Some(val) => val,
-            _ => return Err(NoRoute),
+            _ => return Err(EndpointErrorKind::NoRoute.into()),
         };
         ctx.routes.pop_front();
         Ok(ok(value))

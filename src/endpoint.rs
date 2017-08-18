@@ -1,6 +1,4 @@
 use std::collections::{HashMap, VecDeque};
-use std::fmt;
-use std::error;
 
 use futures::Future;
 use url::form_urlencoded;
@@ -8,23 +6,17 @@ use url::form_urlencoded;
 use combinator::{With, Map, Skip};
 use request::{Request, Body};
 
-
-#[derive(Debug)]
-pub struct NoRoute;
-
-impl fmt::Display for NoRoute {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "no route")
+error_chain! {
+    types {
+        EndpointError, EndpointErrorKind, ResultExt, EndpointResult;
+    }
+    errors {
+        NoRoute {
+            description("no route")
+            display("no route")
+        }
     }
 }
-
-impl error::Error for NoRoute {
-    fn description(&self) -> &str {
-        "no route"
-    }
-}
-
-pub type EndpointResult<T> = ::std::result::Result<T, NoRoute>;
 
 
 /// A trait represents the HTTP endpoint.

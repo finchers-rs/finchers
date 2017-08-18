@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 
 [dependencies]
+error-chain = "~0.10"
 hyper = "~0.11"
 futures = "~0.1"
 tokio-core = "~0.1"
