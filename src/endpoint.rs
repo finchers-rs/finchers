@@ -109,4 +109,3 @@ pub trait Endpoint: Sized {
         MapErr(self, f)
     }
 }
-
