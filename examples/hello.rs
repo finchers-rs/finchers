@@ -6,7 +6,7 @@ extern crate hyper;
 extern crate tokio_core;
 
 use finch::combinator::{path, path_seq};
-use finch::endpoint::{Context, Endpoint};
+use finch::endpoint::{Context, Endpoint, EndpointResult};
 use finch::request::Request;
 
 use hyper::{Method, Get};
@@ -16,7 +16,7 @@ fn run_test<E: Endpoint>(
     endpoint: E,
     method: Method,
     uri: &str,
-) -> Result<Result<E::Item, E::Error>, ()>
+) -> EndpointResult<Result<E::Item, E::Error>>
 where
     E::Item: std::fmt::Debug,
     E::Error: std::fmt::Debug,

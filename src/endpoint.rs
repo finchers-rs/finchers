@@ -1,9 +1,31 @@
-use futures::Future;
 use std::collections::{HashMap, VecDeque};
+use std::fmt;
+use std::error;
+
+use futures::Future;
 use url::form_urlencoded;
-use request::{Request, Body};
 
 use combinator::{With, Map};
+use request::{Request, Body};
+
+
+#[derive(Debug)]
+pub struct NoRoute;
+
+impl fmt::Display for NoRoute {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "no route")
+    }
+}
+
+impl error::Error for NoRoute {
+    fn description(&self) -> &str {
+        "no route"
+    }
+}
+
+pub type EndpointResult<T> = ::std::result::Result<T, NoRoute>;
+
 
 /// A trait represents the HTTP endpoint.
 pub trait Endpoint: Sized {
@@ -12,7 +34,7 @@ pub trait Endpoint: Sized {
     type Future: Future<Item = Self::Item, Error = Self::Error>;
 
     /// Run the endpoint.
-    fn apply(self, req: &Request, ctx: &mut Context) -> Result<Self::Future, ()>;
+    fn apply(self, req: &Request, ctx: &mut Context) -> EndpointResult<Self::Future>;
 
 
     fn join<E>(self, e: E) -> (Self, E)
