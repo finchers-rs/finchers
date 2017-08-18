@@ -265,13 +265,20 @@ pub fn path<T: FromStr>() -> Path<T> {
 
 pub struct PathSeq<T>(PhantomData<fn(T) -> T>);
 
-impl<T: FromStr> Endpoint for PathSeq<T> {
+impl<T: FromStr> Endpoint for PathSeq<T>
+where
+    T::Err: ::std::fmt::Display,
+{
     type Item = Vec<T>;
     type Error = ();
     type Future = FutureResult<Vec<T>, ()>;
 
     fn apply<'r>(self, mut ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
-        let seq = ctx.routes.iter().filter_map(|s| s.parse().ok()).collect();
+        let seq = ctx.routes
+            .iter()
+            .map(|s| s.parse())
+            .collect::<Result<_, T::Err>>()
+            .map_err(|e| e.to_string())?;
         ctx.routes = Default::default();
         Ok((ctx, ok(seq)))
     }
