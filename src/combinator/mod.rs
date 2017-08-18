@@ -2,6 +2,7 @@ pub mod core;
 pub mod join;
 pub mod path;
 pub mod method;
+pub mod header;
 
 use std::borrow::Cow;
 use futures::future::{ok, FutureResult};
