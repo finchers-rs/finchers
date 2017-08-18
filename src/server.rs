@@ -1,6 +1,7 @@
 use std::io;
 use std::fmt::Debug;
 use std::sync::Arc;
+use std::error;
 
 use futures::Future;
 use futures::future::ok;
@@ -20,6 +21,7 @@ where
     E::Item: Responder,
     E::Error: Debug,
     E::Future: 'static,
+    <E::Item as Responder>::Error: error::Error + Send + Sync + 'static
 {
     type Request = hyper::Request;
     type Response = hyper::Response;
@@ -38,9 +40,15 @@ where
         let endpoint = self.0.new_endpoint();
         match endpoint.apply(ctx) {
             Ok((_ctx, f)) => {
-                Box::new(f.map(|r| r.respond()).map_err(|_| {
-                    io::Error::new(io::ErrorKind::Other, "handle error").into()
-                }))
+                Box::new(
+                    f.map_err(|_| {
+                        io::Error::new(io::ErrorKind::Other, "handle error").into()
+                    }).and_then(|r| {
+                            r.respond().map_err(
+                                |err| io::Error::new(io::ErrorKind::Other, err).into(),
+                            )
+                        }),
+                )
             }
             Err(err) => {
                 Box::new(ok(
@@ -58,6 +66,7 @@ pub fn run_http<E: NewEndpoint + Send + Sync + 'static>(new_endpoint: E, addr: &
 where
     E::Item: Responder,
     E::Error: Debug,
+    <E::Item as Responder>::Error: error::Error + Send + Sync,
 {
     let new_endpoint = Arc::new(new_endpoint);
 

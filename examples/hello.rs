@@ -1,22 +1,19 @@
 extern crate finchers;
+extern crate serde;
+#[macro_use]
+extern crate serde_derive;
 
-use finchers::{Endpoint, Responder, Response};
+use finchers::Endpoint;
 use finchers::combinator::method::get;
 use finchers::combinator::path::{u32_, string_vec_, end_};
+use finchers::response::Json;
 use finchers::server::run_http;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 enum Params {
     A(u32, Vec<String>),
     B,
 }
-
-impl Responder for Params {
-    fn respond(self) -> Response {
-        Response::new().with_body(format!("{:?}", self))
-    }
-}
-
 
 fn main() {
     let new_endpoint = || {
@@ -27,7 +24,7 @@ fn main() {
         // "/hello/world" => Params::B
         let e2 = get("hello".with("world").skip(end_)).map(|()| Params::B);
 
-        e1.or(e2)
+        e1.or(e2).map(Json)
     };
 
     run_http(new_endpoint, "127.0.0.1:3000")
