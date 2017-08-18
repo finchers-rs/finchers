@@ -7,7 +7,8 @@ extern crate tokio_core;
 
 use finch::combinator::{path, path_seq, get};
 use finch::either::Either;
-use finch::endpoint::{Context, Endpoint, EndpointResult};
+use finch::endpoint::{Context, Endpoint};
+use finch::errors::EndpointResult;
 use finch::request::{Request, Body};
 
 use hyper::{Method, Get, Post};

@@ -11,3 +11,21 @@ pub mod either;
 pub mod endpoint;
 pub mod request;
 pub mod response;
+
+pub mod errors {
+    error_chain! {
+        types {
+            EndpointError, EndpointErrorKind, ResultExt, EndpointResult;
+        }
+        errors {
+            NoRoute {
+                description("no route")
+                display("no route")
+            }
+            InvalidMethod {
+                description("invalid method")
+                display("invalid method")
+            }
+        }
+    }
+}

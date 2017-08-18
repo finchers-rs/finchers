@@ -6,10 +6,13 @@ use futures::future::{self, ok, FutureResult};
 use hyper::Method;
 
 use either::Either;
-use endpoint::{Context, Endpoint, EndpointResult, EndpointErrorKind};
+use endpoint::{Context, Endpoint};
+use errors::{EndpointResult, EndpointErrorKind};
+
 
 pub mod join {
-    use endpoint::{Context, Endpoint, EndpointResult};
+    use endpoint::{Context, Endpoint};
+    use errors::EndpointResult;
     use futures::Future;
     use futures::future::{Join, Join3, Join4, Join5};
 
@@ -143,6 +146,23 @@ where
     }
 }
 
+pub struct MapErr<E, F>(pub(crate) E, pub(crate) F);
+
+impl<E, F, R> Endpoint for MapErr<E, F>
+where
+    E: Endpoint,
+    F: FnOnce(E::Error) -> R,
+{
+    type Item = E::Item;
+    type Error = R;
+    type Future = future::MapErr<E::Future, F>;
+
+    fn apply<'r>(self, ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
+        let MapErr(e, f) = self;
+        e.apply(ctx).map(|(ctx, fut)| (ctx, fut.map_err(f)))
+    }
+}
+
 
 pub struct Or<E1, E2>(pub(crate) E1, pub(crate) E2);
 
@@ -154,6 +174,7 @@ where
     type Item = Either<E1::Item, E2::Item>;
     type Error = E1::Error;
     type Future = Either<E1::Future, E2::Future>;
+
     fn apply<'r>(self, ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
         let Or(e1, e2) = self;
         e1.apply(ctx.clone())

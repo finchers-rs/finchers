@@ -3,24 +3,9 @@ use std::collections::{HashMap, VecDeque};
 use futures::Future;
 use url::form_urlencoded;
 
-use combinator::{With, Map, Skip, Or};
+use combinator::{With, Map, MapErr, Skip, Or};
+use errors::EndpointResult;
 use request::Request;
-
-error_chain! {
-    types {
-        EndpointError, EndpointErrorKind, ResultExt, EndpointResult;
-    }
-    errors {
-        NoRoute {
-            description("no route")
-            display("no route")
-        }
-        InvalidMethod {
-            description("invalid method")
-            display("invalid method")
-        }
-    }
-}
 
 
 /// A trait represents the HTTP endpoint.
@@ -93,6 +78,13 @@ pub trait Endpoint: Sized {
         F: FnOnce(Self::Item) -> U,
     {
         Map(self, f)
+    }
+
+    fn map_err<F, U>(self, f: F) -> MapErr<Self, F>
+    where
+        F: FnOnce(Self::Error) -> U,
+    {
+        MapErr(self, f)
     }
 }
 
