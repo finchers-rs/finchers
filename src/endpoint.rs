@@ -1,6 +1,6 @@
 use futures::Future;
 
-use combinator::{With, Map, MapErr, Skip, Or};
+use combinator::core::{With, Map, MapErr, Skip, Or};
 use context::Context;
 use errors::EndpointResult;
 
