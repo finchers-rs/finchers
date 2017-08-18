@@ -22,7 +22,7 @@ pub mod join {
         type Item = (A::Item, B::Item);
         type Error = A::Error;
         type Future = Join<A::Future, B::Future>;
-        fn apply(&self, req: &Request, ctx: &mut Context) -> Result<Self::Future, ()> {
+        fn apply(self, req: &Request, ctx: &mut Context) -> Result<Self::Future, ()> {
             let a = self.0.apply(req, ctx)?;
             let b = self.1.apply(req, ctx)?;
             Ok(a.join(b))
@@ -38,7 +38,7 @@ pub mod join {
         type Item = (A::Item, B::Item, C::Item);
         type Error = A::Error;
         type Future = Join3<A::Future, B::Future, C::Future>;
-        fn apply(&self, req: &Request, ctx: &mut Context) -> Result<Self::Future, ()> {
+        fn apply(self, req: &Request, ctx: &mut Context) -> Result<Self::Future, ()> {
             let a = self.0.apply(req, ctx)?;
             let b = self.1.apply(req, ctx)?;
             let c = self.2.apply(req, ctx)?;
@@ -56,7 +56,7 @@ pub mod join {
         type Item = (A::Item, B::Item, C::Item, D::Item);
         type Error = A::Error;
         type Future = Join4<A::Future, B::Future, C::Future, D::Future>;
-        fn apply(&self, req: &Request, ctx: &mut Context) -> Result<Self::Future, ()> {
+        fn apply(self, req: &Request, ctx: &mut Context) -> Result<Self::Future, ()> {
             let a = self.0.apply(req, ctx)?;
             let b = self.1.apply(req, ctx)?;
             let c = self.2.apply(req, ctx)?;
@@ -76,7 +76,7 @@ pub mod join {
         type Item = (A::Item, B::Item, C::Item, D::Item, E::Item);
         type Error = A::Error;
         type Future = Join5<A::Future, B::Future, C::Future, D::Future, E::Future>;
-        fn apply(&self, req: &Request, ctx: &mut Context) -> Result<Self::Future, ()> {
+        fn apply(self, req: &Request, ctx: &mut Context) -> Result<Self::Future, ()> {
             let a = self.0.apply(req, ctx)?;
             let b = self.1.apply(req, ctx)?;
             let c = self.2.apply(req, ctx)?;
@@ -99,8 +99,9 @@ where
     type Error = E2::Error;
     type Future = E2::Future;
 
-    fn apply(&self, req: &Request, ctx: &mut Context) -> Result<Self::Future, ()> {
-        self.0.apply(req, ctx).and_then(|_| self.1.apply(req, ctx))
+    fn apply(self, req: &Request, ctx: &mut Context) -> Result<Self::Future, ()> {
+        let With(e1, e2) = self;
+        e1.apply(req, ctx).and_then(|_| e2.apply(req, ctx))
     }
 }
 
@@ -110,13 +111,13 @@ pub struct Map<E, F>(pub(crate) E, pub(crate) F);
 impl<E, F, R> Endpoint for Map<E, F>
 where
     E: Endpoint,
-    F: FnOnce(E::Item) -> R + Copy, // workaround: the function pointer does not
+    F: FnOnce(E::Item) -> R,
 {
     type Item = R;
     type Error = E::Error;
     type Future = future::Map<E::Future, F>;
 
-    fn apply(&self, req: &Request, ctx: &mut Context) -> Result<Self::Future, ()> {
+    fn apply(self, req: &Request, ctx: &mut Context) -> Result<Self::Future, ()> {
         let f = self.0.apply(req, ctx)?;
         Ok(f.map(self.1))
     }
@@ -130,7 +131,7 @@ impl<'a> Endpoint for &'a str {
     type Error = ();
     type Future = FutureResult<(), ()>;
 
-    fn apply(&self, _req: &Request, ctx: &mut Context) -> Result<Self::Future, ()> {
+    fn apply(self, _req: &Request, ctx: &mut Context) -> Result<Self::Future, ()> {
         match ctx.routes.get(0) {
             Some(s) if s == self => {}
             _ => return Err(()),
@@ -145,7 +146,7 @@ impl Endpoint for String {
     type Error = ();
     type Future = FutureResult<(), ()>;
 
-    fn apply(&self, req: &Request, ctx: &mut Context) -> Result<Self::Future, ()> {
+    fn apply(self, req: &Request, ctx: &mut Context) -> Result<Self::Future, ()> {
         (&self as &str).apply(req, ctx)
     }
 }
@@ -155,7 +156,7 @@ impl<'a> Endpoint for Cow<'a, str> {
     type Error = ();
     type Future = FutureResult<(), ()>;
 
-    fn apply(&self, req: &Request, ctx: &mut Context) -> Result<Self::Future, ()> {
+    fn apply(self, req: &Request, ctx: &mut Context) -> Result<Self::Future, ()> {
         (&self as &str).apply(req, ctx)
     }
 }
@@ -168,7 +169,7 @@ impl<T: FromStr> Endpoint for Path<T> {
     type Error = ();
     type Future = FutureResult<T, ()>;
 
-    fn apply(&self, _req: &Request, ctx: &mut Context) -> Result<Self::Future, ()> {
+    fn apply(self, _req: &Request, ctx: &mut Context) -> Result<Self::Future, ()> {
         let value: T = match ctx.routes.get(0).and_then(|s| s.parse().ok()) {
             Some(val) => val,
             _ => return Err(()),
@@ -190,7 +191,7 @@ impl<T: FromStr> Endpoint for PathSeq<T> {
     type Error = ();
     type Future = FutureResult<Vec<T>, ()>;
 
-    fn apply(&self, _req: &Request, ctx: &mut Context) -> Result<Self::Future, ()> {
+    fn apply(self, _req: &Request, ctx: &mut Context) -> Result<Self::Future, ()> {
         let seq = ctx.routes.iter().filter_map(|s| s.parse().ok()).collect();
         Ok(ok(seq))
     }

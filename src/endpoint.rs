@@ -12,7 +12,7 @@ pub trait Endpoint: Sized {
     type Future: Future<Item = Self::Item, Error = Self::Error>;
 
     /// Run the endpoint.
-    fn apply(&self, req: &Request, ctx: &mut Context) -> Result<Self::Future, ()>;
+    fn apply(self, req: &Request, ctx: &mut Context) -> Result<Self::Future, ()>;
 
 
     fn join<E>(self, e: E) -> (Self, E)

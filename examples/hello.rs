@@ -13,7 +13,7 @@ use hyper::{Method, Get};
 use tokio_core::reactor::Core;
 
 fn run_test<E: Endpoint>(
-    endpoint: &E,
+    endpoint: E,
     method: Method,
     uri: &str,
 ) -> Result<Result<E::Item, E::Error>, ()>
@@ -35,22 +35,27 @@ where
 }
 
 
-fn main() {
-    #[derive(Debug)]
-    struct Params(u32, Vec<String>);
+#[derive(Debug)]
+struct Params(u32, Vec<String>);
 
-    let endpoint = "foo"
+fn endpoint() -> impl Endpoint<Item = Params, Error = ()> + 'static {
+    "foo"
         .with("bar")
         .with(path::<u32>())
         .join("baz".with(path_seq::<String>()))
-        .map(
-            (|(id, seq)| Params(id, seq)) as fn((u32, Vec<String>)) -> Params,
-        );
+        .map(|(id, seq)| Params(id, seq))
+}
 
-    println!("{:?}", run_test(&endpoint, Get, "/foo/bar/42/baz/foo/bar/"));
+fn main() {
+    println!(
+        "{:?}",
+        run_test(endpoint(), Get, "/foo/bar/42/baz/foo/bar/")
+    );
     // => Ok(Ok(Params(42, ["foo", "bar"])))
 
-
-    println!("{:?}", run_test(&endpoint, Get, "/foo/baz/42/baz/foo/bar/"));
+    println!(
+        "{:?}",
+        run_test(endpoint(), Get, "/foo/baz/42/baz/foo/bar/")
+    );
     // => Err(())
 }
