@@ -18,7 +18,7 @@ pub mod test;
 pub mod errors {
     error_chain! {
         types {
-            EndpointError, EndpointErrorKind, ResultExt, EndpointResult;
+            EndpointError, EndpointErrorKind, EndpointResultExt, EndpointResult;
         }
         errors {
             NoRoute {
@@ -36,3 +36,14 @@ pub mod errors {
         }
     }
 }
+
+#[doc(inline)]
+pub use context::Context;
+#[doc(inline)]
+pub use endpoint::{Endpoint, NewEndpoint};
+#[doc(inline)]
+pub use errors::*;
+#[doc(inline)]
+pub use response::{Response, Responder};
+#[doc(inline)]
+pub use server::EndpointService;

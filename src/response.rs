@@ -1,4 +1,4 @@
-use hyper::Response;
+pub use hyper::Response;
 
 pub trait Responder {
     fn respond(self) -> Response;

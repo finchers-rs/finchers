@@ -1,10 +1,11 @@
 use std::io;
 use std::fmt::Debug;
+use std::sync::Arc;
 
 use futures::Future;
 use futures::future::ok;
 use hyper;
-use hyper::server::Service;
+use hyper::server::{Http, Service};
 
 use context::Context;
 use endpoint::{Endpoint, NewEndpoint};
@@ -50,4 +51,20 @@ where
             }
         }
     }
+}
+
+
+pub fn run_http<E: NewEndpoint + Send + Sync + 'static>(new_endpoint: E, addr: &str)
+where
+    E::Item: Responder,
+    E::Error: Debug,
+{
+    let new_endpoint = Arc::new(new_endpoint);
+
+    let addr = addr.parse().unwrap();
+    let server = Http::new()
+        .bind(&addr, move || Ok(EndpointService(new_endpoint.clone())))
+        .unwrap();
+    server.run().unwrap();
+
 }

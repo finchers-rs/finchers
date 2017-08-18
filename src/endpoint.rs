@@ -1,6 +1,7 @@
 use futures::Future;
-use context::Context;
+
 use combinator::{With, Map, MapErr, Skip, Or};
+use context::Context;
 use errors::EndpointResult;
 
 
@@ -26,6 +27,28 @@ where
 
     fn new_endpoint(&self) -> Self::Endpoint {
         (*self)()
+    }
+}
+
+impl<E: NewEndpoint> NewEndpoint for ::std::rc::Rc<E> {
+    type Item = E::Item;
+    type Error = E::Error;
+    type Future = E::Future;
+    type Endpoint = E::Endpoint;
+
+    fn new_endpoint(&self) -> Self::Endpoint {
+        (**self).new_endpoint()
+    }
+}
+
+impl<E: NewEndpoint> NewEndpoint for ::std::sync::Arc<E> {
+    type Item = E::Item;
+    type Error = E::Error;
+    type Future = E::Future;
+    type Endpoint = E::Endpoint;
+
+    fn new_endpoint(&self) -> Self::Endpoint {
+        (**self).new_endpoint()
     }
 }
 
