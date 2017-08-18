@@ -6,11 +6,9 @@ use futures::future::{self, ok, FutureResult};
 
 use either::Either;
 use endpoint::{Context, Endpoint, EndpointResult, EndpointErrorKind};
-use request::Request;
 
 pub mod join {
     use endpoint::{Context, Endpoint, EndpointResult};
-    use request::Request;
     use futures::Future;
     use futures::future::{Join, Join3, Join4, Join5};
 
@@ -23,9 +21,9 @@ pub mod join {
         type Item = (A::Item, B::Item);
         type Error = A::Error;
         type Future = Join<A::Future, B::Future>;
-        fn apply(self, req: &Request, ctx: Context) -> EndpointResult<(Context, Self::Future)> {
-            let (ctx, a) = self.0.apply(req, ctx)?;
-            let (ctx, b) = self.1.apply(req, ctx)?;
+        fn apply<'r>(self, ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
+            let (ctx, a) = self.0.apply(ctx)?;
+            let (ctx, b) = self.1.apply(ctx)?;
             Ok((ctx, a.join(b)))
         }
     }
@@ -39,10 +37,10 @@ pub mod join {
         type Item = (A::Item, B::Item, C::Item);
         type Error = A::Error;
         type Future = Join3<A::Future, B::Future, C::Future>;
-        fn apply(self, req: &Request, ctx: Context) -> EndpointResult<(Context, Self::Future)> {
-            let (ctx, a) = self.0.apply(req, ctx)?;
-            let (ctx, b) = self.1.apply(req, ctx)?;
-            let (ctx, c) = self.2.apply(req, ctx)?;
+        fn apply<'r>(self, ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
+            let (ctx, a) = self.0.apply(ctx)?;
+            let (ctx, b) = self.1.apply(ctx)?;
+            let (ctx, c) = self.2.apply(ctx)?;
             Ok((ctx, a.join3(b, c)))
         }
     }
@@ -57,11 +55,11 @@ pub mod join {
         type Item = (A::Item, B::Item, C::Item, D::Item);
         type Error = A::Error;
         type Future = Join4<A::Future, B::Future, C::Future, D::Future>;
-        fn apply(self, req: &Request, ctx: Context) -> EndpointResult<(Context, Self::Future)> {
-            let (ctx, a) = self.0.apply(req, ctx)?;
-            let (ctx, b) = self.1.apply(req, ctx)?;
-            let (ctx, c) = self.2.apply(req, ctx)?;
-            let (ctx, d) = self.3.apply(req, ctx)?;
+        fn apply<'r>(self, ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
+            let (ctx, a) = self.0.apply(ctx)?;
+            let (ctx, b) = self.1.apply(ctx)?;
+            let (ctx, c) = self.2.apply(ctx)?;
+            let (ctx, d) = self.3.apply(ctx)?;
             Ok((ctx, a.join4(b, c, d)))
         }
     }
@@ -77,12 +75,12 @@ pub mod join {
         type Item = (A::Item, B::Item, C::Item, D::Item, E::Item);
         type Error = A::Error;
         type Future = Join5<A::Future, B::Future, C::Future, D::Future, E::Future>;
-        fn apply(self, req: &Request, ctx: Context) -> EndpointResult<(Context, Self::Future)> {
-            let (ctx, a) = self.0.apply(req, ctx)?;
-            let (ctx, b) = self.1.apply(req, ctx)?;
-            let (ctx, c) = self.2.apply(req, ctx)?;
-            let (ctx, d) = self.3.apply(req, ctx)?;
-            let (ctx, e) = self.4.apply(req, ctx)?;
+        fn apply<'r>(self, ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
+            let (ctx, a) = self.0.apply(ctx)?;
+            let (ctx, b) = self.1.apply(ctx)?;
+            let (ctx, c) = self.2.apply(ctx)?;
+            let (ctx, d) = self.3.apply(ctx)?;
+            let (ctx, e) = self.4.apply(ctx)?;
             Ok((ctx, a.join5(b, c, d, e)))
         }
     }
@@ -100,9 +98,9 @@ where
     type Error = E2::Error;
     type Future = E2::Future;
 
-    fn apply(self, req: &Request, ctx: Context) -> EndpointResult<(Context, Self::Future)> {
+    fn apply<'r>(self, ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
         let With(e1, e2) = self;
-        e1.apply(req, ctx).and_then(|(ctx, _)| e2.apply(req, ctx))
+        e1.apply(ctx).and_then(|(ctx, _)| e2.apply(ctx))
     }
 }
 
@@ -118,10 +116,10 @@ where
     type Error = E1::Error;
     type Future = E1::Future;
 
-    fn apply(self, req: &Request, ctx: Context) -> EndpointResult<(Context, Self::Future)> {
+    fn apply<'r>(self, ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
         let Skip(e1, e2) = self;
-        e1.apply(req, ctx).and_then(|(ctx, f)| {
-            e2.apply(req, ctx).map(|(ctx, _)| (ctx, f))
+        e1.apply(ctx).and_then(|(ctx, f)| {
+            e2.apply(ctx).map(|(ctx, _)| (ctx, f))
         })
     }
 }
@@ -138,9 +136,9 @@ where
     type Error = E::Error;
     type Future = future::Map<E::Future, F>;
 
-    fn apply(self, req: &Request, ctx: Context) -> EndpointResult<(Context, Self::Future)> {
+    fn apply<'r>(self, ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
         let Map(e, f) = self;
-        e.apply(req, ctx).map(|(ctx, fut)| (ctx, fut.map(f)))
+        e.apply(ctx).map(|(ctx, fut)| (ctx, fut.map(f)))
     }
 }
 
@@ -155,11 +153,11 @@ where
     type Item = Either<E1::Item, E2::Item>;
     type Error = E1::Error;
     type Future = Either<E1::Future, E2::Future>;
-    fn apply(self, req: &Request, ctx: Context) -> EndpointResult<(Context, Self::Future)> {
+    fn apply<'r>(self, ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
         let Or(e1, e2) = self;
-        e1.apply(req, ctx.clone())
+        e1.apply(ctx.clone())
             .map(|(ctx, a)| (ctx, Either::A(a)))
-            .or_else(|_| e2.apply(req, ctx).map(|(ctx, b)| (ctx, Either::B(b))))
+            .or_else(|_| e2.apply(ctx).map(|(ctx, b)| (ctx, Either::B(b))))
     }
 }
 
@@ -171,7 +169,7 @@ impl<'a> Endpoint for &'a str {
     type Error = ();
     type Future = FutureResult<(), ()>;
 
-    fn apply(self, _req: &Request, mut ctx: Context) -> EndpointResult<(Context, Self::Future)> {
+    fn apply<'r>(self, mut ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
         match ctx.routes.get(0) {
             Some(s) if s == self => {}
             _ => return Err(EndpointErrorKind::NoRoute.into()),
@@ -186,8 +184,8 @@ impl Endpoint for String {
     type Error = ();
     type Future = FutureResult<(), ()>;
 
-    fn apply(self, req: &Request, ctx: Context) -> EndpointResult<(Context, Self::Future)> {
-        (&self as &str).apply(req, ctx)
+    fn apply<'r>(self, ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
+        (&self as &str).apply(ctx)
     }
 }
 
@@ -196,8 +194,8 @@ impl<'a> Endpoint for Cow<'a, str> {
     type Error = ();
     type Future = FutureResult<(), ()>;
 
-    fn apply(self, req: &Request, ctx: Context) -> EndpointResult<(Context, Self::Future)> {
-        (&self as &str).apply(req, ctx)
+    fn apply<'r>(self, ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
+        (&self as &str).apply(ctx)
     }
 }
 
@@ -209,7 +207,7 @@ impl<T: FromStr> Endpoint for Path<T> {
     type Error = ();
     type Future = FutureResult<T, ()>;
 
-    fn apply(self, _req: &Request, mut ctx: Context) -> EndpointResult<(Context, Self::Future)> {
+    fn apply<'r>(self, mut ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
         let value: T = match ctx.routes.get(0).and_then(|s| s.parse().ok()) {
             Some(val) => val,
             _ => return Err(EndpointErrorKind::NoRoute.into()),
@@ -231,7 +229,7 @@ impl<T: FromStr> Endpoint for PathSeq<T> {
     type Error = ();
     type Future = FutureResult<Vec<T>, ()>;
 
-    fn apply(self, _req: &Request, mut ctx: Context) -> EndpointResult<(Context, Self::Future)> {
+    fn apply<'r>(self, mut ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
         let seq = ctx.routes.iter().filter_map(|s| s.parse().ok()).collect();
         ctx.routes = Default::default();
         Ok((ctx, ok(seq)))

@@ -1,6 +1,7 @@
 use hyper::{Method, Uri, Headers};
 pub use hyper::Body;
 
+#[derive(Debug)]
 pub struct Request {
     pub method: Method,
     pub uri: Uri,

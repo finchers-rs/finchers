@@ -26,7 +26,7 @@ pub trait Endpoint: Sized {
     type Future: Future<Item = Self::Item, Error = Self::Error>;
 
     /// Run the endpoint.
-    fn apply(self, req: &Request, ctx: Context) -> EndpointResult<(Context, Self::Future)>;
+    fn apply<'r>(self, ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)>;
 
 
     fn join<E>(self, e: E) -> (Self, E)
@@ -87,16 +87,21 @@ pub trait Endpoint: Sized {
 
 
 #[derive(Debug, Clone)]
-pub struct Context {
+pub struct Context<'r> {
+    pub request: &'r Request,
     pub routes: VecDeque<String>,
     pub params: HashMap<String, String>,
 }
 
-impl Context {
-    pub fn new(req: &Request) -> Self {
-        let routes = to_path_segments(req.path());
-        let params = req.query().map(to_query_map).unwrap_or_default();
-        Context { routes, params }
+impl<'a> Context<'a> {
+    pub fn new(request: &'a Request) -> Self {
+        let routes = to_path_segments(request.path());
+        let params = request.query().map(to_query_map).unwrap_or_default();
+        Context {
+            request,
+            routes,
+            params,
+        }
     }
 }
 

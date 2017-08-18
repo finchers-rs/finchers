@@ -29,7 +29,7 @@ where
     };
     let ctx = Context::new(&req);
 
-    let (_ctx, f) = endpoint.apply(&req, ctx)?;
+    let (_ctx, f) = endpoint.apply(ctx)?;
 
     let mut core = Core::new().unwrap();
     Ok(core.run(f))
