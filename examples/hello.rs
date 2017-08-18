@@ -3,40 +3,16 @@
 extern crate finch;
 extern crate futures;
 extern crate hyper;
-extern crate tokio_core;
 
-use finch::endpoint::{Context, Endpoint};
-use finch::errors::EndpointResult;
-use finch::request::{Request, Body};
+use finch::endpoint::Endpoint;
+use finch::response::Responder;
+use finch::server::EndpointService;
+use finch::test::run_test;
 
 use finch::combinator::get;
 use finch::combinator::path::{u32_, string_vec_, end_};
 
-use hyper::{Method, Get, Post};
-use tokio_core::reactor::Core;
-
-fn run_test<E: Endpoint>(
-    endpoint: E,
-    method: Method,
-    uri: &str,
-) -> EndpointResult<Result<E::Item, E::Error>>
-where
-    E::Item: std::fmt::Debug,
-    E::Error: std::fmt::Debug,
-{
-    let req = Request {
-        method,
-        uri: uri.parse().unwrap(),
-        headers: Default::default(),
-        body: Some(Body::default()),
-    };
-    let ctx = Context::new(&req);
-
-    let (_ctx, f) = endpoint.apply(ctx)?;
-
-    let mut core = Core::new().unwrap();
-    Ok(core.run(f))
-}
+use hyper::server::Http;
 
 
 #[derive(Debug)]
@@ -48,6 +24,12 @@ enum Params {
 impl From<(u32, Vec<String>)> for Params {
     fn from(val: (u32, Vec<String>)) -> Self {
         Params::A(val.0, val.1)
+    }
+}
+
+impl Responder for Params {
+    fn respond(self) -> hyper::Response {
+        hyper::Response::new().with_body(format!("{:?}", self))
     }
 }
 
@@ -68,27 +50,33 @@ fn endpoint() -> impl Endpoint<Item = Params, Error = &'static str> + 'static {
 }
 
 fn main() {
-    println!(
-        "{:?}",
-        run_test(endpoint(), Get, "/foo/bar/42/baz/foo/bar/")
-    );
+    if false {
+        do_test();
+    }
+
+    let addr = "127.0.0.1:3000".parse().unwrap();
+    let server = Http::new()
+        .bind(&addr, || Ok(EndpointService(endpoint)))
+        .unwrap();
+    server.run().unwrap();
+}
+
+
+fn do_test() {
+    use hyper::{Get, Post};
+
+    println!("{:?}", run_test(endpoint, Get, "/foo/bar/42/baz/foo/bar/"));
     // => Ok(Ok(Params::A(42, ["foo", "bar"])))
 
-    println!("{:?}", run_test(endpoint(), Get, "/hello/world"));
+    println!("{:?}", run_test(endpoint, Get, "/hello/world"));
     // => Ok(Ok(Params::B))
 
-    println!(
-        "{:?}",
-        run_test(endpoint(), Get, "/foo/baz/42/baz/foo/bar/")
-    );
-    // => Err(NoRoute)
+    println!("{:?}", run_test(endpoint, Get, "/foo/baz/42/baz/foo/bar/"));
+    // => Err(RemainingPath)
 
-    println!(
-        "{:?}",
-        run_test(endpoint(), Post, "/foo/bar/42/baz/foo/bar/")
-    );
+    println!("{:?}", run_test(endpoint, Post, "/foo/bar/42/baz/foo/bar/"));
     // => Err(InvalidMethod)
 
-    println!("{:?}", run_test(endpoint(), Get, "/hello/world/hoge"));
+    println!("{:?}", run_test(endpoint, Get, "/hello/world/hoge"));
     // => Err(NoRoute)
 }

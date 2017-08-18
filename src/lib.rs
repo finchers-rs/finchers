@@ -7,10 +7,13 @@ extern crate tokio_core;
 extern crate url;
 
 pub mod combinator;
+pub mod context;
 pub mod either;
 pub mod endpoint;
 pub mod request;
 pub mod response;
+pub mod server;
+pub mod test;
 
 pub mod errors {
     error_chain! {

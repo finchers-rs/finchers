@@ -3,13 +3,15 @@ use futures::{Future, Poll};
 use futures::future::{self, ok, FutureResult};
 use hyper::Method;
 
+use context::Context;
 use either::Either;
-use endpoint::{Context, Endpoint};
+use endpoint::Endpoint;
 use errors::{EndpointResult, EndpointErrorKind};
 
 
 pub mod join {
-    use endpoint::{Context, Endpoint};
+    use context::Context;
+    use endpoint::Endpoint;
     use errors::EndpointResult;
     use futures::Future;
     use futures::future::{Join, Join3, Join4, Join5};
@@ -243,7 +245,8 @@ pub mod path {
     use std::str::FromStr;
     use futures::future::{ok, FutureResult};
 
-    use endpoint::{Context, Endpoint};
+    use context::Context;
+    use endpoint::Endpoint;
     use errors::{EndpointResult, EndpointErrorKind};
 
     pub struct Path<T>(PhantomData<fn(T) -> T>);

@@ -1,11 +1,33 @@
-use std::collections::{HashMap, VecDeque};
-
 use futures::Future;
-use url::form_urlencoded;
-
+use context::Context;
 use combinator::{With, Map, MapErr, Skip, Or};
 use errors::EndpointResult;
-use request::Request;
+
+
+/// A factory of `Endpoint`.
+pub trait NewEndpoint {
+    type Item;
+    type Error;
+    type Future: Future<Item = Self::Item, Error = Self::Error>;
+    type Endpoint: Endpoint<Item = Self::Item, Error = Self::Error, Future = Self::Future>;
+
+    fn new_endpoint(&self) -> Self::Endpoint;
+}
+
+impl<F, R> NewEndpoint for F
+where
+    F: Fn() -> R,
+    R: Endpoint,
+{
+    type Item = R::Item;
+    type Error = R::Error;
+    type Future = R::Future;
+    type Endpoint = R;
+
+    fn new_endpoint(&self) -> Self::Endpoint {
+        (*self)()
+    }
+}
 
 
 /// A trait represents the HTTP endpoint.
@@ -88,61 +110,3 @@ pub trait Endpoint: Sized {
     }
 }
 
-
-#[derive(Debug, Clone)]
-pub struct Context<'r> {
-    pub request: &'r Request,
-    pub routes: VecDeque<String>,
-    pub params: HashMap<String, String>,
-}
-
-impl<'a> Context<'a> {
-    pub fn new(request: &'a Request) -> Self {
-        let routes = to_path_segments(request.path());
-        let params = request.query().map(to_query_map).unwrap_or_default();
-        Context {
-            request,
-            routes,
-            params,
-        }
-    }
-}
-
-
-fn to_path_segments(s: &str) -> VecDeque<String> {
-    s.trim_left_matches("/")
-        .split("/")
-        .filter(|s| s.trim() != "")
-        .map(Into::into)
-        .collect()
-}
-
-#[cfg(test)]
-mod to_path_segments_test {
-    use super::to_path_segments;
-
-    #[test]
-    fn case1() {
-        assert_eq!(to_path_segments("/"), &[] as &[String]);
-    }
-
-    #[test]
-    fn case2() {
-        assert_eq!(to_path_segments("/foo"), &["foo".to_owned()]);
-    }
-
-    #[test]
-    fn case3() {
-        assert_eq!(
-            to_path_segments("/foo/bar/"),
-            &["foo".to_owned(), "bar".to_owned()]
-        );
-    }
-}
-
-
-fn to_query_map(s: &str) -> HashMap<String, String> {
-    form_urlencoded::parse(s.as_bytes())
-        .map(|(k, v)| (k.into_owned(), v.into_owned()))
-        .collect()
-}
