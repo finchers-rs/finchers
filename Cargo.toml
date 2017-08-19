@@ -5,8 +5,8 @@ description = "A combinator library for builidng HTTP services, based on Hyper a
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 license = "MIT/Apache-2.0"
 readme = "README.md"
-homepage = "https://github.com/ubnt-intrepid/finchers"
 repository = "https://github.com/ubnt-intrepid/finchers.git"
+documentation = "https://docs.rs/finchers"
 
 [dependencies]
 error-chain = "~0.10"
