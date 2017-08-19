@@ -1,11 +1,10 @@
 use std::marker::PhantomData;
 use std::str::FromStr;
 use futures::future::{ok, FutureResult};
-use hyper::StatusCode;
 
 use context::Context;
 use endpoint::Endpoint;
-use errors::{EndpointResult, EndpointErrorKind};
+use errors::*;
 use request::Body;
 
 
@@ -13,12 +12,12 @@ pub struct Path<T>(PhantomData<fn(T) -> T>);
 
 impl<T: FromStr> Endpoint for Path<T> {
     type Item = T;
-    type Future = FutureResult<T, StatusCode>;
+    type Future = FutureResult<T, FinchersError>;
 
     fn apply<'r>(self, mut ctx: Context<'r>, body: Option<Body>) -> EndpointResult<'r, Self::Future> {
         let value: T = match ctx.routes.get(0).and_then(|s| s.parse().ok()) {
             Some(val) => val,
-            _ => return Err((EndpointErrorKind::NoRoute.into(), body)),
+            _ => return Err((FinchersErrorKind::Routing.into(), body)),
         };
         ctx.routes.pop_front();
         Ok((ctx, body, ok(value)))
@@ -56,7 +55,7 @@ where
     T::Err: ::std::fmt::Display,
 {
     type Item = Vec<T>;
-    type Future = FutureResult<Vec<T>, StatusCode>;
+    type Future = FutureResult<Vec<T>, FinchersError>;
 
     fn apply<'r>(self, mut ctx: Context<'r>, body: Option<Body>) -> EndpointResult<'r, Self::Future> {
         let seq = match ctx.routes
@@ -98,11 +97,11 @@ pub struct PathEnd;
 
 impl Endpoint for PathEnd {
     type Item = ();
-    type Future = FutureResult<(), StatusCode>;
+    type Future = FutureResult<(), FinchersError>;
 
     fn apply<'r>(self, ctx: Context<'r>, body: Option<Body>) -> EndpointResult<'r, Self::Future> {
         if ctx.routes.len() > 0 {
-            return Err((EndpointErrorKind::RemainingPath.into(), body));
+            return Err((FinchersErrorKind::Routing.into(), body));
         }
         Ok((ctx, body, ok(())))
     }

@@ -1,9 +1,8 @@
 use futures::Future;
-use hyper::StatusCode;
 
 use combinator::core::{With, Map, Skip, Or};
 use context::Context;
-use errors::EndpointResult;
+use errors::*;
 use request::Body;
 use server::EndpointService;
 
@@ -11,7 +10,7 @@ use server::EndpointService;
 /// A factory of `Endpoint`.
 pub trait NewEndpoint: Sized {
     type Item;
-    type Future: Future<Item = Self::Item, Error = StatusCode>;
+    type Future: Future<Item = Self::Item, Error = FinchersError>;
     type Endpoint: Endpoint<Item = Self::Item, Future = Self::Future>;
 
     fn new_endpoint(&self) -> Self::Endpoint;
@@ -59,7 +58,7 @@ impl<E: NewEndpoint> NewEndpoint for ::std::sync::Arc<E> {
 /// A trait represents the HTTP endpoint.
 pub trait Endpoint: Sized {
     type Item;
-    type Future: Future<Item = Self::Item, Error = StatusCode>;
+    type Future: Future<Item = Self::Item, Error = FinchersError>;
 
     /// Run the endpoint.
     fn apply<'r>(self, ctx: Context<'r>, body: Option<Body>) -> EndpointResult<'r, Self::Future>;

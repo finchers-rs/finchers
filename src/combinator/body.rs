@@ -6,12 +6,12 @@ use hyper::mime::TEXT_PLAIN_UTF_8;
 
 use context::Context;
 use endpoint::Endpoint;
-use errors::EndpointResult;
+use errors::*;
 use request::{self, Request};
 
 
 pub trait FromBody: Sized {
-    type Future: Future<Item = Self, Error = StatusCode>;
+    type Future: Future<Item = Self, Error = FinchersError>;
 
     fn from_body(body: request::Body, req: &Request) -> Self::Future;
 }
@@ -44,11 +44,15 @@ pub enum FromBodyFuture<F> {
 
 impl<F: Future> Future for FromBodyFuture<F> {
     type Item = F::Item;
-    type Error = StatusCode;
+    type Error = FinchersError;
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         match *self {
-            FromBodyFuture::WrongMediaType => Err(StatusCode::BadRequest),
-            FromBodyFuture::Parsed(ref mut f) => f.poll().map_err(|_| StatusCode::BadRequest),
+            FromBodyFuture::WrongMediaType => Err(FinchersErrorKind::Status(StatusCode::BadRequest).into()),
+            FromBodyFuture::Parsed(ref mut f) => {
+                f.poll().map_err(|_| {
+                    FinchersErrorKind::Status(StatusCode::BadRequest).into()
+                })
+            }
         }
     }
 }

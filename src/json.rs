@@ -57,6 +57,7 @@ where
 
 impl<T: Serialize> Responder for Json<T> {
     type Error = serde_json::Error;
+
     fn respond(self) -> Result<Response, Self::Error> {
         let body = serde_json::to_string(&self.0)?;
         Ok(Response::new().with_header(ContentType::json()).with_body(

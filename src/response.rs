@@ -1,39 +1,40 @@
-use std::fmt::Debug;
+use std::error;
 use hyper::StatusCode;
+use errors::DummyError;
 
 
 pub use hyper::Response;
 
 
 pub trait Responder {
-    type Error: Debug;
+    type Error: error::Error + Send + 'static;
     fn respond(self) -> Result<Response, Self::Error>;
 }
 
 impl Responder for Response {
-    type Error = ();
+    type Error = DummyError;
     fn respond(self) -> Result<Response, Self::Error> {
         Ok(self)
     }
 }
 
 impl Responder for () {
-    type Error = ();
+    type Error = DummyError;
     fn respond(self) -> Result<Response, Self::Error> {
         Ok(Response::new().with_status(StatusCode::NoContent))
     }
 }
 
 impl Responder for &'static str {
-    type Error = ();
+    type Error = DummyError;
     fn respond(self) -> Result<Response, Self::Error> {
         Ok(Response::new().with_body(self))
     }
 }
 
 impl Responder for String {
-    type Error = ();
-    fn respond(self) -> Result<Response, ()> {
+    type Error = DummyError;
+    fn respond(self) -> Result<Response, Self::Error> {
         Ok(Response::new().with_body(self))
     }
 }

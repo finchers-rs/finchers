@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
 use futures::{Future, Poll, Async};
-use hyper::{self, StatusCode};
+use hyper;
 use hyper::server::{Http, Service};
 
 use context::Context;
 use endpoint::{Endpoint, NewEndpoint};
-use errors::EndpointError;
+use errors::*;
 use request;
 use response::Responder;
 
@@ -34,12 +34,12 @@ where
     }
 }
 
-pub enum EndpointServiceFuture<F: Future<Error = StatusCode>> {
-    Routing(Option<EndpointError>),
+pub enum EndpointServiceFuture<F: Future<Error = FinchersError>> {
+    Routing(Option<FinchersError>),
     Then(F),
 }
 
-impl<F: Future<Error = StatusCode>> Future for EndpointServiceFuture<F>
+impl<F: Future<Error = FinchersError>> Future for EndpointServiceFuture<F>
 where
     F::Item: Responder,
 {
@@ -50,29 +50,25 @@ where
         let response = match *self {
             EndpointServiceFuture::Routing(ref mut r) => {
                 let err = r.take().expect("cannot reject twice");
-                hyper::Response::new()
-                    .with_status(hyper::StatusCode::NotFound)
-                    .with_body(format!("{:?}", err))
+                Err(err)
             }
             EndpointServiceFuture::Then(ref mut t) => {
                 match t.poll() {
                     Ok(Async::Ready(res)) => {
                         match res.respond() {
-                            Ok(response) => response,
-                            Err(err) => {
-                                hyper::Response::new()
-                                    .with_status(StatusCode::InternalServerError)
-                                    .with_body(format!("{:?}", err))
-                            }
+                            Ok(response) => Ok(response),
+                            Err(err) => Err(FinchersErrorKind::Responder(Box::new(err)).into()),
                         }
                     }
                     Ok(Async::NotReady) => return Ok(Async::NotReady),
-                    Err(status) => hyper::Response::new().with_status(status),
+                    Err(err) => Err(err),
                 }
             }
         };
 
-        Ok(Async::Ready(response))
+        Ok(Async::Ready(response.unwrap_or_else(|err| {
+            hyper::Response::new().with_status(err.into_status())
+        })))
     }
 }
 

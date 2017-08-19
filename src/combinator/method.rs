@@ -2,7 +2,7 @@ use hyper::Method;
 
 use context::Context;
 use endpoint::Endpoint;
-use errors::{EndpointResult, EndpointErrorKind};
+use errors::*;
 use request::Body;
 
 
@@ -14,7 +14,7 @@ impl<E: Endpoint> Endpoint for MatchMethod<E> {
 
     fn apply<'r>(self, ctx: Context<'r>, body: Option<Body>) -> EndpointResult<'r, Self::Future> {
         if *ctx.request.method() != self.0 {
-            return Err((EndpointErrorKind::InvalidMethod.into(), body));
+            return Err((FinchersErrorKind::Routing.into(), body));
         }
         self.1.apply(ctx, body)
     }

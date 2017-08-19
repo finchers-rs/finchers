@@ -1,11 +1,10 @@
 use std::marker::PhantomData;
 use futures::future::{ok, FutureResult};
-use hyper::StatusCode;
 use hyper::header::{self, Authorization, ContentType};
 
 use context::Context;
 use endpoint::Endpoint;
-use errors::{EndpointResult, EndpointErrorKind};
+use errors::*;
 use request::Body;
 
 
@@ -17,12 +16,12 @@ pub fn header<H: header::Header + Clone>() -> Header<H> {
 
 impl<H: header::Header + Clone> Endpoint for Header<H> {
     type Item = H;
-    type Future = FutureResult<H, StatusCode>;
+    type Future = FutureResult<H, FinchersError>;
 
     fn apply<'r>(self, ctx: Context<'r>, body: Option<Body>) -> EndpointResult<'r, Self::Future> {
         match ctx.request.header::<H>() {
             Some(h) => Ok((ctx, body, ok(h.clone()))),
-            None => Err((EndpointErrorKind::NoRoute.into(), body)),
+            None => Err((FinchersErrorKind::Routing.into(), body)),
         }
     }
 }
