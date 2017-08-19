@@ -3,9 +3,9 @@
 [![crates.io](https://img.shields.io/crates/v/finchers.svg)](https://crates.io/crates/finchers)
 [![docs-rs](https://docs.rs/finchers/badge.svg)](https://docs.rs/finchers)
 
-`finchers` is a combinator library for building HTTP services, based on Hyper and Futures.
+`finchers` is a combinator library for building HTTP services, based on [`hyper`](https://github.com/hyperium/hyper) and [`futures`](https://github.com/alexcrichton/futures-rs).
 
-The concept and the design of this library is highly inspired by [`finch`](https://github.com/finagle/finch), [`combine`](https://github.com/Marwes/combine) and [`futures`](https://github.com/alexcrichton/futures-rs).
+The concept and design of this library is highly inspired by [`finch`](https://github.com/finagle/finch) and [`combine`](https://github.com/Marwes/combine).
 
 ## Features
 * ease of use
@@ -35,7 +35,7 @@ fn main() {
 }
 ```
 
-More examples are in [`examples/`](examples/).
+More examples are located in [`examples/`](examples/).
 
 ## License
-MIT/Apache 2.0
+Dual licensed under the MIT and Apache 2.0
