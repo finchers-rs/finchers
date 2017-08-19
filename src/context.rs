@@ -4,14 +4,19 @@ use url::form_urlencoded;
 
 use request::Request;
 
+/// A Finchers-specific context and the incoming HTTP request, without the request body
 #[derive(Debug, Clone)]
 pub struct Context<'r> {
+    /// A reference of the incoming HTTP request
     pub request: &'r Request,
+    /// A sequence of remaining path segments
     pub routes: VecDeque<&'r str>,
+    /// A map of parsed queries
     pub params: HashMap<Cow<'r, str>, Cow<'r, str>>,
 }
 
 impl<'a> Context<'a> {
+    /// Create an instance of `Context` from a reference of the incoming HTTP request
     pub fn new(request: &'a Request) -> Self {
         let routes = to_path_segments(request.path());
         let params = request.query().map(to_query_map).unwrap_or_default();
