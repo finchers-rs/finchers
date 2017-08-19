@@ -1,5 +1,7 @@
 # `finchers`
 [![Build Status](https://travis-ci.org/ubnt-intrepid/finchers.svg?branch=master)](https://travis-ci.org/ubnt-intrepid/finchers)
+[![crates.io](https://img.shields.io/crates/v/finchers.svg)](https://crates.io/crates/finchers)
+[![docs-rs](https://docs.rs/finchers/badge.svg)](https://docs.rs/finchers)
 
 `finchers` is a combinator library for building HTTP services, based on Hyper and Futures.
 
@@ -15,10 +17,9 @@ The concept and the design of this library is highly inspired by [`finch`](https
 ```rust
 extern crate finchers;
 
-use finchers::Endpoint;
+use finchers::{Endpoint, Json};
 use finchers::combinator::method::get;
 use finchers::combinator::path::{string_, end_};
-use finchers::response::Json;
 
 fn main() {
     // create a factory of endpoints.
@@ -35,9 +36,6 @@ fn main() {
 ```
 
 More examples are in [`examples/`](examples/).
-
-## Status
-Under development
 
 ## License
 MIT/Apache 2.0
