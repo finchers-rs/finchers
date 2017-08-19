@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::{VecDeque, HashMap};
 use url::form_urlencoded;
 
@@ -6,8 +7,8 @@ use request::Request;
 #[derive(Debug, Clone)]
 pub struct Context<'r> {
     pub request: &'r Request,
-    pub routes: VecDeque<String>,
-    pub params: HashMap<String, String>,
+    pub routes: VecDeque<&'r str>,
+    pub params: HashMap<Cow<'r, str>, Cow<'r, str>>,
 }
 
 impl<'a> Context<'a> {
@@ -23,11 +24,10 @@ impl<'a> Context<'a> {
 }
 
 
-fn to_path_segments(s: &str) -> VecDeque<String> {
+fn to_path_segments<'t>(s: &'t str) -> VecDeque<&'t str> {
     s.trim_left_matches("/")
         .split("/")
         .filter(|s| s.trim() != "")
-        .map(Into::into)
         .collect()
 }
 
@@ -37,12 +37,12 @@ mod to_path_segments_test {
 
     #[test]
     fn case1() {
-        assert_eq!(to_path_segments("/"), &[] as &[String]);
+        assert_eq!(to_path_segments("/"), &[] as &[&str]);
     }
 
     #[test]
     fn case2() {
-        assert_eq!(to_path_segments("/foo"), &["foo".to_owned()]);
+        assert_eq!(to_path_segments("/foo"), &["foo"]);
     }
 
     #[test]
@@ -55,8 +55,6 @@ mod to_path_segments_test {
 }
 
 
-fn to_query_map(s: &str) -> HashMap<String, String> {
-    form_urlencoded::parse(s.as_bytes())
-        .map(|(k, v)| (k.into_owned(), v.into_owned()))
-        .collect()
+fn to_query_map<'t>(s: &'t str) -> HashMap<Cow<'t, str>, Cow<'t, str>> {
+    form_urlencoded::parse(s.as_bytes()).collect()
 }
