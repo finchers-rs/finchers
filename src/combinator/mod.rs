@@ -20,11 +20,7 @@ impl<'a> Endpoint for &'a str {
     type Item = ();
     type Future = FutureResult<(), StatusCode>;
 
-    fn apply<'r>(
-        self,
-        mut ctx: Context<'r>,
-        body: Option<Body>,
-    ) -> EndpointResult<'r, Self::Future> {
+    fn apply<'r>(self, mut ctx: Context<'r>, body: Option<Body>) -> EndpointResult<'r, Self::Future> {
         match ctx.routes.get(0) {
             Some(s) if s == &self => {}
             _ => return Err((EndpointErrorKind::NoRoute.into(), body)),

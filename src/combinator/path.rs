@@ -15,11 +15,7 @@ impl<T: FromStr> Endpoint for Path<T> {
     type Item = T;
     type Future = FutureResult<T, StatusCode>;
 
-    fn apply<'r>(
-        self,
-        mut ctx: Context<'r>,
-        body: Option<Body>,
-    ) -> EndpointResult<'r, Self::Future> {
+    fn apply<'r>(self, mut ctx: Context<'r>, body: Option<Body>) -> EndpointResult<'r, Self::Future> {
         let value: T = match ctx.routes.get(0).and_then(|s| s.parse().ok()) {
             Some(val) => val,
             _ => return Err((EndpointErrorKind::NoRoute.into(), body)),
@@ -62,11 +58,7 @@ where
     type Item = Vec<T>;
     type Future = FutureResult<Vec<T>, StatusCode>;
 
-    fn apply<'r>(
-        self,
-        mut ctx: Context<'r>,
-        body: Option<Body>,
-    ) -> EndpointResult<'r, Self::Future> {
+    fn apply<'r>(self, mut ctx: Context<'r>, body: Option<Body>) -> EndpointResult<'r, Self::Future> {
         let seq = match ctx.routes
             .iter()
             .map(|s| s.parse())

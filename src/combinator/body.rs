@@ -13,11 +13,7 @@ impl Endpoint for TakeBody {
     type Item = Body;
     type Future = FutureResult<Body, StatusCode>;
 
-    fn apply<'r>(
-        self,
-        ctx: Context<'r>,
-        mut body: Option<Body>,
-    ) -> EndpointResult<'r, Self::Future> {
+    fn apply<'r>(self, ctx: Context<'r>, mut body: Option<Body>) -> EndpointResult<'r, Self::Future> {
         if let Some(body) = body.take() {
             Ok((ctx, None, ok(body)))
         } else {

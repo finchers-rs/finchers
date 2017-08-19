@@ -39,10 +39,7 @@ pub mod errors {
         }
     }
 
-    pub type EndpointResult<'r, F> = Result<
-        (Context<'r>, Option<Body>, F),
-        (EndpointError, Option<Body>),
-    >;
+    pub type EndpointResult<'r, F> = Result<(Context<'r>, Option<Body>, F), (EndpointError, Option<Body>)>;
 }
 
 #[doc(inline)]
