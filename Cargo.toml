@@ -1,9 +1,10 @@
 [package]
 name = "finchers"
-version = "0.0.1"
+version = "0.1.0"
 description = "A combinator library for builidng HTTP services of Hyper"
-license = "MIT/Apache-2.0"
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
+license = "MIT/Apache-2.0"
+readme = "README.md"
 homepage = "https://github.com/ubnt-intrepid/finchers"
 repository = "https://github.com/ubnt-intrepid/finchers.git"
 
@@ -19,4 +20,3 @@ serde_json = "~1.0"
 [dev-dependencies]
 serde_derive = "~1.0"
 lazy_static = "~0.2"
-uuid = "~0.5"
