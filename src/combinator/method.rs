@@ -39,3 +39,7 @@ pub fn delete<E: Endpoint>(endpoint: E) -> MatchMethod<E> {
 pub fn head<E: Endpoint>(endpoint: E) -> MatchMethod<E> {
     MatchMethod(Method::Head, endpoint)
 }
+
+pub fn patch<E: Endpoint>(endpoint: E) -> MatchMethod<E> {
+    MatchMethod(Method::Patch, endpoint)
+}

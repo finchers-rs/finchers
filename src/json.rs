@@ -13,6 +13,12 @@ use response::{Response, Responder};
 #[derive(Debug)]
 pub struct Json<T = Value>(pub T);
 
+impl<T: Serialize> Json<T> {
+    pub fn into_value(self) -> Json<Value> {
+        Json(serde_json::to_value(self.0).unwrap())
+    }
+}
+
 impl<T> Deref for Json<T> {
     type Target = T;
     fn deref(&self) -> &Self::Target {
