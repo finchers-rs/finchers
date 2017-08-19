@@ -27,3 +27,15 @@ pub fn get<E: Endpoint>(endpoint: E) -> MatchMethod<E> {
 pub fn post<E: Endpoint>(endpoint: E) -> MatchMethod<E> {
     MatchMethod(Method::Post, endpoint)
 }
+
+pub fn put<E: Endpoint>(endpoint: E) -> MatchMethod<E> {
+    MatchMethod(Method::Put, endpoint)
+}
+
+pub fn delete<E: Endpoint>(endpoint: E) -> MatchMethod<E> {
+    MatchMethod(Method::Delete, endpoint)
+}
+
+pub fn head<E: Endpoint>(endpoint: E) -> MatchMethod<E> {
+    MatchMethod(Method::Head, endpoint)
+}
