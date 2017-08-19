@@ -1,3 +1,11 @@
+#![warn(missing_docs)]
+
+//! # Finchers
+//!
+//! Finchers is a combinator library for building HTTP services, based on
+//! Hyper and Futures.
+//!
+
 #[macro_use]
 extern crate error_chain;
 extern crate futures;
