@@ -18,8 +18,7 @@ enum Params {
 fn main() {
     let new_endpoint = || {
         // "/foo/bar/<id:u32>/baz/<seq...:[String]>" => Params::A(id, seq)
-        let e1 = get("foo".with("bar").with(u32_).skip("baz").join(string_vec_))
-            .map(|(id, seq)| Params::A(id, seq));
+        let e1 = get("foo".with("bar").with(u32_).skip("baz").join(string_vec_)).map(|(id, seq)| Params::A(id, seq));
 
         // "/hello/world" => Params::B
         let e2 = get("hello".with("world").skip(end_)).map(|()| Params::B);
