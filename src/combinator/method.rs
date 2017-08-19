@@ -9,11 +9,10 @@ pub struct MatchMethod<E>(Method, E);
 
 impl<E: Endpoint> Endpoint for MatchMethod<E> {
     type Item = E::Item;
-    type Error = E::Error;
     type Future = E::Future;
 
     fn apply<'r>(self, ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
-        if ctx.request.method != self.0 {
+        if *ctx.request.method() != self.0 {
             return Err(EndpointErrorKind::InvalidMethod.into());
         }
         self.1.apply(ctx)

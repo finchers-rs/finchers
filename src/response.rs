@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use serde::Serialize;
 use serde_json;
 use hyper::header::ContentType;
@@ -5,7 +6,7 @@ use hyper::header::ContentType;
 pub use hyper::Response;
 
 pub trait Responder {
-    type Error;
+    type Error: Debug;
     fn respond(self) -> Result<Response, Self::Error>;
 }
 

@@ -8,11 +8,11 @@ use futures::future::{Join, Join3, Join4, Join5};
 impl<A, B> Endpoint for (A, B)
 where
     A: Endpoint,
-    B: Endpoint<Error = A::Error>,
+    B: Endpoint,
 {
     type Item = (A::Item, B::Item);
-    type Error = A::Error;
     type Future = Join<A::Future, B::Future>;
+
     fn apply<'r>(self, ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
         let (ctx, a) = self.0.apply(ctx)?;
         let (ctx, b) = self.1.apply(ctx)?;
@@ -23,12 +23,12 @@ where
 impl<A, B, C> Endpoint for (A, B, C)
 where
     A: Endpoint,
-    B: Endpoint<Error = A::Error>,
-    C: Endpoint<Error = A::Error>,
+    B: Endpoint,
+    C: Endpoint,
 {
     type Item = (A::Item, B::Item, C::Item);
-    type Error = A::Error;
     type Future = Join3<A::Future, B::Future, C::Future>;
+
     fn apply<'r>(self, ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
         let (ctx, a) = self.0.apply(ctx)?;
         let (ctx, b) = self.1.apply(ctx)?;
@@ -40,13 +40,13 @@ where
 impl<A, B, C, D> Endpoint for (A, B, C, D)
 where
     A: Endpoint,
-    B: Endpoint<Error = A::Error>,
-    C: Endpoint<Error = A::Error>,
-    D: Endpoint<Error = A::Error>,
+    B: Endpoint,
+    C: Endpoint,
+    D: Endpoint,
 {
     type Item = (A::Item, B::Item, C::Item, D::Item);
-    type Error = A::Error;
     type Future = Join4<A::Future, B::Future, C::Future, D::Future>;
+
     fn apply<'r>(self, ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
         let (ctx, a) = self.0.apply(ctx)?;
         let (ctx, b) = self.1.apply(ctx)?;
@@ -59,14 +59,14 @@ where
 impl<A, B, C, D, E> Endpoint for (A, B, C, D, E)
 where
     A: Endpoint,
-    B: Endpoint<Error = A::Error>,
-    C: Endpoint<Error = A::Error>,
-    D: Endpoint<Error = A::Error>,
-    E: Endpoint<Error = A::Error>,
+    B: Endpoint,
+    C: Endpoint,
+    D: Endpoint,
+    E: Endpoint,
 {
     type Item = (A::Item, B::Item, C::Item, D::Item, E::Item);
-    type Error = A::Error;
     type Future = Join5<A::Future, B::Future, C::Future, D::Future, E::Future>;
+
     fn apply<'r>(self, ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
         let (ctx, a) = self.0.apply(ctx)?;
         let (ctx, b) = self.1.apply(ctx)?;

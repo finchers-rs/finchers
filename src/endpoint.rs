@@ -1,18 +1,23 @@
 use futures::Future;
+use hyper::StatusCode;
 
-use combinator::core::{With, Map, MapErr, Skip, Or};
+use combinator::core::{With, Map, Skip, Or};
 use context::Context;
 use errors::EndpointResult;
+use server::EndpointService;
 
 
 /// A factory of `Endpoint`.
-pub trait NewEndpoint {
+pub trait NewEndpoint: Sized {
     type Item;
-    type Error;
-    type Future: Future<Item = Self::Item, Error = Self::Error>;
-    type Endpoint: Endpoint<Item = Self::Item, Error = Self::Error, Future = Self::Future>;
+    type Future: Future<Item = Self::Item, Error = StatusCode>;
+    type Endpoint: Endpoint<Item = Self::Item, Future = Self::Future>;
 
     fn new_endpoint(&self) -> Self::Endpoint;
+
+    fn into_service(self) -> EndpointService<Self> {
+        EndpointService(self)
+    }
 }
 
 impl<F, R> NewEndpoint for F
@@ -21,7 +26,6 @@ where
     R: Endpoint,
 {
     type Item = R::Item;
-    type Error = R::Error;
     type Future = R::Future;
     type Endpoint = R;
 
@@ -32,7 +36,6 @@ where
 
 impl<E: NewEndpoint> NewEndpoint for ::std::rc::Rc<E> {
     type Item = E::Item;
-    type Error = E::Error;
     type Future = E::Future;
     type Endpoint = E::Endpoint;
 
@@ -43,7 +46,6 @@ impl<E: NewEndpoint> NewEndpoint for ::std::rc::Rc<E> {
 
 impl<E: NewEndpoint> NewEndpoint for ::std::sync::Arc<E> {
     type Item = E::Item;
-    type Error = E::Error;
     type Future = E::Future;
     type Endpoint = E::Endpoint;
 
@@ -56,8 +58,7 @@ impl<E: NewEndpoint> NewEndpoint for ::std::sync::Arc<E> {
 /// A trait represents the HTTP endpoint.
 pub trait Endpoint: Sized {
     type Item;
-    type Error;
-    type Future: Future<Item = Self::Item, Error = Self::Error>;
+    type Future: Future<Item = Self::Item, Error = StatusCode>;
 
     /// Run the endpoint.
     fn apply<'r>(self, ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)>;
@@ -65,55 +66,55 @@ pub trait Endpoint: Sized {
 
     fn join<E>(self, e: E) -> (Self, E)
     where
-        E: Endpoint<Error = Self::Error>,
+        E: Endpoint,
     {
         (self, e)
     }
 
     fn join3<E1, E2>(self, e1: E1, e2: E2) -> (Self, E1, E2)
     where
-        E1: Endpoint<Error = Self::Error>,
-        E2: Endpoint<Error = Self::Error>,
+        E1: Endpoint,
+        E2: Endpoint,
     {
         (self, e1, e2)
     }
 
     fn join4<E1, E2, E3>(self, e1: E1, e2: E2, e3: E3) -> (Self, E1, E2, E3)
     where
-        E1: Endpoint<Error = Self::Error>,
-        E2: Endpoint<Error = Self::Error>,
-        E3: Endpoint<Error = Self::Error>,
+        E1: Endpoint,
+        E2: Endpoint,
+        E3: Endpoint,
     {
         (self, e1, e2, e3)
     }
 
     fn join5<E1, E2, E3, E4>(self, e1: E1, e2: E2, e3: E3, e4: E4) -> (Self, E1, E2, E3, E4)
     where
-        E1: Endpoint<Error = Self::Error>,
-        E2: Endpoint<Error = Self::Error>,
-        E3: Endpoint<Error = Self::Error>,
-        E4: Endpoint<Error = Self::Error>,
+        E1: Endpoint,
+        E2: Endpoint,
+        E3: Endpoint,
+        E4: Endpoint,
     {
         (self, e1, e2, e3, e4)
     }
 
     fn with<E>(self, e: E) -> With<Self, E>
     where
-        E: Endpoint<Error = Self::Error>,
+        E: Endpoint,
     {
         With(self, e)
     }
 
     fn skip<E>(self, e: E) -> Skip<Self, E>
     where
-        E: Endpoint<Error = Self::Error>,
+        E: Endpoint,
     {
         Skip(self, e)
     }
 
     fn or<E>(self, e: E) -> Or<Self, E>
     where
-        E: Endpoint<Item = Self::Item, Error = Self::Error>,
+        E: Endpoint<Item = Self::Item>,
     {
         Or(self, e)
     }
@@ -123,12 +124,5 @@ pub trait Endpoint: Sized {
         F: FnOnce(Self::Item) -> U,
     {
         Map(self, f)
-    }
-
-    fn map_err<F, U>(self, f: F) -> MapErr<Self, F>
-    where
-        F: FnOnce(Self::Error) -> U,
-    {
-        MapErr(self, f)
     }
 }

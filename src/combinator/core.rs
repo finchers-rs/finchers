@@ -2,7 +2,6 @@ use futures::{Future, Poll};
 use futures::future;
 
 use context::Context;
-use either::Either;
 use endpoint::Endpoint;
 use errors::EndpointResult;
 
@@ -12,10 +11,9 @@ pub struct With<E1, E2>(pub(crate) E1, pub(crate) E2);
 impl<E1, E2> Endpoint for With<E1, E2>
 where
     E1: Endpoint,
-    E2: Endpoint<Error = E1::Error>,
+    E2: Endpoint,
 {
     type Item = E2::Item;
-    type Error = E2::Error;
     type Future = E2::Future;
 
     fn apply<'r>(self, ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
@@ -30,10 +28,9 @@ pub struct Skip<E1, E2>(pub(crate) E1, pub(crate) E2);
 impl<E1, E2> Endpoint for Skip<E1, E2>
 where
     E1: Endpoint,
-    E2: Endpoint<Error = E1::Error>,
+    E2: Endpoint,
 {
     type Item = E1::Item;
-    type Error = E1::Error;
     type Future = E1::Future;
 
     fn apply<'r>(self, ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
@@ -53,29 +50,11 @@ where
     F: FnOnce(E::Item) -> R,
 {
     type Item = R;
-    type Error = E::Error;
     type Future = future::Map<E::Future, F>;
 
     fn apply<'r>(self, ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
         let Map(e, f) = self;
         e.apply(ctx).map(|(ctx, fut)| (ctx, fut.map(f)))
-    }
-}
-
-pub struct MapErr<E, F>(pub(crate) E, pub(crate) F);
-
-impl<E, F, R> Endpoint for MapErr<E, F>
-where
-    E: Endpoint,
-    F: FnOnce(E::Error) -> R,
-{
-    type Item = E::Item;
-    type Error = R;
-    type Future = future::MapErr<E::Future, F>;
-
-    fn apply<'r>(self, ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
-        let MapErr(e, f) = self;
-        e.apply(ctx).map(|(ctx, fut)| (ctx, fut.map_err(f)))
     }
 }
 
@@ -85,22 +64,23 @@ pub struct Or<E1, E2>(pub(crate) E1, pub(crate) E2);
 impl<E1, E2> Endpoint for Or<E1, E2>
 where
     E1: Endpoint,
-    E2: Endpoint<Item = E1::Item, Error = E1::Error>,
+    E2: Endpoint<Item = E1::Item>,
 {
     type Item = E1::Item;
-    type Error = E1::Error;
     type Future = OrFuture<E1::Future, E2::Future>;
 
     fn apply<'r>(self, ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
         let Or(e1, e2) = self;
         e1.apply(ctx.clone())
-            .map(|(ctx, a)| (ctx, Either::A(a)))
-            .or_else(|_| e2.apply(ctx).map(|(ctx, b)| (ctx, Either::B(b))))
-            .map(|(ctx, f)| (ctx, OrFuture(f)))
+            .map(|(ctx, a)| (ctx, OrFuture::A(a)))
+            .or_else(|_| e2.apply(ctx).map(|(ctx, b)| (ctx, OrFuture::B(b))))
     }
 }
 
-pub struct OrFuture<E1, E2>(Either<E1, E2>);
+pub enum OrFuture<A, B> {
+    A(A),
+    B(B),
+}
 
 impl<E1, E2> Future for OrFuture<E1, E2>
 where
@@ -109,10 +89,11 @@ where
 {
     type Item = E1::Item;
     type Error = E1::Error;
+
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        match try_ready!(self.0.poll()) {
-            Either::A(a) => Ok(a.into()),
-            Either::B(b) => Ok(b.into()),
+        match *self {
+            OrFuture::A(ref mut a) => a.poll(),
+            OrFuture::B(ref mut b) => b.poll(),
         }
     }
 }

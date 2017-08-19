@@ -6,6 +6,7 @@ pub mod header;
 
 use std::borrow::Cow;
 use futures::future::{ok, FutureResult};
+use hyper::StatusCode;
 
 use context::Context;
 use endpoint::Endpoint;
@@ -14,8 +15,7 @@ use errors::{EndpointResult, EndpointErrorKind};
 
 impl<'a> Endpoint for &'a str {
     type Item = ();
-    type Error = ();
-    type Future = FutureResult<(), ()>;
+    type Future = FutureResult<(), StatusCode>;
 
     fn apply<'r>(self, mut ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
         match ctx.routes.get(0) {
@@ -29,8 +29,7 @@ impl<'a> Endpoint for &'a str {
 
 impl Endpoint for String {
     type Item = ();
-    type Error = ();
-    type Future = FutureResult<(), ()>;
+    type Future = FutureResult<(), StatusCode>;
 
     fn apply<'r>(self, ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
         (&self as &str).apply(ctx)
@@ -39,8 +38,7 @@ impl Endpoint for String {
 
 impl<'a> Endpoint for Cow<'a, str> {
     type Item = ();
-    type Error = ();
-    type Future = FutureResult<(), ()>;
+    type Future = FutureResult<(), StatusCode>;
 
     fn apply<'r>(self, ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
         (&self as &str).apply(ctx)

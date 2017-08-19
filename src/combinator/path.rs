@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 use std::str::FromStr;
 use futures::future::{ok, FutureResult};
+use hyper::StatusCode;
 
 use context::Context;
 use endpoint::Endpoint;
@@ -11,8 +12,7 @@ pub struct Path<T>(PhantomData<fn(T) -> T>);
 
 impl<T: FromStr> Endpoint for Path<T> {
     type Item = T;
-    type Error = ();
-    type Future = FutureResult<T, ()>;
+    type Future = FutureResult<T, StatusCode>;
 
     fn apply<'r>(self, mut ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
         let value: T = match ctx.routes.get(0).and_then(|s| s.parse().ok()) {
@@ -55,8 +55,7 @@ where
     T::Err: ::std::fmt::Display,
 {
     type Item = Vec<T>;
-    type Error = ();
-    type Future = FutureResult<Vec<T>, ()>;
+    type Future = FutureResult<Vec<T>, StatusCode>;
 
     fn apply<'r>(self, mut ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
         let seq = ctx.routes
@@ -96,8 +95,7 @@ pub struct PathEnd;
 
 impl Endpoint for PathEnd {
     type Item = ();
-    type Error = ();
-    type Future = FutureResult<(), ()>;
+    type Future = FutureResult<(), StatusCode>;
 
     fn apply<'r>(self, ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
         if ctx.routes.len() > 0 {

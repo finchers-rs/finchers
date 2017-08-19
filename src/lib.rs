@@ -1,6 +1,5 @@
 #[macro_use]
 extern crate error_chain;
-#[macro_use]
 extern crate futures;
 extern crate hyper;
 extern crate tokio_core;
@@ -10,7 +9,6 @@ extern crate serde_json;
 
 pub mod combinator;
 pub mod context;
-pub mod either;
 pub mod endpoint;
 pub mod request;
 pub mod response;
