@@ -42,8 +42,6 @@ pub use context::Context;
 #[doc(inline)]
 pub use endpoint::{Endpoint, NewEndpoint};
 #[doc(inline)]
-pub use errors::*;
-#[doc(inline)]
 pub use response::{Response, Responder};
 #[doc(inline)]
 pub use server::EndpointService;
