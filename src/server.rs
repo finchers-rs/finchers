@@ -23,13 +23,13 @@ where
     type Future = EndpointServiceFuture<E::Future>;
 
     fn call(&self, req: hyper::Request) -> Self::Future {
-        let req = request::reconstruct(req);
+        let (req, body) = request::reconstruct(req);
         let ctx = Context::new(&req);
 
         let endpoint = self.0.new_endpoint();
-        match endpoint.apply(ctx) {
-            Ok((_ctx, f)) => EndpointServiceFuture::Then(f),
-            Err(err) => EndpointServiceFuture::Routing(Some(err)),
+        match endpoint.apply(ctx, Some(body)) {
+            Ok((_ctx, _body, f)) => EndpointServiceFuture::Then(f),
+            Err((err, _body)) => EndpointServiceFuture::Routing(Some(err)),
         }
     }
 }

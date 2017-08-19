@@ -6,6 +6,7 @@ use hyper::header::{self, Authorization, ContentType};
 use context::Context;
 use endpoint::Endpoint;
 use errors::{EndpointResult, EndpointErrorKind};
+use request::Body;
 
 
 pub struct Header<H>(PhantomData<fn(H) -> H>);
@@ -18,10 +19,10 @@ impl<H: header::Header + Clone> Endpoint for Header<H> {
     type Item = H;
     type Future = FutureResult<H, StatusCode>;
 
-    fn apply<'r>(self, ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
+    fn apply<'r>(self, ctx: Context<'r>, body: Option<Body>) -> EndpointResult<'r, Self::Future> {
         match ctx.request.header::<H>() {
-            Some(h) => Ok((ctx, ok(h.clone()))),
-            None => Err(EndpointErrorKind::NoRoute.into()),
+            Some(h) => Ok((ctx, body, ok(h.clone()))),
+            None => Err((EndpointErrorKind::NoRoute.into(), body)),
         }
     }
 }

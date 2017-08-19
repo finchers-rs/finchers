@@ -4,6 +4,7 @@ use futures::future;
 use context::Context;
 use endpoint::Endpoint;
 use errors::EndpointResult;
+use request::Body;
 
 
 pub struct With<E1, E2>(pub(crate) E1, pub(crate) E2);
@@ -16,9 +17,11 @@ where
     type Item = E2::Item;
     type Future = E2::Future;
 
-    fn apply<'r>(self, ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
+    fn apply<'r>(self, ctx: Context<'r>, body: Option<Body>) -> EndpointResult<'r, Self::Future> {
         let With(e1, e2) = self;
-        e1.apply(ctx).and_then(|(ctx, _)| e2.apply(ctx))
+        e1.apply(ctx, body).and_then(
+            |(ctx, body, _)| e2.apply(ctx, body),
+        )
     }
 }
 
@@ -33,10 +36,10 @@ where
     type Item = E1::Item;
     type Future = E1::Future;
 
-    fn apply<'r>(self, ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
+    fn apply<'r>(self, ctx: Context<'r>, body: Option<Body>) -> EndpointResult<'r, Self::Future> {
         let Skip(e1, e2) = self;
-        e1.apply(ctx).and_then(|(ctx, f)| {
-            e2.apply(ctx).map(|(ctx, _)| (ctx, f))
+        e1.apply(ctx, body).and_then(|(ctx, body, f)| {
+            e2.apply(ctx, body).map(|(ctx, body, _)| (ctx, body, f))
         })
     }
 }
@@ -52,9 +55,11 @@ where
     type Item = R;
     type Future = future::Map<E::Future, F>;
 
-    fn apply<'r>(self, ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
+    fn apply<'r>(self, ctx: Context<'r>, body: Option<Body>) -> EndpointResult<'r, Self::Future> {
         let Map(e, f) = self;
-        e.apply(ctx).map(|(ctx, fut)| (ctx, fut.map(f)))
+        e.apply(ctx, body).map(
+            |(ctx, body, fut)| (ctx, body, fut.map(f)),
+        )
     }
 }
 
@@ -69,11 +74,15 @@ where
     type Item = E1::Item;
     type Future = OrFuture<E1::Future, E2::Future>;
 
-    fn apply<'r>(self, ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
+    fn apply<'r>(self, ctx: Context<'r>, body: Option<Body>) -> EndpointResult<'r, Self::Future> {
         let Or(e1, e2) = self;
-        e1.apply(ctx.clone())
-            .map(|(ctx, a)| (ctx, OrFuture::A(a)))
-            .or_else(|_| e2.apply(ctx).map(|(ctx, b)| (ctx, OrFuture::B(b))))
+        e1.apply(ctx.clone(), body)
+            .map(|(ctx, body, a)| (ctx, body, OrFuture::A(a)))
+            .or_else(|(_, body)| {
+                e2.apply(ctx, body).map(|(ctx, body, b)| {
+                    (ctx, body, OrFuture::B(b))
+                })
+            })
     }
 }
 

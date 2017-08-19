@@ -4,6 +4,7 @@ use hyper::StatusCode;
 use combinator::core::{With, Map, Skip, Or};
 use context::Context;
 use errors::EndpointResult;
+use request::Body;
 use server::EndpointService;
 
 
@@ -61,7 +62,7 @@ pub trait Endpoint: Sized {
     type Future: Future<Item = Self::Item, Error = StatusCode>;
 
     /// Run the endpoint.
-    fn apply<'r>(self, ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)>;
+    fn apply<'r>(self, ctx: Context<'r>, body: Option<Body>) -> EndpointResult<'r, Self::Future>;
 
 
     fn join<E>(self, e: E) -> (Self, E)

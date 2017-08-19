@@ -7,6 +7,7 @@ use hyper::StatusCode;
 use context::Context;
 use endpoint::Endpoint;
 use errors::{EndpointResult, EndpointErrorKind};
+use request::Body;
 
 
 pub struct Param<T>(Cow<'static, str>, PhantomData<fn(T) -> T>);
@@ -15,12 +16,12 @@ impl<T: FromStr> Endpoint for Param<T> {
     type Item = T;
     type Future = FutureResult<T, StatusCode>;
 
-    fn apply<'r>(self, ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
+    fn apply<'r>(self, ctx: Context<'r>, body: Option<Body>) -> EndpointResult<'r, Self::Future> {
         let value: T = match ctx.params.get(&self.0).and_then(|s| s.parse().ok()) {
             Some(val) => val,
-            None => return Err(EndpointErrorKind::NoRoute.into()),
+            None => return Err((EndpointErrorKind::NoRoute.into(), body)),
         };
-        Ok((ctx, ok(value)))
+        Ok((ctx, body, ok(value)))
     }
 }
 

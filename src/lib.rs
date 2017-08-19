@@ -16,9 +16,12 @@ pub mod server;
 pub mod test;
 
 pub mod errors {
+    use context::Context;
+    use request::Body;
+
     error_chain! {
         types {
-            EndpointError, EndpointErrorKind, EndpointResultExt, EndpointResult;
+            EndpointError, EndpointErrorKind, EndpointResultExt, _EndpointResult;
         }
         errors {
             NoRoute {
@@ -35,6 +38,11 @@ pub mod errors {
             }
         }
     }
+
+    pub type EndpointResult<'r, F> = Result<
+        (Context<'r>, Option<Body>, F),
+        (EndpointError, Option<Body>),
+    >;
 }
 
 #[doc(inline)]

@@ -6,6 +6,7 @@ use hyper::StatusCode;
 use context::Context;
 use endpoint::Endpoint;
 use errors::{EndpointResult, EndpointErrorKind};
+use request::Body;
 
 
 pub struct Path<T>(PhantomData<fn(T) -> T>);
@@ -14,13 +15,17 @@ impl<T: FromStr> Endpoint for Path<T> {
     type Item = T;
     type Future = FutureResult<T, StatusCode>;
 
-    fn apply<'r>(self, mut ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
+    fn apply<'r>(
+        self,
+        mut ctx: Context<'r>,
+        body: Option<Body>,
+    ) -> EndpointResult<'r, Self::Future> {
         let value: T = match ctx.routes.get(0).and_then(|s| s.parse().ok()) {
             Some(val) => val,
-            _ => return Err(EndpointErrorKind::NoRoute.into()),
+            _ => return Err((EndpointErrorKind::NoRoute.into(), body)),
         };
         ctx.routes.pop_front();
-        Ok((ctx, ok(value)))
+        Ok((ctx, body, ok(value)))
     }
 }
 
@@ -57,14 +62,20 @@ where
     type Item = Vec<T>;
     type Future = FutureResult<Vec<T>, StatusCode>;
 
-    fn apply<'r>(self, mut ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
-        let seq = ctx.routes
+    fn apply<'r>(
+        self,
+        mut ctx: Context<'r>,
+        body: Option<Body>,
+    ) -> EndpointResult<'r, Self::Future> {
+        let seq = match ctx.routes
             .iter()
             .map(|s| s.parse())
-            .collect::<Result<_, T::Err>>()
-            .map_err(|e| e.to_string())?;
+            .collect::<Result<_, T::Err>>() {
+            Ok(seq) => seq,
+            Err(e) => return Err((e.to_string().into(), body)),
+        };
         ctx.routes = Default::default();
-        Ok((ctx, ok(seq)))
+        Ok((ctx, body, ok(seq)))
     }
 }
 
@@ -97,11 +108,11 @@ impl Endpoint for PathEnd {
     type Item = ();
     type Future = FutureResult<(), StatusCode>;
 
-    fn apply<'r>(self, ctx: Context<'r>) -> EndpointResult<(Context<'r>, Self::Future)> {
+    fn apply<'r>(self, ctx: Context<'r>, body: Option<Body>) -> EndpointResult<'r, Self::Future> {
         if ctx.routes.len() > 0 {
-            return Err(EndpointErrorKind::RemainingPath.into());
+            return Err((EndpointErrorKind::RemainingPath.into(), body));
         }
-        Ok((ctx, ok(())))
+        Ok((ctx, body, ok(())))
     }
 }
 
