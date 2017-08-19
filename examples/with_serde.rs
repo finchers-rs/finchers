@@ -3,10 +3,9 @@ extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 
-use finchers::Endpoint;
+use finchers::{Endpoint, Json};
 use finchers::combinator::method::get;
 use finchers::combinator::path::{u32_, string_vec_, end_};
-use finchers::response::Json;
 use finchers::server::run_http;
 
 #[derive(Debug, Serialize)]

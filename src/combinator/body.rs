@@ -7,19 +7,19 @@ use hyper::mime::TEXT_PLAIN_UTF_8;
 use context::Context;
 use endpoint::Endpoint;
 use errors::EndpointResult;
-use request::{Request, Body};
+use request::{self, Request};
 
 
 pub trait FromBody: Sized {
     type Future: Future<Item = Self, Error = StatusCode>;
 
-    fn from_body(body: Body, req: &Request) -> Self::Future;
+    fn from_body(body: request::Body, req: &Request) -> Self::Future;
 }
 
 impl FromBody for String {
-    type Future = FromBodyFuture<String>;
+    type Future = FromBodyFuture<BoxFuture<String, ()>>;
 
-    fn from_body(body: Body, req: &Request) -> Self::Future {
+    fn from_body(body: request::Body, req: &Request) -> Self::Future {
         match req.header() {
             Some(&ContentType(ref mime)) if *mime == TEXT_PLAIN_UTF_8 => (),
             _ => return FromBodyFuture::WrongMediaType,
@@ -37,13 +37,13 @@ impl FromBody for String {
     }
 }
 
-pub enum FromBodyFuture<T> {
+pub enum FromBodyFuture<F> {
     WrongMediaType,
-    Parsed(BoxFuture<T, ()>),
+    Parsed(F),
 }
 
-impl<T> Future for FromBodyFuture<T> {
-    type Item = T;
+impl<F: Future> Future for FromBodyFuture<F> {
+    type Item = F::Item;
     type Error = StatusCode;
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         match *self {
@@ -55,13 +55,13 @@ impl<T> Future for FromBodyFuture<T> {
 
 
 
-pub struct TakeBody<T>(PhantomData<fn(T) -> T>);
+pub struct Body<T>(PhantomData<fn(T) -> T>);
 
-impl<T: FromBody> Endpoint for TakeBody<T> {
+impl<T: FromBody> Endpoint for Body<T> {
     type Item = T;
     type Future = T::Future;
 
-    fn apply<'r>(self, ctx: Context<'r>, mut body: Option<Body>) -> EndpointResult<'r, Self::Future> {
+    fn apply<'r>(self, ctx: Context<'r>, mut body: Option<request::Body>) -> EndpointResult<'r, Self::Future> {
         if let Some(body) = body.take() {
             let value = T::from_body(body, &ctx.request);
             Ok((ctx, None, value))
@@ -72,6 +72,6 @@ impl<T: FromBody> Endpoint for TakeBody<T> {
 }
 
 
-pub fn take_body<T: FromBody>() -> TakeBody<T> {
-    TakeBody(PhantomData)
+pub fn body<T: FromBody>() -> Body<T> {
+    Body(PhantomData)
 }

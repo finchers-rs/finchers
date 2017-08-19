@@ -14,6 +14,7 @@ pub mod request;
 pub mod response;
 pub mod server;
 pub mod test;
+pub mod json;
 
 pub mod errors {
     use context::Context;
@@ -50,3 +51,5 @@ pub use endpoint::{Endpoint, NewEndpoint};
 pub use response::{Response, Responder};
 #[doc(inline)]
 pub use server::EndpointService;
+#[doc(hidden)]
+pub use json::Json;
