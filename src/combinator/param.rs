@@ -1,3 +1,5 @@
+//! Definition of endpoints to parse query parameters
+
 use std::borrow::Cow;
 use std::marker::PhantomData;
 use std::str::FromStr;
@@ -9,6 +11,7 @@ use errors::*;
 use request::Body;
 
 
+#[allow(missing_docs)]
 pub struct Param<T>(Cow<'static, str>, PhantomData<fn(T) -> T>);
 
 impl<T: FromStr> Endpoint for Param<T> {
@@ -24,6 +27,7 @@ impl<T: FromStr> Endpoint for Param<T> {
     }
 }
 
+/// Create a combinator to get a query parameter of given name
 pub fn param<T: FromStr>(name: &'static str) -> Param<T> {
     Param(name.into(), PhantomData)
 }
