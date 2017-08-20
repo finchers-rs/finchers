@@ -2,10 +2,12 @@ use std::ops::{Deref, DerefMut};
 use futures::{Future, Stream};
 use serde::{Serialize, Deserialize};
 use serde_json::{self, Value};
+use hyper::StatusCode;
 use hyper::header::ContentType;
 use hyper::mime::APPLICATION_JSON;
 
-use combinator::body::{FromBody, FromBodyFuture};
+use combinator::body::FromBody;
+use errors::*;
 use request::{Request, Body};
 use response::{Response, Responder};
 
@@ -38,20 +40,25 @@ impl<T: 'static> FromBody for Json<T>
 where
     for<'de> T: Deserialize<'de>,
 {
-    type Future = FromBodyFuture<Box<Future<Item = Json<T>, Error = ()>>>;
+    type Future = Box<Future<Item = Json<T>, Error = FinchersError>>;
 
-    fn from_body(body: Body, req: &Request) -> Self::Future {
+    fn from_body(body: Body, req: &Request) -> FinchersResult<Self::Future> {
         match req.header() {
             Some(&ContentType(ref mime)) if *mime == APPLICATION_JSON => (),
-            _ => return FromBodyFuture::WrongMediaType,
+            _ => return Err(FinchersErrorKind::Status(StatusCode::BadRequest).into()),
         }
-        FromBodyFuture::Parsed(Box::new(
-            body.map_err(|_| ())
-                .fold(Vec::new(), |mut body, chunk| {
+        Ok(Box::new(
+            body.map_err(|err| {
+                FinchersErrorKind::ServerError(Box::new(err)).into()
+            }).fold(Vec::new(), |mut body,
+                 chunk|
+                 -> Result<Vec<u8>, FinchersError> {
                     body.extend_from_slice(&chunk);
                     Ok(body)
                 })
-                .and_then(|body| serde_json::from_slice(&body).map_err(|_| ()))
+                .and_then(|body| {
+                    serde_json::from_slice(&body).map_err(|_| FinchersErrorKind::Status(StatusCode::BadRequest).into())
+                })
                 .map(Json),
         ))
     }
