@@ -3,6 +3,7 @@
 use std::cell::RefCell;
 use hyper::Method;
 use hyper::error::UriError;
+use hyper::header::Header;
 use tokio_core::reactor::Core;
 
 use context::Context;
@@ -24,6 +25,31 @@ impl TestCase {
             request,
             body: None,
         })
+    }
+
+    pub fn get(uri: &str) -> Result<Self, UriError> {
+        Self::new(Method::Get, uri)
+    }
+
+    pub fn post(uri: &str) -> Result<Self, UriError> {
+        Self::new(Method::Post, uri)
+    }
+
+    pub fn put(uri: &str) -> Result<Self, UriError> {
+        Self::new(Method::Put, uri)
+    }
+
+    pub fn delete(uri: &str) -> Result<Self, UriError> {
+        Self::new(Method::Delete, uri)
+    }
+
+    pub fn patch(uri: &str) -> Result<Self, UriError> {
+        Self::new(Method::Patch, uri)
+    }
+
+    pub fn with_header<H: Header>(mut self, header: H) -> Self {
+        self.request.headers.set(header);
+        self
     }
 
     pub fn with_body<B: Into<Body>>(mut self, body: B) -> Self {
