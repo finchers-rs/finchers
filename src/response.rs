@@ -1,3 +1,5 @@
+//! Definitions and reexports related to HTTP response
+
 use std::error;
 use hyper::StatusCode;
 use errors::DummyError;
@@ -6,8 +8,12 @@ use errors::DummyError;
 pub use hyper::Response;
 
 
+/// The type to be converted to `hyper::Response`
 pub trait Responder {
+    /// The error type during `respond()`
     type Error: error::Error + Send + 'static;
+
+    /// Convert itself to `hyper::Response`
     fn respond(self) -> Result<Response, Self::Error>;
 }
 
@@ -40,6 +46,7 @@ impl Responder for String {
 }
 
 
+/// A wrapper of responders, to represents the status `201 Created`
 pub struct Created<T>(pub T);
 
 impl<T: Responder> Responder for Created<T> {
