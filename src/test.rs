@@ -2,20 +2,41 @@
 
 use std::cell::RefCell;
 use hyper::Method;
+use hyper::error::UriError;
 use tokio_core::reactor::Core;
 
 use context::Context;
-use endpoint::{Endpoint, NewEndpoint};
+use endpoint::Endpoint;
 use errors::*;
 use request::{Request, Body};
 
+#[allow(missing_docs)]
+pub struct TestCase {
+    pub request: Request,
+    pub body: Option<Body>,
+}
 
-/// Invoke given endpoint factory and return its result
-pub fn run_test<E: NewEndpoint>(new_endpoint: E, method: Method, uri: &str) -> Result<E::Item, FinchersError> {
-    let endpoint = new_endpoint.new_endpoint();
+#[allow(missing_docs)]
+impl TestCase {
+    pub fn new(method: Method, uri: &str) -> Result<Self, UriError> {
+        let request = Request::new(method, uri)?;
+        Ok(Self {
+            request,
+            body: None,
+        })
+    }
 
-    let req = Request::new(method, uri).expect("invalid URI");
-    let body = RefCell::new(Some(Body::default()));
+    pub fn with_body<B: Into<Body>>(mut self, body: B) -> Self {
+        self.body = Some(body.into());
+        self
+    }
+}
+
+
+/// Invoke given endpoint and return its result
+pub fn run_test<E: Endpoint>(endpoint: E, input: TestCase) -> Result<E::Item, FinchersError> {
+    let req = input.request;
+    let body = RefCell::new(Some(input.body.unwrap_or_default()));
     let ctx = Context::new(&req, &body);
 
     let (_ctx, f) = endpoint.apply(ctx);
