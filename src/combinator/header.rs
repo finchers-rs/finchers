@@ -1,3 +1,5 @@
+//! Definition of endpoints to parse request headers
+
 use std::marker::PhantomData;
 use futures::future::{ok, FutureResult};
 use hyper::header::{self, Authorization, ContentType};
@@ -8,11 +10,8 @@ use errors::*;
 use request::Body;
 
 
+#[allow(missing_docs)]
 pub struct Header<H>(PhantomData<fn(H) -> H>);
-
-pub fn header<H: header::Header + Clone>() -> Header<H> {
-    Header(PhantomData)
-}
 
 impl<H: header::Header + Clone> Endpoint for Header<H> {
     type Item = H;
@@ -26,10 +25,18 @@ impl<H: header::Header + Clone> Endpoint for Header<H> {
     }
 }
 
+
+/// Create a combinator to access a request header
+pub fn header<H: header::Header + Clone>() -> Header<H> {
+    Header(PhantomData)
+}
+
+/// Create a combinator to get the `Authorization` header
 pub fn authorization<S: header::Scheme + 'static>() -> Header<Authorization<S>> {
     header()
 }
 
+/// Create a combinator to get the `ContentType` header
 pub fn content_type() -> Header<ContentType> {
     header()
 }

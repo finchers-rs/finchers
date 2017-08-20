@@ -1,3 +1,5 @@
+//! Definition of endpoints to parse request body
+
 use std::marker::PhantomData;
 use futures::{Future, Stream, Poll, BoxFuture};
 use hyper::StatusCode;
@@ -10,9 +12,12 @@ use errors::*;
 use request::{self, Request};
 
 
+/// A trait represents the conversion from `Body`.
 pub trait FromBody: Sized {
+    /// A future returned from `from_body()`
     type Future: Future<Item = Self, Error = FinchersError>;
 
+    /// Convert the content of `body` to its type
     fn from_body(body: request::Body, req: &Request) -> Self::Future;
 }
 
@@ -37,6 +42,7 @@ impl FromBody for String {
     }
 }
 
+#[doc(hidden)]
 pub enum FromBodyFuture<F> {
     WrongMediaType,
     Parsed(F),
@@ -45,6 +51,7 @@ pub enum FromBodyFuture<F> {
 impl<F: Future> Future for FromBodyFuture<F> {
     type Item = F::Item;
     type Error = FinchersError;
+
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         match *self {
             FromBodyFuture::WrongMediaType => Err(FinchersErrorKind::Status(StatusCode::BadRequest).into()),
@@ -58,7 +65,7 @@ impl<F: Future> Future for FromBodyFuture<F> {
 }
 
 
-
+#[allow(missing_docs)]
 pub struct Body<T>(PhantomData<fn(T) -> T>);
 
 impl<T: FromBody> Endpoint for Body<T> {
@@ -76,6 +83,7 @@ impl<T: FromBody> Endpoint for Body<T> {
 }
 
 
+/// Create a combinator to take a request body typed to `T` from the context
 pub fn body<T: FromBody>() -> Body<T> {
     Body(PhantomData)
 }

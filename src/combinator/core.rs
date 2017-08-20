@@ -1,5 +1,7 @@
+//! Definition of core combinators
+
 use futures::{Future, Poll};
-use futures::future;
+use futures::future::{self, Join, Join3, Join4, Join5};
 
 use context::Context;
 use endpoint::Endpoint;
@@ -7,6 +9,80 @@ use errors::EndpointResult;
 use request::Body;
 
 
+impl<A, B> Endpoint for (A, B)
+where
+    A: Endpoint,
+    B: Endpoint,
+{
+    type Item = (A::Item, B::Item);
+    type Future = Join<A::Future, B::Future>;
+
+    fn apply<'r>(self, ctx: Context<'r>, body: Option<Body>) -> EndpointResult<'r, Self::Future> {
+        let (ctx, body, a) = self.0.apply(ctx, body)?;
+        let (ctx, body, b) = self.1.apply(ctx, body)?;
+        Ok((ctx, body, a.join(b)))
+    }
+}
+
+impl<A, B, C> Endpoint for (A, B, C)
+where
+    A: Endpoint,
+    B: Endpoint,
+    C: Endpoint,
+{
+    type Item = (A::Item, B::Item, C::Item);
+    type Future = Join3<A::Future, B::Future, C::Future>;
+
+    fn apply<'r>(self, ctx: Context<'r>, body: Option<Body>) -> EndpointResult<'r, Self::Future> {
+        let (ctx, body, a) = self.0.apply(ctx, body)?;
+        let (ctx, body, b) = self.1.apply(ctx, body)?;
+        let (ctx, body, c) = self.2.apply(ctx, body)?;
+        Ok((ctx, body, a.join3(b, c)))
+    }
+}
+
+impl<A, B, C, D> Endpoint for (A, B, C, D)
+where
+    A: Endpoint,
+    B: Endpoint,
+    C: Endpoint,
+    D: Endpoint,
+{
+    type Item = (A::Item, B::Item, C::Item, D::Item);
+    type Future = Join4<A::Future, B::Future, C::Future, D::Future>;
+
+    fn apply<'r>(self, ctx: Context<'r>, body: Option<Body>) -> EndpointResult<'r, Self::Future> {
+        let (ctx, body, a) = self.0.apply(ctx, body)?;
+        let (ctx, body, b) = self.1.apply(ctx, body)?;
+        let (ctx, body, c) = self.2.apply(ctx, body)?;
+        let (ctx, body, d) = self.3.apply(ctx, body)?;
+        Ok((ctx, body, a.join4(b, c, d)))
+    }
+}
+
+impl<A, B, C, D, E> Endpoint for (A, B, C, D, E)
+where
+    A: Endpoint,
+    B: Endpoint,
+    C: Endpoint,
+    D: Endpoint,
+    E: Endpoint,
+{
+    type Item = (A::Item, B::Item, C::Item, D::Item, E::Item);
+    type Future = Join5<A::Future, B::Future, C::Future, D::Future, E::Future>;
+
+    fn apply<'r>(self, ctx: Context<'r>, body: Option<Body>) -> EndpointResult<'r, Self::Future> {
+        let (ctx, body, a) = self.0.apply(ctx, body)?;
+        let (ctx, body, b) = self.1.apply(ctx, body)?;
+        let (ctx, body, c) = self.2.apply(ctx, body)?;
+        let (ctx, body, d) = self.3.apply(ctx, body)?;
+        let (ctx, body, e) = self.4.apply(ctx, body)?;
+        Ok((ctx, body, a.join5(b, c, d, e)))
+    }
+}
+
+
+#[allow(missing_docs)]
 pub struct With<E1, E2>(pub(crate) E1, pub(crate) E2);
 
 impl<E1, E2> Endpoint for With<E1, E2>
@@ -26,6 +102,7 @@ where
 }
 
 
+#[allow(missing_docs)]
 pub struct Skip<E1, E2>(pub(crate) E1, pub(crate) E2);
 
 impl<E1, E2> Endpoint for Skip<E1, E2>
@@ -45,6 +122,7 @@ where
 }
 
 
+#[allow(missing_docs)]
 pub struct Map<E, F>(pub(crate) E, pub(crate) F);
 
 impl<E, F, R> Endpoint for Map<E, F>
@@ -64,6 +142,7 @@ where
 }
 
 
+#[allow(missing_docs)]
 pub struct Or<E1, E2>(pub(crate) E1, pub(crate) E2);
 
 impl<E1, E2> Endpoint for Or<E1, E2>
@@ -86,6 +165,7 @@ where
     }
 }
 
+#[allow(missing_docs)]
 pub enum OrFuture<A, B> {
     A(A),
     B(B),

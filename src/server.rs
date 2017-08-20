@@ -1,3 +1,5 @@
+//! Definition of HTTP services for Hyper
+
 use std::sync::Arc;
 
 use futures::{Future, Poll, Async};
@@ -11,6 +13,7 @@ use request;
 use response::Responder;
 
 
+/// A wrapper for `NewEndpoint`s, to provide HTTP services
 pub struct EndpointService<E: NewEndpoint>(pub(crate) E);
 
 impl<E: NewEndpoint> Service for EndpointService<E>
@@ -34,6 +37,7 @@ where
     }
 }
 
+#[allow(missing_docs)]
 pub enum EndpointServiceFuture<F: Future<Error = FinchersError>> {
     Routing(Option<FinchersError>),
     Then(F),
@@ -73,6 +77,7 @@ where
 }
 
 
+/// Start the HTTP server, with given endpoint factory and listener address.
 pub fn run_http<E: NewEndpoint + Send + Sync + 'static>(new_endpoint: E, addr: &str)
 where
     E::Item: Responder,

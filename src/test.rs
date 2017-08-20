@@ -1,3 +1,5 @@
+//! Helper functions for testing
+
 use hyper::Method;
 use tokio_core::reactor::Core;
 
@@ -7,6 +9,7 @@ use errors::*;
 use request::{Request, Body};
 
 
+/// Invoke given endpoint factory and return its result
 pub fn run_test<E: NewEndpoint>(new_endpoint: E, method: Method, uri: &str) -> Result<E::Item, FinchersError> {
     let endpoint = new_endpoint.new_endpoint();
 

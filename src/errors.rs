@@ -1,3 +1,5 @@
+//! Definition of error types
+
 use std::fmt;
 use std::error;
 use context::Context;
@@ -10,21 +12,25 @@ error_chain! {
     }
 
     errors {
+        /// An error during routing
         Routing {
             description("routing")
             display("routing")
         }
 
+        /// A HTTP status code
         Status(s: StatusCode) {
             description("status code")
             display("status code: {:?}", s)
         }
 
+        /// An error represents `Internal Server Error`
         ServerError(err: Box<error::Error + Send + 'static>) {
             description("internal server error")
             display("server error: {}", err)
         }
 
+        /// An error from `Responder::respond()`
         Responder(err: Box<error::Error + Send + 'static>) {
             description("responder")
             display("responder: {}", err)
@@ -32,11 +38,13 @@ error_chain! {
     }
 }
 
+/// The type of value returned from `Endpoint::apply`
 pub type EndpointResult<'r, F> = Result<(Context<'r>, Option<Body>, F), (FinchersError, Option<Body>)>;
 
 
+#[allow(missing_docs)]
 pub trait IntoStatus {
-    fn into_status(&self) -> StatusCode;
+    fn into_status(&self) -> StatusCode; // FIXME: the name of this method should be `to_status`
 }
 
 impl IntoStatus for FinchersError {
@@ -52,6 +60,7 @@ impl IntoStatus for FinchersError {
 }
 
 
+#[allow(missing_docs)]
 #[derive(Debug)]
 pub struct DummyError;
 

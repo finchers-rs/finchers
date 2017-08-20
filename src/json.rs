@@ -10,10 +10,12 @@ use request::{Request, Body};
 use response::{Response, Responder};
 
 
+/// Represents a JSON value
 #[derive(Debug)]
 pub struct Json<T = Value>(pub T);
 
 impl<T: Serialize> Json<T> {
+    #[allow(missing_docs)]
     pub fn into_value(self) -> Json<Value> {
         Json(serde_json::to_value(self.0).unwrap())
     }
