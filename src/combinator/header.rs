@@ -7,7 +7,6 @@ use hyper::header::{self, Authorization, ContentType};
 use context::Context;
 use endpoint::Endpoint;
 use errors::*;
-use request::Body;
 
 
 #[allow(missing_docs)]
@@ -17,11 +16,12 @@ impl<H: header::Header + Clone> Endpoint for Header<H> {
     type Item = H;
     type Future = FutureResult<H, FinchersError>;
 
-    fn apply<'r>(self, ctx: Context<'r>, body: Option<Body>) -> EndpointResult<'r, Self::Future> {
-        match ctx.request.header::<H>() {
-            Some(h) => Ok((ctx, body, ok(h.clone()))),
-            None => Err((FinchersErrorKind::Routing.into(), body)),
-        }
+    fn apply<'r, 'b>(self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
+        let result = match ctx.request.header::<H>() {
+            Some(h) => Ok(ok(h.clone())),
+            None => Err(FinchersErrorKind::Routing.into()),
+        };
+        (ctx, result)
     }
 }
 

@@ -5,7 +5,6 @@ use hyper::Method;
 use context::Context;
 use endpoint::Endpoint;
 use errors::*;
-use request::Body;
 
 #[allow(missing_docs)]
 pub struct MatchMethod<E>(Method, E);
@@ -14,11 +13,11 @@ impl<E: Endpoint> Endpoint for MatchMethod<E> {
     type Item = E::Item;
     type Future = E::Future;
 
-    fn apply<'r>(self, ctx: Context<'r>, body: Option<Body>) -> EndpointResult<'r, Self::Future> {
+    fn apply<'r, 'b>(self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
         if *ctx.request.method() != self.0 {
-            return Err((FinchersErrorKind::Routing.into(), body));
+            return (ctx, Err(FinchersErrorKind::Routing.into()));
         }
-        self.1.apply(ctx, body)
+        self.1.apply(ctx)
     }
 }
 

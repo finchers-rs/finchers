@@ -8,7 +8,6 @@ use futures::future::{ok, FutureResult};
 use context::Context;
 use endpoint::Endpoint;
 use errors::*;
-use request::Body;
 
 
 #[allow(missing_docs)]
@@ -18,12 +17,12 @@ impl<T: FromStr> Endpoint for Param<T> {
     type Item = T;
     type Future = FutureResult<T, FinchersError>;
 
-    fn apply<'r>(self, ctx: Context<'r>, body: Option<Body>) -> EndpointResult<'r, Self::Future> {
+    fn apply<'r, 'b>(self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
         let value: T = match ctx.params.get(&self.0).and_then(|s| s.parse().ok()) {
             Some(val) => val,
-            None => return Err((FinchersErrorKind::Routing.into(), body)),
+            None => return (ctx, Err(FinchersErrorKind::Routing.into())),
         };
-        Ok((ctx, body, ok(value)))
+        (ctx, Ok(ok(value)))
     }
 }
 

@@ -1,5 +1,6 @@
 //! Definition of HTTP services for Hyper
 
+use std::cell::RefCell;
 use std::sync::Arc;
 
 use futures::{Future, Poll, Async};
@@ -27,12 +28,13 @@ where
 
     fn call(&self, req: hyper::Request) -> Self::Future {
         let (req, body) = request::reconstruct(req);
-        let ctx = Context::new(&req);
+        let body = RefCell::new(Some(body));
+        let ctx = Context::new(&req, &body);
 
         let endpoint = self.0.new_endpoint();
-        match endpoint.apply(ctx, Some(body)) {
-            Ok((_ctx, _body, f)) => EndpointServiceFuture::Then(f),
-            Err((err, _body)) => EndpointServiceFuture::Routing(Some(err)),
+        match endpoint.apply(ctx) {
+            (_ctx, Ok(f)) => EndpointServiceFuture::Then(f),
+            (_ctx, Err(err)) => EndpointServiceFuture::Routing(Some(err)),
         }
     }
 }
