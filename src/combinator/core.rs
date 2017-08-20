@@ -5,9 +5,18 @@ use futures::future::{self, Join, Join3, Join4, Join5};
 
 use context::Context;
 use endpoint::Endpoint;
-use errors::EndpointResult;
-use request::Body;
+use errors::FinchersResult;
 
+macro_rules! try_second {
+    ($e:expr) => {
+        {
+            match $e {
+                (ctx, Ok(a)) => (ctx, a),
+                (ctx, Err(b)) => return (ctx, Err(b.into())),
+            }
+        }
+    }
+}
 
 impl<A, B> Endpoint for (A, B)
 where
@@ -17,10 +26,10 @@ where
     type Item = (A::Item, B::Item);
     type Future = Join<A::Future, B::Future>;
 
-    fn apply<'r>(self, ctx: Context<'r>, body: Option<Body>) -> EndpointResult<'r, Self::Future> {
-        let (ctx, body, a) = self.0.apply(ctx, body)?;
-        let (ctx, body, b) = self.1.apply(ctx, body)?;
-        Ok((ctx, body, a.join(b)))
+    fn apply<'r, 'b>(self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
+        let (ctx, a) = try_second!(self.0.apply(ctx));
+        let (ctx, b) = try_second!(self.1.apply(ctx));
+        (ctx, Ok(a.join(b)))
     }
 }
 
@@ -33,11 +42,11 @@ where
     type Item = (A::Item, B::Item, C::Item);
     type Future = Join3<A::Future, B::Future, C::Future>;
 
-    fn apply<'r>(self, ctx: Context<'r>, body: Option<Body>) -> EndpointResult<'r, Self::Future> {
-        let (ctx, body, a) = self.0.apply(ctx, body)?;
-        let (ctx, body, b) = self.1.apply(ctx, body)?;
-        let (ctx, body, c) = self.2.apply(ctx, body)?;
-        Ok((ctx, body, a.join3(b, c)))
+    fn apply<'r, 'b>(self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
+        let (ctx, a) = try_second!(self.0.apply(ctx));
+        let (ctx, b) = try_second!(self.1.apply(ctx));
+        let (ctx, c) = try_second!(self.2.apply(ctx));
+        (ctx, Ok(a.join3(b, c)))
     }
 }
 
@@ -51,12 +60,12 @@ where
     type Item = (A::Item, B::Item, C::Item, D::Item);
     type Future = Join4<A::Future, B::Future, C::Future, D::Future>;
 
-    fn apply<'r>(self, ctx: Context<'r>, body: Option<Body>) -> EndpointResult<'r, Self::Future> {
-        let (ctx, body, a) = self.0.apply(ctx, body)?;
-        let (ctx, body, b) = self.1.apply(ctx, body)?;
-        let (ctx, body, c) = self.2.apply(ctx, body)?;
-        let (ctx, body, d) = self.3.apply(ctx, body)?;
-        Ok((ctx, body, a.join4(b, c, d)))
+    fn apply<'r, 'b>(self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
+        let (ctx, a) = try_second!(self.0.apply(ctx));
+        let (ctx, b) = try_second!(self.1.apply(ctx));
+        let (ctx, c) = try_second!(self.2.apply(ctx));
+        let (ctx, d) = try_second!(self.3.apply(ctx));
+        (ctx, Ok(a.join4(b, c, d)))
     }
 }
 
@@ -71,13 +80,13 @@ where
     type Item = (A::Item, B::Item, C::Item, D::Item, E::Item);
     type Future = Join5<A::Future, B::Future, C::Future, D::Future, E::Future>;
 
-    fn apply<'r>(self, ctx: Context<'r>, body: Option<Body>) -> EndpointResult<'r, Self::Future> {
-        let (ctx, body, a) = self.0.apply(ctx, body)?;
-        let (ctx, body, b) = self.1.apply(ctx, body)?;
-        let (ctx, body, c) = self.2.apply(ctx, body)?;
-        let (ctx, body, d) = self.3.apply(ctx, body)?;
-        let (ctx, body, e) = self.4.apply(ctx, body)?;
-        Ok((ctx, body, a.join5(b, c, d, e)))
+    fn apply<'r, 'b>(self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
+        let (ctx, a) = try_second!(self.0.apply(ctx));
+        let (ctx, b) = try_second!(self.1.apply(ctx));
+        let (ctx, c) = try_second!(self.2.apply(ctx));
+        let (ctx, d) = try_second!(self.3.apply(ctx));
+        let (ctx, e) = try_second!(self.4.apply(ctx));
+        (ctx, Ok(a.join5(b, c, d, e)))
     }
 }
 
@@ -93,11 +102,10 @@ where
     type Item = E2::Item;
     type Future = E2::Future;
 
-    fn apply<'r>(self, ctx: Context<'r>, body: Option<Body>) -> EndpointResult<'r, Self::Future> {
-        let With(e1, e2) = self;
-        e1.apply(ctx, body).and_then(
-            |(ctx, body, _)| e2.apply(ctx, body),
-        )
+    fn apply<'r, 'b>(self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
+        let (ctx, _a) = try_second!(self.0.apply(ctx));
+        let (ctx, b) = try_second!(self.1.apply(ctx));
+        (ctx, Ok(b))
     }
 }
 
@@ -113,11 +121,10 @@ where
     type Item = E1::Item;
     type Future = E1::Future;
 
-    fn apply<'r>(self, ctx: Context<'r>, body: Option<Body>) -> EndpointResult<'r, Self::Future> {
-        let Skip(e1, e2) = self;
-        e1.apply(ctx, body).and_then(|(ctx, body, f)| {
-            e2.apply(ctx, body).map(|(ctx, body, _)| (ctx, body, f))
-        })
+    fn apply<'r, 'b>(self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
+        let (ctx, a) = try_second!(self.0.apply(ctx));
+        let (ctx, _b) = try_second!(self.1.apply(ctx));
+        (ctx, Ok(a))
     }
 }
 
@@ -133,11 +140,9 @@ where
     type Item = R;
     type Future = future::Map<E::Future, F>;
 
-    fn apply<'r>(self, ctx: Context<'r>, body: Option<Body>) -> EndpointResult<'r, Self::Future> {
-        let Map(e, f) = self;
-        e.apply(ctx, body).map(
-            |(ctx, body, fut)| (ctx, body, fut.map(f)),
-        )
+    fn apply<'r, 'b>(self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
+        let (ctx, a) = try_second!(self.0.apply(ctx));
+        (ctx, Ok(a.map(self.1)))
     }
 }
 
@@ -153,15 +158,15 @@ where
     type Item = E1::Item;
     type Future = OrFuture<E1::Future, E2::Future>;
 
-    fn apply<'r>(self, ctx: Context<'r>, body: Option<Body>) -> EndpointResult<'r, Self::Future> {
+    fn apply<'r, 'b>(self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
         let Or(e1, e2) = self;
-        e1.apply(ctx.clone(), body)
-            .map(|(ctx, body, a)| (ctx, body, OrFuture::A(a)))
-            .or_else(|(_, body)| {
-                e2.apply(ctx, body).map(|(ctx, body, b)| {
-                    (ctx, body, OrFuture::B(b))
-                })
-            })
+        match e1.apply(ctx.clone()) {
+            (ctx, Ok(a)) => (ctx, Ok(OrFuture::A(a))),
+            (_ctx, Err(_)) => {
+                let (ctx, b) = try_second!(e2.apply(ctx));
+                (ctx, Ok(OrFuture::B(b)))
+            }
+        }
     }
 }
 

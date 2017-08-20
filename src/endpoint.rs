@@ -5,7 +5,6 @@ use futures::Future;
 use combinator::core::{With, Map, Skip, Or};
 use context::Context;
 use errors::*;
-use request::Body;
 use server::EndpointService;
 
 
@@ -73,7 +72,7 @@ pub trait Endpoint: Sized {
     type Future: Future<Item = Self::Item, Error = FinchersError>;
 
     /// Apply the incoming HTTP request, and return the future of its response
-    fn apply<'r>(self, ctx: Context<'r>, body: Option<Body>) -> EndpointResult<'r, Self::Future>;
+    fn apply<'r, 'b>(self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>);
 
 
     /// Combine itself and the other endpoint, and create a combinator which returns a pair of its

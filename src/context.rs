@@ -1,30 +1,40 @@
 use std::borrow::Cow;
+use std::cell::RefCell;
 use std::collections::{VecDeque, HashMap};
 use url::form_urlencoded;
 
-use request::Request;
+use request::{Request, Body};
 
 /// A Finchers-specific context and the incoming HTTP request, without the request body
 #[derive(Debug, Clone)]
-pub struct Context<'r> {
+pub struct Context<'r, 'b> {
     /// A reference of the incoming HTTP request
     pub request: &'r Request,
     /// A sequence of remaining path segments
     pub routes: VecDeque<&'r str>,
     /// A map of parsed queries
     pub params: HashMap<Cow<'r, str>, Cow<'r, str>>,
+
+    #[allow(missing_docs)]
+    body: &'b RefCell<Option<Body>>,
 }
 
-impl<'a> Context<'a> {
+impl<'r, 'b> Context<'r, 'b> {
     /// Create an instance of `Context` from a reference of the incoming HTTP request
-    pub fn new(request: &'a Request) -> Self {
+    pub fn new(request: &'r Request, body: &'b RefCell<Option<Body>>) -> Self {
         let routes = to_path_segments(request.path());
         let params = request.query().map(to_query_map).unwrap_or_default();
         Context {
             request,
             routes,
             params,
+            body,
         }
+    }
+
+    #[allow(missing_docs)]
+    pub fn take_body(&mut self) -> Option<Body> {
+        self.body.borrow_mut().take()
     }
 }
 

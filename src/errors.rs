@@ -2,8 +2,6 @@
 
 use std::fmt;
 use std::error;
-use context::Context;
-use request::Body;
 use hyper::StatusCode;
 
 error_chain! {
@@ -37,9 +35,6 @@ error_chain! {
         }
     }
 }
-
-/// The type of value returned from `Endpoint::apply`
-pub type EndpointResult<'r, F> = Result<(Context<'r>, Option<Body>, F), (FinchersError, Option<Body>)>;
 
 
 #[allow(missing_docs)]

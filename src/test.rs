@@ -1,5 +1,6 @@
 //! Helper functions for testing
 
+use std::cell::RefCell;
 use hyper::Method;
 use tokio_core::reactor::Core;
 
@@ -14,10 +15,11 @@ pub fn run_test<E: NewEndpoint>(new_endpoint: E, method: Method, uri: &str) -> R
     let endpoint = new_endpoint.new_endpoint();
 
     let req = Request::new(method, uri).expect("invalid URI");
-    let body = Body::default();
-    let ctx = Context::new(&req);
+    let body = RefCell::new(Some(Body::default()));
+    let ctx = Context::new(&req, &body);
 
-    let (_ctx, _body, f) = endpoint.apply(ctx, Some(body)).map_err(|(err, _)| err)?;
+    let (_ctx, f) = endpoint.apply(ctx);
+    let f = f?;
 
     let mut core = Core::new().unwrap();
     core.run(f)

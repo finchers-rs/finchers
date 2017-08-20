@@ -72,13 +72,14 @@ impl<T: FromBody> Endpoint for Body<T> {
     type Item = T;
     type Future = T::Future;
 
-    fn apply<'r>(self, ctx: Context<'r>, mut body: Option<request::Body>) -> EndpointResult<'r, Self::Future> {
-        if let Some(body) = body.take() {
+    fn apply<'r, 'b>(self, mut ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
+        let result = if let Some(body) = ctx.take_body() {
             let value = T::from_body(body, &ctx.request);
-            Ok((ctx, None, value))
+            Ok(value)
         } else {
-            Err(("cannot take body twice".into(), None))
-        }
+            Err("cannot take body twice".into())
+        };
+        (ctx, result)
     }
 }
 
