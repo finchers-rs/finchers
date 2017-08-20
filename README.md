@@ -11,6 +11,7 @@ The concept and design of this library is highly inspired by [`finch`](https://g
 * ease of use
 * asynchronous handling based on Futures and Hyper 0.11
 * type-safe routing
+* focuse on stable channel
 
 ## Example
 
@@ -37,5 +38,9 @@ fn main() {
 
 More examples are located in [`examples/`](examples/).
 
+## Documentation
+* [released](https://docs.rs/finchers/)
+* [master](https://ubnt-intrepid.github.io/finchers/finchers/index.html)
+
 ## License
-Dual licensed under the MIT and Apache 2.0
+Dual licensed under the MIT and Apache 2.0.
