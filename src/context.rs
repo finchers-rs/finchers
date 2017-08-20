@@ -8,15 +8,14 @@ use request::{Request, Body};
 /// A Finchers-specific context and the incoming HTTP request, without the request body
 #[derive(Debug, Clone)]
 pub struct Context<'r, 'b> {
-    /// A reference of the incoming HTTP request
+    /// A reference of the incoming HTTP request, without the request body
     pub request: &'r Request,
+    /// A reference of the request body
+    body: &'b RefCell<Option<Body>>,
     /// A sequence of remaining path segments
     pub routes: VecDeque<&'r str>,
     /// A map of parsed queries
     pub params: HashMap<Cow<'r, str>, Cow<'r, str>>,
-
-    #[allow(missing_docs)]
-    body: &'b RefCell<Option<Body>>,
 }
 
 impl<'r, 'b> Context<'r, 'b> {
@@ -32,7 +31,7 @@ impl<'r, 'b> Context<'r, 'b> {
         }
     }
 
-    #[allow(missing_docs)]
+    /// Take and return the instance of request body, if available.
     pub fn take_body(&mut self) -> Option<Body> {
         self.body.borrow_mut().take()
     }

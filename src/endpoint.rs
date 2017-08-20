@@ -133,7 +133,8 @@ pub trait Endpoint: Sized {
         Skip(self, e)
     }
 
-    #[allow(missing_docs)]
+    /// Create an endpoint which attempts to apply `self`.
+    /// If `self` failes, then revert the context and retry applying `e`.
     fn or<E>(self, e: E) -> Or<Self, E>
     where
         E: Endpoint<Item = Self::Item>,
