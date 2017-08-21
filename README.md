@@ -1,5 +1,5 @@
 # `finchers`
-[![Build Status](https://travis-ci.org/ubnt-intrepid/finchers.svg?branch=master)](https://travis-ci.org/ubnt-intrepid/finchers)
+[![Build Status](https://travis-ci.org/finchers-rs/finchers.svg?branch=master)](https://travis-ci.org/finchers-rs/finchers)
 [![crates.io](https://img.shields.io/crates/v/finchers.svg)](https://crates.io/crates/finchers)
 [![docs-rs](https://docs.rs/finchers/badge.svg)](https://docs.rs/finchers)
 
@@ -40,7 +40,7 @@ More examples are located in [`examples/`](examples/).
 
 ## Documentation
 * [released](https://docs.rs/finchers/)
-* [master](https://ubnt-intrepid.github.io/finchers/finchers/index.html)
+* [master](https://finchers-rs.github.io/finchers/finchers/index.html)
 
 ## License
 Dual licensed under the MIT and Apache 2.0.
