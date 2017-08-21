@@ -1,7 +1,8 @@
 //! Definition of core combinators
 
+use std::sync::Arc;
 use futures::{Future, Poll};
-use futures::future::{self, Join, Join3, Join4, Join5};
+use futures::future::{Join, Join3, Join4, Join5};
 
 use context::Context;
 use endpoint::Endpoint;
@@ -26,7 +27,7 @@ where
     type Item = (A::Item, B::Item);
     type Future = Join<A::Future, B::Future>;
 
-    fn apply<'r, 'b>(self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
+    fn apply<'r, 'b>(&self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
         let (ctx, a) = try_second!(self.0.apply(ctx));
         let (ctx, b) = try_second!(self.1.apply(ctx));
         (ctx, Ok(a.join(b)))
@@ -42,7 +43,7 @@ where
     type Item = (A::Item, B::Item, C::Item);
     type Future = Join3<A::Future, B::Future, C::Future>;
 
-    fn apply<'r, 'b>(self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
+    fn apply<'r, 'b>(&self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
         let (ctx, a) = try_second!(self.0.apply(ctx));
         let (ctx, b) = try_second!(self.1.apply(ctx));
         let (ctx, c) = try_second!(self.2.apply(ctx));
@@ -60,7 +61,7 @@ where
     type Item = (A::Item, B::Item, C::Item, D::Item);
     type Future = Join4<A::Future, B::Future, C::Future, D::Future>;
 
-    fn apply<'r, 'b>(self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
+    fn apply<'r, 'b>(&self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
         let (ctx, a) = try_second!(self.0.apply(ctx));
         let (ctx, b) = try_second!(self.1.apply(ctx));
         let (ctx, c) = try_second!(self.2.apply(ctx));
@@ -80,7 +81,7 @@ where
     type Item = (A::Item, B::Item, C::Item, D::Item, E::Item);
     type Future = Join5<A::Future, B::Future, C::Future, D::Future, E::Future>;
 
-    fn apply<'r, 'b>(self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
+    fn apply<'r, 'b>(&self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
         let (ctx, a) = try_second!(self.0.apply(ctx));
         let (ctx, b) = try_second!(self.1.apply(ctx));
         let (ctx, c) = try_second!(self.2.apply(ctx));
@@ -102,7 +103,7 @@ where
     type Item = E2::Item;
     type Future = E2::Future;
 
-    fn apply<'r, 'b>(self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
+    fn apply<'r, 'b>(&self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
         let (ctx, _a) = try_second!(self.0.apply(ctx));
         let (ctx, b) = try_second!(self.1.apply(ctx));
         (ctx, Ok(b))
@@ -121,7 +122,7 @@ where
     type Item = E1::Item;
     type Future = E1::Future;
 
-    fn apply<'r, 'b>(self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
+    fn apply<'r, 'b>(&self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
         let (ctx, a) = try_second!(self.0.apply(ctx));
         let (ctx, _b) = try_second!(self.1.apply(ctx));
         (ctx, Ok(a))
@@ -130,19 +131,39 @@ where
 
 
 #[allow(missing_docs)]
-pub struct Map<E, F>(pub(crate) E, pub(crate) F);
+pub struct Map<E, F>(pub(crate) E, pub(crate) Arc<F>);
 
 impl<E, F, R> Endpoint for Map<E, F>
 where
     E: Endpoint,
-    F: FnOnce(E::Item) -> R,
+    F: Fn(E::Item) -> R,
 {
     type Item = R;
-    type Future = future::Map<E::Future, F>;
+    type Future = MapFuture<E::Future, F>;
 
-    fn apply<'r, 'b>(self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
-        let (ctx, a) = try_second!(self.0.apply(ctx));
-        (ctx, Ok(a.map(self.1)))
+    fn apply<'r, 'b>(&self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
+        let (ctx, inner) = try_second!(self.0.apply(ctx));
+        let map_fn = self.1.clone();
+        (ctx, Ok(MapFuture { inner, map_fn }))
+    }
+}
+
+#[doc(hidden)]
+pub struct MapFuture<F, M> {
+    inner: F,
+    map_fn: Arc<M>,
+}
+
+impl<F, M, R> Future for MapFuture<F, M>
+where
+    F: Future,
+    M: Fn(F::Item) -> R,
+{
+    type Item = R;
+    type Error = F::Error;
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        let item = try_ready!(self.inner.poll());
+        Ok((*self.map_fn)(item).into())
     }
 }
 
@@ -158,8 +179,8 @@ where
     type Item = E1::Item;
     type Future = OrFuture<E1::Future, E2::Future>;
 
-    fn apply<'r, 'b>(self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
-        let Or(e1, e2) = self;
+    fn apply<'r, 'b>(&self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
+        let &Or(ref e1, ref e2) = self;
         match e1.apply(ctx.clone()) {
             (ctx, Ok(a)) => (ctx, Ok(OrFuture::A(a))),
             (_ctx, Err(_)) => {

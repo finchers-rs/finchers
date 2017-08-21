@@ -54,7 +54,7 @@ impl<T: FromBody> Endpoint for Body<T> {
     type Item = T;
     type Future = T::Future;
 
-    fn apply<'r, 'b>(self, mut ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
+    fn apply<'r, 'b>(&self, mut ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
         let result = if let Some(body) = ctx.take_body() {
             T::from_body(body, &ctx.request)
         } else {

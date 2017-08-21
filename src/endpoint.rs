@@ -21,11 +21,6 @@ pub trait NewEndpoint: Sized {
 
     /// Create and return a new endpoint.
     fn new_endpoint(&self) -> Self::Endpoint;
-
-    /// Convert itself into `tokio_service::Service`
-    fn into_service(self) -> EndpointService<Self> {
-        EndpointService(self)
-    }
 }
 
 impl<F, R> NewEndpoint for F
@@ -64,7 +59,7 @@ impl<E: NewEndpoint> NewEndpoint for ::std::sync::Arc<E> {
 
 
 /// A HTTP endpoint, which provides the futures from incoming HTTP requests
-pub trait Endpoint: Sized {
+pub trait Endpoint {
     /// The type of resolved value, created by this endpoint
     type Item;
 
@@ -72,13 +67,22 @@ pub trait Endpoint: Sized {
     type Future: Future<Item = Self::Item, Error = FinchersError>;
 
     /// Apply the incoming HTTP request, and return the future of its response
-    fn apply<'r, 'b>(self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>);
+    fn apply<'r, 'b>(&self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>);
 
+
+    /// Convert itself into `tokio_service::Service`
+    fn into_service(self) -> EndpointService<Self>
+    where
+        Self: Sized,
+    {
+        EndpointService(self)
+    }
 
     /// Combine itself and the other endpoint, and create a combinator which returns a pair of its
     /// `Item`s.
     fn join<E>(self, e: E) -> (Self, E)
     where
+        Self: Sized,
         E: Endpoint,
     {
         (self, e)
@@ -88,6 +92,7 @@ pub trait Endpoint: Sized {
     /// `Item`s.
     fn join3<E1, E2>(self, e1: E1, e2: E2) -> (Self, E1, E2)
     where
+        Self: Sized,
         E1: Endpoint,
         E2: Endpoint,
     {
@@ -98,6 +103,7 @@ pub trait Endpoint: Sized {
     /// `Item`s.
     fn join4<E1, E2, E3>(self, e1: E1, e2: E2, e3: E3) -> (Self, E1, E2, E3)
     where
+        Self: Sized,
         E1: Endpoint,
         E2: Endpoint,
         E3: Endpoint,
@@ -109,6 +115,7 @@ pub trait Endpoint: Sized {
     /// `Item`s.
     fn join5<E1, E2, E3, E4>(self, e1: E1, e2: E2, e3: E3, e4: E4) -> (Self, E1, E2, E3, E4)
     where
+        Self: Sized,
         E1: Endpoint,
         E2: Endpoint,
         E3: Endpoint,
@@ -120,6 +127,7 @@ pub trait Endpoint: Sized {
     /// Combine itself and the other endpoint, and create a combinator which returns `E::Item`.
     fn with<E>(self, e: E) -> With<Self, E>
     where
+        Self: Sized,
         E: Endpoint,
     {
         With(self, e)
@@ -128,6 +136,7 @@ pub trait Endpoint: Sized {
     /// Combine itself and the other endpoint, and create a combinator which returns `Self::Item`.
     fn skip<E>(self, e: E) -> Skip<Self, E>
     where
+        Self: Sized,
         E: Endpoint,
     {
         Skip(self, e)
@@ -137,6 +146,7 @@ pub trait Endpoint: Sized {
     /// If `self` failes, then revert the context and retry applying `e`.
     fn or<E>(self, e: E) -> Or<Self, E>
     where
+        Self: Sized,
         E: Endpoint<Item = Self::Item>,
     {
         Or(self, e)
@@ -145,8 +155,36 @@ pub trait Endpoint: Sized {
     /// Combine itself and the function to change the return value to another type.
     fn map<F, U>(self, f: F) -> Map<Self, F>
     where
-        F: FnOnce(Self::Item) -> U,
+        Self: Sized,
+        F: Fn(Self::Item) -> U,
     {
-        Map(self, f)
+        Map(self, ::std::sync::Arc::new(f))
+    }
+}
+
+impl<E: Endpoint + ?Sized> Endpoint for Box<E> {
+    type Item = E::Item;
+    type Future = E::Future;
+
+    fn apply<'r, 'b>(&self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
+        (**self).apply(ctx)
+    }
+}
+
+impl<E: Endpoint + ?Sized> Endpoint for ::std::rc::Rc<E> {
+    type Item = E::Item;
+    type Future = E::Future;
+
+    fn apply<'r, 'b>(&self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
+        (**self).apply(ctx)
+    }
+}
+
+impl<E: Endpoint + ?Sized> Endpoint for ::std::sync::Arc<E> {
+    type Item = E::Item;
+    type Future = E::Future;
+
+    fn apply<'r, 'b>(&self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
+        (**self).apply(ctx)
     }
 }

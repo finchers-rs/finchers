@@ -8,16 +8,16 @@ use hyper;
 use hyper::server::{Http, Service};
 
 use context::Context;
-use endpoint::{Endpoint, NewEndpoint};
+use endpoint::Endpoint;
 use errors::*;
 use request;
 use response::Responder;
 
 
 /// A wrapper for `NewEndpoint`s, to provide HTTP services
-pub struct EndpointService<E: NewEndpoint>(pub(crate) E);
+pub struct EndpointService<E: Endpoint>(pub(crate) E);
 
-impl<E: NewEndpoint> Service for EndpointService<E>
+impl<E: Endpoint> Service for EndpointService<E>
 where
     E::Item: Responder,
 {
@@ -31,8 +31,7 @@ where
         let body = RefCell::new(Some(body));
         let ctx = Context::new(&req, &body);
 
-        let endpoint = self.0.new_endpoint();
-        match endpoint.apply(ctx) {
+        match self.0.apply(ctx) {
             (_ctx, Ok(f)) => EndpointServiceFuture::Then(f),
             (_ctx, Err(err)) => EndpointServiceFuture::Routing(Some(err)),
         }
@@ -79,16 +78,16 @@ where
 }
 
 
-/// Start the HTTP server, with given endpoint factory and listener address.
-pub fn run_http<E: NewEndpoint + Send + Sync + 'static>(new_endpoint: E, addr: &str)
+/// Start the HTTP server, with given endpoint and listener address.
+pub fn run_http<E: Endpoint + Send + Sync + 'static>(endpoint: E, addr: &str)
 where
     E::Item: Responder,
 {
-    let new_endpoint = Arc::new(new_endpoint);
+    let endpoint = Arc::new(endpoint.into_service());
 
     let addr = addr.parse().unwrap();
     let server = Http::new()
-        .bind(&addr, move || Ok(new_endpoint.clone().into_service()))
+        .bind(&addr, move || Ok(endpoint.clone()))
         .unwrap();
     server.run().unwrap();
 

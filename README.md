@@ -23,16 +23,13 @@ use finchers::combinator::method::get;
 use finchers::combinator::path::{string_, end_};
 
 fn main() {
-    // create a factory of endpoints.
-    let new_endpoint = || {
-        get(
-            "hello".with(string_).skip(end_)
-                .map(|name| Json(format!("Hello, {}", name)))
-        )
-    };
+    // create an endpoint
+    let endpoint = get("hello".with(string_).skip(end_)).map(|name| {
+        Json(format!("Hello, {}", name))
+    });
 
-    // start a HTTP server with above factory.
-    finchers::server::run_http(new_endpoint, "127.0.0.1:3000");
+    // start a HTTP server.
+    finchers::server::run_http(endpoint, "127.0.0.1:3000");
 }
 ```
 

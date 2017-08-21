@@ -79,55 +79,53 @@ fn into_response<T: Responder>(val: T) -> Response {
 }
 
 fn main() {
-    let new_endpoint = || {
-        // GET /todos/:id
-        let get_todo = get("todos".with(u64_).skip(end_)).map(|id| {
-            let todos = TODOS.read().unwrap();
-            into_response(Json(todos.get(id)))
-        });
+    // GET /todos/:id
+    let get_todo = get("todos".with(u64_).skip(end_)).map(|id| {
+        let todos = TODOS.read().unwrap();
+        into_response(Json(todos.get(id)))
+    });
 
-        // GET /todos
-        let get_todos = get("todos".skip(end_)).map(|()| {
+    // GET /todos
+    let get_todos = get("todos".skip(end_)).map(|()| {
             let todos = TODOS.read().unwrap();
             into_response(Json(todos.list()))
         });
 
-        // DELETE /todos/:id
-        let delete_todo = delete("todos".with(u64_).skip(end_)).map(|id| {
-            let mut todos = TODOS.write().unwrap();
-            todos.delete(id);
-            into_response(())
-        });
+    // DELETE /todos/:id
+    let delete_todo = delete("todos".with(u64_).skip(end_)).map(|id| {
+        let mut todos = TODOS.write().unwrap();
+        todos.delete(id);
+        into_response(())
+    });
 
-        // DELETE /todos
-        let delete_todos = delete("todos".skip(end_)).map(|()| {
+    // DELETE /todos
+    let delete_todos = delete("todos".skip(end_)).map(|()| {
                 let mut todos = TODOS.write().unwrap();
                 todos.clear();
                 into_response(())
             });
 
-        // PUT /todos/:id
-        let patch_todo = put("todos".with(u64_).join(body::<Json<Todo>>())).map(|(id, Json(new_todo))| {
-            let mut todos = TODOS.write().unwrap();
-            if let Some(todo) = todos.get_mut(id) {
-                *todo = new_todo;
-            }
-            into_response(())
-        });
+    // PUT /todos/:id
+    let patch_todo = put("todos".with(u64_).join(body::<Json<Todo>>())).map(|(id, Json(new_todo))| {
+        let mut todos = TODOS.write().unwrap();
+        if let Some(todo) = todos.get_mut(id) {
+            *todo = new_todo;
+        }
+        into_response(())
+    });
 
-        // POST /todos
-        let post_todo = post("todos".skip(end_).with(body::<Json<NewTodo>>())).map(|Json(new_todo)| {
-            let mut todos = TODOS.write().unwrap();
-            into_response(Created(Json(todos.save(new_todo))))
-        });
+    // POST /todos
+    let post_todo = post("todos".skip(end_).with(body::<Json<NewTodo>>())).map(|Json(new_todo)| {
+        let mut todos = TODOS.write().unwrap();
+        into_response(Created(Json(todos.save(new_todo))))
+    });
 
-        get_todo
-            .or(get_todos)
-            .or(delete_todo)
-            .or(delete_todos)
-            .or(patch_todo)
-            .or(post_todo)
-    };
+    let endpoint = get_todo
+        .or(get_todos)
+        .or(delete_todo)
+        .or(delete_todos)
+        .or(patch_todo)
+        .or(post_todo);
 
-    finchers::server::run_http(new_endpoint, "127.0.0.1:3000");
+    finchers::server::run_http(endpoint, "127.0.0.1:3000");
 }

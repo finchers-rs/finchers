@@ -5,6 +5,7 @@
 
 #[macro_use]
 extern crate error_chain;
+#[macro_use]
 extern crate futures;
 extern crate hyper;
 extern crate tokio_core;
