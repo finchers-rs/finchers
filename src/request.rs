@@ -8,9 +8,9 @@ pub use hyper::Body;
 /// The value of incoming HTTP request, without the request body
 #[derive(Debug)]
 pub struct Request {
-    method: Method,
-    uri: Uri,
-    headers: Headers,
+    pub(crate) method: Method,
+    pub(crate) uri: Uri,
+    pub(crate) headers: Headers,
 }
 
 impl Request {
