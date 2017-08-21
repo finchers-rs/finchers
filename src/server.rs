@@ -14,7 +14,7 @@ use request;
 use response::Responder;
 
 
-/// A wrapper for `NewEndpoint`s, to provide HTTP services
+/// A wrapper for `Endpoint`s, to provide HTTP services
 pub struct EndpointService<E: Endpoint>(pub(crate) E);
 
 impl<E: Endpoint + Clone> Clone for EndpointService<E> {

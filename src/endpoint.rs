@@ -1,4 +1,4 @@
-//! Definition of `Endpoint` and `NewEndpoint`
+//! Definition of `Endpoint`
 
 use futures::Future;
 
