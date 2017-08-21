@@ -17,6 +17,12 @@ use response::Responder;
 /// A wrapper for `NewEndpoint`s, to provide HTTP services
 pub struct EndpointService<E: Endpoint>(pub(crate) E);
 
+impl<E: Endpoint + Clone> Clone for EndpointService<E> {
+    fn clone(&self) -> Self {
+        Self { 0: self.0.clone() }
+    }
+}
+
 impl<E: Endpoint> Service for EndpointService<E>
 where
     E::Item: Responder,
@@ -79,16 +85,15 @@ where
 
 
 /// Start the HTTP server, with given endpoint and listener address.
-pub fn run_http<E: Endpoint + Send + Sync + 'static>(endpoint: E, addr: &str)
+pub fn run_http<E>(endpoint: E, addr: &str)
 where
+    E: Endpoint + Send + Sync + 'static,
     E::Item: Responder,
 {
-    let endpoint = Arc::new(endpoint.into_service());
+    let service = Arc::new(endpoint).into_service();
+    let new_service = move || Ok(service.clone());
 
     let addr = addr.parse().unwrap();
-    let server = Http::new()
-        .bind(&addr, move || Ok(endpoint.clone()))
-        .unwrap();
+    let server = Http::new().bind(&addr, new_service).unwrap();
     server.run().unwrap();
-
 }
