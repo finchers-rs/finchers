@@ -2,7 +2,6 @@
 
 use std::cell::RefCell;
 use hyper::Method;
-use hyper::error::UriError;
 use hyper::header::Header;
 use tokio_core::reactor::Core;
 
@@ -13,37 +12,37 @@ use request::{Request, Body};
 
 #[allow(missing_docs)]
 pub struct TestCase {
-    pub request: Request,
-    pub body: Option<Body>,
+    request: Request,
+    body: Option<Body>,
 }
 
 #[allow(missing_docs)]
 impl TestCase {
-    pub fn new(method: Method, uri: &str) -> Result<Self, UriError> {
-        let request = Request::new(method, uri)?;
-        Ok(Self {
+    pub fn new(method: Method, uri: &str) -> Self {
+        let request = Request::new(method, uri).expect("invalid URI");
+        Self {
             request,
             body: None,
-        })
+        }
     }
 
-    pub fn get(uri: &str) -> Result<Self, UriError> {
+    pub fn get(uri: &str) -> Self {
         Self::new(Method::Get, uri)
     }
 
-    pub fn post(uri: &str) -> Result<Self, UriError> {
+    pub fn post(uri: &str) -> Self {
         Self::new(Method::Post, uri)
     }
 
-    pub fn put(uri: &str) -> Result<Self, UriError> {
+    pub fn put(uri: &str) -> Self {
         Self::new(Method::Put, uri)
     }
 
-    pub fn delete(uri: &str) -> Result<Self, UriError> {
+    pub fn delete(uri: &str) -> Self {
         Self::new(Method::Delete, uri)
     }
 
-    pub fn patch(uri: &str) -> Result<Self, UriError> {
+    pub fn patch(uri: &str) -> Self {
         Self::new(Method::Patch, uri)
     }
 
