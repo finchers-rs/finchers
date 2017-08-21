@@ -14,9 +14,9 @@ impl<'a> Endpoint for &'a str {
     type Item = ();
     type Future = FutureResult<(), FinchersError>;
 
-    fn apply<'r, 'b>(self, mut ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
+    fn apply<'r, 'b>(&self, mut ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
         let matched = match ctx.routes.get(0) {
-            Some(s) if s == &self => true,
+            Some(s) if s == self => true,
             _ => false,
         };
         if !matched {
@@ -32,8 +32,8 @@ impl Endpoint for String {
     type Item = ();
     type Future = FutureResult<(), FinchersError>;
 
-    fn apply<'r, 'b>(self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
-        (&self as &str).apply(ctx)
+    fn apply<'r, 'b>(&self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
+        (self as &str).apply(ctx)
     }
 }
 
@@ -41,8 +41,8 @@ impl<'a> Endpoint for Cow<'a, str> {
     type Item = ();
     type Future = FutureResult<(), FinchersError>;
 
-    fn apply<'r, 'b>(self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
-        (&self as &str).apply(ctx)
+    fn apply<'r, 'b>(&self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
+        (&*self as &str).apply(ctx)
     }
 }
 
@@ -54,7 +54,7 @@ impl<T: FromStr> Endpoint for Path<T> {
     type Item = T;
     type Future = FutureResult<T, FinchersError>;
 
-    fn apply<'r, 'b>(self, mut ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
+    fn apply<'r, 'b>(&self, mut ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
         let value: T = match ctx.routes.get(0).and_then(|s| s.parse().ok()) {
             Some(val) => val,
             _ => return (ctx, Err(FinchersErrorKind::Routing.into())),
@@ -108,7 +108,7 @@ where
     type Item = Vec<T>;
     type Future = FutureResult<Vec<T>, FinchersError>;
 
-    fn apply<'r, 'b>(self, mut ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
+    fn apply<'r, 'b>(&self, mut ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
         let seq = match ctx.routes
             .iter()
             .map(|s| s.parse())
@@ -162,7 +162,7 @@ impl Endpoint for PathEnd {
     type Item = ();
     type Future = FutureResult<(), FinchersError>;
 
-    fn apply<'r, 'b>(self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
+    fn apply<'r, 'b>(&self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
         if ctx.routes.len() > 0 {
             return (ctx, Err(FinchersErrorKind::Routing.into()));
         }

@@ -8,16 +8,22 @@ use hyper;
 use hyper::server::{Http, Service};
 
 use context::Context;
-use endpoint::{Endpoint, NewEndpoint};
+use endpoint::Endpoint;
 use errors::*;
 use request;
 use response::Responder;
 
 
-/// A wrapper for `NewEndpoint`s, to provide HTTP services
-pub struct EndpointService<E: NewEndpoint>(pub(crate) E);
+/// A wrapper for `Endpoint`s, to provide HTTP services
+pub struct EndpointService<E: Endpoint>(pub(crate) E);
 
-impl<E: NewEndpoint> Service for EndpointService<E>
+impl<E: Endpoint + Clone> Clone for EndpointService<E> {
+    fn clone(&self) -> Self {
+        Self { 0: self.0.clone() }
+    }
+}
+
+impl<E: Endpoint> Service for EndpointService<E>
 where
     E::Item: Responder,
 {
@@ -31,8 +37,7 @@ where
         let body = RefCell::new(Some(body));
         let ctx = Context::new(&req, &body);
 
-        let endpoint = self.0.new_endpoint();
-        match endpoint.apply(ctx) {
+        match self.0.apply(ctx) {
             (_ctx, Ok(f)) => EndpointServiceFuture::Then(f),
             (_ctx, Err(err)) => EndpointServiceFuture::Routing(Some(err)),
         }
@@ -79,17 +84,16 @@ where
 }
 
 
-/// Start the HTTP server, with given endpoint factory and listener address.
-pub fn run_http<E: NewEndpoint + Send + Sync + 'static>(new_endpoint: E, addr: &str)
+/// Start the HTTP server, with given endpoint and listener address.
+pub fn run_http<E>(endpoint: E, addr: &str)
 where
+    E: Endpoint + Send + Sync + 'static,
     E::Item: Responder,
 {
-    let new_endpoint = Arc::new(new_endpoint);
+    let service = Arc::new(endpoint).into_service();
+    let new_service = move || Ok(service.clone());
 
     let addr = addr.parse().unwrap();
-    let server = Http::new()
-        .bind(&addr, move || Ok(new_endpoint.clone().into_service()))
-        .unwrap();
+    let server = Http::new().bind(&addr, new_service).unwrap();
     server.run().unwrap();
-
 }

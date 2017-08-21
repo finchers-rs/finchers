@@ -16,7 +16,7 @@ impl<H: header::Header + Clone> Endpoint for Header<H> {
     type Item = H;
     type Future = FutureResult<H, FinchersError>;
 
-    fn apply<'r, 'b>(self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
+    fn apply<'r, 'b>(&self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
         let result = match ctx.request.header::<H>() {
             Some(h) => Ok(ok(h.clone())),
             None => Err(FinchersErrorKind::Routing.into()),

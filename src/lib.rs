@@ -5,6 +5,7 @@
 
 #[macro_use]
 extern crate error_chain;
+#[macro_use]
 extern crate futures;
 extern crate hyper;
 extern crate tokio_core;
@@ -26,7 +27,7 @@ mod json;
 pub use context::Context;
 
 #[doc(inline)]
-pub use endpoint::{Endpoint, NewEndpoint};
+pub use endpoint::Endpoint;
 
 #[doc(inline)]
 pub use request::{Request, Body};
