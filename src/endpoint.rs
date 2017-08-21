@@ -8,56 +8,6 @@ use errors::*;
 use server::EndpointService;
 
 
-/// A factory of `Endpoint`
-pub trait NewEndpoint: Sized {
-    /// The type of resolved value of the endpoint created by this factory
-    type Item;
-
-    /// The `Future` returned by the endpoint created by this factory
-    type Future: Future<Item = Self::Item, Error = FinchersError>;
-
-    /// The `Endpoint` created by this factory
-    type Endpoint: Endpoint<Item = Self::Item, Future = Self::Future>;
-
-    /// Create and return a new endpoint.
-    fn new_endpoint(&self) -> Self::Endpoint;
-}
-
-impl<F, R> NewEndpoint for F
-where
-    F: Fn() -> R,
-    R: Endpoint,
-{
-    type Item = R::Item;
-    type Future = R::Future;
-    type Endpoint = R;
-
-    fn new_endpoint(&self) -> Self::Endpoint {
-        (*self)()
-    }
-}
-
-impl<E: NewEndpoint> NewEndpoint for ::std::rc::Rc<E> {
-    type Item = E::Item;
-    type Future = E::Future;
-    type Endpoint = E::Endpoint;
-
-    fn new_endpoint(&self) -> Self::Endpoint {
-        (**self).new_endpoint()
-    }
-}
-
-impl<E: NewEndpoint> NewEndpoint for ::std::sync::Arc<E> {
-    type Item = E::Item;
-    type Future = E::Future;
-    type Endpoint = E::Endpoint;
-
-    fn new_endpoint(&self) -> Self::Endpoint {
-        (**self).new_endpoint()
-    }
-}
-
-
 /// A HTTP endpoint, which provides the futures from incoming HTTP requests
 pub trait Endpoint {
     /// The type of resolved value, created by this endpoint
