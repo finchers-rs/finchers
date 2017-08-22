@@ -1,5 +1,7 @@
 //! Definition of combinators
 
+pub mod either;
+
 use std::sync::Arc;
 use futures::{Future, Poll};
 use futures::future::{Join, Join3, Join4, Join5};
@@ -7,6 +9,7 @@ use futures::future::{Join, Join3, Join4, Join5};
 use context::Context;
 use endpoint::Endpoint;
 use errors::FinchersResult;
+use self::either::Either2;
 
 macro_rules! try_second {
     ($e:expr) => {
@@ -174,41 +177,18 @@ pub struct Or<E1, E2>(pub(crate) E1, pub(crate) E2);
 impl<E1, E2> Endpoint for Or<E1, E2>
 where
     E1: Endpoint,
-    E2: Endpoint<Item = E1::Item>,
+    E2: Endpoint,
 {
-    type Item = E1::Item;
-    type Future = OrFuture<E1::Future, E2::Future>;
+    type Item = Either2<E1::Item, E2::Item>;
+    type Future = Either2<E1::Future, E2::Future>;
 
     fn apply<'r, 'b>(&self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
-        let &Or(ref e1, ref e2) = self;
-        match e1.apply(ctx.clone()) {
-            (ctx, Ok(a)) => (ctx, Ok(OrFuture::A(a))),
-            (_ctx, Err(_)) => {
-                let (ctx, b) = try_second!(e2.apply(ctx));
-                (ctx, Ok(OrFuture::B(b)))
-            }
+        let (ctx1, f1) = self.0.apply(ctx.clone());
+        if let Ok(f1) = f1 {
+            return (ctx1, Ok(Either2::E1(f1)));
         }
-    }
-}
 
-#[allow(missing_docs)]
-pub enum OrFuture<A, B> {
-    A(A),
-    B(B),
-}
-
-impl<E1, E2> Future for OrFuture<E1, E2>
-where
-    E1: Future,
-    E2: Future<Item = E1::Item, Error = E1::Error>,
-{
-    type Item = E1::Item;
-    type Error = E1::Error;
-
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        match *self {
-            OrFuture::A(ref mut a) => a.poll(),
-            OrFuture::B(ref mut b) => b.poll(),
-        }
+        let (ctx, f2) = self.1.apply(ctx);
+        (ctx, f2.map(Either2::E2))
     }
 }

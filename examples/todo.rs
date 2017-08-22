@@ -5,7 +5,7 @@ extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 
-use finchers::{Endpoint, Json, Responder, Response};
+use finchers::{Endpoint, Json};
 use finchers::endpoint::{json_body, u64_};
 use finchers::endpoint::method::{delete, get, post, put};
 use finchers::response::Created;
@@ -35,16 +35,16 @@ pub struct Todos {
 }
 
 impl Todos {
-    pub fn get(&self, id: u64) -> Option<&Todo> {
-        self.db.get(&id)
+    pub fn get(&self, id: u64) -> Option<Todo> {
+        self.db.get(&id).cloned()
     }
 
     pub fn get_mut(&mut self, id: u64) -> Option<&mut Todo> {
         self.db.get_mut(&id)
     }
 
-    pub fn list(&self) -> Vec<&Todo> {
-        self.db.iter().map(|i| i.1).collect()
+    pub fn list(&self) -> Vec<Todo> {
+        self.db.iter().map(|i| i.1.clone()).collect()
     }
 
     pub fn save(&mut self, new_todo: NewTodo) -> Todo {
@@ -74,35 +74,28 @@ fn main() {
         pub static ref TODOS: RwLock<Todos> = RwLock::new(Todos::default());
     }
 
-    fn into_response<T: Responder>(val: T) -> Response {
-        val.respond().unwrap()
-    }
-
-
     // GET /todos/:id
     let get_todo = get("todos".with(u64_)).map(|id| {
         let todos = TODOS.read().unwrap();
-        into_response(Json(todos.get(id)))
+        Json(todos.get(id))
     });
 
     // GET /todos
     let get_todos = get("todos").map(|()| {
         let todos = TODOS.read().unwrap();
-        into_response(Json(todos.list()))
+        Json(todos.list())
     });
 
     // DELETE /todos/:id
     let delete_todo = delete("todos".with(u64_)).map(|id| {
         let mut todos = TODOS.write().unwrap();
         todos.delete(id);
-        into_response(())
     });
 
     // DELETE /todos
     let delete_todos = delete("todos").map(|()| {
         let mut todos = TODOS.write().unwrap();
         todos.clear();
-        into_response(())
     });
 
     // PUT /todos/:id
@@ -113,7 +106,6 @@ fn main() {
             if let Some(todo) = todos.get_mut(id) {
                 *todo = new_todo;
             }
-            into_response(())
         });
 
     // POST /todos
@@ -121,7 +113,7 @@ fn main() {
         .with(json_body::<NewTodo>())
         .map(|Json(new_todo)| {
             let mut todos = TODOS.write().unwrap();
-            into_response(Created(Json(todos.save(new_todo))))
+            Created(Json(todos.save(new_todo)))
         });
 
     let endpoint = get_todo
