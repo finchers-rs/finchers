@@ -69,55 +69,60 @@ impl Todos {
     }
 }
 
-lazy_static! {
-    pub static ref TODOS: RwLock<Todos> = RwLock::new(Todos::default());
-}
-
-fn into_response<T: Responder>(val: T) -> Response {
-    val.respond().unwrap()
-}
-
 fn main() {
+    lazy_static! {
+        pub static ref TODOS: RwLock<Todos> = RwLock::new(Todos::default());
+    }
+
+    fn into_response<T: Responder>(val: T) -> Response {
+        val.respond().unwrap()
+    }
+
+
     // GET /todos/:id
-    let get_todo = get("todos".with(u64_).skip(end_)).map(|id| {
+    let get_todo = get("todos".with(u64_)).map(|id| {
         let todos = TODOS.read().unwrap();
         into_response(Json(todos.get(id)))
     });
 
     // GET /todos
-    let get_todos = get("todos".skip(end_)).map(|()| {
+    let get_todos = get("todos").map(|()| {
         let todos = TODOS.read().unwrap();
         into_response(Json(todos.list()))
     });
 
     // DELETE /todos/:id
-    let delete_todo = delete("todos".with(u64_).skip(end_)).map(|id| {
+    let delete_todo = delete("todos".with(u64_)).map(|id| {
         let mut todos = TODOS.write().unwrap();
         todos.delete(id);
         into_response(())
     });
 
     // DELETE /todos
-    let delete_todos = delete("todos".skip(end_)).map(|()| {
+    let delete_todos = delete("todos").map(|()| {
         let mut todos = TODOS.write().unwrap();
         todos.clear();
         into_response(())
     });
 
     // PUT /todos/:id
-    let patch_todo = put("todos".with(u64_).join(body::<Json<Todo>>())).map(|(id, Json(new_todo))| {
-        let mut todos = TODOS.write().unwrap();
-        if let Some(todo) = todos.get_mut(id) {
-            *todo = new_todo;
-        }
-        into_response(())
-    });
+    let patch_todo = put("todos".with(u64_))
+        .join(body::<Json<Todo>>())
+        .map(|(id, Json(new_todo))| {
+            let mut todos = TODOS.write().unwrap();
+            if let Some(todo) = todos.get_mut(id) {
+                *todo = new_todo;
+            }
+            into_response(())
+        });
 
     // POST /todos
-    let post_todo = post("todos".skip(end_).with(body::<Json<NewTodo>>())).map(|Json(new_todo)| {
-        let mut todos = TODOS.write().unwrap();
-        into_response(Created(Json(todos.save(new_todo))))
-    });
+    let post_todo = post("todos")
+        .with(body::<Json<NewTodo>>())
+        .map(|Json(new_todo)| {
+            let mut todos = TODOS.write().unwrap();
+            into_response(Created(Json(todos.save(new_todo))))
+        });
 
     let endpoint = get_todo
         .or(get_todos)

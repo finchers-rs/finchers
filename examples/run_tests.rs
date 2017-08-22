@@ -6,7 +6,7 @@ use finchers::endpoint::method::get;
 use finchers::test::{run_test, TestCase};
 
 fn main() {
-    let endpoint = || get("foo".with("bar").with(u64_).skip(end_));
+    let endpoint = || get("foo".with("bar").with(u64_));
 
     let input = TestCase::get("/foo/bar/42");
     let output = run_test(endpoint(), input);

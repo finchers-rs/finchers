@@ -19,12 +19,12 @@ The concept and design of this library is highly inspired by [`finch`](https://g
 extern crate finchers;
 
 use finchers::{Endpoint, Json};
-use finchers::combinator::method::get;
-use finchers::combinator::path::{string_, end_};
+use finchers::endpoint::{string_};
+use finchers::endpoint::method::get;
 
 fn main() {
     // create an endpoint
-    let endpoint = get("hello".with(string_).skip(end_)).map(|name| {
+    let endpoint = get("hello".with(string_)).map(|name| {
         Json(format!("Hello, {}", name))
     });
 
