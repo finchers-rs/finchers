@@ -10,6 +10,7 @@ use errors::*;
 
 
 #[allow(missing_docs)]
+#[derive(Debug, Clone, Copy)]
 pub struct Header<H>(PhantomData<fn(H) -> H>);
 
 impl<H: header::Header + Clone> Endpoint for Header<H> {

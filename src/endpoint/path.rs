@@ -1,6 +1,7 @@
 //! Definition of endpoints to parse path segments
 
 use std::borrow::Cow;
+use std::iter::FromIterator;
 use std::marker::PhantomData;
 use std::str::FromStr;
 use futures::future::{ok, FutureResult};
@@ -48,6 +49,7 @@ impl<'a> Endpoint for Cow<'a, str> {
 
 
 #[allow(missing_docs)]
+#[derive(Debug, Clone, Copy)]
 pub struct Path<T>(PhantomData<fn(T) -> T>);
 
 impl<T: FromStr> Endpoint for Path<T> {
@@ -69,6 +71,22 @@ pub fn path<T: FromStr>() -> Path<T> {
     Path(PhantomData)
 }
 
+/// Equivalent to `path::<i8>()`
+#[allow(non_upper_case_globals)]
+pub const i8_: Path<i8> = Path(PhantomData);
+
+/// Equivalent to `path::<u8>()`
+#[allow(non_upper_case_globals)]
+pub const u8_: Path<u8> = Path(PhantomData);
+
+/// Equivalent to `path::<i16>()`
+#[allow(non_upper_case_globals)]
+pub const i16_: Path<i16> = Path(PhantomData);
+
+/// Equivalent to `path::<u16>()`
+#[allow(non_upper_case_globals)]
+pub const u16_: Path<u16> = Path(PhantomData);
+
 /// Equivalent to `path::<i32>()`
 #[allow(non_upper_case_globals)]
 pub const i32_: Path<i32> = Path(PhantomData);
@@ -85,6 +103,14 @@ pub const i64_: Path<i64> = Path(PhantomData);
 #[allow(non_upper_case_globals)]
 pub const u64_: Path<u64> = Path(PhantomData);
 
+/// Equivalent to `path::<isize>()`
+#[allow(non_upper_case_globals)]
+pub const isize_: Path<isize> = Path(PhantomData);
+
+/// Equivalent to `path::<usize>()`
+#[allow(non_upper_case_globals)]
+pub const usize_: Path<usize> = Path(PhantomData);
+
 /// Equivalent to `path::<f32>()`
 #[allow(non_upper_case_globals)]
 pub const f32_: Path<f32> = Path(PhantomData);
@@ -99,14 +125,16 @@ pub const string_: Path<String> = Path(PhantomData);
 
 
 #[allow(missing_docs)]
-pub struct PathSeq<T>(PhantomData<fn(T) -> T>);
+#[derive(Debug, Clone, Copy)]
+pub struct PathSeq<I, T>(PhantomData<fn() -> (I, T)>);
 
-impl<T: FromStr> Endpoint for PathSeq<T>
+impl<I, T> Endpoint for PathSeq<I, T>
 where
-    T::Err: ::std::fmt::Display,
+    I: FromIterator<T>,
+    T: FromStr,
 {
-    type Item = Vec<T>;
-    type Future = FutureResult<Vec<T>, FinchersError>;
+    type Item = I;
+    type Future = FutureResult<I, FinchersError>;
 
     fn apply<'r, 'b>(&self, mut ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
         let seq = match ctx.routes
@@ -115,7 +143,7 @@ where
             .collect::<Result<_, T::Err>>()
         {
             Ok(seq) => seq,
-            Err(e) => return (ctx, Err(e.to_string().into())),
+            Err(_) => return (ctx, Err(FinchersErrorKind::NotFound.into())),
         };
         ctx.routes = Default::default();
         (ctx, Ok(ok(seq)))
@@ -123,59 +151,18 @@ where
 }
 
 /// Create an endpoint which represents the sequence of remaining path elements
-pub fn path_vec<T: FromStr>() -> PathSeq<T> {
+pub fn path_seq<I, T>() -> PathSeq<I, T>
+where
+    I: FromIterator<T>,
+    T: FromStr,
+{
     PathSeq(PhantomData)
 }
 
-/// Equivalent to `path_vec::<i32>()`
-#[allow(non_upper_case_globals)]
-pub const i32_vec_: PathSeq<i32> = PathSeq(PhantomData);
-
-/// Equivalent to `path_vec::<u32>()`
-#[allow(non_upper_case_globals)]
-pub const u32_vec_: PathSeq<u32> = PathSeq(PhantomData);
-
-/// Equivalent to `path_vec::<i64>()`
-#[allow(non_upper_case_globals)]
-pub const i64_vec_: PathSeq<i64> = PathSeq(PhantomData);
-
-/// Equivalent to `path_vec::<u64>()`
-#[allow(non_upper_case_globals)]
-pub const u64_vec_: PathSeq<u64> = PathSeq(PhantomData);
-
-/// Equivalent to `path_vec::<f32>()`
-#[allow(non_upper_case_globals)]
-pub const f32_vec_: PathSeq<f32> = PathSeq(PhantomData);
-
-/// Equivalent to `path_vec::<f64>()`
-#[allow(non_upper_case_globals)]
-pub const f64_vec_: PathSeq<f64> = PathSeq(PhantomData);
-
-/// Equivalent to `path_vec::<String>()`
-#[allow(non_upper_case_globals)]
-pub const string_vec_: PathSeq<String> = PathSeq(PhantomData);
-
-
 #[allow(missing_docs)]
-pub struct PathEnd;
+pub type PathVec<T> = PathSeq<Vec<T>, T>;
 
-impl Endpoint for PathEnd {
-    type Item = ();
-    type Future = FutureResult<(), FinchersError>;
-
-    fn apply<'r, 'b>(&self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
-        if ctx.routes.len() > 0 {
-            return (ctx, Err(FinchersErrorKind::NotFound.into()));
-        }
-        (ctx, Ok(ok(())))
-    }
+/// Equivalent to `path_seq<Vec<T>, T>()`
+pub fn path_vec<T: FromStr>() -> PathVec<T> {
+    PathSeq(PhantomData)
 }
-
-/// Create an endpoint which represents the end of path segments
-pub fn path_end() -> PathEnd {
-    PathEnd
-}
-
-/// Equivalent to `path_end()`
-#[allow(non_upper_case_globals)]
-pub const end_: PathEnd = PathEnd;

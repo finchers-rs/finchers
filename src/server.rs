@@ -47,7 +47,10 @@ where
         let body = RefCell::new(Some(body));
         let ctx = Context::new(&req, &body);
 
-        let (_ctx, result) = self.0.apply(ctx);
+        let (ctx, mut result) = self.0.apply(ctx);
+        if ctx.routes.len() > 0 {
+            result = Err(FinchersErrorKind::NotFound.into());
+        }
 
         result
             .into_future()

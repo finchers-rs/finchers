@@ -43,6 +43,7 @@ impl FromBody for String {
 
 
 #[allow(missing_docs)]
+#[derive(Debug, Clone, Copy)]
 pub struct Body<T>(PhantomData<fn(T) -> T>);
 
 impl<T: FromBody> Endpoint for Body<T> {

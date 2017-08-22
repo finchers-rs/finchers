@@ -19,12 +19,11 @@ pub use self::body::{body, json_body, FromBody};
 pub use self::header::header;
 
 #[doc(inline)]
-pub use self::param::param;
+pub use self::param::{param, param_opt};
 
 #[doc(inline)]
-pub use self::path::{path, path_end, path_vec};
+pub use self::path::{path, path_seq, path_vec};
 
 // TODO: more smart
 #[doc(inline)]
-pub use self::path::{end_, string_, string_vec_, f32_, f32_vec_, f64_, f64_vec_, i32_, i32_vec_, i64_, i64_vec_, u32_,
-                     u32_vec_, u64_, u64_vec_};
+pub use self::path::{isize_, string_, usize_, f32_, f64_, i16_, i32_, i64_, i8_, u32_, u64_};
