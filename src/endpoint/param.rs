@@ -26,7 +26,7 @@ impl<T: FromStr> Endpoint for Param<T> {
     }
 }
 
-/// Create an endpoint which represents a query parameter
+/// Create an endpoint matches a query parameter named `name`
 pub fn param<T: FromStr>(name: &'static str) -> Param<T> {
     Param(name, PhantomData)
 }
@@ -50,7 +50,7 @@ impl<T: FromStr> Endpoint for ParamOpt<T> {
     }
 }
 
-#[allow(missing_docs)]
+/// Create an endpoint matches a query parameter, which the value may not exist
 pub fn param_opt<T: FromStr>(name: &'static str) -> ParamOpt<T> {
     ParamOpt(name, PhantomData)
 }

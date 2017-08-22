@@ -16,7 +16,7 @@ pub use self::endpoint::Endpoint;
 pub use self::body::{body, json_body, FromBody};
 
 #[doc(inline)]
-pub use self::header::header;
+pub use self::header::{header, header_opt};
 
 #[doc(inline)]
 pub use self::param::{param, param_opt};
@@ -26,4 +26,4 @@ pub use self::path::{path, path_seq, path_vec};
 
 // TODO: more smart
 #[doc(inline)]
-pub use self::path::{isize_, string_, usize_, f32_, f64_, i16_, i32_, i64_, i8_, u32_, u64_};
+pub use self::path::{isize_, string_, usize_, f32_, f64_, i16_, i32_, i64_, i8_, u32_, u64_, u8_};
