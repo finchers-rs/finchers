@@ -2,7 +2,7 @@
 
 use std::fmt;
 use std::error;
-use hyper::StatusCode;
+use hyper::{Response, StatusCode};
 
 error_chain! {
     types {
@@ -37,20 +37,21 @@ error_chain! {
 }
 
 
-#[allow(missing_docs)]
-pub trait IntoStatus {
-    fn into_status(&self) -> StatusCode; // FIXME: the name of this method should be `to_status`
+#[doc(hidden)]
+pub trait IntoResponse {
+    fn into_response(self) -> Response;
 }
 
-impl IntoStatus for FinchersError {
-    fn into_status(&self) -> StatusCode {
-        match *self.kind() {
+impl IntoResponse for FinchersError {
+    fn into_response(self) -> Response {
+        let status = match *self.kind() {
             FinchersErrorKind::Routing => StatusCode::NotFound,
             FinchersErrorKind::Status(s) => s,
             FinchersErrorKind::ServerError(_) | FinchersErrorKind::Responder(_) | FinchersErrorKind::Msg(_) => {
                 StatusCode::InternalServerError
             }
-        }
+        };
+        Response::new().with_status(status)
     }
 }
 
