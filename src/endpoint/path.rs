@@ -64,7 +64,7 @@ impl<T: FromStr> Endpoint for Path<T> {
     }
 }
 
-/// Create a combinator, to take a segment of path and then converting it to `T`
+/// Create an endpoint which represents a path element
 pub fn path<T: FromStr>() -> Path<T> {
     Path(PhantomData)
 }
@@ -122,7 +122,7 @@ where
     }
 }
 
-/// Create a combinator, to take the remaining segments of path and then converting them to `T`
+/// Create an endpoint which represents the sequence of remaining path elements
 pub fn path_vec<T: FromStr>() -> PathSeq<T> {
     PathSeq(PhantomData)
 }
@@ -171,7 +171,7 @@ impl Endpoint for PathEnd {
     }
 }
 
-/// Create a combinator to check the end of segments
+/// Create an endpoint which represents the end of path segments
 pub fn path_end() -> PathEnd {
     PathEnd
 }

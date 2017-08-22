@@ -6,9 +6,8 @@ extern crate serde;
 extern crate serde_derive;
 
 use finchers::{Endpoint, Json, Responder, Response};
-use finchers::combinator::method::{delete, get, post, put};
-use finchers::combinator::path::{end_, u64_};
-use finchers::combinator::body::body;
+use finchers::endpoint::{body, end_, u64_};
+use finchers::endpoint::method::{delete, get, post, put};
 use finchers::response::Created;
 
 use std::collections::HashMap;

@@ -26,7 +26,7 @@ impl<T: FromStr> Endpoint for Param<T> {
     }
 }
 
-/// Create a combinator to get a query parameter of given name
+/// Create an endpoint which represents a query parameter
 pub fn param<T: FromStr>(name: &'static str) -> Param<T> {
     Param(name.into(), PhantomData)
 }

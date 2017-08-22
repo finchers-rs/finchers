@@ -13,7 +13,6 @@ extern crate serde_json;
 extern crate tokio_core;
 extern crate url;
 
-pub mod combinator;
 pub mod endpoint;
 pub mod errors;
 pub mod request;

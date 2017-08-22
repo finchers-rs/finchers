@@ -1,8 +1,8 @@
 extern crate finchers;
 
 use finchers::Endpoint;
-use finchers::combinator::path::{end_, u64_};
-use finchers::combinator::method::get;
+use finchers::endpoint::{end_, u64_};
+use finchers::endpoint::method::get;
 use finchers::test::{run_test, TestCase};
 
 fn main() {

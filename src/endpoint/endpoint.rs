@@ -2,7 +2,7 @@
 
 use futures::Future;
 
-use combinator::core::{Map, Or, Skip, With};
+use super::combinator::{Map, Or, Skip, With};
 use context::Context;
 use errors::*;
 use server::EndpointService;

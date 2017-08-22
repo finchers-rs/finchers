@@ -1,9 +1,8 @@
 extern crate finchers;
 
 use finchers::{Endpoint, Json};
-use finchers::combinator::method::get;
-use finchers::combinator::path::{end_, string_};
-use finchers::combinator::param::param;
+use finchers::endpoint::{end_, param, string_};
+use finchers::endpoint::method::get;
 
 fn main() {
     let endpoint = get(

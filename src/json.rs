@@ -6,7 +6,7 @@ use hyper::mime::APPLICATION_JSON;
 use serde::{Deserialize, Serialize};
 use serde_json::{self, Value};
 
-use combinator::body::FromBody;
+use endpoint::body::FromBody;
 use errors::*;
 use request::{Body, IntoVec, Request};
 use response::{Responder, Response};
@@ -36,7 +36,7 @@ impl<T> DerefMut for Json<T> {
     }
 }
 
-impl<T: 'static> FromBody for Json<T>
+impl<T> FromBody for Json<T>
 where
     for<'de> T: Deserialize<'de>,
 {

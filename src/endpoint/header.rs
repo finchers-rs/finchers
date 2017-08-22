@@ -26,17 +26,17 @@ impl<H: header::Header + Clone> Endpoint for Header<H> {
 }
 
 
-/// Create a combinator to access a request header
+/// Create an endpoint which represents the value of a request header
 pub fn header<H: header::Header + Clone>() -> Header<H> {
     Header(PhantomData)
 }
 
-/// Create a combinator to get the `Authorization` header
+/// Equivalent to `header::<Authorization<S>>()`
 pub fn authorization<S: header::Scheme + 'static>() -> Header<Authorization<S>> {
     header()
 }
 
-/// Create a combinator to get the `ContentType` header
+/// Equivalent to `header::<ContentType>()`
 pub fn content_type() -> Header<ContentType> {
     header()
 }

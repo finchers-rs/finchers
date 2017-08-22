@@ -57,7 +57,7 @@ impl<T: FromBody> Endpoint for Body<T> {
 }
 
 
-/// Create a combinator to take a request body typed to `T` from the context
+/// Create an endpoint, represents the value of a request body
 pub fn body<T: FromBody>() -> Body<T> {
     Body(PhantomData)
 }

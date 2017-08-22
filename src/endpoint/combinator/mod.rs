@@ -1,4 +1,4 @@
-//! Definition of core combinators
+//! Definition of combinators
 
 use std::sync::Arc;
 use futures::{Future, Poll};
