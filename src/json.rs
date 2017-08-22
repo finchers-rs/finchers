@@ -1,7 +1,7 @@
 use std::ops::{Deref, DerefMut};
 use futures::Future;
 use futures::future::AndThen;
-use hyper::header::ContentType;
+use hyper::header::{ContentLength, ContentType};
 use hyper::mime::APPLICATION_JSON;
 use serde::{Deserialize, Serialize};
 use serde_json::{self, Value};
@@ -64,6 +64,7 @@ impl<T: Serialize> Responder for Json<T> {
         Ok(
             Response::new()
                 .with_header(ContentType::json())
+                .with_header(ContentLength(body.as_bytes().len() as u64))
                 .with_body(body),
         )
     }
