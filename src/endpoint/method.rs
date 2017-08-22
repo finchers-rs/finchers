@@ -7,6 +7,7 @@ use endpoint::Endpoint;
 use errors::*;
 
 #[allow(missing_docs)]
+#[derive(Debug, Clone)]
 pub struct MatchMethod<E>(Method, E);
 
 impl<E: Endpoint> Endpoint for MatchMethod<E> {

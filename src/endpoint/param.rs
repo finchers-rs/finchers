@@ -10,8 +10,16 @@ use errors::*;
 
 
 #[allow(missing_docs)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct Param<T>(&'static str, PhantomData<fn(T) -> T>);
+
+impl<T> Clone for Param<T> {
+    fn clone(&self) -> Param<T> {
+        Param(self.0, PhantomData)
+    }
+}
+
+impl<T> Copy for Param<T> {}
 
 impl<T: FromStr> Endpoint for Param<T> {
     type Item = T;
@@ -33,8 +41,16 @@ pub fn param<T: FromStr>(name: &'static str) -> Param<T> {
 
 
 #[allow(missing_docs)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct ParamOpt<T>(&'static str, PhantomData<fn(T) -> T>);
+
+impl<T> Clone for ParamOpt<T> {
+    fn clone(&self) -> ParamOpt<T> {
+        ParamOpt(self.0, PhantomData)
+    }
+}
+
+impl<T> Copy for ParamOpt<T> {}
 
 impl<T: FromStr> Endpoint for ParamOpt<T> {
     type Item = Option<T>;

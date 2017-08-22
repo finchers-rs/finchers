@@ -10,8 +10,16 @@ use errors::*;
 
 
 #[allow(missing_docs)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct Header<H>(PhantomData<fn(H) -> H>);
+
+impl<H> Clone for Header<H> {
+    fn clone(&self) -> Header<H> {
+        Header(PhantomData)
+    }
+}
+
+impl<H> Copy for Header<H> {}
 
 impl<H: header::Header + Clone> Endpoint for Header<H> {
     type Item = H;
@@ -28,8 +36,17 @@ impl<H: header::Header + Clone> Endpoint for Header<H> {
 
 
 #[allow(missing_docs)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct HeaderOpt<H>(PhantomData<fn() -> H>);
+
+impl<H> Clone for HeaderOpt<H> {
+    fn clone(&self) -> HeaderOpt<H> {
+        HeaderOpt(PhantomData)
+    }
+}
+
+impl<H> Copy for HeaderOpt<H> {}
+
 
 impl<H: header::Header + Clone> Endpoint for HeaderOpt<H> {
     type Item = Option<H>;

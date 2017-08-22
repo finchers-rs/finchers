@@ -43,8 +43,16 @@ impl FromBody for String {
 
 
 #[allow(missing_docs)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct Body<T>(PhantomData<fn(T) -> T>);
+
+impl<T> Clone for Body<T> {
+    fn clone(&self) -> Body<T> {
+        Body(PhantomData)
+    }
+}
+
+impl<T> Copy for Body<T> {}
 
 impl<T: FromBody> Endpoint for Body<T> {
     type Item = T;

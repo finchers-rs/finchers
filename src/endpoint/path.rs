@@ -49,8 +49,16 @@ impl<'a> Endpoint for Cow<'a, str> {
 
 
 #[allow(missing_docs)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct Path<T>(PhantomData<fn(T) -> T>);
+
+impl<T> Clone for Path<T> {
+    fn clone(&self) -> Path<T> {
+        Path(PhantomData)
+    }
+}
+
+impl<T> Copy for Path<T> {}
 
 impl<T: FromStr> Endpoint for Path<T> {
     type Item = T;
@@ -125,8 +133,16 @@ pub const string_: Path<String> = Path(PhantomData);
 
 
 #[allow(missing_docs)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct PathSeq<I, T>(PhantomData<fn() -> (I, T)>);
+
+impl<I, T> Clone for PathSeq<I, T> {
+    fn clone(&self) -> PathSeq<I, T> {
+        PathSeq(PhantomData)
+    }
+}
+
+impl<I, T> Copy for PathSeq<I, T> {}
 
 impl<I, T> Endpoint for PathSeq<I, T>
 where
