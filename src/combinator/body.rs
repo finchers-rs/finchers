@@ -1,18 +1,16 @@
 //! Definition of endpoints to parse request body
 
 use std::marker::PhantomData;
-use futures::{Future, Stream};
+use futures::Future;
 use futures::future::AndThen;
-use futures::stream::{Fold, MapErr};
 
-use hyper;
 use hyper::header::ContentType;
 use hyper::mime::TEXT_PLAIN_UTF_8;
 
 use context::Context;
 use endpoint::Endpoint;
 use errors::*;
-use request::{self, Request};
+use request::{self, IntoVec, Request};
 
 
 /// A trait represents the conversion from `Body`.
@@ -26,16 +24,7 @@ pub trait FromBody: Sized {
 
 
 impl FromBody for String {
-    type Future = AndThen<
-        Fold<
-            MapErr<request::Body, fn(hyper::Error) -> FinchersError>,
-            fn(Vec<u8>, hyper::Chunk) -> FinchersResult<Vec<u8>>,
-            FinchersResult<Vec<u8>>,
-            Vec<u8>,
-        >,
-        FinchersResult<String>,
-        fn(Vec<u8>) -> FinchersResult<String>,
-    >;
+    type Future = AndThen<IntoVec, FinchersResult<String>, fn(Vec<u8>) -> FinchersResult<String>>;
 
     fn from_body(body: request::Body, req: &Request) -> FinchersResult<Self::Future> {
         match req.header() {
@@ -43,21 +32,9 @@ impl FromBody for String {
             _ => bail!(FinchersErrorKind::BadRequest),
         }
 
-        Ok(
-            body.map_err(
-                (|err| FinchersErrorKind::ServerError(Box::new(err)).into()) as
-                    fn(hyper::Error) -> FinchersError,
-            ).fold(
-                    Vec::new(),
-                    (|mut body, chunk| {
-                        body.extend_from_slice(&chunk);
-                        Ok(body)
-                    }) as fn(Vec<u8>, hyper::Chunk) -> FinchersResult<_>,
-                )
-                .and_then(|body| {
-                    String::from_utf8(body).map_err(|_| FinchersErrorKind::BadRequest.into())
-                }),
-        )
+        Ok(body.into_vec().and_then(|body| {
+            String::from_utf8(body).map_err(|_| FinchersErrorKind::BadRequest.into())
+        }))
     }
 }
 

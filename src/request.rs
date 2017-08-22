@@ -1,9 +1,12 @@
 //! Definitions and reexports of incoming HTTP requests
 
+use futures::{Poll, Stream};
+use futures::stream::Fold;
 use hyper::{self, Headers, Method, Uri};
 use hyper::header::Header;
 use hyper::error::UriError;
-pub use hyper::Body;
+use errors::{FinchersError, FinchersErrorKind, FinchersResult};
+
 
 /// The value of incoming HTTP request, without the request body
 #[derive(Debug)]
@@ -44,6 +47,44 @@ impl Request {
     }
 }
 
+
+#[allow(missing_docs)]
+#[derive(Default, Debug)]
+pub struct Body {
+    inner: hyper::Body,
+}
+
+impl From<hyper::Body> for Body {
+    fn from(body: hyper::Body) -> Self {
+        Self { inner: body }
+    }
+}
+
+impl Body {
+    #[allow(missing_docs)]
+    pub fn into_vec(self) -> IntoVec {
+        self.fold(Vec::new(), |mut body, chunk| {
+            body.extend_from_slice(&chunk);
+            Ok(body)
+        })
+    }
+}
+
+impl Stream for Body {
+    type Item = hyper::Chunk;
+    type Error = FinchersError;
+
+    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+        self.inner
+            .poll()
+            .map_err(|err| FinchersErrorKind::ServerError(Box::new(err)).into())
+    }
+}
+
+#[doc(hidden)]
+pub type IntoVec = Fold<Body, fn(Vec<u8>, hyper::Chunk) -> FinchersResult<Vec<u8>>, FinchersResult<Vec<u8>>, Vec<u8>>;
+
+
 /// reconstruct the raw incoming HTTP request, and return a pair of `Request` and `Body`
 pub fn reconstruct(req: hyper::Request) -> (Request, Body) {
     let (method, uri, _version, headers, body) = req.deconstruct();
@@ -52,5 +93,5 @@ pub fn reconstruct(req: hyper::Request) -> (Request, Body) {
         uri,
         headers,
     };
-    (req, body)
+    (req, body.into())
 }
