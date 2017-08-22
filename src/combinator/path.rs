@@ -20,7 +20,7 @@ impl<'a> Endpoint for &'a str {
             _ => false,
         };
         if !matched {
-            return (ctx, Err(FinchersErrorKind::Routing.into()));
+            return (ctx, Err(FinchersErrorKind::NotFound.into()));
         }
 
         ctx.routes.pop_front();
@@ -57,7 +57,7 @@ impl<T: FromStr> Endpoint for Path<T> {
     fn apply<'r, 'b>(&self, mut ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
         let value: T = match ctx.routes.get(0).and_then(|s| s.parse().ok()) {
             Some(val) => val,
-            _ => return (ctx, Err(FinchersErrorKind::Routing.into())),
+            _ => return (ctx, Err(FinchersErrorKind::NotFound.into())),
         };
         ctx.routes.pop_front();
         (ctx, Ok(ok(value)))
@@ -165,7 +165,7 @@ impl Endpoint for PathEnd {
 
     fn apply<'r, 'b>(&self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
         if ctx.routes.len() > 0 {
-            return (ctx, Err(FinchersErrorKind::Routing.into()));
+            return (ctx, Err(FinchersErrorKind::NotFound.into()));
         }
         (ctx, Ok(ok(())))
     }

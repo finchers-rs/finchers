@@ -1,8 +1,11 @@
 //! Definition of endpoints to parse request body
 
 use std::marker::PhantomData;
-use futures::{BoxFuture, Future, Stream};
-use hyper::StatusCode;
+use futures::{Future, Stream};
+use futures::future::AndThen;
+use futures::stream::{Fold, MapErr};
+
+use hyper;
 use hyper::header::ContentType;
 use hyper::mime::TEXT_PLAIN_UTF_8;
 
@@ -21,28 +24,39 @@ pub trait FromBody: Sized {
     fn from_body(body: request::Body, req: &Request) -> FinchersResult<Self::Future>;
 }
 
+
 impl FromBody for String {
-    type Future = BoxFuture<String, FinchersError>;
+    type Future = AndThen<
+        Fold<
+            MapErr<request::Body, fn(hyper::Error) -> FinchersError>,
+            fn(Vec<u8>, hyper::Chunk) -> FinchersResult<Vec<u8>>,
+            FinchersResult<Vec<u8>>,
+            Vec<u8>,
+        >,
+        FinchersResult<String>,
+        fn(Vec<u8>) -> FinchersResult<String>,
+    >;
 
     fn from_body(body: request::Body, req: &Request) -> FinchersResult<Self::Future> {
         match req.header() {
             Some(&ContentType(ref mime)) if *mime == TEXT_PLAIN_UTF_8 => (),
-            _ => return Err(FinchersErrorKind::Status(StatusCode::BadRequest).into()),
+            _ => bail!(FinchersErrorKind::BadRequest),
         }
 
         Ok(
-            body.map_err(|err| FinchersErrorKind::ServerError(Box::new(err)).into())
-                .fold(
+            body.map_err(
+                (|err| FinchersErrorKind::ServerError(Box::new(err)).into()) as
+                    fn(hyper::Error) -> FinchersError,
+            ).fold(
                     Vec::new(),
-                    |mut body, chunk| -> Result<Vec<u8>, FinchersError> {
+                    (|mut body, chunk| {
                         body.extend_from_slice(&chunk);
                         Ok(body)
-                    },
+                    }) as fn(Vec<u8>, hyper::Chunk) -> FinchersResult<_>,
                 )
                 .and_then(|body| {
-                    String::from_utf8(body).map_err(|_| FinchersErrorKind::Status(StatusCode::BadRequest).into())
-                })
-                .boxed(),
+                    String::from_utf8(body).map_err(|_| FinchersErrorKind::BadRequest.into())
+                }),
         )
     }
 }

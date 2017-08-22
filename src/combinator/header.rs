@@ -19,7 +19,7 @@ impl<H: header::Header + Clone> Endpoint for Header<H> {
     fn apply<'r, 'b>(&self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
         let result = match ctx.request.header::<H>() {
             Some(h) => Ok(ok(h.clone())),
-            None => Err(FinchersErrorKind::Routing.into()),
+            None => Err(FinchersErrorKind::NotFound.into()),
         };
         (ctx, result)
     }

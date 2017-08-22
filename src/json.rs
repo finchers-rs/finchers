@@ -1,10 +1,12 @@
 use std::ops::{Deref, DerefMut};
 use futures::{Future, Stream};
-use serde::{Deserialize, Serialize};
-use serde_json::{self, Value};
-use hyper::StatusCode;
+use futures::future::AndThen;
+use futures::stream::{Fold, MapErr};
+use hyper;
 use hyper::header::ContentType;
 use hyper::mime::APPLICATION_JSON;
+use serde::{Deserialize, Serialize};
+use serde_json::{self, Value};
 
 use combinator::body::FromBody;
 use errors::*;
@@ -40,27 +42,40 @@ impl<T: 'static> FromBody for Json<T>
 where
     for<'de> T: Deserialize<'de>,
 {
-    type Future = Box<Future<Item = Json<T>, Error = FinchersError>>;
+    type Future = AndThen<
+        Fold<
+            MapErr<Body, fn(hyper::Error) -> FinchersError>,
+            fn(Vec<u8>, hyper::Chunk) -> FinchersResult<Vec<u8>>,
+            FinchersResult<Vec<u8>>,
+            Vec<u8>,
+        >,
+        FinchersResult<Json<T>>,
+        fn(Vec<u8>) -> FinchersResult<Json<T>>,
+    >;
 
     fn from_body(body: Body, req: &Request) -> FinchersResult<Self::Future> {
         match req.header() {
             Some(&ContentType(ref mime)) if *mime == APPLICATION_JSON => (),
-            _ => return Err(FinchersErrorKind::Status(StatusCode::BadRequest).into()),
+            _ => bail!(FinchersErrorKind::BadRequest),
         }
-        Ok(Box::new(
-            body.map_err(|err| FinchersErrorKind::ServerError(Box::new(err)).into())
-                .fold(
+        Ok(
+            body.map_err(
+                (|err| FinchersErrorKind::ServerError(Box::new(err)).into()) as
+                    fn(hyper::Error) -> FinchersError,
+            ).fold(
                     Vec::new(),
-                    |mut body, chunk| -> Result<Vec<u8>, FinchersError> {
+                    (|mut body, chunk| -> Result<Vec<u8>, FinchersError> {
                         body.extend_from_slice(&chunk);
                         Ok(body)
-                    },
+                    }) as fn(Vec<u8>, hyper::Chunk) -> FinchersResult<_>,
                 )
-                .and_then(|body| {
-                    serde_json::from_slice(&body).map_err(|_| FinchersErrorKind::Status(StatusCode::BadRequest).into())
-                })
-                .map(Json),
-        ))
+                .and_then(|body| -> FinchersResult<_> {
+                    match serde_json::from_slice(&body) {
+                        Ok(val) => Ok(Json(val)),
+                        Err(_) => bail!(FinchersErrorKind::BadRequest),
+                    }
+                }),
+        )
     }
 }
 

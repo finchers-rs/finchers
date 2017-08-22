@@ -20,7 +20,7 @@ impl<T: FromStr> Endpoint for Param<T> {
     fn apply<'r, 'b>(&self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
         let value: T = match ctx.params.get(&self.0).and_then(|s| s.parse().ok()) {
             Some(val) => val,
-            None => return (ctx, Err(FinchersErrorKind::Routing.into())),
+            None => return (ctx, Err(FinchersErrorKind::NotFound.into())),
         };
         (ctx, Ok(ok(value)))
     }

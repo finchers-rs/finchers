@@ -52,16 +52,16 @@ where
         result
             .into_future()
             .flatten()
-            .and_then(respond)
+            .and_then(
+                (|res| {
+                    res.respond()
+                        .map_err(|err| FinchersErrorKind::ServerError(Box::new(err)).into())
+                }) as fn(E::Item) -> FinchersResult<hyper::Response>,
+            )
             .then(|response| {
                 Ok(response.unwrap_or_else(|err| err.into_response()))
             })
     }
-}
-
-fn repond<R: Responder>(res: R) -> FinchersResult<hyper::Response> {
-    res.respond()
-        .map_err(|err| FinchersErrorKind::Responder(Box::new(err)).into())
 }
 
 

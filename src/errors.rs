@@ -1,6 +1,5 @@
 //! Definition of error types
 
-use std::fmt;
 use std::error;
 use hyper::{Response, StatusCode};
 
@@ -10,28 +9,28 @@ error_chain! {
     }
 
     errors {
-        /// An error during routing
-        Routing {
-            description("routing")
-            display("routing")
+        /// 400 Bad Request
+        BadRequest {
+            description("bad request")
+            display("bad request")
         }
 
-        /// A HTTP status code
-        Status(s: StatusCode) {
-            description("status code")
-            display("status code: {:?}", s)
+        /// 404 Not Found
+        NotFound {
+            description("not found")
+            display("not found")
         }
 
-        /// An error represents `Internal Server Error`
+        /// 500 Internal Server Error
         ServerError(err: Box<error::Error + Send + 'static>) {
             description("internal server error")
             display("server error: {}", err)
         }
 
-        /// An error from `Responder::respond()`
-        Responder(err: Box<error::Error + Send + 'static>) {
-            description("responder")
-            display("responder: {}", err)
+        /// An HTTP status code
+        Status(s: StatusCode) {
+            description("status code")
+            display("status code: {:?}", s)
         }
     }
 }
@@ -45,29 +44,11 @@ pub trait IntoResponse {
 impl IntoResponse for FinchersError {
     fn into_response(self) -> Response {
         let status = match *self.kind() {
-            FinchersErrorKind::Routing => StatusCode::NotFound,
+            FinchersErrorKind::BadRequest => StatusCode::BadRequest,
+            FinchersErrorKind::NotFound => StatusCode::NotFound,
+            FinchersErrorKind::ServerError(_) | FinchersErrorKind::Msg(_) => StatusCode::InternalServerError,
             FinchersErrorKind::Status(s) => s,
-            FinchersErrorKind::ServerError(_) | FinchersErrorKind::Responder(_) | FinchersErrorKind::Msg(_) => {
-                StatusCode::InternalServerError
-            }
         };
         Response::new().with_status(status)
-    }
-}
-
-
-#[allow(missing_docs)]
-#[derive(Debug)]
-pub struct DummyError;
-
-impl fmt::Display for DummyError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "dummy error")
-    }
-}
-
-impl error::Error for DummyError {
-    fn description(&self) -> &str {
-        "dummy error"
     }
 }

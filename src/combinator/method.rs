@@ -15,7 +15,7 @@ impl<E: Endpoint> Endpoint for MatchMethod<E> {
 
     fn apply<'r, 'b>(&self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
         if *ctx.request.method() != self.0 {
-            return (ctx, Err(FinchersErrorKind::Routing.into()));
+            return (ctx, Err(FinchersErrorKind::NotFound.into()));
         }
         self.1.apply(ctx)
     }
