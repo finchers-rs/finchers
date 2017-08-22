@@ -1,7 +1,7 @@
 extern crate finchers;
 
 use finchers::{Endpoint, Json};
-use finchers::endpoint::{end_, param, string_};
+use finchers::endpoint::{param, string_};
 use finchers::endpoint::method::get;
 
 fn main() {

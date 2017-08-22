@@ -7,10 +7,13 @@ use futures::future::AndThen;
 use hyper::header::ContentType;
 use hyper::mime::TEXT_PLAIN_UTF_8;
 
+use serde::Deserialize;
+
 use context::Context;
 use endpoint::Endpoint;
 use errors::*;
 use request::{self, IntoVec, Request};
+use json::Json;
 
 
 /// A trait represents the conversion from `Body`.
@@ -59,5 +62,13 @@ impl<T: FromBody> Endpoint for Body<T> {
 
 /// Create an endpoint, represents the value of a request body
 pub fn body<T: FromBody>() -> Body<T> {
+    Body(PhantomData)
+}
+
+/// Equivalent to `body::<Json<T>>()`
+pub fn json_body<T>() -> Body<Json<T>>
+where
+    for<'de> T: Deserialize<'de>,
+{
     Body(PhantomData)
 }

@@ -6,7 +6,7 @@ extern crate serde;
 extern crate serde_derive;
 
 use finchers::{Endpoint, Json, Responder, Response};
-use finchers::endpoint::{body, end_, u64_};
+use finchers::endpoint::{json_body, u64_};
 use finchers::endpoint::method::{delete, get, post, put};
 use finchers::response::Created;
 
@@ -107,7 +107,7 @@ fn main() {
 
     // PUT /todos/:id
     let patch_todo = put("todos".with(u64_))
-        .join(body::<Json<Todo>>())
+        .join(json_body::<Todo>())
         .map(|(id, Json(new_todo))| {
             let mut todos = TODOS.write().unwrap();
             if let Some(todo) = todos.get_mut(id) {
@@ -118,7 +118,7 @@ fn main() {
 
     // POST /todos
     let post_todo = post("todos")
-        .with(body::<Json<NewTodo>>())
+        .with(json_body::<NewTodo>())
         .map(|Json(new_todo)| {
             let mut todos = TODOS.write().unwrap();
             into_response(Created(Json(todos.save(new_todo))))

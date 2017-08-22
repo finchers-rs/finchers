@@ -13,7 +13,7 @@ pub mod path;
 pub use self::endpoint::Endpoint;
 
 #[doc(inline)]
-pub use self::body::{body, FromBody};
+pub use self::body::{body, json_body, FromBody};
 
 #[doc(inline)]
 pub use self::header::header;
