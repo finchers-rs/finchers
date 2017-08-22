@@ -1,9 +1,9 @@
 use std::borrow::Cow;
 use std::cell::RefCell;
-use std::collections::{VecDeque, HashMap};
+use std::collections::{HashMap, VecDeque};
 use url::form_urlencoded;
 
-use request::{Request, Body};
+use request::{Body, Request};
 
 /// A Finchers-specific context and the incoming HTTP request, without the request body
 #[derive(Debug, Clone)]

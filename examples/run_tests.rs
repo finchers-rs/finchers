@@ -1,9 +1,9 @@
 extern crate finchers;
 
 use finchers::Endpoint;
-use finchers::combinator::path::{u64_, end_};
+use finchers::combinator::path::{end_, u64_};
 use finchers::combinator::method::get;
-use finchers::test::{TestCase, run_test};
+use finchers::test::{run_test, TestCase};
 
 fn main() {
     let endpoint = || get("foo".with("bar").with(u64_).skip(end_));

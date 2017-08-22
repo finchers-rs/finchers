@@ -112,7 +112,8 @@ where
         let seq = match ctx.routes
             .iter()
             .map(|s| s.parse())
-            .collect::<Result<_, T::Err>>() {
+            .collect::<Result<_, T::Err>>()
+        {
             Ok(seq) => seq,
             Err(e) => return (ctx, Err(e.to_string().into())),
         };

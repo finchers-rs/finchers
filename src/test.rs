@@ -8,7 +8,7 @@ use tokio_core::reactor::Core;
 use context::Context;
 use endpoint::Endpoint;
 use errors::*;
-use request::{Request, Body};
+use request::{Body, Request};
 
 /// A test case for `run_test()`
 pub struct TestCase {

@@ -1,7 +1,7 @@
 //! Definition of endpoints to parse request body
 
 use std::marker::PhantomData;
-use futures::{Future, Stream, BoxFuture};
+use futures::{BoxFuture, Future, Stream};
 use hyper::StatusCode;
 use hyper::header::ContentType;
 use hyper::mime::TEXT_PLAIN_UTF_8;
@@ -32,12 +32,13 @@ impl FromBody for String {
 
         Ok(
             body.map_err(|err| FinchersErrorKind::ServerError(Box::new(err)).into())
-                .fold(Vec::new(), |mut body,
-                 chunk|
-                 -> Result<Vec<u8>, FinchersError> {
-                    body.extend_from_slice(&chunk);
-                    Ok(body)
-                })
+                .fold(
+                    Vec::new(),
+                    |mut body, chunk| -> Result<Vec<u8>, FinchersError> {
+                        body.extend_from_slice(&chunk);
+                        Ok(body)
+                    },
+                )
                 .and_then(|body| {
                     String::from_utf8(body).map_err(|_| FinchersErrorKind::Status(StatusCode::BadRequest).into())
                 })

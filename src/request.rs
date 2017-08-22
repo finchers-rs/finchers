@@ -1,6 +1,6 @@
 //! Definitions and reexports of incoming HTTP requests
 
-use hyper::{self, Method, Uri, Headers};
+use hyper::{self, Headers, Method, Uri};
 use hyper::header::Header;
 use hyper::error::UriError;
 pub use hyper::Body;

@@ -52,8 +52,8 @@ pub struct Created<T>(pub T);
 impl<T: Responder> Responder for Created<T> {
     type Error = T::Error;
     fn respond(self) -> Result<Response, Self::Error> {
-        self.0.respond().map(
-            |res| res.with_status(StatusCode::Created),
-        )
+        self.0
+            .respond()
+            .map(|res| res.with_status(StatusCode::Created))
     }
 }

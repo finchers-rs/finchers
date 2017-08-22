@@ -3,7 +3,7 @@
 use std::cell::RefCell;
 use std::sync::Arc;
 
-use futures::{Future, Poll, Async};
+use futures::{Async, Future, Poll};
 use hyper;
 use hyper::server::{Http, Service};
 
@@ -63,23 +63,19 @@ where
                 let err = r.take().expect("cannot reject twice");
                 Err(err)
             }
-            EndpointServiceFuture::Then(ref mut t) => {
-                match t.poll() {
-                    Ok(Async::Ready(res)) => {
-                        match res.respond() {
-                            Ok(response) => Ok(response),
-                            Err(err) => Err(FinchersErrorKind::Responder(Box::new(err)).into()),
-                        }
-                    }
-                    Ok(Async::NotReady) => return Ok(Async::NotReady),
-                    Err(err) => Err(err),
-                }
-            }
+            EndpointServiceFuture::Then(ref mut t) => match t.poll() {
+                Ok(Async::Ready(res)) => match res.respond() {
+                    Ok(response) => Ok(response),
+                    Err(err) => Err(FinchersErrorKind::Responder(Box::new(err)).into()),
+                },
+                Ok(Async::NotReady) => return Ok(Async::NotReady),
+                Err(err) => Err(err),
+            },
         };
 
-        Ok(Async::Ready(response.unwrap_or_else(|err| {
-            hyper::Response::new().with_status(err.into_status())
-        })))
+        Ok(Async::Ready(
+            response.unwrap_or_else(|err| hyper::Response::new().with_status(err.into_status())),
+        ))
     }
 }
 

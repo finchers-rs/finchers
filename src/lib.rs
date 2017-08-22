@@ -8,10 +8,10 @@ extern crate error_chain;
 #[macro_use]
 extern crate futures;
 extern crate hyper;
-extern crate tokio_core;
-extern crate url;
 extern crate serde;
 extern crate serde_json;
+extern crate tokio_core;
+extern crate url;
 
 pub mod combinator;
 pub mod endpoint;
@@ -30,10 +30,10 @@ pub use context::Context;
 pub use endpoint::Endpoint;
 
 #[doc(inline)]
-pub use request::{Request, Body};
+pub use request::{Body, Request};
 
 #[doc(inline)]
-pub use response::{Response, Responder};
+pub use response::{Responder, Response};
 
 #[doc(inline)]
 pub use server::EndpointService;

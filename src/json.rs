@@ -1,6 +1,6 @@
 use std::ops::{Deref, DerefMut};
 use futures::{Future, Stream};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use serde_json::{self, Value};
 use hyper::StatusCode;
 use hyper::header::ContentType;
@@ -8,8 +8,8 @@ use hyper::mime::APPLICATION_JSON;
 
 use combinator::body::FromBody;
 use errors::*;
-use request::{Request, Body};
-use response::{Response, Responder};
+use request::{Body, Request};
+use response::{Responder, Response};
 
 
 /// Represents a JSON value
@@ -48,14 +48,14 @@ where
             _ => return Err(FinchersErrorKind::Status(StatusCode::BadRequest).into()),
         }
         Ok(Box::new(
-            body.map_err(|err| {
-                FinchersErrorKind::ServerError(Box::new(err)).into()
-            }).fold(Vec::new(), |mut body,
-                 chunk|
-                 -> Result<Vec<u8>, FinchersError> {
-                    body.extend_from_slice(&chunk);
-                    Ok(body)
-                })
+            body.map_err(|err| FinchersErrorKind::ServerError(Box::new(err)).into())
+                .fold(
+                    Vec::new(),
+                    |mut body, chunk| -> Result<Vec<u8>, FinchersError> {
+                        body.extend_from_slice(&chunk);
+                        Ok(body)
+                    },
+                )
                 .and_then(|body| {
                     serde_json::from_slice(&body).map_err(|_| FinchersErrorKind::Status(StatusCode::BadRequest).into())
                 })
@@ -69,8 +69,10 @@ impl<T: Serialize> Responder for Json<T> {
 
     fn respond(self) -> Result<Response, Self::Error> {
         let body = serde_json::to_string(&self.0)?;
-        Ok(Response::new().with_header(ContentType::json()).with_body(
-            body,
-        ))
+        Ok(
+            Response::new()
+                .with_header(ContentType::json())
+                .with_body(body),
+        )
     }
 }

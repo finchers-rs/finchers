@@ -5,7 +5,7 @@ extern crate serde_derive;
 
 use finchers::{Endpoint, Json};
 use finchers::combinator::method::get;
-use finchers::combinator::path::{u32_, string_vec_, end_};
+use finchers::combinator::path::{end_, string_vec_, u32_};
 use finchers::server::run_http;
 
 #[derive(Debug, Serialize)]

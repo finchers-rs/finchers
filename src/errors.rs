@@ -47,9 +47,9 @@ impl IntoStatus for FinchersError {
         match *self.kind() {
             FinchersErrorKind::Routing => StatusCode::NotFound,
             FinchersErrorKind::Status(s) => s,
-            FinchersErrorKind::ServerError(_) |
-            FinchersErrorKind::Responder(_) |
-            FinchersErrorKind::Msg(_) => StatusCode::InternalServerError,
+            FinchersErrorKind::ServerError(_) | FinchersErrorKind::Responder(_) | FinchersErrorKind::Msg(_) => {
+                StatusCode::InternalServerError
+            }
         }
     }
 }

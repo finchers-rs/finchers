@@ -6,8 +6,8 @@ extern crate serde;
 extern crate serde_derive;
 
 use finchers::{Endpoint, Json, Responder, Response};
-use finchers::combinator::method::{get, delete, put, post};
-use finchers::combinator::path::{u64_, end_};
+use finchers::combinator::method::{delete, get, post, put};
+use finchers::combinator::path::{end_, u64_};
 use finchers::combinator::body::body;
 use finchers::response::Created;
 
@@ -87,9 +87,9 @@ fn main() {
 
     // GET /todos
     let get_todos = get("todos".skip(end_)).map(|()| {
-            let todos = TODOS.read().unwrap();
-            into_response(Json(todos.list()))
-        });
+        let todos = TODOS.read().unwrap();
+        into_response(Json(todos.list()))
+    });
 
     // DELETE /todos/:id
     let delete_todo = delete("todos".with(u64_).skip(end_)).map(|id| {
@@ -100,10 +100,10 @@ fn main() {
 
     // DELETE /todos
     let delete_todos = delete("todos".skip(end_)).map(|()| {
-                let mut todos = TODOS.write().unwrap();
-                todos.clear();
-                into_response(())
-            });
+        let mut todos = TODOS.write().unwrap();
+        todos.clear();
+        into_response(())
+    });
 
     // PUT /todos/:id
     let patch_todo = put("todos".with(u64_).join(body::<Json<Todo>>())).map(|(id, Json(new_todo))| {
