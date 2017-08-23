@@ -3,8 +3,7 @@
 use hyper::Method;
 
 use context::Context;
-use endpoint::Endpoint;
-use errors::*;
+use endpoint::{Endpoint, EndpointError, EndpointResult};
 
 #[allow(missing_docs)]
 #[derive(Debug, Clone)]
@@ -14,11 +13,12 @@ impl<E: Endpoint> Endpoint for MatchMethod<E> {
     type Item = E::Item;
     type Future = E::Future;
 
-    fn apply<'r, 'b>(&self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
+    fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
+        let f = self.1.apply(ctx)?;
         if *ctx.request.method() != self.0 {
-            return (ctx, Err(FinchersErrorKind::NotFound.into()));
+            return Err(EndpointError::InvalidMethod);
         }
-        self.1.apply(ctx)
+        Ok(f)
     }
 }
 

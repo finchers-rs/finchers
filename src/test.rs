@@ -6,8 +6,8 @@ use hyper::header::Header;
 use tokio_core::reactor::Core;
 
 use context::Context;
-use endpoint::Endpoint;
-use errors::*;
+use endpoint::{Endpoint, EndpointResult};
+use errors::FinchersResult;
 use request::{Body, Request};
 
 /// A test case for `run_test()`
@@ -66,14 +66,13 @@ impl TestCase {
 
 
 /// Invoke given endpoint and return its result
-pub fn run_test<E: Endpoint>(endpoint: E, input: TestCase) -> Result<E::Item, FinchersError> {
+pub fn run_test<E: Endpoint>(endpoint: E, input: TestCase) -> EndpointResult<FinchersResult<E::Item>> {
     let req = input.request;
     let body = RefCell::new(Some(input.body.unwrap_or_default()));
-    let ctx = Context::new(&req, &body);
+    let mut ctx = Context::new(&req, &body);
 
-    let (_ctx, f) = endpoint.apply(ctx);
-    let f = f?;
+    let f = endpoint.apply(&mut ctx)?;
 
     let mut core = Core::new().unwrap();
-    core.run(f)
+    Ok(core.run(f))
 }

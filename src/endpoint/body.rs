@@ -2,7 +2,7 @@
 
 use std::marker::PhantomData;
 use futures::Future;
-use futures::future::AndThen;
+use futures::future::{err, ok, AndThen, Flatten, FutureResult};
 
 use hyper::header::ContentType;
 use hyper::mime::TEXT_PLAIN_UTF_8;
@@ -10,7 +10,7 @@ use hyper::mime::TEXT_PLAIN_UTF_8;
 use serde::Deserialize;
 
 use context::Context;
-use endpoint::Endpoint;
+use endpoint::{Endpoint, EndpointError, EndpointResult};
 use errors::*;
 use request::{self, IntoVec, Request};
 use json::Json;
@@ -22,22 +22,25 @@ pub trait FromBody: Sized {
     type Future: Future<Item = Self, Error = FinchersError>;
 
     /// Convert the content of `body` to its type
-    fn from_body(body: request::Body, req: &Request) -> FinchersResult<Self::Future>;
+    fn from_body(body: request::Body, req: &Request) -> Self::Future;
 }
 
 
 impl FromBody for String {
-    type Future = AndThen<IntoVec, FinchersResult<String>, fn(Vec<u8>) -> FinchersResult<String>>;
+    type Future = Flatten<
+        FutureResult<AndThen<IntoVec, FinchersResult<String>, fn(Vec<u8>) -> FinchersResult<String>>, FinchersError>,
+    >;
 
-    fn from_body(body: request::Body, req: &Request) -> FinchersResult<Self::Future> {
+    fn from_body(body: request::Body, req: &Request) -> Self::Future {
         match req.header() {
             Some(&ContentType(ref mime)) if *mime == TEXT_PLAIN_UTF_8 => (),
-            _ => bail!(FinchersErrorKind::BadRequest),
+            _ => return err(FinchersErrorKind::BadRequest.into()).flatten(),
         }
 
-        Ok(body.into_vec().and_then(|body| {
-            String::from_utf8(body).map_err(|_| FinchersErrorKind::BadRequest.into())
-        }))
+        ok(body.into_vec().and_then(
+            (|body| String::from_utf8(body).map_err(|_| FinchersErrorKind::BadRequest.into())) as
+                fn(Vec<u8>) -> FinchersResult<String>,
+        )).flatten()
     }
 }
 
@@ -58,13 +61,10 @@ impl<T: FromBody> Endpoint for Body<T> {
     type Item = T;
     type Future = T::Future;
 
-    fn apply<'r, 'b>(&self, mut ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
-        let result = if let Some(body) = ctx.take_body() {
-            T::from_body(body, &ctx.request)
-        } else {
-            Err("cannot take body twice".into())
-        };
-        (ctx, result)
+    fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
+        ctx.take_body()
+            .ok_or_else(|| EndpointError::EmptyBody)
+            .map(|body| T::from_body(body, &ctx.request))
     }
 }
 

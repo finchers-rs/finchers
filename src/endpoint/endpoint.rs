@@ -17,7 +17,7 @@ pub trait Endpoint {
     type Future: Future<Item = Self::Item, Error = FinchersError>;
 
     /// Apply the incoming HTTP request, and return the future of its response
-    fn apply<'r, 'b>(&self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>);
+    fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future>;
 
 
     /// Convert itself into `tokio_service::Service`
@@ -116,7 +116,7 @@ impl<E: Endpoint + ?Sized> Endpoint for Box<E> {
     type Item = E::Item;
     type Future = E::Future;
 
-    fn apply<'r, 'b>(&self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
+    fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
         (**self).apply(ctx)
     }
 }
@@ -125,7 +125,7 @@ impl<E: Endpoint + ?Sized> Endpoint for ::std::rc::Rc<E> {
     type Item = E::Item;
     type Future = E::Future;
 
-    fn apply<'r, 'b>(&self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
+    fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
         (**self).apply(ctx)
     }
 }
@@ -134,7 +134,20 @@ impl<E: Endpoint + ?Sized> Endpoint for ::std::sync::Arc<E> {
     type Item = E::Item;
     type Future = E::Future;
 
-    fn apply<'r, 'b>(&self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
+    fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
         (**self).apply(ctx)
     }
 }
+
+#[allow(missing_docs)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EndpointError {
+    Skipped,
+    EmptyBody,
+    InvalidMethod,
+    EmptyHeader,
+    TypeMismatch,
+}
+
+#[allow(missing_docs)]
+pub type EndpointResult<T> = Result<T, EndpointError>;

@@ -1,6 +1,6 @@
 use std::ops::{Deref, DerefMut};
 use futures::Future;
-use futures::future::AndThen;
+use futures::future::{err, ok, AndThen, Flatten, FutureResult};
 use hyper::header::{ContentLength, ContentType};
 use hyper::mime::APPLICATION_JSON;
 use serde::{Deserialize, Serialize};
@@ -40,19 +40,21 @@ impl<T> FromBody for Json<T>
 where
     for<'de> T: Deserialize<'de>,
 {
-    type Future = AndThen<IntoVec, FinchersResult<Json<T>>, fn(Vec<u8>) -> FinchersResult<Json<T>>>;
+    type Future = Flatten<
+        FutureResult<AndThen<IntoVec, FinchersResult<Json<T>>, fn(Vec<u8>) -> FinchersResult<Json<T>>>, FinchersError>,
+    >;
 
-    fn from_body(body: Body, req: &Request) -> FinchersResult<Self::Future> {
+    fn from_body(body: Body, req: &Request) -> Self::Future {
         match req.header() {
             Some(&ContentType(ref mime)) if *mime == APPLICATION_JSON => (),
-            _ => bail!(FinchersErrorKind::BadRequest),
+            _ => return err(FinchersErrorKind::BadRequest.into()).flatten(),
         }
-        Ok(body.into_vec().and_then(|body| -> FinchersResult<_> {
-            match serde_json::from_slice(&body) {
+        ok(body.into_vec().and_then(
+            (|body| match serde_json::from_slice(&body) {
                 Ok(val) => Ok(Json(val)),
                 Err(_) => bail!(FinchersErrorKind::BadRequest),
-            }
-        }))
+            }) as fn(Vec<u8>) -> FinchersResult<Json<T>>,
+        )).flatten()
     }
 }
 
