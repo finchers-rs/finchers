@@ -45,9 +45,11 @@ where
     fn call(&self, req: hyper::Request) -> Self::Future {
         let (req, body) = request::reconstruct(req);
         let body = RefCell::new(Some(body));
-        let ctx = Context::new(&req, &body);
+        let mut ctx = Context::new(&req, &body);
 
-        let (ctx, mut result) = self.0.apply(ctx);
+        let mut result = self.0
+            .apply(&mut ctx)
+            .map_err(|_| FinchersErrorKind::NotFound.into());
         if ctx.routes.len() > 0 {
             result = Err(FinchersErrorKind::NotFound.into());
         }

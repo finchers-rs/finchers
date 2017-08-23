@@ -7,7 +7,7 @@ use std::str::FromStr;
 use futures::future::{ok, FutureResult};
 
 use context::Context;
-use endpoint::Endpoint;
+use endpoint::{Endpoint, EndpointError, EndpointResult};
 use errors::*;
 
 
@@ -15,17 +15,12 @@ impl<'a> Endpoint for &'a str {
     type Item = ();
     type Future = FutureResult<(), FinchersError>;
 
-    fn apply<'r, 'b>(&self, mut ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
-        let matched = match ctx.routes.get(0) {
-            Some(s) if s == self => true,
-            _ => false,
-        };
-        if !matched {
-            return (ctx, Err(FinchersErrorKind::NotFound.into()));
+    fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
+        if !ctx.routes.get(0).map(|s| s == self).unwrap_or(false) {
+            return Err(EndpointError::Skipped);
         }
-
         ctx.routes.pop_front();
-        (ctx, Ok(ok(())))
+        Ok(ok(()))
     }
 }
 
@@ -33,7 +28,7 @@ impl Endpoint for String {
     type Item = ();
     type Future = FutureResult<(), FinchersError>;
 
-    fn apply<'r, 'b>(&self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
+    fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
         (self as &str).apply(ctx)
     }
 }
@@ -42,7 +37,7 @@ impl<'a> Endpoint for Cow<'a, str> {
     type Item = ();
     type Future = FutureResult<(), FinchersError>;
 
-    fn apply<'r, 'b>(&self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
+    fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
         (&*self as &str).apply(ctx)
     }
 }
@@ -64,13 +59,13 @@ impl<T: FromStr> Endpoint for Path<T> {
     type Item = T;
     type Future = FutureResult<T, FinchersError>;
 
-    fn apply<'r, 'b>(&self, mut ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
-        let value: T = match ctx.routes.get(0).and_then(|s| s.parse().ok()) {
+    fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
+        let value = match ctx.routes.get(0).and_then(|s| s.parse().ok()) {
             Some(val) => val,
-            _ => return (ctx, Err(FinchersErrorKind::NotFound.into())),
+            _ => return Err(EndpointError::TypeMismatch),
         };
         ctx.routes.pop_front();
-        (ctx, Ok(ok(value)))
+        Ok(ok(value))
     }
 }
 
@@ -152,17 +147,17 @@ where
     type Item = I;
     type Future = FutureResult<I, FinchersError>;
 
-    fn apply<'r, 'b>(&self, mut ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
+    fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
         let seq = match ctx.routes
             .iter()
             .map(|s| s.parse())
             .collect::<Result<_, T::Err>>()
         {
             Ok(seq) => seq,
-            Err(_) => return (ctx, Err(FinchersErrorKind::NotFound.into())),
+            Err(_) => return Err(EndpointError::TypeMismatch),
         };
         ctx.routes = Default::default();
-        (ctx, Ok(ok(seq)))
+        Ok(ok(seq))
     }
 }
 

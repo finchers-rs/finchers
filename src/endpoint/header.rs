@@ -5,7 +5,7 @@ use futures::future::{ok, FutureResult};
 use hyper::header::{self, Authorization, ContentType};
 
 use context::Context;
-use endpoint::Endpoint;
+use endpoint::{Endpoint, EndpointError, EndpointResult};
 use errors::*;
 
 
@@ -25,12 +25,12 @@ impl<H: header::Header + Clone> Endpoint for Header<H> {
     type Item = H;
     type Future = FutureResult<H, FinchersError>;
 
-    fn apply<'r, 'b>(&self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
-        let result = match ctx.request.header::<H>() {
-            Some(h) => Ok(ok(h.clone())),
-            None => Err(FinchersErrorKind::NotFound.into()),
-        };
-        (ctx, result)
+    fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
+        ctx.request
+            .header()
+            .cloned()
+            .map(ok)
+            .ok_or(EndpointError::EmptyHeader)
     }
 }
 
@@ -52,12 +52,8 @@ impl<H: header::Header + Clone> Endpoint for HeaderOpt<H> {
     type Item = Option<H>;
     type Future = FutureResult<Option<H>, FinchersError>;
 
-    fn apply<'r, 'b>(&self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
-        let result = match ctx.request.header::<H>() {
-            Some(h) => Ok(ok(Some(h.clone()))),
-            None => Ok(ok(None)),
-        };
-        (ctx, result)
+    fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
+        Ok(ok(ctx.request.header().cloned()))
     }
 }
 

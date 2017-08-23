@@ -10,7 +10,7 @@ pub mod path;
 
 // re-exports
 #[doc(inline)]
-pub use self::endpoint::Endpoint;
+pub use self::endpoint::{Endpoint, EndpointError, EndpointResult};
 
 #[doc(inline)]
 pub use self::body::{body, json_body, FromBody};

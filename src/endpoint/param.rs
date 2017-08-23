@@ -5,7 +5,7 @@ use std::str::FromStr;
 use futures::future::{ok, FutureResult};
 
 use context::Context;
-use endpoint::Endpoint;
+use endpoint::{Endpoint, EndpointError, EndpointResult};
 use errors::*;
 
 
@@ -25,12 +25,11 @@ impl<T: FromStr> Endpoint for Param<T> {
     type Item = T;
     type Future = FutureResult<T, FinchersError>;
 
-    fn apply<'r, 'b>(&self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
-        let value: T = match ctx.params.get(&*self.0).and_then(|s| s.parse().ok()) {
-            Some(val) => val,
-            None => return (ctx, Err(FinchersErrorKind::NotFound.into())),
-        };
-        (ctx, Ok(ok(value)))
+    fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
+        match ctx.params.get(&*self.0).and_then(|s| s.parse().ok()) {
+            Some(val) => Ok(ok(val)),
+            None => return Err(EndpointError::TypeMismatch),
+        }
     }
 }
 
@@ -56,13 +55,12 @@ impl<T: FromStr> Endpoint for ParamOpt<T> {
     type Item = Option<T>;
     type Future = FutureResult<Option<T>, FinchersError>;
 
-    fn apply<'r, 'b>(&self, ctx: Context<'r, 'b>) -> (Context<'r, 'b>, FinchersResult<Self::Future>) {
-        let value: Option<T> = match ctx.params.get(&*self.0).map(|s| s.parse()) {
-            Some(Ok(val)) => Some(val),
-            Some(Err(_)) => return (ctx, Err(FinchersErrorKind::NotFound.into())),
-            None => None,
-        };
-        (ctx, Ok(ok(value)))
+    fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
+        match ctx.params.get(&*self.0).map(|s| s.parse()) {
+            Some(Ok(val)) => Ok(ok(Some(val))),
+            None => Ok(ok(None)),
+            Some(Err(_)) => Err(EndpointError::TypeMismatch),
+        }
     }
 }
 
