@@ -11,17 +11,17 @@ use errors::*;
 
 #[allow(missing_docs)]
 #[derive(Debug)]
-pub struct Param<T>(&'static str, PhantomData<fn(T) -> T>);
+pub struct Query<T>(&'static str, PhantomData<fn(T) -> T>);
 
-impl<T> Clone for Param<T> {
-    fn clone(&self) -> Param<T> {
-        Param(self.0, PhantomData)
+impl<T> Clone for Query<T> {
+    fn clone(&self) -> Self {
+        Query(self.0, PhantomData)
     }
 }
 
-impl<T> Copy for Param<T> {}
+impl<T> Copy for Query<T> {}
 
-impl<T: FromStr> Endpoint for Param<T> {
+impl<T: FromStr> Endpoint for Query<T> {
     type Item = T;
     type Future = FutureResult<T, FinchersError>;
 
@@ -34,24 +34,24 @@ impl<T: FromStr> Endpoint for Param<T> {
 }
 
 /// Create an endpoint matches a query parameter named `name`
-pub fn param<T: FromStr>(name: &'static str) -> Param<T> {
-    Param(name, PhantomData)
+pub fn query<T: FromStr>(name: &'static str) -> Query<T> {
+    Query(name, PhantomData)
 }
 
 
 #[allow(missing_docs)]
 #[derive(Debug)]
-pub struct ParamOpt<T>(&'static str, PhantomData<fn(T) -> T>);
+pub struct QueryOpt<T>(&'static str, PhantomData<fn(T) -> T>);
 
-impl<T> Clone for ParamOpt<T> {
-    fn clone(&self) -> ParamOpt<T> {
-        ParamOpt(self.0, PhantomData)
+impl<T> Clone for QueryOpt<T> {
+    fn clone(&self) -> QueryOpt<T> {
+        QueryOpt(self.0, PhantomData)
     }
 }
 
-impl<T> Copy for ParamOpt<T> {}
+impl<T> Copy for QueryOpt<T> {}
 
-impl<T: FromStr> Endpoint for ParamOpt<T> {
+impl<T: FromStr> Endpoint for QueryOpt<T> {
     type Item = Option<T>;
     type Future = FutureResult<Option<T>, FinchersError>;
 
@@ -65,6 +65,6 @@ impl<T: FromStr> Endpoint for ParamOpt<T> {
 }
 
 /// Create an endpoint matches a query parameter, which the value may not exist
-pub fn param_opt<T: FromStr>(name: &'static str) -> ParamOpt<T> {
-    ParamOpt(name, PhantomData)
+pub fn query_opt<T: FromStr>(name: &'static str) -> QueryOpt<T> {
+    QueryOpt(name, PhantomData)
 }

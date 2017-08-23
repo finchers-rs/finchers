@@ -5,8 +5,8 @@ pub mod combinator;
 pub mod endpoint;
 pub mod header;
 pub mod method;
-pub mod param;
 pub mod path;
+pub mod query;
 
 // re-exports
 #[doc(inline)]
@@ -19,7 +19,7 @@ pub use self::body::{body, json_body, FromBody};
 pub use self::header::{header, header_opt};
 
 #[doc(inline)]
-pub use self::param::{param, param_opt};
+pub use self::query::{query, query_opt};
 
 #[doc(inline)]
 pub use self::path::{path, path_seq, path_vec};
