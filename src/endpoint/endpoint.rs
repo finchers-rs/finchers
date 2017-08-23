@@ -8,6 +8,25 @@ use errors::*;
 use server::EndpointService;
 
 
+/// The return type of `Endpoint::apply()`
+pub type EndpointResult<T> = Result<T, EndpointError>;
+
+/// The error type during `Endpoint::apply()`
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EndpointError {
+    /// This endpoint does not matches the current request
+    Skipped,
+    /// The instance of requst body has already been taken
+    EmptyBody,
+    /// The header is not set
+    EmptyHeader,
+    /// The method of the current request is invalid in the endpoint
+    InvalidMethod,
+    /// The type of a path segment or a query parameter is not convertible to the endpoint
+    TypeMismatch,
+}
+
+
 /// A HTTP endpoint, which provides the futures from incoming HTTP requests
 pub trait Endpoint {
     /// The type of resolved value, created by this endpoint
@@ -138,16 +157,3 @@ impl<E: Endpoint + ?Sized> Endpoint for ::std::sync::Arc<E> {
         (**self).apply(ctx)
     }
 }
-
-#[allow(missing_docs)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum EndpointError {
-    Skipped,
-    EmptyBody,
-    InvalidMethod,
-    EmptyHeader,
-    TypeMismatch,
-}
-
-#[allow(missing_docs)]
-pub type EndpointResult<T> = Result<T, EndpointError>;
