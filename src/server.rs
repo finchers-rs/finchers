@@ -8,7 +8,7 @@ use futures::future::{AndThen, Flatten, FutureResult, Then};
 use hyper;
 use hyper::server::{Http, Service};
 
-use context::Context;
+use context::{self, Context};
 use endpoint::Endpoint;
 use errors::*;
 use request;
@@ -45,12 +45,14 @@ where
     fn call(&self, req: hyper::Request) -> Self::Future {
         let (req, body) = request::reconstruct(req);
         let body = RefCell::new(Some(body));
-        let mut ctx = Context::new(&req, &body);
+        let routes = context::to_path_segments(req.path());
+        let params = req.query().map(context::to_query_map).unwrap_or_default();
+        let mut ctx = Context::new(&req, &body, &routes, &params);
 
         let mut result = self.0
             .apply(&mut ctx)
             .map_err(|_| FinchersErrorKind::NotFound.into());
-        if ctx.routes.len() > 0 {
+        if ctx.next_segment().is_some() {
             result = Err(FinchersErrorKind::NotFound.into());
         }
 

@@ -16,10 +16,9 @@ impl<'a> Endpoint for &'a str {
     type Future = FutureResult<(), FinchersError>;
 
     fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
-        if !ctx.routes.get(0).map(|s| s == self).unwrap_or(false) {
+        if !ctx.next_segment().map(|s| s == *self).unwrap_or(false) {
             return Err(EndpointError::Skipped);
         }
-        ctx.routes.pop_front();
         Ok(ok(()))
     }
 }
@@ -60,11 +59,10 @@ impl<T: FromStr> Endpoint for Path<T> {
     type Future = FutureResult<T, FinchersError>;
 
     fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
-        let value = match ctx.routes.get(0).and_then(|s| s.parse().ok()) {
+        let value = match ctx.next_segment().and_then(|s| s.parse().ok()) {
             Some(val) => val,
             _ => return Err(EndpointError::TypeMismatch),
         };
-        ctx.routes.pop_front();
         Ok(ok(value))
     }
 }
@@ -141,23 +139,17 @@ impl<I, T> Copy for PathSeq<I, T> {}
 
 impl<I, T> Endpoint for PathSeq<I, T>
 where
-    I: FromIterator<T>,
+    I: FromIterator<T> + Default,
     T: FromStr,
 {
     type Item = I;
     type Future = FutureResult<I, FinchersError>;
 
     fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
-        let seq = match ctx.routes
-            .iter()
-            .map(|s| s.parse())
-            .collect::<Result<_, T::Err>>()
-        {
-            Ok(seq) => seq,
-            Err(_) => return Err(EndpointError::TypeMismatch),
-        };
-        ctx.routes = Default::default();
-        Ok(ok(seq))
+        ctx.collect_remaining_segments()
+            .unwrap_or_else(|| Ok(Default::default()))
+            .map(ok)
+            .map_err(|_| EndpointError::TypeMismatch)
     }
 }
 

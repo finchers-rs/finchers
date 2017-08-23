@@ -5,7 +5,7 @@ use hyper::Method;
 use hyper::header::Header;
 use tokio_core::reactor::Core;
 
-use context::Context;
+use context::{self, Context};
 use endpoint::{Endpoint, EndpointResult};
 use errors::FinchersResult;
 use request::{Body, Request};
@@ -69,7 +69,9 @@ impl TestCase {
 pub fn run_test<E: Endpoint>(endpoint: E, input: TestCase) -> EndpointResult<FinchersResult<E::Item>> {
     let req = input.request;
     let body = RefCell::new(Some(input.body.unwrap_or_default()));
-    let mut ctx = Context::new(&req, &body);
+    let routes = context::to_path_segments(req.path());
+    let params = req.query().map(context::to_query_map).unwrap_or_default();
+    let mut ctx = Context::new(&req, &body, &routes, &params);
 
     let f = endpoint.apply(&mut ctx)?;
 

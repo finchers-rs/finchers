@@ -1,32 +1,38 @@
 use std::borrow::Cow;
 use std::cell::RefCell;
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 use url::form_urlencoded;
+use std::iter::FromIterator;
+use std::slice::Iter;
+use std::str::FromStr;
 
 use request::{Body, Request};
 
 /// A Finchers-specific context and the incoming HTTP request, without the request body
 #[derive(Debug, Clone)]
-pub struct Context<'r, 'b> {
+pub struct Context<'r: 'p + 'q, 'b, 'p, 'q> {
     /// A reference of the incoming HTTP request, without the request body
     pub request: &'r Request,
     /// A reference of the request body
     body: &'b RefCell<Option<Body>>,
     /// A sequence of remaining path segments
-    pub routes: VecDeque<&'r str>,
+    routes: Option<Iter<'p, &'r str>>,
     /// A map of parsed queries
-    pub params: HashMap<Cow<'r, str>, Cow<'r, str>>,
+    queries: &'q HashMap<Cow<'r, str>, Cow<'r, str>>,
 }
 
-impl<'r, 'b> Context<'r, 'b> {
+impl<'r, 'b, 'p, 'q> Context<'r, 'b, 'p, 'q> {
     /// Create an instance of `Context` from a reference of the incoming HTTP request
-    pub fn new(request: &'r Request, body: &'b RefCell<Option<Body>>) -> Self {
-        let routes = to_path_segments(request.path());
-        let params = request.query().map(to_query_map).unwrap_or_default();
+    pub(crate) fn new(
+        request: &'r Request,
+        body: &'b RefCell<Option<Body>>,
+        routes: &'p Vec<&'r str>,
+        queries: &'q HashMap<Cow<'r, str>, Cow<'r, str>>,
+    ) -> Self {
         Context {
             request,
-            routes,
-            params,
+            routes: Some(routes.iter()),
+            queries,
             body,
         }
     }
@@ -35,10 +41,33 @@ impl<'r, 'b> Context<'r, 'b> {
     pub fn take_body(&mut self) -> Option<Body> {
         self.body.borrow_mut().take()
     }
+
+    #[allow(missing_docs)]
+    pub fn next_segment(&mut self) -> Option<&str> {
+        self.routes
+            .as_mut()
+            .and_then(|routes| routes.next().map(|s| *s))
+    }
+
+    #[allow(missing_docs)]
+    pub fn collect_remaining_segments<I, T>(&mut self) -> Option<Result<I, T::Err>>
+    where
+        I: FromIterator<T>,
+        T: FromStr,
+    {
+        self.routes
+            .take()
+            .map(|routes| routes.map(|s| s.parse()).collect())
+    }
+
+    #[allow(missing_docs)]
+    pub fn query<S: AsRef<str>>(&self, name: S) -> Option<&str> {
+        self.queries.get(name.as_ref()).map(|s| &*s as &str)
+    }
 }
 
 
-fn to_path_segments<'t>(s: &'t str) -> VecDeque<&'t str> {
+pub(crate) fn to_path_segments<'t>(s: &'t str) -> Vec<&'t str> {
     s.trim_left_matches("/")
         .split("/")
         .filter(|s| s.trim() != "")
@@ -69,6 +98,6 @@ mod to_path_segments_test {
 }
 
 
-fn to_query_map<'t>(s: &'t str) -> HashMap<Cow<'t, str>, Cow<'t, str>> {
+pub(crate) fn to_query_map<'t>(s: &'t str) -> HashMap<Cow<'t, str>, Cow<'t, str>> {
     form_urlencoded::parse(s.as_bytes()).collect()
 }
