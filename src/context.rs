@@ -8,43 +8,64 @@ use std::str::FromStr;
 
 use request::{Body, Request};
 
-/// A Finchers-specific context and the incoming HTTP request, without the request body
-#[derive(Debug, Clone)]
-pub struct Context<'r: 'p + 'q, 'b, 'p, 'q> {
-    /// A reference of the incoming HTTP request, without the request body
+
+#[doc(hidden)]
+#[derive(Debug)]
+pub struct RequestInfo<'r> {
+    /// The information of incoming HTTP request, without the request body
     request: &'r Request,
-    /// A reference of the request body
-    body: &'b RefCell<Option<Body>>,
-    /// A sequence of remaining path segments
-    routes: Option<Iter<'p, &'r str>>,
-    /// A map of parsed queries
-    queries: &'q HashMap<Cow<'r, str>, Vec<Cow<'r, str>>>,
+
+    /// The stream of request body
+    body: RefCell<Option<Body>>,
+
+    /// A HashMap contains parsed result of query parameters
+    queries: HashMap<Cow<'r, str>, Vec<Cow<'r, str>>>,
+
+    /// The elements of path segments.
+    routes: Vec<&'r str>,
 }
 
-impl<'r, 'b, 'p, 'q> Context<'r, 'b, 'p, 'q> {
-    /// Create an instance of `Context` from a reference of the incoming HTTP request
-    pub(crate) fn new(
-        request: &'r Request,
-        body: &'b RefCell<Option<Body>>,
-        routes: Iter<'p, &'r str>,
-        queries: &'q HashMap<Cow<'r, str>, Vec<Cow<'r, str>>>,
-    ) -> Self {
-        Context {
+impl<'r> RequestInfo<'r> {
+    pub fn new(request: &'r Request, body: Body) -> Self {
+        let body = RefCell::new(Some(body));
+        let routes = to_path_segments(request.path());
+        let queries = request.query().map(to_query_map).unwrap_or_default();
+        Self {
             request,
             body,
-            routes: Some(routes),
+            routes,
             queries,
         }
     }
+}
 
+
+/// A set of values, contains the incoming HTTP request and the finchers-specific context.
+#[derive(Debug, Clone)]
+pub struct Context<'b, 'r: 'b> {
+    inner: &'b RequestInfo<'r>,
+    /// An iterator of remaining path segments in the context.
+    routes: Option<Iter<'b, &'r str>>,
+}
+
+impl<'r, 'b> From<&'b RequestInfo<'r>> for Context<'r, 'b> {
+    fn from(base: &'b RequestInfo<'r>) -> Self {
+        Context {
+            inner: base,
+            routes: Some(base.routes.iter()),
+        }
+    }
+}
+
+impl<'r, 'b> Context<'r, 'b> {
     /// Return the reference of `Request`
     pub fn request(&self) -> &'r Request {
-        &self.request
+        &self.inner.request
     }
 
     /// Take and return the instance of request body, if available.
     pub fn take_body(&mut self) -> Option<Body> {
-        self.body.borrow_mut().take()
+        self.inner.body.borrow_mut().take()
     }
 
     /// Pop and return the front element of path segments.
@@ -67,32 +88,20 @@ impl<'r, 'b, 'p, 'q> Context<'r, 'b, 'p, 'q> {
 
     /// Return the first value of the query parameter whose name is `name`, if exists
     pub fn query<S: AsRef<str>>(&self, name: S) -> Option<&str> {
-        self.queries
+        self.inner
+            .queries
             .get(name.as_ref())
             .and_then(|q| q.get(0).map(|s| &*s as &str))
     }
 
     /// Returns all query parameters with name `name`
     pub fn queries<S: AsRef<str>>(&self, name: S) -> Vec<&str> {
-        self.queries
+        self.inner
+            .queries
             .get(name.as_ref())
             .map(|q| q.iter().map(|s| &*s as &str).collect())
             .unwrap_or_default()
     }
-}
-
-pub(crate) fn create_inner<'r>(
-    req: &'r Request,
-    body: Body,
-) -> (
-    RefCell<Option<Body>>,
-    Vec<&'r str>,
-    HashMap<Cow<'r, str>, Vec<Cow<'r, str>>>,
-) {
-    let body = RefCell::new(Some(body));
-    let routes = to_path_segments(req.path());
-    let params = req.query().map(to_query_map).unwrap_or_default();
-    (body, routes, params)
 }
 
 

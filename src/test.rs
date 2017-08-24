@@ -68,8 +68,8 @@ impl TestCase {
 pub fn run_test<E: Endpoint>(endpoint: E, input: TestCase) -> EndpointResult<FinchersResult<E::Item>> {
     let req = input.request;
     let body = input.body.unwrap_or_default();
-    let (body, routes, queries) = context::create_inner(&req, body);
-    let mut ctx = Context::new(&req, &body, routes.iter(), &queries);
+    let base = context::RequestInfo::new(&req, body);
+    let mut ctx = Context::from(&base);
 
     let f = endpoint.apply(&mut ctx)?;
 

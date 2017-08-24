@@ -43,8 +43,8 @@ where
 
     fn call(&self, req: hyper::Request) -> Self::Future {
         let (req, body) = request::reconstruct(req);
-        let (body, routes, queries) = context::create_inner(&req, body);
-        let mut ctx = Context::new(&req, &body, routes.iter(), &queries);
+        let base = context::RequestInfo::new(&req, body);
+        let mut ctx = Context::from(&base);
 
         let mut result = self.0
             .apply(&mut ctx)
