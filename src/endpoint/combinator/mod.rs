@@ -133,3 +133,22 @@ where
         self.1.apply(ctx).map(Either2::E2)
     }
 }
+
+
+#[doc(hidden)]
+pub trait IntoOr {
+    type Out;
+    fn into_either(self) -> Self::Out;
+}
+
+impl<E1, E2> IntoOr for (E1, E2)
+where
+    E1: Endpoint,
+    E2: Endpoint,
+{
+    type Out = Or<E1, E2>;
+    fn into_either(self) -> Self::Out {
+        let (e1, e2) = self;
+        Or(e1, e2)
+    }
+}

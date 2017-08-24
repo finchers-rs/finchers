@@ -23,7 +23,11 @@ macro_rules! define_either {
             fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
                 match *self {
                     $(
-                        $name :: $variant (ref e) => write!(f, concat!(stringify!($name), "::", stringify!($variant), "({})"), e),
+                        $name :: $variant (ref e) =>
+                            write!(f,
+                                   concat!(stringify!($name), "::", stringify!($variant),
+                                   "({})"),
+                                   e),
                     )*
                 }
             }
