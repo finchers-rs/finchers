@@ -8,9 +8,9 @@ use futures::{Async, Future, Poll};
 use response::{Responder, Response};
 
 macro_rules! define_either {
-    ($name:ident => [$($variant:ident),*]) => {
+    ($name:ident <$( $variant:ident ),*>) => {
         #[derive(Debug)]
-        pub enum $name< $($variant),*> {
+        pub enum $name<$( $variant ),*> {
             $(
                 $variant($variant),
             )*
@@ -46,7 +46,7 @@ macro_rules! define_either {
         where
         $( $variant: Future<Error=E> ),*
         {
-            type Item = $name <$( $variant :: Item),*>;
+            type Item = $name <$( $variant :: Item ),*>;
             type Error = E;
 
             fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
@@ -67,7 +67,7 @@ macro_rules! define_either {
             fn respond(self) -> Result<Response, Self::Error> {
                 match self {
                     $(
-                        $name :: $variant(e) => e.respond().map_err($name :: $variant),
+                        $name :: $variant (e) => e.respond().map_err($name :: $variant),
                     )*
                 }
             }
@@ -75,7 +75,7 @@ macro_rules! define_either {
     }
 }
 
-define_either!(Either2 => [E1, E2]);
-define_either!(Either3 => [E1, E2, E3]);
-define_either!(Either4 => [E1, E2, E3, E4]);
-define_either!(Either5 => [E1, E2, E3, E4, E5]);
+define_either!(Either2<E1, E2>);
+define_either!(Either3<E1, E2, E3>);
+define_either!(Either4<E1, E2, E3, E4>);
+define_either!(Either5<E1, E2, E3, E4, E5>);
