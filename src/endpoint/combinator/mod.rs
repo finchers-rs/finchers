@@ -10,78 +10,30 @@ use context::Context;
 use endpoint::{Endpoint, EndpointResult};
 use self::either::Either2;
 
+macro_rules! define_product {
+    ($fut:ident <$($type:ident),*>, ($($var:ident),*) => $($ret:tt)*) => {
+        impl<$($type),*> Endpoint for ($($type),*)
+        where
+        $( $type: Endpoint, )*
+        {
+            type Item = ($( $type :: Item, )*);
+            type Future = $fut <$( $type :: Future ),*>;
 
-impl<A, B> Endpoint for (A, B)
-where
-    A: Endpoint,
-    B: Endpoint,
-{
-    type Item = (A::Item, B::Item);
-    type Future = Join<A::Future, B::Future>;
-
-    fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
-        let a = self.0.apply(ctx)?;
-        let b = self.1.apply(ctx)?;
-        Ok(a.join(b))
+            fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
+                let &($(ref $var),*) = self;
+                $(
+                    let $var = $var.apply(ctx)?;
+                )*
+                Ok( $($ret)* )
+            }
+        }
     }
 }
 
-impl<A, B, C> Endpoint for (A, B, C)
-where
-    A: Endpoint,
-    B: Endpoint,
-    C: Endpoint,
-{
-    type Item = (A::Item, B::Item, C::Item);
-    type Future = Join3<A::Future, B::Future, C::Future>;
-
-    fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
-        let a = self.0.apply(ctx)?;
-        let b = self.1.apply(ctx)?;
-        let c = self.2.apply(ctx)?;
-        Ok(a.join3(b, c))
-    }
-}
-
-impl<A, B, C, D> Endpoint for (A, B, C, D)
-where
-    A: Endpoint,
-    B: Endpoint,
-    C: Endpoint,
-    D: Endpoint,
-{
-    type Item = (A::Item, B::Item, C::Item, D::Item);
-    type Future = Join4<A::Future, B::Future, C::Future, D::Future>;
-
-    fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
-        let a = self.0.apply(ctx)?;
-        let b = self.1.apply(ctx)?;
-        let c = self.2.apply(ctx)?;
-        let d = self.3.apply(ctx)?;
-        Ok(a.join4(b, c, d))
-    }
-}
-
-impl<A, B, C, D, E> Endpoint for (A, B, C, D, E)
-where
-    A: Endpoint,
-    B: Endpoint,
-    C: Endpoint,
-    D: Endpoint,
-    E: Endpoint,
-{
-    type Item = (A::Item, B::Item, C::Item, D::Item, E::Item);
-    type Future = Join5<A::Future, B::Future, C::Future, D::Future, E::Future>;
-
-    fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
-        let a = self.0.apply(ctx)?;
-        let b = self.1.apply(ctx)?;
-        let c = self.2.apply(ctx)?;
-        let d = self.3.apply(ctx)?;
-        let e = self.4.apply(ctx)?;
-        Ok(a.join5(b, c, d, e))
-    }
-}
+define_product!(Join<A, B>, (a, b) => a.join(b));
+define_product!(Join3<A, B, C>, (a, b, c) => a.join3(b, c));
+define_product!(Join4<A, B, C, D>, (a, b, c, d) => a.join4(b, c, d));
+define_product!(Join5<A, B, C, D, E>, (a, b, c, d, e) => a.join5(b, c, d, e));
 
 
 #[allow(missing_docs)]
