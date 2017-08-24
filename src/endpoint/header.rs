@@ -26,7 +26,7 @@ impl<H: header::Header + Clone> Endpoint for Header<H> {
     type Future = FutureResult<H, FinchersError>;
 
     fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
-        ctx.request
+        ctx.request()
             .header()
             .cloned()
             .map(ok)
@@ -53,7 +53,7 @@ impl<H: header::Header + Clone> Endpoint for HeaderOpt<H> {
     type Future = FutureResult<Option<H>, FinchersError>;
 
     fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
-        Ok(ok(ctx.request.header().cloned()))
+        Ok(ok(ctx.request().header().cloned()))
     }
 }
 

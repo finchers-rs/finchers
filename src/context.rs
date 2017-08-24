@@ -12,7 +12,7 @@ use request::{Body, Request};
 #[derive(Debug, Clone)]
 pub struct Context<'r: 'p + 'q, 'b, 'p, 'q> {
     /// A reference of the incoming HTTP request, without the request body
-    pub request: &'r Request,
+    request: &'r Request,
     /// A reference of the request body
     body: &'b RefCell<Option<Body>>,
     /// A sequence of remaining path segments
@@ -35,6 +35,11 @@ impl<'r, 'b, 'p, 'q> Context<'r, 'b, 'p, 'q> {
             queries,
             body,
         }
+    }
+
+    /// Return the reference of `Request`
+    pub fn request(&self) -> &'r Request {
+        &self.request
     }
 
     /// Take and return the instance of request body, if available.

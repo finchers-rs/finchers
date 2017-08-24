@@ -64,7 +64,7 @@ impl<T: FromBody> Endpoint for Body<T> {
     fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
         ctx.take_body()
             .ok_or_else(|| EndpointError::EmptyBody)
-            .map(|body| T::from_body(body, &ctx.request))
+            .map(|body| T::from_body(body, ctx.request()))
     }
 }
 
