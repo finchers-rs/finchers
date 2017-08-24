@@ -1,6 +1,5 @@
 //! Definition of HTTP services for Hyper
 
-use std::cell::RefCell;
 use std::sync::Arc;
 
 use futures::{Future, IntoFuture};
@@ -8,7 +7,7 @@ use futures::future::{AndThen, Flatten, FutureResult, Then};
 use hyper;
 use hyper::server::{Http, Service};
 
-use context::Context;
+use context::{self, Context};
 use endpoint::Endpoint;
 use errors::*;
 use request;
@@ -44,13 +43,13 @@ where
 
     fn call(&self, req: hyper::Request) -> Self::Future {
         let (req, body) = request::reconstruct(req);
-        let body = RefCell::new(Some(body));
-        let mut ctx = Context::new(&req, &body);
+        let (body, routes, queries) = context::create_inner(&req, body);
+        let mut ctx = Context::new(&req, &body, routes.iter(), &queries);
 
         let mut result = self.0
             .apply(&mut ctx)
             .map_err(|_| FinchersErrorKind::NotFound.into());
-        if ctx.routes.len() > 0 {
+        if ctx.next_segment().is_some() {
             result = Err(FinchersErrorKind::NotFound.into());
         }
 

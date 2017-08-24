@@ -26,10 +26,10 @@ impl<T: FromStr> Endpoint for Query<T> {
     type Future = FutureResult<T, FinchersError>;
 
     fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
-        match ctx.params.get(&*self.0).and_then(|s| s.parse().ok()) {
-            Some(val) => Ok(ok(val)),
-            None => return Err(EndpointError::TypeMismatch),
-        }
+        ctx.query(self.0)
+            .ok_or(EndpointError::Skipped)
+            .and_then(|s| s.parse().map_err(|_| EndpointError::TypeMismatch))
+            .map(ok)
     }
 }
 
@@ -56,11 +56,10 @@ impl<T: FromStr> Endpoint for QueryOpt<T> {
     type Future = FutureResult<Option<T>, FinchersError>;
 
     fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
-        match ctx.params.get(&*self.0).map(|s| s.parse()) {
-            Some(Ok(val)) => Ok(ok(Some(val))),
-            None => Ok(ok(None)),
-            Some(Err(_)) => Err(EndpointError::TypeMismatch),
-        }
+        ctx.query(self.0)
+            .map(|s| s.parse().map_err(|_| EndpointError::TypeMismatch))
+            .map_or(Ok(None), |s| s.map(Some))
+            .map(ok)
     }
 }
 
