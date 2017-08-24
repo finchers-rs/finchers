@@ -47,14 +47,14 @@ impl<'r, 'b, 'p, 'q> Context<'r, 'b, 'p, 'q> {
         self.body.borrow_mut().take()
     }
 
-    #[allow(missing_docs)]
+    /// Pop and return the front element of path segments.
     pub fn next_segment(&mut self) -> Option<&str> {
         self.routes
             .as_mut()
             .and_then(|routes| routes.next().map(|s| *s))
     }
 
-    #[allow(missing_docs)]
+    /// Collect and return the remaining path segments, if available
     pub fn collect_remaining_segments<I, T>(&mut self) -> Option<Result<I, T::Err>>
     where
         I: FromIterator<T>,
@@ -65,14 +65,14 @@ impl<'r, 'b, 'p, 'q> Context<'r, 'b, 'p, 'q> {
             .map(|routes| routes.map(|s| s.parse()).collect())
     }
 
-    #[allow(missing_docs)]
+    /// Return the first value of the query parameter whose name is `name`, if exists
     pub fn query<S: AsRef<str>>(&self, name: S) -> Option<&str> {
         self.queries
             .get(name.as_ref())
             .and_then(|q| q.get(0).map(|s| &*s as &str))
     }
 
-    #[allow(missing_docs)]
+    /// Returns all query parameters with name `name`
     pub fn queries<S: AsRef<str>>(&self, name: S) -> Vec<&str> {
         self.queries
             .get(name.as_ref())
@@ -119,10 +119,7 @@ mod to_path_segments_test {
 
     #[test]
     fn case3() {
-        assert_eq!(
-            to_path_segments("/foo/bar/"),
-            &["foo".to_owned(), "bar".to_owned()]
-        );
+        assert_eq!(to_path_segments("/foo/bar/"), &["foo", "bar"]);
     }
 }
 
