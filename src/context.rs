@@ -26,14 +26,14 @@ impl<'r, 'b, 'p, 'q> Context<'r, 'b, 'p, 'q> {
     pub(crate) fn new(
         request: &'r Request,
         body: &'b RefCell<Option<Body>>,
-        routes: &'p Vec<&'r str>,
+        routes: Iter<'p, &'r str>,
         queries: &'q HashMap<Cow<'r, str>, Cow<'r, str>>,
     ) -> Self {
         Context {
             request,
-            routes: Some(routes.iter()),
-            queries,
             body,
+            routes: Some(routes),
+            queries,
         }
     }
 
@@ -71,8 +71,22 @@ impl<'r, 'b, 'p, 'q> Context<'r, 'b, 'p, 'q> {
     }
 }
 
+pub(crate) fn create_inner<'r>(
+    req: &'r Request,
+    body: Body,
+) -> (
+    RefCell<Option<Body>>,
+    Vec<&'r str>,
+    HashMap<Cow<'r, str>, Cow<'r, str>>,
+) {
+    let body = RefCell::new(Some(body));
+    let routes = to_path_segments(req.path());
+    let params = req.query().map(to_query_map).unwrap_or_default();
+    (body, routes, params)
+}
 
-pub(crate) fn to_path_segments<'t>(s: &'t str) -> Vec<&'t str> {
+
+fn to_path_segments<'t>(s: &'t str) -> Vec<&'t str> {
     s.trim_left_matches("/")
         .split("/")
         .filter(|s| s.trim() != "")
@@ -103,6 +117,6 @@ mod to_path_segments_test {
 }
 
 
-pub(crate) fn to_query_map<'t>(s: &'t str) -> HashMap<Cow<'t, str>, Cow<'t, str>> {
+fn to_query_map<'t>(s: &'t str) -> HashMap<Cow<'t, str>, Cow<'t, str>> {
     form_urlencoded::parse(s.as_bytes()).collect()
 }

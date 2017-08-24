@@ -1,6 +1,5 @@
 //! Helper functions for testing
 
-use std::cell::RefCell;
 use hyper::Method;
 use hyper::header::Header;
 use tokio_core::reactor::Core;
@@ -68,10 +67,9 @@ impl TestCase {
 /// Invoke given endpoint and return its result
 pub fn run_test<E: Endpoint>(endpoint: E, input: TestCase) -> EndpointResult<FinchersResult<E::Item>> {
     let req = input.request;
-    let body = RefCell::new(Some(input.body.unwrap_or_default()));
-    let routes = context::to_path_segments(req.path());
-    let params = req.query().map(context::to_query_map).unwrap_or_default();
-    let mut ctx = Context::new(&req, &body, &routes, &params);
+    let body = input.body.unwrap_or_default();
+    let (body, routes, queries) = context::create_inner(&req, body);
+    let mut ctx = Context::new(&req, &body, routes.iter(), &queries);
 
     let f = endpoint.apply(&mut ctx)?;
 

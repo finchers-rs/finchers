@@ -1,6 +1,5 @@
 //! Definition of HTTP services for Hyper
 
-use std::cell::RefCell;
 use std::sync::Arc;
 
 use futures::{Future, IntoFuture};
@@ -44,10 +43,8 @@ where
 
     fn call(&self, req: hyper::Request) -> Self::Future {
         let (req, body) = request::reconstruct(req);
-        let body = RefCell::new(Some(body));
-        let routes = context::to_path_segments(req.path());
-        let params = req.query().map(context::to_query_map).unwrap_or_default();
-        let mut ctx = Context::new(&req, &body, &routes, &params);
+        let (body, routes, queries) = context::create_inner(&req, body);
+        let mut ctx = Context::new(&req, &body, routes.iter(), &queries);
 
         let mut result = self.0
             .apply(&mut ctx)
