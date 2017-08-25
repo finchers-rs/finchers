@@ -3,11 +3,17 @@
 use futures::future::{self, FutureResult};
 
 use context::Context;
-use endpoint::{Endpoint,EndpointResult};
+use endpoint::{Endpoint, EndpointResult};
 use errors::FinchersError;
 
 
-#[allow(missing_docs)]
+/// Create an endpoint which returns a success value of `T`
+pub fn ok<T>(x: T) -> EndpointOk<T> {
+    EndpointOk(x)
+}
+
+
+/// The return type of `ok(x)`
 pub struct EndpointOk<T>(T);
 
 impl<T> Endpoint for EndpointOk<T> {
@@ -17,9 +23,4 @@ impl<T> Endpoint for EndpointOk<T> {
     fn apply(self, _: &mut Context) -> EndpointResult<Self::Future> {
         Ok(future::ok(self.0))
     }
-}
-
-#[allow(missing_docs)]
-pub fn ok<T>(x: T) -> EndpointOk<T> {
-    EndpointOk(x)
 }

@@ -4,7 +4,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 use futures::{Future, IntoFuture};
 
-use super::combinator::{AndThen, Map, Or, Skip, With};
+use super::combinator::{and_then, map, or, skip, with, AndThen, Map, Or, Skip, With};
 use context::Context;
 use errors::*;
 use server::EndpointService;
@@ -143,7 +143,7 @@ pub trait Endpoint {
         Self: Sized,
         E: Endpoint,
     {
-        With(self, e)
+        with(self, e)
     }
 
     /// Combine itself and the other endpoint, and create a combinator which returns `Self::Item`.
@@ -152,7 +152,7 @@ pub trait Endpoint {
         Self: Sized,
         E: Endpoint,
     {
-        Skip(self, e)
+        skip(self, e)
     }
 
     /// Create an endpoint which attempts to apply `self`.
@@ -162,7 +162,7 @@ pub trait Endpoint {
         Self: Sized,
         E: Endpoint,
     {
-        Or(self, e)
+        or(self, e)
     }
 
     /// Combine itself and the function to change the return value to another type.
@@ -171,7 +171,7 @@ pub trait Endpoint {
         Self: Sized,
         F: FnOnce(Self::Item) -> U,
     {
-        Map(self, f)
+        map(self, f)
     }
 
     #[allow(missing_docs)]
@@ -181,7 +181,6 @@ pub trait Endpoint {
         F: FnOnce(Self::Item) -> Fut,
         Fut: IntoFuture<Item = R, Error = FinchersError>,
     {
-        AndThen(self, f)
+        and_then(self, f)
     }
 }
-

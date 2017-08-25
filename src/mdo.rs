@@ -5,7 +5,7 @@ use futures::IntoFuture;
 use errors::FinchersError;
 use endpoint::Endpoint;
 use endpoint::combinator::AndThen;
-use endpoint::combinator::ok::{ok, EndpointOk};
+use endpoint::combinator::{ok, EndpointOk};
 
 
 pub fn bind<E, F, Fut, R>(e: E, f: F) -> AndThen<E, F>
