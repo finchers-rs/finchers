@@ -20,8 +20,8 @@ before_script:
   - mkdir -p $HOME/.local/bin
 
 script:
-  - cargo build --all
-  - cargo test --all
+  - cargo build --all --all-features
+  - cargo test --all --all-features
 
 after_success:
   - bash scripts/deploy_doc.sh "${GH_TOKEN}" "${TRAVIS_BRANCH}" "${TRAVIS_RUST_VERSION}" "${TRAVIS_REPO_SLUG}" "${TRAVIS_PULL_REQUEST}"
