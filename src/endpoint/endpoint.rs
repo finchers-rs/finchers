@@ -2,9 +2,9 @@
 
 use std::rc::Rc;
 use std::sync::Arc;
-use futures::Future;
+use futures::{Future, IntoFuture};
 
-use super::combinator::{Map, Or, Skip, With};
+use super::combinator::{AndThen, Map, Or, Skip, With};
 use context::Context;
 use errors::*;
 use server::EndpointService;
@@ -172,5 +172,15 @@ pub trait Endpoint {
         F: FnOnce(Self::Item) -> U,
     {
         Map(self, f)
+    }
+
+    #[allow(missing_docs)]
+    fn and_then<F, Fut, R>(self, f: F) -> AndThen<Self, F>
+    where
+        Self: Sized,
+        F: FnOnce(Self::Item) -> Fut,
+        Fut: IntoFuture<Item = R, Error = FinchersError>,
+    {
+        AndThen(self, f)
     }
 }

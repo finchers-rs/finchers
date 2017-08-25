@@ -2,10 +2,11 @@
 
 pub mod either;
 
-use futures::Future;
+use futures::{Future, IntoFuture};
 use futures::future::{self, Join, Join3, Join4, Join5};
 
 use context::Context;
+use errors::FinchersError;
 use endpoint::{Endpoint, EndpointResult};
 use self::either::Either2;
 
@@ -88,6 +89,26 @@ where
         let Map(endpoint, f) = self;
         let fut = endpoint.apply(ctx)?;
         Ok(fut.map(f))
+    }
+}
+
+
+#[allow(missing_docs)]
+pub struct AndThen<E, F>(pub(crate) E, pub(crate) F);
+
+impl<E, F, Fut, R> Endpoint for AndThen<E, F>
+where
+    E: Endpoint,
+    F: FnOnce(E::Item) -> Fut,
+    Fut: IntoFuture<Item = R, Error = FinchersError>,
+{
+    type Item = R;
+    type Future = future::AndThen<E::Future, Fut, F>;
+
+    fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
+        let AndThen(endpoint, f) = self;
+        let fut = endpoint.apply(ctx)?;
+        Ok(fut.and_then(f))
     }
 }
 
