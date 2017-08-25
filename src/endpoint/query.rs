@@ -25,7 +25,7 @@ impl<T: FromStr> Endpoint for Query<T> {
     type Item = T;
     type Future = FutureResult<T, FinchersError>;
 
-    fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
+    fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
         ctx.query(self.0)
             .ok_or(EndpointError::Skipped)
             .and_then(|s| s.parse().map_err(|_| EndpointError::TypeMismatch))
@@ -55,7 +55,7 @@ impl<T: FromStr> Endpoint for QueryOpt<T> {
     type Item = Option<T>;
     type Future = FutureResult<Option<T>, FinchersError>;
 
-    fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
+    fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
         ctx.query(self.0)
             .map(|s| s.parse().map_err(|_| EndpointError::TypeMismatch))
             .map_or(Ok(None), |s| s.map(Some))

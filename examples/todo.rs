@@ -82,37 +82,39 @@ mod todo {
 }
 
 fn main() {
-    // GET /todos/:id
-    let get_todo = get("todos".with(u64_)).map(|id| Json(todo::get(id)));
+    let endpoint = || {
+        // GET /todos/:id
+        let get_todo = get("todos".with(u64_)).map(|id| Json(todo::get(id)));
 
-    // GET /todos
-    let get_todos = get("todos").map(|()| Json(todo::list()));
+        // GET /todos
+        let get_todos = get("todos").map(|()| Json(todo::list()));
 
-    // DELETE /todos/:id
-    let delete_todo = delete("todos".with(u64_)).map(|id| { todo::delete(id); });
+        // DELETE /todos/:id
+        let delete_todo = delete("todos".with(u64_)).map(|id| { todo::delete(id); });
 
-    // DELETE /todos
-    let delete_todos = delete("todos").map(|()| { todo::clear(); });
+        // DELETE /todos
+        let delete_todos = delete("todos").map(|()| { todo::clear(); });
 
-    // PUT /todos/:id
-    let patch_todo = put("todos".with(u64_))
-        .join(json_body::<todo::Todo>())
-        .map(|(id, Json(new_todo))| { todo::set(id, new_todo); });
+        // PUT /todos/:id
+        let patch_todo = put("todos".with(u64_))
+            .join(json_body::<todo::Todo>())
+            .map(|(id, Json(new_todo))| { todo::set(id, new_todo); });
 
-    // POST /todos
-    let post_todo = post("todos")
-        .with(json_body::<todo::NewTodo>())
-        .map(|Json(new_todo)| {
-            let new_todo = todo::save(new_todo);
-            Created(Json(new_todo))
-        });
+        // POST /todos
+        let post_todo = post("todos")
+            .with(json_body::<todo::NewTodo>())
+            .map(|Json(new_todo)| {
+                let new_todo = todo::save(new_todo);
+                Created(Json(new_todo))
+            });
 
-    let endpoint = get_todo
-        .or(get_todos)
-        .or(delete_todo)
-        .or(delete_todos)
-        .or(patch_todo)
-        .or(post_todo);
+        get_todo
+            .or(get_todos)
+            .or(delete_todo)
+            .or(delete_todos)
+            .or(patch_todo)
+            .or(post_todo)
+    };
 
     finchers::server::run_http(endpoint, "127.0.0.1:3000");
 }

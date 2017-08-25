@@ -2,9 +2,8 @@
 
 pub mod either;
 
-use std::sync::Arc;
-use futures::{Future, Poll};
-use futures::future::{Join, Join3, Join4, Join5};
+use futures::Future;
+use futures::future::{self, Join, Join3, Join4, Join5};
 
 use context::Context;
 use endpoint::{Endpoint, EndpointResult};
@@ -19,8 +18,8 @@ macro_rules! define_product {
             type Item = ($( $type :: Item, )*);
             type Future = $fut <$( $type :: Future ),*>;
 
-            fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
-                let &($(ref $var),*) = self;
+            fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
+                let ($($var),*) = self;
                 $(
                     let $var = $var.apply(ctx)?;
                 )*
@@ -47,7 +46,7 @@ where
     type Item = E2::Item;
     type Future = E2::Future;
 
-    fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
+    fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
         let _ = self.0.apply(ctx)?;
         let b = self.1.apply(ctx)?;
         Ok(b)
@@ -66,7 +65,7 @@ where
     type Item = E1::Item;
     type Future = E1::Future;
 
-    fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
+    fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
         let a = self.0.apply(ctx)?;
         let _ = self.1.apply(ctx)?;
         Ok(a)
@@ -75,39 +74,20 @@ where
 
 
 #[allow(missing_docs)]
-pub struct Map<E, F>(pub(crate) E, pub(crate) Arc<F>);
+pub struct Map<E, F>(pub(crate) E, pub(crate) F);
 
 impl<E, F, R> Endpoint for Map<E, F>
 where
     E: Endpoint,
-    F: Fn(E::Item) -> R,
+    F: FnOnce(E::Item) -> R,
 {
     type Item = R;
-    type Future = MapFuture<E::Future, F>;
+    type Future = future::Map<E::Future, F>;
 
-    fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
-        let inner = self.0.apply(ctx)?;
-        let map_fn = self.1.clone();
-        Ok(MapFuture { inner, map_fn })
-    }
-}
-
-#[doc(hidden)]
-pub struct MapFuture<F, M> {
-    inner: F,
-    map_fn: Arc<M>,
-}
-
-impl<F, M, R> Future for MapFuture<F, M>
-where
-    F: Future,
-    M: Fn(F::Item) -> R,
-{
-    type Item = R;
-    type Error = F::Error;
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let item = try_ready!(self.inner.poll());
-        Ok((*self.map_fn)(item).into())
+    fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
+        let Map(endpoint, f) = self;
+        let fut = endpoint.apply(ctx)?;
+        Ok(fut.map(f))
     }
 }
 
@@ -123,7 +103,7 @@ where
     type Item = Either2<E1::Item, E2::Item>;
     type Future = Either2<E1::Future, E2::Future>;
 
-    fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
+    fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
         let mut ctx1 = ctx.clone();
         if let Ok(f) = self.0.apply(&mut ctx1) {
             *ctx = ctx1;

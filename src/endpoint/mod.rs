@@ -10,7 +10,7 @@ pub mod query;
 
 // re-exports
 #[doc(inline)]
-pub use self::endpoint::{Endpoint, EndpointError, EndpointResult};
+pub use self::endpoint::{Endpoint, EndpointError, EndpointResult, NewEndpoint};
 
 #[doc(inline)]
 pub use self::body::{body, json_body, FromBody};

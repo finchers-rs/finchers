@@ -5,7 +5,7 @@ extern crate num_cpus;
 extern crate serde_derive;
 extern crate tokio_proto;
 
-use finchers::{Endpoint, Json};
+use finchers::{Endpoint, Json, NewEndpoint};
 use hyper::server::Http;
 use tokio_proto::TcpServer;
 use std::sync::Arc;
@@ -16,7 +16,7 @@ struct Message {
 }
 
 fn main() {
-    let endpoint = {
+    let endpoint = || {
         let json = "json".map(|_| {
             Json(Message {
                 message: "Hello, World!",

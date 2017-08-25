@@ -26,7 +26,7 @@ mod json;
 pub use context::Context;
 
 #[doc(inline)]
-pub use endpoint::Endpoint;
+pub use endpoint::{Endpoint, NewEndpoint};
 
 #[doc(inline)]
 pub use request::{Body, Request};

@@ -1,5 +1,7 @@
 //! Definition of `Endpoint`
 
+use std::rc::Rc;
+use std::sync::Arc;
 use futures::Future;
 
 use super::combinator::{Map, Or, Skip, With};
@@ -26,6 +28,56 @@ pub enum EndpointError {
     TypeMismatch,
 }
 
+#[allow(missing_docs)]
+pub trait NewEndpoint {
+    type Item;
+    type Future: Future<Item = Self::Item, Error = FinchersError>;
+    type Endpoint: Endpoint<Item = Self::Item, Future = Self::Future>;
+
+    fn new_endpoint(&self) -> Self::Endpoint;
+
+    fn into_service(self) -> EndpointService<Self>
+    where
+        Self: Sized,
+    {
+        EndpointService(self)
+    }
+}
+
+impl<F, E> NewEndpoint for F
+where
+    F: Fn() -> E,
+    E: Endpoint,
+{
+    type Item = E::Item;
+    type Future = E::Future;
+    type Endpoint = E;
+
+    fn new_endpoint(&self) -> Self::Endpoint {
+        (*self)()
+    }
+}
+
+impl<E: NewEndpoint> NewEndpoint for Rc<E> {
+    type Item = E::Item;
+    type Future = E::Future;
+    type Endpoint = E::Endpoint;
+
+    fn new_endpoint(&self) -> Self::Endpoint {
+        (**self).new_endpoint()
+    }
+}
+
+impl<E: NewEndpoint> NewEndpoint for Arc<E> {
+    type Item = E::Item;
+    type Future = E::Future;
+    type Endpoint = E::Endpoint;
+
+    fn new_endpoint(&self) -> Self::Endpoint {
+        (**self).new_endpoint()
+    }
+}
+
 
 /// A HTTP endpoint, which provides the futures from incoming HTTP requests
 pub trait Endpoint {
@@ -36,16 +88,8 @@ pub trait Endpoint {
     type Future: Future<Item = Self::Item, Error = FinchersError>;
 
     /// Apply the incoming HTTP request, and return the future of its response
-    fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future>;
+    fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future>;
 
-
-    /// Convert itself into `tokio_service::Service`
-    fn into_service(self) -> EndpointService<Self>
-    where
-        Self: Sized,
-    {
-        EndpointService(self)
-    }
 
     /// Combine itself and the other endpoint, and create a combinator which returns a pair of its
     /// `Item`s.
@@ -125,35 +169,8 @@ pub trait Endpoint {
     fn map<F, U>(self, f: F) -> Map<Self, F>
     where
         Self: Sized,
-        F: Fn(Self::Item) -> U,
+        F: FnOnce(Self::Item) -> U,
     {
-        Map(self, ::std::sync::Arc::new(f))
-    }
-}
-
-impl<E: Endpoint + ?Sized> Endpoint for Box<E> {
-    type Item = E::Item;
-    type Future = E::Future;
-
-    fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
-        (**self).apply(ctx)
-    }
-}
-
-impl<E: Endpoint + ?Sized> Endpoint for ::std::rc::Rc<E> {
-    type Item = E::Item;
-    type Future = E::Future;
-
-    fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
-        (**self).apply(ctx)
-    }
-}
-
-impl<E: Endpoint + ?Sized> Endpoint for ::std::sync::Arc<E> {
-    type Item = E::Item;
-    type Future = E::Future;
-
-    fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
-        (**self).apply(ctx)
+        Map(self, f)
     }
 }

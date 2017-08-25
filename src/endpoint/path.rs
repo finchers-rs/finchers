@@ -15,8 +15,8 @@ impl<'a> Endpoint for &'a str {
     type Item = ();
     type Future = FutureResult<(), FinchersError>;
 
-    fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
-        if !ctx.next_segment().map(|s| s == *self).unwrap_or(false) {
+    fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
+        if !ctx.next_segment().map(|s| s == self).unwrap_or(false) {
             return Err(EndpointError::Skipped);
         }
         Ok(ok(()))
@@ -27,8 +27,8 @@ impl Endpoint for String {
     type Item = ();
     type Future = FutureResult<(), FinchersError>;
 
-    fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
-        (self as &str).apply(ctx)
+    fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
+        (&self as &str).apply(ctx)
     }
 }
 
@@ -36,7 +36,7 @@ impl<'a> Endpoint for Cow<'a, str> {
     type Item = ();
     type Future = FutureResult<(), FinchersError>;
 
-    fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
+    fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
         (&*self as &str).apply(ctx)
     }
 }
@@ -58,7 +58,7 @@ impl<T: FromStr> Endpoint for Path<T> {
     type Item = T;
     type Future = FutureResult<T, FinchersError>;
 
-    fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
+    fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
         let value = match ctx.next_segment().and_then(|s| s.parse().ok()) {
             Some(val) => val,
             _ => return Err(EndpointError::TypeMismatch),
@@ -145,7 +145,7 @@ where
     type Item = I;
     type Future = FutureResult<I, FinchersError>;
 
-    fn apply(&self, ctx: &mut Context) -> EndpointResult<Self::Future> {
+    fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
         ctx.collect_remaining_segments()
             .unwrap_or_else(|| Ok(Default::default()))
             .map(ok)

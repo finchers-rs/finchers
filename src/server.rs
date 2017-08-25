@@ -8,22 +8,17 @@ use hyper;
 use hyper::server::{Http, Service};
 
 use context::{self, Context};
-use endpoint::Endpoint;
+use endpoint::endpoint::{Endpoint, NewEndpoint};
 use errors::*;
 use request;
 use response::Responder;
 
 
 /// A wrapper for `Endpoint`s, to provide HTTP services
-pub struct EndpointService<E: Endpoint>(pub(crate) E);
+#[derive(Clone)]
+pub struct EndpointService<E: NewEndpoint>(pub(crate) E);
 
-impl<E: Endpoint + Clone> Clone for EndpointService<E> {
-    fn clone(&self) -> Self {
-        Self { 0: self.0.clone() }
-    }
-}
-
-impl<E: Endpoint> Service for EndpointService<E>
+impl<E: NewEndpoint> Service for EndpointService<E>
 where
     E::Item: Responder,
 {
@@ -46,7 +41,8 @@ where
         let base = context::RequestInfo::new(&req, body);
         let mut ctx = Context::from(&base);
 
-        let mut result = self.0
+        let endpoint = self.0.new_endpoint();
+        let mut result = endpoint
             .apply(&mut ctx)
             .map_err(|_| FinchersErrorKind::NotFound.into());
         if ctx.next_segment().is_some() {
@@ -72,7 +68,7 @@ where
 /// Start the HTTP server, with given endpoint and listener address.
 pub fn run_http<E>(endpoint: E, addr: &str)
 where
-    E: Endpoint + Send + Sync + 'static,
+    E: NewEndpoint + Send + Sync + 'static,
     E::Item: Responder,
 {
     let service = Arc::new(endpoint).into_service();
