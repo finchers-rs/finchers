@@ -8,7 +8,7 @@ use hyper;
 use hyper::server::{Http, Service};
 
 use context::{self, Context};
-use endpoint::endpoint::{Endpoint, NewEndpoint};
+use endpoint::{Endpoint, NewEndpoint};
 use errors::*;
 use request;
 use response::Responder;

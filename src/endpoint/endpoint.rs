@@ -1,82 +1,11 @@
 //! Definition of `Endpoint`
 
-use std::rc::Rc;
-use std::sync::Arc;
 use futures::{Future, IntoFuture};
 
-use super::combinator::{and_then, map, or, skip, with, AndThen, Map, Or, Skip, With};
 use context::Context;
 use errors::*;
-use server::EndpointService;
-
-
-/// The return type of `Endpoint::apply()`
-pub type EndpointResult<T> = Result<T, EndpointError>;
-
-/// The error type during `Endpoint::apply()`
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum EndpointError {
-    /// This endpoint does not matches the current request
-    Skipped,
-    /// The instance of requst body has already been taken
-    EmptyBody,
-    /// The header is not set
-    EmptyHeader,
-    /// The method of the current request is invalid in the endpoint
-    InvalidMethod,
-    /// The type of a path segment or a query parameter is not convertible to the endpoint
-    TypeMismatch,
-}
-
-#[allow(missing_docs)]
-pub trait NewEndpoint {
-    type Item;
-    type Future: Future<Item = Self::Item, Error = FinchersError>;
-    type Endpoint: Endpoint<Item = Self::Item, Future = Self::Future>;
-
-    fn new_endpoint(&self) -> Self::Endpoint;
-
-    fn into_service(self) -> EndpointService<Self>
-    where
-        Self: Sized,
-    {
-        EndpointService(self)
-    }
-}
-
-impl<F, E> NewEndpoint for F
-where
-    F: Fn() -> E,
-    E: Endpoint,
-{
-    type Item = E::Item;
-    type Future = E::Future;
-    type Endpoint = E;
-
-    fn new_endpoint(&self) -> Self::Endpoint {
-        (*self)()
-    }
-}
-
-impl<E: NewEndpoint> NewEndpoint for Rc<E> {
-    type Item = E::Item;
-    type Future = E::Future;
-    type Endpoint = E::Endpoint;
-
-    fn new_endpoint(&self) -> Self::Endpoint {
-        (**self).new_endpoint()
-    }
-}
-
-impl<E: NewEndpoint> NewEndpoint for Arc<E> {
-    type Item = E::Item;
-    type Future = E::Future;
-    type Endpoint = E::Endpoint;
-
-    fn new_endpoint(&self) -> Self::Endpoint {
-        (**self).new_endpoint()
-    }
-}
+use super::combinator::{and_then, map, or, skip, with, AndThen, Map, Or, Skip, With};
+use super::result::EndpointResult;
 
 
 /// A HTTP endpoint, which provides the futures from incoming HTTP requests

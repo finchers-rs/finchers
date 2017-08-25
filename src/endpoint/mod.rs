@@ -3,14 +3,22 @@
 pub mod body;
 pub mod combinator;
 pub mod endpoint;
+pub mod new_endpoint;
 pub mod header;
 pub mod method;
+pub mod result;
 pub mod path;
 pub mod query;
 
 // re-exports
 #[doc(inline)]
-pub use self::endpoint::{Endpoint, EndpointError, EndpointResult, NewEndpoint};
+pub use self::endpoint::Endpoint;
+
+#[doc(inline)]
+pub use self::new_endpoint::NewEndpoint;
+
+#[doc(inline)]
+pub use self::result::{EndpointError, EndpointResult};
 
 #[doc(inline)]
 pub use self::body::{body, json_body, FromBody};
