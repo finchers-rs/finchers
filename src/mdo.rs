@@ -4,8 +4,8 @@ use futures::IntoFuture;
 
 use errors::FinchersError;
 use endpoint::Endpoint;
-use endpoint::endpoint::{value, Value};
 use endpoint::combinator::AndThen;
+use endpoint::combinator::ok::{ok, EndpointOk};
 
 
 pub fn bind<E, F, Fut, R>(e: E, f: F) -> AndThen<E, F>
@@ -17,6 +17,6 @@ where
     e.and_then(f)
 }
 
-pub fn ret<T>(x: T) -> Value<T> {
-    value(x)
+pub fn ret<T>(x: T) -> EndpointOk<T> {
+    ok(x)
 }

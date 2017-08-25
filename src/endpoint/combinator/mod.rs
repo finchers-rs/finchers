@@ -1,6 +1,7 @@
 //! Definition of combinators
 
 pub mod either;
+pub mod ok;
 
 use futures::{Future, IntoFuture};
 use futures::future::{self, Join, Join3, Join4, Join5};
