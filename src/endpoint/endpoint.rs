@@ -3,6 +3,7 @@
 use std::rc::Rc;
 use std::sync::Arc;
 use futures::{Future, IntoFuture};
+use futures::future::{ok, FutureResult};
 
 use super::combinator::{AndThen, Map, Or, Skip, With};
 use context::Context;
@@ -183,4 +184,22 @@ pub trait Endpoint {
     {
         AndThen(self, f)
     }
+}
+
+
+#[allow(missing_docs)]
+pub struct Value<T>(T);
+
+impl<T> Endpoint for Value<T> {
+    type Item = T;
+    type Future = FutureResult<T, FinchersError>;
+
+    fn apply(self, _: &mut Context) -> EndpointResult<Self::Future> {
+        Ok(ok(self.0))
+    }
+}
+
+#[allow(missing_docs)]
+pub fn value<T>(x: T) -> Value<T> {
+    Value(x)
 }
