@@ -27,7 +27,7 @@ pub trait Endpoint {
     fn join<E>(self, e: E) -> (Self, E)
     where
         Self: Sized,
-        E: Endpoint,
+        E: Endpoint<Error=Self::Error>,
     {
         (self, e)
     }
@@ -37,8 +37,8 @@ pub trait Endpoint {
     fn join3<E1, E2>(self, e1: E1, e2: E2) -> (Self, E1, E2)
     where
         Self: Sized,
-        E1: Endpoint,
-        E2: Endpoint,
+        E1: Endpoint<Error=Self::Error>,
+        E2: Endpoint<Error=Self::Error>,
     {
         (self, e1, e2)
     }
@@ -48,9 +48,9 @@ pub trait Endpoint {
     fn join4<E1, E2, E3>(self, e1: E1, e2: E2, e3: E3) -> (Self, E1, E2, E3)
     where
         Self: Sized,
-        E1: Endpoint,
-        E2: Endpoint,
-        E3: Endpoint,
+        E1: Endpoint<Error=Self::Error>,
+        E2: Endpoint<Error=Self::Error>,
+        E3: Endpoint<Error=Self::Error>,
     {
         (self, e1, e2, e3)
     }
@@ -60,10 +60,10 @@ pub trait Endpoint {
     fn join5<E1, E2, E3, E4>(self, e1: E1, e2: E2, e3: E3, e4: E4) -> (Self, E1, E2, E3, E4)
     where
         Self: Sized,
-        E1: Endpoint,
-        E2: Endpoint,
-        E3: Endpoint,
-        E4: Endpoint,
+        E1: Endpoint<Error=Self::Error>,
+        E2: Endpoint<Error=Self::Error>,
+        E3: Endpoint<Error=Self::Error>,
+        E4: Endpoint<Error=Self::Error>,
     {
         (self, e1, e2, e3, e4)
     }
@@ -72,7 +72,7 @@ pub trait Endpoint {
     fn with<E>(self, e: E) -> With<Self, E>
     where
         Self: Sized,
-        E: Endpoint,
+        E: Endpoint<Error=Self::Error>,
     {
         with(self, e)
     }
@@ -81,7 +81,7 @@ pub trait Endpoint {
     fn skip<E>(self, e: E) -> Skip<Self, E>
     where
         Self: Sized,
-        E: Endpoint,
+        E: Endpoint<Error=Self::Error>,
     {
         skip(self, e)
     }
@@ -91,7 +91,7 @@ pub trait Endpoint {
     fn or<E>(self, e: E) -> Or<Self, E>
     where
         Self: Sized,
-        E: Endpoint,
+        E: Endpoint<Error=Self::Error>,
     {
         or(self, e)
     }
