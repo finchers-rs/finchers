@@ -3,7 +3,8 @@
 use futures::{Future, IntoFuture};
 
 use context::Context;
-use super::combinator::{and_then, map, map_err, or, or_else, skip, with, AndThen, Map, MapErr, Or, OrElse, Skip, With};
+use super::combinator::{and_then, map, map_err, or, or_else, skip, then, with, AndThen, Map, MapErr, Or, OrElse, Skip,
+                        Then, With};
 use super::result::EndpointResult;
 
 
@@ -27,7 +28,7 @@ pub trait Endpoint {
     fn join<E>(self, e: E) -> (Self, E)
     where
         Self: Sized,
-        E: Endpoint<Error=Self::Error>,
+        E: Endpoint<Error = Self::Error>,
     {
         (self, e)
     }
@@ -37,8 +38,8 @@ pub trait Endpoint {
     fn join3<E1, E2>(self, e1: E1, e2: E2) -> (Self, E1, E2)
     where
         Self: Sized,
-        E1: Endpoint<Error=Self::Error>,
-        E2: Endpoint<Error=Self::Error>,
+        E1: Endpoint<Error = Self::Error>,
+        E2: Endpoint<Error = Self::Error>,
     {
         (self, e1, e2)
     }
@@ -48,9 +49,9 @@ pub trait Endpoint {
     fn join4<E1, E2, E3>(self, e1: E1, e2: E2, e3: E3) -> (Self, E1, E2, E3)
     where
         Self: Sized,
-        E1: Endpoint<Error=Self::Error>,
-        E2: Endpoint<Error=Self::Error>,
-        E3: Endpoint<Error=Self::Error>,
+        E1: Endpoint<Error = Self::Error>,
+        E2: Endpoint<Error = Self::Error>,
+        E3: Endpoint<Error = Self::Error>,
     {
         (self, e1, e2, e3)
     }
@@ -60,10 +61,10 @@ pub trait Endpoint {
     fn join5<E1, E2, E3, E4>(self, e1: E1, e2: E2, e3: E3, e4: E4) -> (Self, E1, E2, E3, E4)
     where
         Self: Sized,
-        E1: Endpoint<Error=Self::Error>,
-        E2: Endpoint<Error=Self::Error>,
-        E3: Endpoint<Error=Self::Error>,
-        E4: Endpoint<Error=Self::Error>,
+        E1: Endpoint<Error = Self::Error>,
+        E2: Endpoint<Error = Self::Error>,
+        E3: Endpoint<Error = Self::Error>,
+        E4: Endpoint<Error = Self::Error>,
     {
         (self, e1, e2, e3, e4)
     }
@@ -72,7 +73,7 @@ pub trait Endpoint {
     fn with<E>(self, e: E) -> With<Self, E>
     where
         Self: Sized,
-        E: Endpoint<Error=Self::Error>,
+        E: Endpoint<Error = Self::Error>,
     {
         with(self, e)
     }
@@ -81,7 +82,7 @@ pub trait Endpoint {
     fn skip<E>(self, e: E) -> Skip<Self, E>
     where
         Self: Sized,
-        E: Endpoint<Error=Self::Error>,
+        E: Endpoint<Error = Self::Error>,
     {
         skip(self, e)
     }
@@ -91,12 +92,12 @@ pub trait Endpoint {
     fn or<E>(self, e: E) -> Or<Self, E>
     where
         Self: Sized,
-        E: Endpoint<Error=Self::Error>,
+        E: Endpoint<Error = Self::Error>,
     {
         or(self, e)
     }
 
-    /// Combine itself and the function to change the return value to another type.
+    /// Combine itself and a function to change the return value to another type.
     fn map<F, U>(self, f: F) -> Map<Self, F>
     where
         Self: Sized,
@@ -105,7 +106,7 @@ pub trait Endpoint {
         map(self, f)
     }
 
-    /// Combine itself and the function to change the error value to another type.
+    /// Combine itself and a function to change the error value to another type.
     fn map_err<F, U>(self, f: F) -> MapErr<Self, F>
     where
         Self: Sized,
@@ -132,5 +133,15 @@ pub trait Endpoint {
         Fut: IntoFuture<Item = Self::Item>,
     {
         or_else(self, f)
+    }
+
+    #[allow(missing_docs)]
+    fn then<F, Fut>(self, f: F) -> Then<Self, F>
+    where
+        Self: Sized,
+        F: FnOnce(Result<Self::Item, Self::Error>) -> Fut,
+        Fut: IntoFuture,
+    {
+        then(self, f)
     }
 }

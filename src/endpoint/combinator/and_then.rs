@@ -12,14 +12,16 @@ where
     F: FnOnce(E::Item) -> Fut,
     Fut: IntoFuture<Error = E::Error>,
 {
-    AndThen(endpoint, f)
+    AndThen { endpoint, f }
 }
 
 
 /// The return type of `and_then()`
-pub struct AndThen<E, F>(E, F);
+pub struct AndThen<E, F> {
+    endpoint: E,
+    f: F,
+}
 
-// The implementation of `Endpoint` for `AndThen`.
 impl<E, F, Fut> Endpoint for AndThen<E, F>
 where
     E: Endpoint,
@@ -31,7 +33,7 @@ where
     type Future = future::AndThen<E::Future, Fut, F>;
 
     fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
-        let AndThen(endpoint, f) = self;
+        let AndThen { endpoint, f } = self;
         let fut = endpoint.apply(ctx)?;
         Ok(fut.and_then(f))
     }
