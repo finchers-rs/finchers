@@ -1,3 +1,28 @@
+<a name="0.4.0"></a>
+## 0.4.0 (2017-08-26)
+
+#### Bug Fixes
+*   move ownership of some members in `Context` to outside ([d233ee28](https://github.com/ubnt-intrepid/finchers/commit/d233ee28ca0fcc7eddb28b32ea5684ecb0818ad7))
+*   change the name of module `endpoint::param` to `endpoint::query` ([7d8d1d85](https://github.com/ubnt-intrepid/finchers/commit/7d8d1d856b80ecd021dbb80a741fc646d91a7cc0))
+*   change the signature of `Endpoint::apply()` ([3a2ea793](https://github.com/ubnt-intrepid/finchers/commit/3a2ea79345e69258ce86229090d6ebf3192f0746), breaks [#](https://github.com/ubnt-intrepid/finchers/issues/))
+
+#### Features
+*   add `FromBody::Error` ([bcd1f6b7](https://github.com/ubnt-intrepid/finchers/commit/bcd1f6b71532c76f08768b59ae1c16912e53a8d3))
+*   export the handle of event loop ([fd84c9b8](https://github.com/ubnt-intrepid/finchers/commit/fd84c9b8c1e273e658a4db178cb81667cc3a9fc1))
+*   add `Then` ([6f44b59b](https://github.com/ubnt-intrepid/finchers/commit/6f44b59ba8297ceec83157b42a3b763694c688b8))
+*   add an endpoint: `Value` ([c40b10c2](https://github.com/ubnt-intrepid/finchers/commit/c40b10c27a502d32e727dbc099fcfc99394687ab))
+*   add a combinator: `AndThen` ([b81e5689](https://github.com/ubnt-intrepid/finchers/commit/b81e56896f49e1139004374d98a96e37fdda205b))
+*   make the error type of `Endpoint` as an associated type, and add some combinators ([edf02ce6](https://github.com/ubnt-intrepid/finchers/commit/edf02ce605b143ccb9ce4ac8b619e72a8992fc0c))
+*   redefine the trait `NewEndpoint` and change the receiver of `Endpoint::apply()` ([502502c8](https://github.com/ubnt-intrepid/finchers/commit/502502c8eca45bffe96887a53fbe9e90d793a815), breaks [#](https://github.com/ubnt-intrepid/finchers/issues/))
+*   switch to multimap ([cf533f97](https://github.com/ubnt-intrepid/finchers/commit/cf533f9715fd7c438d12baca952d957bca11169f))
+*   add responders and set appropriate response headers ([edaa7ce5](https://github.com/ubnt-intrepid/finchers/commit/edaa7ce56416ed24c68cc0f1003201e62a568f19))
+
+#### Breaking Changes
+*   redefine the trait `NewEndpoint` and change the receiver of `Endpoint::apply()` ([502502c8](https://github.com/ubnt-intrepid/finchers/commit/502502c8eca45bffe96887a53fbe9e90d793a815), breaks [#](https://github.com/ubnt-intrepid/finchers/issues/))
+*   change the signature of `Endpoint::apply()` ([3a2ea793](https://github.com/ubnt-intrepid/finchers/commit/3a2ea79345e69258ce86229090d6ebf3192f0746), breaks [#](https://github.com/ubnt-intrepid/finchers/issues/))
+
+
+
 <a name="0.3.0"></a>
 ## 0.3.0 (2017-08-22)
 
