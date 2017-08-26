@@ -20,9 +20,6 @@ pub mod response;
 pub mod server;
 pub mod test;
 
-#[cfg(feature = "with-mdo")]
-pub mod mdo;
-
 mod context;
 mod json;
 
