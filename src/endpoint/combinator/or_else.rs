@@ -17,6 +17,7 @@ where
 
 
 /// The return type of `or_else()`
+#[derive(Debug)]
 pub struct OrElse<E, F>(E, F);
 
 // The implementation of `Endpoint` for `AndThen`.

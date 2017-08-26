@@ -17,6 +17,7 @@ where
 
 
 /// The return type of `then()`
+#[derive(Debug)]
 pub struct Then<E, F> {
     endpoint: E,
     f: F,

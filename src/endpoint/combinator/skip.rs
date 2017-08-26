@@ -8,6 +8,7 @@ pub fn skip<E1, E2>(e1: E1, e2: E2) -> Skip<E1, E2> {
 }
 
 /// Return type of `skip(e1, e2)`
+#[derive(Debug)]
 pub struct Skip<E1, E2> {
     e1: E1,
     e2: E2,

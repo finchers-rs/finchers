@@ -22,7 +22,7 @@ use response::Responder;
 
 
 /// A wrapper for `Endpoint`s, to provide HTTP services
-#[derive(Clone)]
+#[derive(Debug,Clone)]
 pub struct EndpointService<E> {
     endpoint: E,
     handle: Handle,
@@ -80,6 +80,7 @@ where
 }
 
 #[allow(missing_docs)]
+#[derive(Debug)]
 pub struct Server<E> {
     endpoint: E,
     addr: Option<&'static str>,

@@ -65,6 +65,7 @@ impl Responder for String {
 
 
 /// A wrapper of responders, to represents the status `201 Created`
+#[derive(Debug)]
 pub struct Created<T>(pub T);
 
 impl<T: Responder> Responder for Created<T> {
@@ -78,6 +79,7 @@ impl<T: Responder> Responder for Created<T> {
 
 
 /// A responder represents the status `204 No Content`
+#[derive(Debug)]
 pub struct NoContent;
 
 impl Responder for NoContent {
@@ -89,6 +91,7 @@ impl Responder for NoContent {
 
 
 /// A wrapper of responders, to overwrite the value of `ContentType`.
+#[derive(Debug)]
 pub struct ContentType<T>(header::ContentType, T);
 
 impl<T: Responder> ContentType<T> {

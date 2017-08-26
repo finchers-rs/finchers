@@ -13,6 +13,7 @@ pub fn ok<T>(x: T) -> EndpointOk<T> {
 
 
 /// The return type of `ok(x)`
+#[derive(Debug)]
 pub struct EndpointOk<T>(T);
 
 impl<T> Endpoint for EndpointOk<T> {
@@ -26,4 +27,5 @@ impl<T> Endpoint for EndpointOk<T> {
 }
 
 #[doc(hidden)]
+#[derive(Debug)]
 pub enum NoReturn {}

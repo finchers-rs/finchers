@@ -9,6 +9,7 @@ use endpoint::{Endpoint, EndpointResult};
 use request::{Body, Request};
 
 /// A test case for `run_test()`
+#[derive(Debug)]
 pub struct TestCase {
     request: Request,
     body: Option<Body>,

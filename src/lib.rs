@@ -1,4 +1,5 @@
 #![deny(missing_docs)]
+#![deny(missing_debug_implementations)]
 
 //! Finchers is a combinator library for building HTTP services, based on
 //! Hyper and Futures.

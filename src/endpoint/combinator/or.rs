@@ -10,6 +10,7 @@ pub fn or<E1, E2>(e1: E1, e2: E2) -> Or<E1, E2> {
 
 
 /// The return type of `or(e1, e2)`
+#[derive(Debug)]
 pub struct Or<E1, E2> {
     e1: E1,
     e2: E2,

@@ -8,6 +8,7 @@ pub fn with<E1, E2>(e1: E1, e2: E2) -> With<E1, E2> {
 }
 
 /// The return type of `with(e1,e2)`
+#[derive(Debug)]
 pub struct With<E1, E2> {
     e1: E1,
     e2: E2,

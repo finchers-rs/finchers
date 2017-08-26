@@ -15,6 +15,7 @@ where
 
 
 /// The return type of `map(e, f)`
+#[derive(Debug)]
 pub struct Map<E, F> {
     endpoint: E,
     f: F,

@@ -15,6 +15,7 @@ where
 
 
 /// The return type of `map_err(e, f)`
+#[derive(Debug)]
 pub struct MapErr<E, F> {
     endpoint: E,
     f: F,

@@ -17,6 +17,7 @@ where
 
 
 /// The return type of `and_then()`
+#[derive(Debug)]
 pub struct AndThen<E, F> {
     endpoint: E,
     f: F,
