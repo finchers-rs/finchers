@@ -3,8 +3,8 @@
 use std::rc::Rc;
 use std::sync::Arc;
 use futures::Future;
+use tokio_core::reactor::Handle;
 
-use server::EndpointService;
 use super::endpoint::Endpoint;
 
 
@@ -14,19 +14,12 @@ pub trait NewEndpoint {
     type Future: Future<Item = Self::Item, Error = Self::Error>;
     type Endpoint: Endpoint<Item = Self::Item, Error = Self::Error, Future = Self::Future>;
 
-    fn new_endpoint(&self) -> Self::Endpoint;
-
-    fn into_service(self) -> EndpointService<Self>
-    where
-        Self: Sized,
-    {
-        EndpointService(self)
-    }
+    fn new_endpoint(&self, handle: &Handle) -> Self::Endpoint;
 }
 
 impl<F, E> NewEndpoint for F
 where
-    F: Fn() -> E,
+    F: Fn(&Handle) -> E,
     E: Endpoint,
 {
     type Item = E::Item;
@@ -34,8 +27,8 @@ where
     type Future = E::Future;
     type Endpoint = E;
 
-    fn new_endpoint(&self) -> Self::Endpoint {
-        (*self)()
+    fn new_endpoint(&self, handle: &Handle) -> Self::Endpoint {
+        (*self)(handle)
     }
 }
 
@@ -45,8 +38,8 @@ impl<E: NewEndpoint> NewEndpoint for Rc<E> {
     type Future = E::Future;
     type Endpoint = E::Endpoint;
 
-    fn new_endpoint(&self) -> Self::Endpoint {
-        (**self).new_endpoint()
+    fn new_endpoint(&self, handle: &Handle) -> Self::Endpoint {
+        (**self).new_endpoint(handle)
     }
 }
 
@@ -56,7 +49,7 @@ impl<E: NewEndpoint> NewEndpoint for Arc<E> {
     type Future = E::Future;
     type Endpoint = E::Endpoint;
 
-    fn new_endpoint(&self) -> Self::Endpoint {
-        (**self).new_endpoint()
+    fn new_endpoint(&self, handle: &Handle) -> Self::Endpoint {
+        (**self).new_endpoint(handle)
     }
 }

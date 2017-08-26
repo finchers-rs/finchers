@@ -8,9 +8,12 @@ extern crate error_chain;
 #[macro_use]
 extern crate futures;
 extern crate hyper;
+extern crate net2;
 extern crate serde;
 extern crate serde_json;
 extern crate tokio_core;
+extern crate tokio_proto;
+extern crate tokio_service;
 extern crate url;
 
 pub mod endpoint;

@@ -9,6 +9,7 @@ use finchers::{Endpoint, Json};
 use finchers::endpoint::{json_body, u64_};
 use finchers::endpoint::method::{delete, get, post, put};
 use finchers::response::Created;
+use finchers::server::Server;
 
 mod todo {
     use std::collections::HashMap;
@@ -82,7 +83,7 @@ mod todo {
 }
 
 fn main() {
-    let endpoint = || {
+    let endpoint = |_: &_| {
         // GET /todos/:id
         let get_todo = get("todos".with(u64_)).map(|id| Json(todo::get(id)));
 
@@ -116,5 +117,5 @@ fn main() {
             .or(post_todo)
     };
 
-    finchers::server::run_http(endpoint, "127.0.0.1:3000");
+    Server::new(endpoint).bind("127.0.0.1:3000").run_http();
 }
