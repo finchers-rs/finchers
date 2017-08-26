@@ -40,6 +40,7 @@ impl<T> FromBody for Json<T>
 where
     for<'de> T: Deserialize<'de>,
 {
+    type Error = FinchersError;
     type Future = Flatten<
         FutureResult<AndThen<IntoVec, FinchersResult<Json<T>>, fn(Vec<u8>) -> FinchersResult<Json<T>>>, FinchersError>,
     >;

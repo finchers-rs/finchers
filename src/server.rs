@@ -22,7 +22,7 @@ use response::Responder;
 
 
 /// A wrapper for `Endpoint`s, to provide HTTP services
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub struct EndpointService<E> {
     endpoint: E,
     handle: Handle,

@@ -5,9 +5,9 @@ use futures::Future;
 use futures::future::{err, ok, AndThen, Flatten, FutureResult};
 
 use hyper::header::ContentType;
-use hyper::mime::TEXT_PLAIN_UTF_8;
+use hyper::mime::{TEXT_PLAIN_UTF_8, APPLICATION_OCTET_STREAM};
 
-use serde::Deserialize;
+use serde::de::DeserializeOwned;
 
 use context::Context;
 use endpoint::{Endpoint, EndpointError, EndpointResult};
@@ -18,15 +18,33 @@ use json::Json;
 
 /// A trait represents the conversion from `Body`.
 pub trait FromBody: Sized {
+    #[allow(missing_docs)]
+    type Error;
+
     /// A future returned from `from_body()`
-    type Future: Future<Item = Self, Error = FinchersError>;
+    type Future: Future<Item = Self, Error = Self::Error>;
 
     /// Convert the content of `body` to its type
     fn from_body(body: request::Body, req: &Request) -> Self::Future;
 }
 
 
+impl FromBody for Vec<u8> {
+    type Error = FinchersError;
+    type Future = Flatten<FutureResult<IntoVec, FinchersError>>;
+
+    fn from_body(body: request::Body, req: &Request) -> Self::Future {
+        match req.header() {
+            Some(&ContentType(ref mime)) if *mime == APPLICATION_OCTET_STREAM => (),
+            _ => return err(FinchersErrorKind::BadRequest.into()).flatten(),
+        }
+
+        ok(body.into_vec()).flatten()
+    }
+}
+
 impl FromBody for String {
+    type Error = FinchersError;
     type Future = Flatten<
         FutureResult<AndThen<IntoVec, FinchersResult<String>, fn(Vec<u8>) -> FinchersResult<String>>, FinchersError>,
     >;
@@ -59,7 +77,7 @@ impl<T> Copy for Body<T> {}
 
 impl<T: FromBody> Endpoint for Body<T> {
     type Item = T;
-    type Error = FinchersError;
+    type Error = T::Error;
     type Future = T::Future;
 
     fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
@@ -76,9 +94,6 @@ pub fn body<T: FromBody>() -> Body<T> {
 }
 
 /// Equivalent to `body::<Json<T>>()`
-pub fn json_body<T>() -> Body<Json<T>>
-where
-    for<'de> T: Deserialize<'de>,
-{
+pub fn json_body<T: DeserializeOwned>() -> Body<Json<T>> {
     Body(PhantomData)
 }
