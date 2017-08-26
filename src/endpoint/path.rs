@@ -8,11 +8,11 @@ use futures::future::{ok, FutureResult};
 
 use context::Context;
 use endpoint::{Endpoint, EndpointError, EndpointResult};
-use errors::*;
-
+use errors::FinchersError;
 
 impl<'a> Endpoint for &'a str {
     type Item = ();
+    type Error = FinchersError;
     type Future = FutureResult<(), FinchersError>;
 
     fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
@@ -25,6 +25,7 @@ impl<'a> Endpoint for &'a str {
 
 impl Endpoint for String {
     type Item = ();
+    type Error = FinchersError;
     type Future = FutureResult<(), FinchersError>;
 
     fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
@@ -34,6 +35,7 @@ impl Endpoint for String {
 
 impl<'a> Endpoint for Cow<'a, str> {
     type Item = ();
+    type Error = FinchersError;
     type Future = FutureResult<(), FinchersError>;
 
     fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
@@ -56,6 +58,7 @@ impl<T> Copy for Path<T> {}
 
 impl<T: FromStr> Endpoint for Path<T> {
     type Item = T;
+    type Error = FinchersError;
     type Future = FutureResult<T, FinchersError>;
 
     fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
@@ -143,6 +146,7 @@ where
     T: FromStr,
 {
     type Item = I;
+    type Error = FinchersError;
     type Future = FutureResult<I, FinchersError>;
 
     fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {

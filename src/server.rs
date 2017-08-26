@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use futures::{Future, IntoFuture};
-use futures::future::{AndThen, Flatten, FutureResult, Then};
+use futures::future::{AndThen, Flatten, FutureResult, MapErr, Then};
 use hyper;
 use hyper::server::{Http, Service};
 
@@ -18,16 +18,18 @@ use response::Responder;
 #[derive(Clone)]
 pub struct EndpointService<E: NewEndpoint>(pub(crate) E);
 
-impl<E: NewEndpoint> Service for EndpointService<E>
+impl<E> Service for EndpointService<E>
 where
+    E: NewEndpoint,
     E::Item: Responder,
+    E::Error: Into<FinchersError>,
 {
     type Request = hyper::Request;
     type Response = hyper::Response;
     type Error = hyper::Error;
     type Future = Then<
         AndThen<
-            Flatten<FutureResult<E::Future, FinchersError>>,
+            Flatten<FutureResult<MapErr<E::Future, fn(E::Error) -> FinchersError>, FinchersError>>,
             FinchersResult<hyper::Response>,
             fn(E::Item) -> FinchersResult<hyper::Response>,
         >,
@@ -50,6 +52,9 @@ where
         }
 
         result
+            .map(|fut| {
+                fut.map_err(Into::into as fn(E::Error) -> FinchersError)
+            })
             .into_future()
             .flatten()
             .and_then(
@@ -70,6 +75,7 @@ pub fn run_http<E>(endpoint: E, addr: &str)
 where
     E: NewEndpoint + Send + Sync + 'static,
     E::Item: Responder,
+    E::Error: Into<FinchersError>,
 {
     let service = Arc::new(endpoint).into_service();
     let new_service = move || Ok(service.clone());

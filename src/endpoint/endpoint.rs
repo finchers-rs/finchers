@@ -3,8 +3,7 @@
 use futures::{Future, IntoFuture};
 
 use context::Context;
-use errors::*;
-use super::combinator::{and_then, map, or, skip, with, AndThen, Map, Or, Skip, With};
+use super::combinator::{and_then, map, map_err, or, or_else, skip, with, AndThen, Map, MapErr, Or, OrElse, Skip, With};
 use super::result::EndpointResult;
 
 
@@ -13,8 +12,11 @@ pub trait Endpoint {
     /// The type of resolved value, created by this endpoint
     type Item;
 
+    #[allow(missing_docs)]
+    type Error;
+
     /// The type of future created by this endpoint
-    type Future: Future<Item = Self::Item, Error = FinchersError>;
+    type Future: Future<Item = Self::Item, Error = Self::Error>;
 
     /// Apply the incoming HTTP request, and return the future of its response
     fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future>;
@@ -103,13 +105,32 @@ pub trait Endpoint {
         map(self, f)
     }
 
+    /// Combine itself and the function to change the error value to another type.
+    fn map_err<F, U>(self, f: F) -> MapErr<Self, F>
+    where
+        Self: Sized,
+        F: FnOnce(Self::Error) -> U,
+    {
+        map_err(self, f)
+    }
+
     #[allow(missing_docs)]
-    fn and_then<F, Fut, R>(self, f: F) -> AndThen<Self, F>
+    fn and_then<F, Fut>(self, f: F) -> AndThen<Self, F>
     where
         Self: Sized,
         F: FnOnce(Self::Item) -> Fut,
-        Fut: IntoFuture<Item = R, Error = FinchersError>,
+        Fut: IntoFuture<Error = Self::Error>,
     {
         and_then(self, f)
+    }
+
+    #[allow(missing_docs)]
+    fn or_else<F, Fut>(self, f: F) -> OrElse<Self, F>
+    where
+        Self: Sized,
+        F: FnOnce(Self::Error) -> Fut,
+        Fut: IntoFuture<Item = Self::Item>,
+    {
+        or_else(self, f)
     }
 }

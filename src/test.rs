@@ -6,7 +6,6 @@ use tokio_core::reactor::Core;
 
 use context::{self, Context};
 use endpoint::{Endpoint, EndpointResult};
-use errors::FinchersResult;
 use request::{Body, Request};
 
 /// A test case for `run_test()`
@@ -65,7 +64,7 @@ impl TestCase {
 
 
 /// Invoke given endpoint and return its result
-pub fn run_test<E: Endpoint>(endpoint: E, input: TestCase) -> EndpointResult<FinchersResult<E::Item>> {
+pub fn run_test<E: Endpoint>(endpoint: E, input: TestCase) -> EndpointResult<Result<E::Item, E::Error>> {
     let req = input.request;
     let body = input.body.unwrap_or_default();
     let base = context::RequestInfo::new(&req, body);

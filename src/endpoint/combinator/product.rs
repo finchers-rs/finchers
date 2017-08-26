@@ -8,11 +8,12 @@ use endpoint::{Endpoint, EndpointResult};
 
 macro_rules! define_product {
     ($fut:ident <$($type:ident),*>, ($($var:ident),*) => $($ret:tt)*) => {
-        impl<$($type),*> Endpoint for ($($type),*)
+        impl<$($type),*, Err> Endpoint for ($($type),*)
         where
-        $( $type: Endpoint, )*
+        $( $type: Endpoint<Error = Err>, )*
         {
             type Item = ($( $type :: Item, )*);
+            type Error = Err;
             type Future = $fut <$( $type :: Future ),*>;
 
             fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {

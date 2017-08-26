@@ -2,17 +2,16 @@
 
 use futures::IntoFuture;
 
-use errors::FinchersError;
 use endpoint::Endpoint;
 use endpoint::combinator::AndThen;
 use endpoint::combinator::{ok, EndpointOk};
 
 
-pub fn bind<E, F, Fut, R>(e: E, f: F) -> AndThen<E, F>
+pub fn bind<E, F, Fut>(e: E, f: F) -> AndThen<E, F>
 where
     E: Endpoint,
     F: FnOnce(E::Item) -> Fut,
-    Fut: IntoFuture<Item = R, Error = FinchersError>,
+    Fut: IntoFuture<Error = E::Error>,
 {
     e.and_then(f)
 }

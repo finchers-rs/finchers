@@ -13,12 +13,13 @@ pub struct With<E1, E2> {
     e2: E2,
 }
 
-impl<E1, E2> Endpoint for With<E1, E2>
+impl<E1, E2, E> Endpoint for With<E1, E2>
 where
-    E1: Endpoint,
-    E2: Endpoint,
+    E1: Endpoint<Error = E>,
+    E2: Endpoint<Error = E>,
 {
     type Item = E2::Item;
+    type Error = E;
     type Future = E2::Future;
 
     fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {

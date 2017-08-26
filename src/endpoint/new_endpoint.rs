@@ -4,15 +4,15 @@ use std::rc::Rc;
 use std::sync::Arc;
 use futures::Future;
 
-use errors::FinchersError;
 use server::EndpointService;
 use super::endpoint::Endpoint;
 
 
 pub trait NewEndpoint {
     type Item;
-    type Future: Future<Item = Self::Item, Error = FinchersError>;
-    type Endpoint: Endpoint<Item = Self::Item, Future = Self::Future>;
+    type Error;
+    type Future: Future<Item = Self::Item, Error = Self::Error>;
+    type Endpoint: Endpoint<Item = Self::Item, Error = Self::Error, Future = Self::Future>;
 
     fn new_endpoint(&self) -> Self::Endpoint;
 
@@ -30,6 +30,7 @@ where
     E: Endpoint,
 {
     type Item = E::Item;
+    type Error = E::Error;
     type Future = E::Future;
     type Endpoint = E;
 
@@ -40,6 +41,7 @@ where
 
 impl<E: NewEndpoint> NewEndpoint for Rc<E> {
     type Item = E::Item;
+    type Error = E::Error;
     type Future = E::Future;
     type Endpoint = E::Endpoint;
 
@@ -50,6 +52,7 @@ impl<E: NewEndpoint> NewEndpoint for Rc<E> {
 
 impl<E: NewEndpoint> NewEndpoint for Arc<E> {
     type Item = E::Item;
+    type Error = E::Error;
     type Future = E::Future;
     type Endpoint = E::Endpoint;
 

@@ -11,6 +11,7 @@ pub struct MatchMethod<E>(Method, E);
 
 impl<E: Endpoint> Endpoint for MatchMethod<E> {
     type Item = E::Item;
+    type Error = E::Error;
     type Future = E::Future;
 
     fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {

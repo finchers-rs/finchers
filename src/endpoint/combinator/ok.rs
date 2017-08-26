@@ -4,7 +4,6 @@ use futures::future::{self, FutureResult};
 
 use context::Context;
 use endpoint::{Endpoint, EndpointResult};
-use errors::FinchersError;
 
 
 /// Create an endpoint which returns a success value of `T`
@@ -18,9 +17,13 @@ pub struct EndpointOk<T>(T);
 
 impl<T> Endpoint for EndpointOk<T> {
     type Item = T;
-    type Future = FutureResult<T, FinchersError>;
+    type Error = NoReturn;
+    type Future = FutureResult<T, NoReturn>;
 
     fn apply(self, _: &mut Context) -> EndpointResult<Self::Future> {
         Ok(future::ok(self.0))
     }
 }
+
+#[doc(hidden)]
+pub enum NoReturn {}

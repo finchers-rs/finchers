@@ -23,6 +23,7 @@ impl<H> Copy for Header<H> {}
 
 impl<H: header::Header + Clone> Endpoint for Header<H> {
     type Item = H;
+    type Error = FinchersError;
     type Future = FutureResult<H, FinchersError>;
 
     fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
@@ -50,6 +51,7 @@ impl<H> Copy for HeaderOpt<H> {}
 
 impl<H: header::Header + Clone> Endpoint for HeaderOpt<H> {
     type Item = Option<H>;
+    type Error = FinchersError;
     type Future = FutureResult<Option<H>, FinchersError>;
 
     fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {

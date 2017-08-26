@@ -26,6 +26,7 @@ where
     F: FnOnce(E::Item) -> R,
 {
     type Item = R;
+    type Error = E::Error;
     type Future = future::Map<E::Future, F>;
 
     fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {

@@ -59,6 +59,7 @@ impl<T> Copy for Body<T> {}
 
 impl<T: FromBody> Endpoint for Body<T> {
     type Item = T;
+    type Error = FinchersError;
     type Future = T::Future;
 
     fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
