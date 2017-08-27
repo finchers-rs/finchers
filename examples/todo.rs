@@ -10,6 +10,7 @@ use finchers::endpoint::{json_body, u64_};
 use finchers::endpoint::method::{delete, get, post, put};
 use finchers::response::Created;
 use finchers::server::Server;
+use finchers::util::either::Either6;
 
 mod todo {
     use std::collections::HashMap;
@@ -109,12 +110,12 @@ fn main() {
                 Created(Json(new_todo))
             });
 
-        get_todo
-            .or(get_todos)
-            .or(delete_todo)
-            .or(delete_todos)
-            .or(patch_todo)
-            .or(post_todo)
+        (get_todo.map(Either6::E1))
+            .or(get_todos.map(Either6::E2))
+            .or(delete_todo.map(Either6::E3))
+            .or(delete_todos.map(Either6::E4))
+            .or(patch_todo.map(Either6::E5))
+            .or(post_todo.map(Either6::E6))
     };
 
     Server::new(endpoint).bind("127.0.0.1:3000").run_http();

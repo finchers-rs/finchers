@@ -23,6 +23,7 @@ pub mod request;
 pub mod response;
 pub mod server;
 pub mod test;
+pub mod util;
 
 mod context;
 mod json;

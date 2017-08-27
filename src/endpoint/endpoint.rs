@@ -92,7 +92,7 @@ pub trait Endpoint {
     fn or<E>(self, e: E) -> Or<Self, E>
     where
         Self: Sized,
-        E: Endpoint<Error = Self::Error>,
+        E: Endpoint<Item = Self::Item, Error = Self::Error>,
     {
         or(self, e)
     }

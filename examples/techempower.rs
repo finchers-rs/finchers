@@ -5,6 +5,7 @@ extern crate serde_derive;
 
 use finchers::{Endpoint, Json};
 use finchers::server::Server;
+use finchers::util::either::Either2;
 
 #[derive(Serialize)]
 struct Message {
@@ -21,7 +22,7 @@ fn main() {
 
         let plaintext = "plaintext".map(|_| "Hello, World!");
 
-        json.or(plaintext)
+        (json.map(Either2::E1)).or(plaintext.map(Either2::E2))
     };
 
     Server::new(endpoint)

@@ -46,17 +46,20 @@ macro_rules! define_either {
             }
         }
 
-        impl<E, $( $variant ),*> Future for $name<$( $variant ),*>
+        impl<$( $variant ),*> Future for $name<$( $variant ),*>
         where
-        $( $variant: Future<Error=E> ),*
+        $( $variant: Future ),*
         {
             type Item = $name <$( $variant :: Item ),*>;
-            type Error = E;
+            type Error = $name <$( $variant :: Error ),*>;
 
             fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
                 match *self {
                     $(
-                        $name :: $variant(ref mut e) => Ok(Async::Ready( $name :: $variant (try_ready!(e.poll())))),
+                        $name :: $variant(ref mut e) => {
+                            let item = try_ready!(e.poll().map_err($name :: $variant));
+                            Ok(Async::Ready($name :: $variant (item)))
+                        },
                     )*
                 }
             }
@@ -83,3 +86,5 @@ define_either!(Either2<E1, E2>);
 define_either!(Either3<E1, E2, E3>);
 define_either!(Either4<E1, E2, E3, E4>);
 define_either!(Either5<E1, E2, E3, E4, E5>);
+define_either!(Either6<E1, E2, E3, E4, E5, E6>);
+define_either!(Either7<E1, E2, E3, E4, E5, E6, E7>);

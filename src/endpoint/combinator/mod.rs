@@ -1,7 +1,5 @@
 //! Definition of combinators
 
-pub mod either;
-
 mod and_then;
 mod map;
 mod map_err;
