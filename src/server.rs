@@ -1,12 +1,11 @@
 //! Definition of HTTP services for Hyper
 
+use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::thread;
-use std::io;
 
-use futures::{Future, IntoFuture, Stream};
-use futures::future::{AndThen, Flatten, FutureResult, MapErr, Then};
+use futures::{Future, Poll, Stream};
 use hyper;
 use hyper::server::Http;
 use net2::TcpBuilder;
@@ -14,9 +13,9 @@ use tokio_core::net::TcpListener;
 use tokio_core::reactor::{Core, Handle};
 use tokio_service::Service;
 
-use context::{self, Context};
+use context::{Context, RequestInfo};
 use endpoint::{Endpoint, NewEndpoint};
-use errors::*;
+use endpoint::result::{EndpointError, EndpointResult};
 use request;
 use response::Responder;
 
@@ -32,52 +31,85 @@ impl<E> Service for EndpointService<E>
 where
     E: NewEndpoint,
     E::Item: Responder,
-    E::Error: Into<FinchersError>,
+    E::Error: Responder,
 {
     type Request = hyper::Request;
     type Response = hyper::Response;
     type Error = hyper::Error;
-    type Future = Then<
-        AndThen<
-            Flatten<FutureResult<MapErr<E::Future, fn(E::Error) -> FinchersError>, FinchersError>>,
-            FinchersResult<hyper::Response>,
-            fn(E::Item) -> FinchersResult<hyper::Response>,
-        >,
-        Result<hyper::Response, hyper::Error>,
-        fn(FinchersResult<hyper::Response>)
-            -> Result<hyper::Response, hyper::Error>,
-    >;
+    type Future = EndpointFuture<E::Future>;
 
     fn call(&self, req: hyper::Request) -> Self::Future {
+        // reconstruct the instance of `hyper::Request` and parse its path and queries.
         let (req, body) = request::reconstruct(req);
-        let base = context::RequestInfo::new(&req, body);
-        let mut ctx = Context::from(&base);
+        let info = RequestInfo::new(&req, body);
 
+        // create and apply the endpoint to parsed `RequestInfo`
+        let inner = self.apply_endpoint(&info);
+        EndpointFuture {
+            inner: inner.map_err(Some),
+        }
+    }
+}
+
+impl<E> EndpointService<E>
+where
+    E: NewEndpoint,
+    E::Item: Responder,
+    E::Error: Responder,
+{
+    fn apply_endpoint(&self, req: &RequestInfo) -> EndpointResult<E::Future> {
+        // Create the instance of `Context` from the reference of `RequestInfo`.
+        let mut ctx = Context::from(req);
+
+        // Create a new endpoint from the inner factory. and evaluate it.
         let endpoint = self.endpoint.new_endpoint(&self.handle);
-        let mut result = endpoint
-            .apply(&mut ctx)
-            .map_err(|_| FinchersErrorKind::NotFound.into());
+        let mut result = endpoint.apply(&mut ctx);
+
+        // check if the remaining path segments are exist.
         if ctx.next_segment().is_some() {
-            result = Err(FinchersErrorKind::NotFound.into());
+            result = Err(EndpointError::Skipped);
         }
 
         result
-            .map(|fut| {
-                fut.map_err(Into::into as fn(E::Error) -> FinchersError)
-            })
-            .into_future()
-            .flatten()
-            .and_then(
-                (|res| {
-                    res.respond()
-                        .map_err(|err| FinchersErrorKind::ServerError(Box::new(err)).into())
-                }) as fn(E::Item) -> FinchersResult<hyper::Response>,
-            )
-            .then(|response| {
-                Ok(response.unwrap_or_else(|err| err.into_response()))
-            })
     }
 }
+
+
+#[doc(hidden)]
+#[derive(Debug)]
+pub struct EndpointFuture<F> {
+    inner: Result<F, Option<EndpointError>>,
+}
+
+impl<F> Future for EndpointFuture<F>
+where
+    F: Future,
+    F::Item: Responder,
+    F::Error: Responder,
+{
+    type Item = hyper::Response;
+    type Error = hyper::Error;
+
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        // Check the result of `Endpoint::apply()`.
+        let inner = match self.inner.as_mut() {
+            Ok(inner) => inner,
+            Err(err) => {
+                let err = err.take().expect("cannot reject twice");
+                return Ok(err.into_response().into());
+            }
+        };
+
+        // Query the future returned from the endpoint
+        let item = inner.poll();
+        // ...and convert its success/error value to `hyper::Response`.
+        let item = item.map(|item| item.map(Responder::into_response))
+            .map_err(Responder::into_response);
+
+        Ok(item.unwrap_or_else(Into::into))
+    }
+}
+
 
 #[allow(missing_docs)]
 #[derive(Debug)]
@@ -114,7 +146,7 @@ impl<E> Server<E>
 where
     E: NewEndpoint + Send + Sync + 'static,
     E::Item: Responder,
-    E::Error: Into<FinchersError>,
+    E::Error: Responder,
 {
     /// Start the HTTP server, with given endpoint and listener address.
     pub fn run_http(self) {
@@ -134,7 +166,7 @@ fn serve<E>(endpoint: E, num_workers: usize, addr: &SocketAddr)
 where
     E: NewEndpoint + Clone + 'static,
     E::Item: Responder,
-    E::Error: Into<FinchersError>,
+    E::Error: Responder,
 {
     let mut core = Core::new().unwrap();
     let handle = core.handle();

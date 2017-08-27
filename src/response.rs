@@ -15,6 +15,21 @@ pub trait Responder {
 
     /// Convert itself to `hyper::Response`
     fn respond(self) -> Result<Response, Self::Error>;
+
+    #[doc(hidden)]
+    fn into_response(self) -> Response
+    where
+        Self: Sized,
+    {
+        self.respond().unwrap_or_else(|err| {
+            let message = error::Error::description(&err).to_owned();
+            Response::new()
+                .with_status(StatusCode::InternalServerError)
+                .with_header(header::ContentType::plaintext())
+                .with_header(header::ContentLength(message.len() as u64))
+                .with_body(message)
+        })
+    }
 }
 
 impl Responder for Response {
