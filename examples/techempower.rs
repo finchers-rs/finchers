@@ -4,6 +4,7 @@ extern crate num_cpus;
 extern crate serde_derive;
 
 use finchers::{Endpoint, Json};
+use finchers::endpoint::method::get;
 use finchers::server::Server;
 use finchers::util::either::Either2;
 
@@ -14,13 +15,13 @@ struct Message {
 
 fn main() {
     let endpoint = |_: &_| {
-        let json = "json".map(|_| {
+        let json = get("json").map(|_| {
             Json(Message {
                 message: "Hello, World!",
             })
         });
 
-        let plaintext = "plaintext".map(|_| "Hello, World!");
+        let plaintext = get("plaintext").map(|_| "Hello, World!");
 
         (json.map(Either2::E1)).or(plaintext.map(Either2::E2))
     };
