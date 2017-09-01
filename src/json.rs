@@ -6,9 +6,8 @@ use hyper::mime::APPLICATION_JSON;
 use serde::{Deserialize, Serialize};
 use serde_json::{self, Value};
 
-use endpoint::body::FromBody;
 use errors::*;
-use request::{Body, IntoVec, Request};
+use request::{Body, FromBody, IntoVec, Request};
 use response::{Responder, Response};
 
 

@@ -22,7 +22,7 @@ pub use self::new_endpoint::NewEndpoint;
 pub use self::result::{EndpointError, EndpointResult};
 
 #[doc(inline)]
-pub use self::body::{body, json_body, FromBody};
+pub use self::body::{body, json_body};
 
 #[doc(inline)]
 pub use self::header::{header, header_opt};
