@@ -1,9 +1,9 @@
 //! Definitions and reexports related to HTTP response
 
-use std::fmt;
 use std::error;
 use hyper::StatusCode;
 use hyper::header;
+use util::NoReturn;
 
 pub use hyper::Response;
 
@@ -33,7 +33,7 @@ pub trait Responder {
 }
 
 impl Responder for Response {
-    type Error = NeverReturn;
+    type Error = NoReturn;
 
     fn respond(self) -> Result<Response, Self::Error> {
         Ok(self)
@@ -41,7 +41,7 @@ impl Responder for Response {
 }
 
 impl Responder for () {
-    type Error = NeverReturn;
+    type Error = NoReturn;
 
     fn respond(self) -> Result<Response, Self::Error> {
         Ok(
@@ -53,7 +53,7 @@ impl Responder for () {
 }
 
 impl Responder for &'static str {
-    type Error = NeverReturn;
+    type Error = NoReturn;
 
     fn respond(self) -> Result<Response, Self::Error> {
         Ok(
@@ -66,7 +66,7 @@ impl Responder for &'static str {
 }
 
 impl Responder for String {
-    type Error = NeverReturn;
+    type Error = NoReturn;
 
     fn respond(self) -> Result<Response, Self::Error> {
         Ok(
@@ -98,7 +98,7 @@ impl<T: Responder> Responder for Created<T> {
 pub struct NoContent;
 
 impl Responder for NoContent {
-    type Error = NeverReturn;
+    type Error = NoReturn;
     fn respond(self) -> Result<Response, Self::Error> {
         Ok(Response::new().with_status(StatusCode::NoContent))
     }
@@ -125,18 +125,3 @@ impl<T: Responder> Responder for ContentType<T> {
 }
 
 
-#[doc(hidden)]
-#[derive(Debug)]
-pub enum NeverReturn {}
-
-impl fmt::Display for NeverReturn {
-    fn fmt(&self, _: &mut fmt::Formatter) -> fmt::Result {
-        Ok(())
-    }
-}
-
-impl error::Error for NeverReturn {
-    fn description(&self) -> &str {
-        ""
-    }
-}

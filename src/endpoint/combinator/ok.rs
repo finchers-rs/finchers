@@ -4,6 +4,7 @@ use futures::future::{self, FutureResult};
 
 use context::Context;
 use endpoint::{Endpoint, EndpointResult};
+use util::NoReturn;
 
 
 /// Create an endpoint which returns a success value of `T`
@@ -26,6 +27,3 @@ impl<T> Endpoint for EndpointOk<T> {
     }
 }
 
-#[doc(hidden)]
-#[derive(Debug)]
-pub enum NoReturn {}

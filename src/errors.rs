@@ -1,9 +1,9 @@
 //! Definition of error types
 
-use std::fmt;
 use std::error;
 use hyper::{Response, StatusCode};
 use response::Responder;
+use util::NoReturn;
 
 error_chain! {
     types {
@@ -39,7 +39,7 @@ error_chain! {
 
 
 impl Responder for FinchersError {
-    type Error = NeverReturn;
+    type Error = NoReturn;
 
     fn respond(self) -> Result<Response, Self::Error> {
         let status = match *self.kind() {
@@ -52,18 +52,3 @@ impl Responder for FinchersError {
     }
 }
 
-#[doc(hidden)]
-#[derive(Debug)]
-pub enum NeverReturn {}
-
-impl fmt::Display for NeverReturn {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "")
-    }
-}
-
-impl error::Error for NeverReturn {
-    fn description(&self) -> &str {
-        ""
-    }
-}
