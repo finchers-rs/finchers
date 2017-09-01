@@ -21,15 +21,18 @@ extern crate finchers;
 use finchers::{Endpoint, Json};
 use finchers::endpoint::{string_};
 use finchers::endpoint::method::get;
+use finchers::server::Server;
 
 fn main() {
     // create an endpoint
-    let endpoint = get("hello".with(string_)).map(|name| {
-        Json(format!("Hello, {}", name))
-    });
+    let endpoint = |_: &_| {
+        get("hello".with(string_)).map(|name| {
+            Json(format!("Hello, {}", name))
+        })
+    };
 
     // start a HTTP server.
-    finchers::server::run_http(endpoint, "127.0.0.1:3000");
+    Server::new(endpoint).bind("127.0.0.1:3000").run_http();
 }
 ```
 
