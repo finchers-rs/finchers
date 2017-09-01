@@ -48,7 +48,7 @@ impl Request {
 }
 
 
-#[allow(missing_docs)]
+/// The instance of request body.
 #[derive(Default, Debug)]
 pub struct Body {
     inner: hyper::Body,
@@ -61,7 +61,7 @@ impl From<hyper::Body> for Body {
 }
 
 impl Body {
-    #[allow(missing_docs)]
+    /// Convert itself into the future of a `Vec<u8>`
     pub fn into_vec(self) -> IntoVec {
         self.fold(Vec::new(), |mut body, chunk| {
             body.extend_from_slice(&chunk);
@@ -81,7 +81,7 @@ impl Stream for Body {
     }
 }
 
-#[doc(hidden)]
+/// The type of a future returned from `Body::into_vec()`
 pub type IntoVec = Fold<Body, fn(Vec<u8>, hyper::Chunk) -> FinchersResult<Vec<u8>>, FinchersResult<Vec<u8>>, Vec<u8>>;
 
 

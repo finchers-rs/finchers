@@ -1,9 +1,11 @@
-#![allow(missing_docs)]
+//! Utilities
 
 pub mod either;
 
-use std::{fmt, error};
+use std::{error, fmt};
 
+
+/// A type represents the never-returned errors.
 #[derive(Debug)]
 pub enum NoReturn {}
 

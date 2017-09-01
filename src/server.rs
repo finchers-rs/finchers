@@ -14,13 +14,12 @@ use tokio_core::reactor::{Core, Handle};
 use tokio_service::Service;
 
 use context::{Context, RequestInfo};
-use endpoint::{Endpoint, NewEndpoint};
-use endpoint::result::{EndpointError, EndpointResult};
+use endpoint::{Endpoint, EndpointError, EndpointResult, NewEndpoint};
 use request;
 use response::Responder;
 
 
-/// A wrapper for `Endpoint`s, to provide HTTP services
+/// A wrapper of a `NewEndpoint`, to provide hyper's HTTP services
 #[derive(Debug, Clone)]
 pub struct EndpointService<E> {
     endpoint: E,
@@ -74,8 +73,7 @@ where
     }
 }
 
-
-#[doc(hidden)]
+/// The type of a future returned from `EndpointService::call()`
 #[derive(Debug)]
 pub struct EndpointFuture<F> {
     inner: Result<F, Option<EndpointError>>,
@@ -111,7 +109,7 @@ where
 }
 
 
-#[allow(missing_docs)]
+/// The factory of HTTP service
 #[derive(Debug)]
 pub struct Server<E> {
     endpoint: E,
@@ -120,7 +118,7 @@ pub struct Server<E> {
 }
 
 impl<E: NewEndpoint> Server<E> {
-    #[allow(missing_docs)]
+    /// Create a new instance of `Server` from a `NewEndpoint`
     pub fn new(endpoint: E) -> Self {
         Self {
             endpoint,
@@ -129,13 +127,13 @@ impl<E: NewEndpoint> Server<E> {
         }
     }
 
-    #[allow(missing_docs)]
+    /// Set the listener address of the service
     pub fn bind(mut self, addr: &'static str) -> Self {
         self.addr = Some(addr);
         self
     }
 
-    #[allow(missing_docs)]
+    /// Set the number of worker threads
     pub fn num_workers(mut self, n: usize) -> Self {
         self.num_workers = Some(n);
         self
@@ -148,7 +146,7 @@ where
     E::Item: Responder,
     E::Error: Responder,
 {
-    /// Start the HTTP server, with given endpoint and listener address.
+    /// Start a HTTP server
     pub fn run_http(self) {
         let endpoint = Arc::new(self.endpoint);
         let addr = self.addr.unwrap_or("0.0.0.0:4000").parse().unwrap();

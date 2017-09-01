@@ -28,19 +28,20 @@ pub mod util;
 mod context;
 mod json;
 
+
 pub use context::Context;
 
 #[doc(inline)]
 pub use endpoint::{Endpoint, NewEndpoint};
 
 #[doc(inline)]
-pub use request::{Body, Request};
+pub use request::Request;
 
 #[doc(inline)]
 pub use response::{Responder, Response};
 
 #[doc(inline)]
-pub use server::EndpointService;
+pub use server::Server;
 
 #[doc(inline)]
 pub use json::Json;

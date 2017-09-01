@@ -123,5 +123,3 @@ impl<T: Responder> Responder for ContentType<T> {
         res.respond().map(|res| res.with_header(c))
     }
 }
-
-

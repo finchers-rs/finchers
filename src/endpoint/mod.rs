@@ -1,12 +1,13 @@
 //! Definition of the trait `Endpoint` and its implementors
 
+mod endpoint;
+mod new_endpoint;
+mod result;
+
 pub mod body;
 pub mod combinator;
-pub mod endpoint;
-pub mod new_endpoint;
 pub mod header;
 pub mod method;
-pub mod result;
 pub mod path;
 pub mod query;
 

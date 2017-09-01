@@ -26,4 +26,3 @@ impl<T> Endpoint for EndpointOk<T> {
         Ok(future::ok(self.0))
     }
 }
-

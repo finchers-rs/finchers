@@ -51,4 +51,3 @@ impl Responder for FinchersError {
         Ok(Response::new().with_status(status))
     }
 }
-
