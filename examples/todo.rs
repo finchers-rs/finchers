@@ -107,48 +107,38 @@ impl Responder for ApiError {
 
 fn main() {
     let endpoint = |_: &_| {
+        use todo::{NewTodo, Todo};
+
+        let todos = || "todos".map_err(|_| ApiError::Unknown);
+        let todos_id = || "todos".with(u64::PATH).map_err(|_| ApiError::Unknown);
+
         // GET /todos/:id
-        let get_todo = get("todos".with(u64::PATH))
-            .map(|id| Json(todo::get(id)))
-            .map_err(|_| ApiError::Unknown);
+        let get_todo = get(todos_id()).map(|id| Json(todo::get(id)));
 
         // GET /todos
-        let get_todos = get("todos")
-            .map(|()| Json(todo::list()))
-            .map_err(|_| ApiError::Unknown);
+        let get_todos = get(todos()).map(|()| Json(todo::list()));
 
         // DELETE /todos/:id
-        let delete_todo = delete("todos".with(u64::PATH))
-            .map(|id| { todo::delete(id); })
-            .map_err(|_| ApiError::Unknown);
+        let delete_todo = delete(todos_id()).map(|id| { todo::delete(id); });
 
         // DELETE /todos
-        let delete_todos = delete("todos")
-            .map(|()| { todo::clear(); })
-            .map_err(|_| ApiError::Unknown);
+        let delete_todos = delete(todos()).map(|()| { todo::clear(); });
 
         // PUT /todos/:id
-        let patch_todo = put("todos".with(u64::PATH))
-            .map_err(|_| ApiError::Unknown)
-            .join(json_body::<todo::Todo>().map_err(|_| ApiError::ParseBody))
+        let put_todo = put(todos_id())
+            .join(json_body::<Todo>().map_err(|_| ApiError::ParseBody))
             .map(|(id, Json(new_todo))| { todo::set(id, new_todo); });
 
         // POST /todos
-        let post_todo = post("todos")
-            .map_err(|_| ApiError::Unknown)
-            .with(
-                json_body::<todo::NewTodo>().map_err(|_| ApiError::ParseBody),
-            )
-            .map(|Json(new_todo)| {
-                let new_todo = todo::save(new_todo);
-                Created(Json(new_todo))
-            });
+        let post_todo = post(todos())
+            .with(json_body::<NewTodo>().map_err(|_| ApiError::ParseBody))
+            .map(|Json(new_todo)| Created(Json(todo::save(new_todo))));
 
         (get_todo.map(Either6::E1))
             .or(get_todos.map(Either6::E2))
             .or(delete_todo.map(Either6::E3))
             .or(delete_todos.map(Either6::E4))
-            .or(patch_todo.map(Either6::E5))
+            .or(put_todo.map(Either6::E5))
             .or(post_todo.map(Either6::E6))
     };
 
