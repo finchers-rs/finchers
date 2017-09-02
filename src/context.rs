@@ -4,9 +4,9 @@ use std::collections::HashMap;
 use url::form_urlencoded;
 use std::iter::FromIterator;
 use std::slice::Iter;
-use std::str::FromStr;
 
 use request::{Body, Request};
+use endpoint::path::FromPath;
 
 
 #[doc(hidden)]
@@ -76,14 +76,14 @@ impl<'r, 'b> Context<'r, 'b> {
     }
 
     /// Collect and return the remaining path segments, if available
-    pub fn collect_remaining_segments<I, T>(&mut self) -> Option<Result<I, T::Err>>
+    pub fn collect_remaining_segments<I, T>(&mut self) -> Option<Option<I>>
     where
         I: FromIterator<T>,
-        T: FromStr,
+        T: FromPath,
     {
         self.routes
             .take()
-            .map(|routes| routes.map(|s| s.parse()).collect())
+            .map(|routes| routes.map(|s| T::from_path(s)).collect())
     }
 
     /// Return the first value of the query parameter whose name is `name`, if exists

@@ -8,7 +8,7 @@ extern crate serde_derive;
 
 use finchers::{Endpoint, Json};
 use finchers::endpoint::method::{delete, get, post, put};
-use finchers::endpoint::{json_body, PathConst};
+use finchers::endpoint::{json_body, FromPath};
 use finchers::response::{Created, Responder, Response};
 use finchers::server::Server;
 use finchers::util::NoReturn;

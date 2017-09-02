@@ -57,13 +57,13 @@ impl<T> Clone for Path<T> {
 
 impl<T> Copy for Path<T> {}
 
-impl<T: FromStr> Endpoint for Path<T> {
+impl<T: FromPath> Endpoint for Path<T> {
     type Item = T;
     type Error = NoReturn;
     type Future = FutureResult<Self::Item, Self::Error>;
 
     fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
-        let value = match ctx.next_segment().and_then(|s| s.parse().ok()) {
+        let value = match ctx.next_segment().and_then(T::from_path) {
             Some(val) => val,
             _ => return Err(EndpointError::TypeMismatch),
         };
@@ -92,7 +92,7 @@ impl<I, T> Copy for PathSeq<I, T> {}
 impl<I, T> Endpoint for PathSeq<I, T>
 where
     I: FromIterator<T> + Default,
-    T: FromStr,
+    T: FromPath,
 {
     type Item = I;
     type Error = NoReturn;
@@ -100,9 +100,9 @@ where
 
     fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
         ctx.collect_remaining_segments()
-            .unwrap_or_else(|| Ok(Default::default()))
+            .unwrap_or_else(|| Some(Default::default()))
             .map(ok)
-            .map_err(|_| EndpointError::TypeMismatch)
+            .ok_or(EndpointError::TypeMismatch)
     }
 }
 
@@ -110,7 +110,7 @@ where
 pub fn path_seq<I, T>() -> PathSeq<I, T>
 where
     I: FromIterator<T>,
-    T: FromStr,
+    T: FromPath,
 {
     PathSeq(PhantomData)
 }
@@ -119,44 +119,42 @@ where
 pub type PathVec<T> = PathSeq<Vec<T>, T>;
 
 /// Equivalent to `path_seq<Vec<T>, T>()`
-pub fn path_vec<T: FromStr>() -> PathVec<T> {
+pub fn path_vec<T: FromPath>() -> PathVec<T> {
     PathSeq(PhantomData)
 }
 
 
-#[allow(missing_docs)]
-pub mod constants {
-    use std::marker::PhantomData;
-    use super::Path;
+/// Represents the conversion from a path segment
+pub trait FromPath: Sized {
+    /// equivalent to `path::<Self>()`
+    const PATH: Path<Self> = Path(PhantomData);
 
-    #[allow(missing_docs)]
-    pub trait PathConst: Sized {
-        const PATH: Path<Self>;
-    }
-
-    macro_rules! impl_const {
-        ($($t:ty),*) => {
-            $(
-                impl PathConst for $t {
-                    const PATH: Path<$t> = Path(PhantomData);
-                }
-            )*
-        }
-    }
-
-    impl_const!(
-        i8,
-        u8,
-        i16,
-        u16,
-        i32,
-        u32,
-        i64,
-        u64,
-        isize,
-        usize,
-        f32,
-        f64,
-        String
-    );
+    /// Try to convert a `str` to itself
+    fn from_path(s: &str) -> Option<Self>;
 }
+
+macro_rules! impl_from_path {
+    ($($t:ty),*) => {$(
+        impl FromPath for $t {
+            fn from_path(s: &str) -> Option<Self> {
+                s.parse().ok()
+            }
+        }
+    )*}
+}
+
+impl_from_path!(
+    i8,
+    u8,
+    i16,
+    u16,
+    i32,
+    u32,
+    i64,
+    u64,
+    isize,
+    usize,
+    f32,
+    f64,
+    String
+);

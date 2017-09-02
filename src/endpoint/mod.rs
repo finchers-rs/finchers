@@ -31,7 +31,4 @@ pub use self::header::{header, header_opt};
 pub use self::query::{query, query_opt};
 
 #[doc(inline)]
-pub use self::path::{path, path_seq, path_vec};
-
-#[doc(inline)]
-pub use self::path::constants::*;
+pub use self::path::{path, path_seq, path_vec, FromPath};

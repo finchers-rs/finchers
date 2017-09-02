@@ -19,7 +19,7 @@ The concept and design of this library is highly inspired by [`finch`](https://g
 extern crate finchers;
 
 use finchers::{Endpoint, Json};
-use finchers::endpoint::PathConst;
+use finchers::endpoint::FromPath;
 use finchers::endpoint::method::get;
 use finchers::server::Server;
 
