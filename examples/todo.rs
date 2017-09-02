@@ -8,7 +8,7 @@ extern crate serde_derive;
 
 use finchers::{Endpoint, Json};
 use finchers::endpoint::method::{delete, get, post, put};
-use finchers::endpoint::{json_body, u64_};
+use finchers::endpoint::{json_body, PathConst};
 use finchers::response::{Created, Responder, Response};
 use finchers::server::Server;
 use finchers::util::NoReturn;
@@ -108,7 +108,7 @@ impl Responder for ApiError {
 fn main() {
     let endpoint = |_: &_| {
         // GET /todos/:id
-        let get_todo = get("todos".with(u64_))
+        let get_todo = get("todos".with(u64::PATH))
             .map(|id| Json(todo::get(id)))
             .map_err(|_| ApiError::Unknown);
 
@@ -118,7 +118,7 @@ fn main() {
             .map_err(|_| ApiError::Unknown);
 
         // DELETE /todos/:id
-        let delete_todo = delete("todos".with(u64_))
+        let delete_todo = delete("todos".with(u64::PATH))
             .map(|id| { todo::delete(id); })
             .map_err(|_| ApiError::Unknown);
 
@@ -128,7 +128,7 @@ fn main() {
             .map_err(|_| ApiError::Unknown);
 
         // PUT /todos/:id
-        let patch_todo = put("todos".with(u64_))
+        let patch_todo = put("todos".with(u64::PATH))
             .map_err(|_| ApiError::Unknown)
             .join(json_body::<todo::Todo>().map_err(|_| ApiError::ParseBody))
             .map(|(id, Json(new_todo))| { todo::set(id, new_todo); });

@@ -76,58 +76,6 @@ pub fn path<T: FromStr>() -> Path<T> {
     Path(PhantomData)
 }
 
-/// Equivalent to `path::<i8>()`
-#[allow(non_upper_case_globals)]
-pub const i8_: Path<i8> = Path(PhantomData);
-
-/// Equivalent to `path::<u8>()`
-#[allow(non_upper_case_globals)]
-pub const u8_: Path<u8> = Path(PhantomData);
-
-/// Equivalent to `path::<i16>()`
-#[allow(non_upper_case_globals)]
-pub const i16_: Path<i16> = Path(PhantomData);
-
-/// Equivalent to `path::<u16>()`
-#[allow(non_upper_case_globals)]
-pub const u16_: Path<u16> = Path(PhantomData);
-
-/// Equivalent to `path::<i32>()`
-#[allow(non_upper_case_globals)]
-pub const i32_: Path<i32> = Path(PhantomData);
-
-/// Equivalent to `path::<u32>()`
-#[allow(non_upper_case_globals)]
-pub const u32_: Path<u32> = Path(PhantomData);
-
-/// Equivalent to `path::<i64>()`
-#[allow(non_upper_case_globals)]
-pub const i64_: Path<i64> = Path(PhantomData);
-
-/// Equivalent to `path::<u64>()`
-#[allow(non_upper_case_globals)]
-pub const u64_: Path<u64> = Path(PhantomData);
-
-/// Equivalent to `path::<isize>()`
-#[allow(non_upper_case_globals)]
-pub const isize_: Path<isize> = Path(PhantomData);
-
-/// Equivalent to `path::<usize>()`
-#[allow(non_upper_case_globals)]
-pub const usize_: Path<usize> = Path(PhantomData);
-
-/// Equivalent to `path::<f32>()`
-#[allow(non_upper_case_globals)]
-pub const f32_: Path<f32> = Path(PhantomData);
-
-/// Equivalent to `path::<f64>()`
-#[allow(non_upper_case_globals)]
-pub const f64_: Path<f64> = Path(PhantomData);
-
-/// Equivalent to `path::<String>()`
-#[allow(non_upper_case_globals)]
-pub const string_: Path<String> = Path(PhantomData);
-
 
 #[allow(missing_docs)]
 #[derive(Debug)]
@@ -173,4 +121,42 @@ pub type PathVec<T> = PathSeq<Vec<T>, T>;
 /// Equivalent to `path_seq<Vec<T>, T>()`
 pub fn path_vec<T: FromStr>() -> PathVec<T> {
     PathSeq(PhantomData)
+}
+
+
+#[allow(missing_docs)]
+pub mod constants {
+    use std::marker::PhantomData;
+    use super::Path;
+
+    #[allow(missing_docs)]
+    pub trait PathConst: Sized {
+        const PATH: Path<Self>;
+    }
+
+    macro_rules! impl_const {
+        ($($t:ty),*) => {
+            $(
+                impl PathConst for $t {
+                    const PATH: Path<$t> = Path(PhantomData);
+                }
+            )*
+        }
+    }
+
+    impl_const!(
+        i8,
+        u8,
+        i16,
+        u16,
+        i32,
+        u32,
+        i64,
+        u64,
+        isize,
+        usize,
+        f32,
+        f64,
+        String
+    );
 }

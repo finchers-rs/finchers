@@ -1,13 +1,13 @@
 extern crate finchers;
 
 use finchers::{Endpoint, Json};
-use finchers::endpoint::{query, string_};
+use finchers::endpoint::{query, PathConst};
 use finchers::endpoint::method::get;
 use finchers::server::Server;
 
 fn main() {
     let endpoint = |_: &_| {
-        get("hello".with(string_))
+        get("hello".with(String::PATH))
             .join(query::<String>("foo"))
             .map(|(name, foo)| Json(format!("Hello, {}, {}", name, foo)))
     };
