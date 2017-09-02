@@ -3,6 +3,7 @@
 pub mod either;
 
 use std::{error, fmt};
+use response::{Responder, Response};
 
 
 /// A type represents the never-returned errors.
@@ -17,6 +18,13 @@ impl fmt::Display for NoReturn {
 
 impl error::Error for NoReturn {
     fn description(&self) -> &str {
+        unreachable!()
+    }
+}
+
+impl Responder for NoReturn {
+    type Error = NoReturn;
+    fn respond(self) -> Result<Response, Self::Error> {
         unreachable!()
     }
 }
