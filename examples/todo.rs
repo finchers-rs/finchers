@@ -1,4 +1,5 @@
 extern crate finchers;
+extern crate hyper;
 #[macro_use]
 extern crate lazy_static;
 extern crate serde;
@@ -6,11 +7,14 @@ extern crate serde;
 extern crate serde_derive;
 
 use finchers::{Endpoint, Json};
-use finchers::endpoint::{json_body, u64_};
 use finchers::endpoint::method::{delete, get, post, put};
-use finchers::response::Created;
+use finchers::endpoint::{json_body, u64_};
+use finchers::response::{Created, Responder, Response};
 use finchers::server::Server;
+use finchers::util::NoReturn;
 use finchers::util::either::Either6;
+use hyper::StatusCode;
+
 
 mod todo {
     use std::collections::HashMap;
@@ -83,28 +87,58 @@ mod todo {
     }
 }
 
+
+enum ApiError {
+    ParseBody,
+    Unknown,
+}
+
+impl Responder for ApiError {
+    type Error = NoReturn;
+    fn respond(self) -> Result<Response, Self::Error> {
+        use ApiError::*;
+        match self {
+            ParseBody => Ok(Response::new().with_status(StatusCode::BadRequest)),
+            Unknown => unreachable!(),
+        }
+    }
+}
+
+
 fn main() {
     let endpoint = |_: &_| {
         // GET /todos/:id
-        let get_todo = get("todos".with(u64_)).map(|id| Json(todo::get(id)));
+        let get_todo = get("todos".with(u64_))
+            .map(|id| Json(todo::get(id)))
+            .map_err(|_| ApiError::Unknown);
 
         // GET /todos
-        let get_todos = get("todos").map(|()| Json(todo::list()));
+        let get_todos = get("todos")
+            .map(|()| Json(todo::list()))
+            .map_err(|_| ApiError::Unknown);
 
         // DELETE /todos/:id
-        let delete_todo = delete("todos".with(u64_)).map(|id| { todo::delete(id); });
+        let delete_todo = delete("todos".with(u64_))
+            .map(|id| { todo::delete(id); })
+            .map_err(|_| ApiError::Unknown);
 
         // DELETE /todos
-        let delete_todos = delete("todos").map(|()| { todo::clear(); });
+        let delete_todos = delete("todos")
+            .map(|()| { todo::clear(); })
+            .map_err(|_| ApiError::Unknown);
 
         // PUT /todos/:id
         let patch_todo = put("todos".with(u64_))
-            .join(json_body::<todo::Todo>())
+            .map_err(|_| ApiError::Unknown)
+            .join(json_body::<todo::Todo>().map_err(|_| ApiError::ParseBody))
             .map(|(id, Json(new_todo))| { todo::set(id, new_todo); });
 
         // POST /todos
         let post_todo = post("todos")
-            .with(json_body::<todo::NewTodo>())
+            .map_err(|_| ApiError::Unknown)
+            .with(
+                json_body::<todo::NewTodo>().map_err(|_| ApiError::ParseBody),
+            )
             .map(|Json(new_todo)| {
                 let new_todo = todo::save(new_todo);
                 Created(Json(new_todo))

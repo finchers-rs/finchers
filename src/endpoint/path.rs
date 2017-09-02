@@ -8,12 +8,13 @@ use futures::future::{ok, FutureResult};
 
 use context::Context;
 use endpoint::{Endpoint, EndpointError, EndpointResult};
-use errors::FinchersError;
+use util::NoReturn;
+
 
 impl<'a> Endpoint for &'a str {
     type Item = ();
-    type Error = FinchersError;
-    type Future = FutureResult<(), FinchersError>;
+    type Error = NoReturn;
+    type Future = FutureResult<Self::Item, Self::Error>;
 
     fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
         if !ctx.next_segment().map(|s| s == self).unwrap_or(false) {
@@ -25,8 +26,8 @@ impl<'a> Endpoint for &'a str {
 
 impl Endpoint for String {
     type Item = ();
-    type Error = FinchersError;
-    type Future = FutureResult<(), FinchersError>;
+    type Error = NoReturn;
+    type Future = FutureResult<Self::Item, Self::Error>;
 
     fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
         (&self as &str).apply(ctx)
@@ -35,8 +36,8 @@ impl Endpoint for String {
 
 impl<'a> Endpoint for Cow<'a, str> {
     type Item = ();
-    type Error = FinchersError;
-    type Future = FutureResult<(), FinchersError>;
+    type Error = NoReturn;
+    type Future = FutureResult<Self::Item, Self::Error>;
 
     fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
         (&*self as &str).apply(ctx)
@@ -58,8 +59,8 @@ impl<T> Copy for Path<T> {}
 
 impl<T: FromStr> Endpoint for Path<T> {
     type Item = T;
-    type Error = FinchersError;
-    type Future = FutureResult<T, FinchersError>;
+    type Error = NoReturn;
+    type Future = FutureResult<Self::Item, Self::Error>;
 
     fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
         let value = match ctx.next_segment().and_then(|s| s.parse().ok()) {
@@ -146,8 +147,8 @@ where
     T: FromStr,
 {
     type Item = I;
-    type Error = FinchersError;
-    type Future = FutureResult<I, FinchersError>;
+    type Error = NoReturn;
+    type Future = FutureResult<Self::Item, Self::Error>;
 
     fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
         ctx.collect_remaining_segments()

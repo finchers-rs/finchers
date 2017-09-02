@@ -6,7 +6,7 @@ use futures::future::{ok, FutureResult};
 
 use context::Context;
 use endpoint::{Endpoint, EndpointError, EndpointResult};
-use errors::FinchersError;
+use util::NoReturn;
 
 
 #[allow(missing_docs)]
@@ -23,8 +23,8 @@ impl<T> Copy for Query<T> {}
 
 impl<T: FromStr> Endpoint for Query<T> {
     type Item = T;
-    type Error = FinchersError;
-    type Future = FutureResult<T, FinchersError>;
+    type Error = NoReturn;
+    type Future = FutureResult<Self::Item, Self::Error>;
 
     fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
         ctx.query(self.0)
@@ -54,8 +54,8 @@ impl<T> Copy for QueryOpt<T> {}
 
 impl<T: FromStr> Endpoint for QueryOpt<T> {
     type Item = Option<T>;
-    type Error = FinchersError;
-    type Future = FutureResult<Option<T>, FinchersError>;
+    type Error = NoReturn;
+    type Future = FutureResult<Self::Item, Self::Error>;
 
     fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
         ctx.query(self.0)
