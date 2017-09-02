@@ -3,8 +3,8 @@
 use futures::{Future, IntoFuture};
 
 use context::Context;
-use super::combinator::{and_then, map, map_err, or, or_else, skip, then, with, AndThen, Map, MapErr, Or, OrElse, Skip,
-                        Then, With};
+use super::combinator::{and_then, from_err, inspect, map, map_err, or, or_else, skip, then, with, AndThen, FromErr,
+                        Inspect, Map, MapErr, Or, OrElse, Skip, Then, With};
 use super::result::EndpointResult;
 
 
@@ -143,5 +143,23 @@ pub trait Endpoint {
         Fut: IntoFuture,
     {
         then(self, f)
+    }
+
+    #[allow(missing_docs)]
+    fn from_err<T>(self) -> FromErr<Self, T>
+    where
+        Self: Sized,
+        T: From<Self::Error>,
+    {
+        from_err(self)
+    }
+
+    #[allow(missing_docs)]
+    fn inspect<F>(self, f: F) -> Inspect<Self, F>
+    where
+        Self: Sized,
+        F: FnOnce(&Self::Item),
+    {
+        inspect(self, f)
     }
 }

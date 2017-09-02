@@ -11,7 +11,7 @@ documentation = "https://docs.rs/finchers"
 [dependencies]
 error-chain = "~0.10"
 hyper = "~0.11"
-futures = "~0.1"
+futures = "^0.1.15"
 tokio-core = "~0.1"
 tokio-proto = "~0.1"
 tokio-service = "~0.1"
