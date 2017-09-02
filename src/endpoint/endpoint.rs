@@ -73,7 +73,7 @@ pub trait Endpoint {
     fn with<E>(self, e: E) -> With<Self, E>
     where
         Self: Sized,
-        E: Endpoint<Error = Self::Error>,
+        E: Endpoint,
     {
         with(self, e)
     }
@@ -82,7 +82,7 @@ pub trait Endpoint {
     fn skip<E>(self, e: E) -> Skip<Self, E>
     where
         Self: Sized,
-        E: Endpoint<Error = Self::Error>,
+        E: Endpoint,
     {
         skip(self, e)
     }
