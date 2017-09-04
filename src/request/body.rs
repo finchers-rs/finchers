@@ -20,10 +20,9 @@ impl From<hyper::Body> for Body {
     }
 }
 
-impl Body {
-    /// Convert itself into the future of a `Vec<u8>`
-    pub fn into_vec<T: FromBody>(self) -> IntoVec<T> {
-        IntoVec {
+impl<T: FromBody> Into<ParseBody<T>> for Body {
+    fn into(self) -> ParseBody<T> {
+        ParseBody {
             body: self.inner,
             buf: Some(Vec::new()),
             _marker: PhantomData,
@@ -34,15 +33,15 @@ impl Body {
 
 /// The type of a future returned from `Body::into_vec()`
 #[derive(Debug)]
-pub struct IntoVec<T> {
+pub struct ParseBody<T> {
     body: hyper::Body,
     buf: Option<Vec<u8>>,
     _marker: PhantomData<T>,
 }
 
-impl<T: FromBody> Future for IntoVec<T> {
+impl<T: FromBody> Future for ParseBody<T> {
     type Item = T;
-    type Error = IntoVecError<T::Error>;
+    type Error = ParseBodyError<T::Error>;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         while let Some(item) = try_ready!(self.body.poll()) {
@@ -54,20 +53,20 @@ impl<T: FromBody> Future for IntoVec<T> {
         let buf = self.buf.take().expect("The buffer has been already taken");
         T::from_body(buf)
             .map(Into::into)
-            .map_err(IntoVecError::Parse)
+            .map_err(ParseBodyError::Parse)
     }
 }
 
 #[allow(missing_docs)]
 #[derive(Debug)]
-pub enum IntoVecError<E> {
+pub enum ParseBodyError<E> {
     Hyper(hyper::Error),
     Parse(E),
 }
 
-impl<T> From<hyper::Error> for IntoVecError<T> {
+impl<T> From<hyper::Error> for ParseBodyError<T> {
     fn from(err: hyper::Error) -> Self {
-        IntoVecError::Hyper(err)
+        ParseBodyError::Hyper(err)
     }
 }
 
