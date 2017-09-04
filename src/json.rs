@@ -4,7 +4,6 @@ use hyper::mime::APPLICATION_JSON;
 use serde::{Deserialize, Serialize};
 use serde_json::{self, Value};
 
-use errors::*;
 use request::{FromBody, Request};
 use response::{Responder, Response};
 
@@ -37,7 +36,7 @@ impl<T> FromBody for Json<T>
 where
     for<'de> T: Deserialize<'de>,
 {
-    type Error = FinchersError;
+    type Error = serde_json::Error;
 
     fn check_request(req: &Request) -> bool {
         match req.header() {
@@ -47,10 +46,7 @@ where
     }
 
     fn from_body(body: Vec<u8>) -> Result<Self, Self::Error> {
-        match serde_json::from_slice(&body) {
-            Ok(val) => Ok(Json(val)),
-            Err(_) => Err(FinchersErrorKind::BadRequest.into()),
-        }
+        serde_json::from_slice(&body).map(Json)
     }
 }
 

@@ -1,12 +1,12 @@
 use std::marker::PhantomData;
+use std::string::FromUtf8Error;
 use futures::{Future, Poll, Stream};
 use hyper;
 use hyper::header::ContentType;
 use hyper::mime::{TEXT_PLAIN_UTF_8, APPLICATION_OCTET_STREAM};
 
-use errors::{FinchersError, FinchersErrorKind};
 use super::request::Request;
-
+use util::NoReturn;
 
 /// The instance of request body.
 #[derive(Default, Debug)]
@@ -86,7 +86,7 @@ pub trait FromBody: Sized {
 
 
 impl FromBody for Vec<u8> {
-    type Error = FinchersError;
+    type Error = NoReturn;
 
     fn check_request(req: &Request) -> bool {
         match req.header() {
@@ -101,7 +101,7 @@ impl FromBody for Vec<u8> {
 }
 
 impl FromBody for String {
-    type Error = FinchersError;
+    type Error = FromUtf8Error;
 
     fn check_request(req: &Request) -> bool {
         match req.header() {
@@ -111,6 +111,6 @@ impl FromBody for String {
     }
 
     fn from_body(body: Vec<u8>) -> Result<Self, Self::Error> {
-        String::from_utf8(body).map_err(|_| FinchersErrorKind::BadRequest.into())
+        String::from_utf8(body)
     }
 }
