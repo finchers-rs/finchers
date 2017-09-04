@@ -1,10 +1,10 @@
+use std::marker::PhantomData;
 use futures::{Future, Poll, Stream};
-use futures::future::{ok, AndThen, Flatten, FutureResult};
 use hyper;
 use hyper::header::ContentType;
 use hyper::mime::{TEXT_PLAIN_UTF_8, APPLICATION_OCTET_STREAM};
 
-use errors::{FinchersError, FinchersErrorKind, FinchersResult};
+use errors::{FinchersError, FinchersErrorKind};
 use super::request::Request;
 
 
@@ -22,10 +22,14 @@ impl From<hyper::Body> for Body {
 
 impl Body {
     /// Convert itself into the future of a `Vec<u8>`
-    pub fn into_vec(self) -> IntoVec {
+    pub fn into_vec<T>(self) -> IntoVec<T>
+    where
+        T: FromBody<Error = FinchersError>,
+    {
         IntoVec {
             body: self.inner,
             buf: Some(Vec::new()),
+            _marker: PhantomData,
         }
     }
 }
@@ -43,12 +47,13 @@ impl Stream for Body {
 
 /// The type of a future returned from `Body::into_vec()`
 #[derive(Debug)]
-pub struct IntoVec {
+pub struct IntoVec<T> {
     body: hyper::Body,
     buf: Option<Vec<u8>>,
+    _marker: PhantomData<T>,
 }
 
-impl IntoVec {
+impl<T> IntoVec<T> {
     fn poll_body(&mut self) -> Poll<Option<hyper::Chunk>, FinchersError> {
         self.body
             .poll()
@@ -56,8 +61,11 @@ impl IntoVec {
     }
 }
 
-impl Future for IntoVec {
-    type Item = Vec<u8>;
+impl<T> Future for IntoVec<T>
+where
+    T: FromBody<Error = FinchersError>,
+{
+    type Item = T;
     type Error = FinchersError;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
@@ -68,7 +76,7 @@ impl Future for IntoVec {
         }
 
         let buf = self.buf.take().expect("The buffer has been already taken");
-        Ok(buf.into())
+        T::from_body(buf).map(Into::into)
     }
 }
 
@@ -78,20 +86,16 @@ pub trait FromBody: Sized {
     #[allow(missing_docs)]
     type Error;
 
-    /// A future returned from `from_body()`
-    type Future: Future<Item = Self, Error = Self::Error>;
-
     #[allow(missing_docs)]
     fn check_request(req: &Request) -> bool;
 
     /// Convert the content of `body` to its type
-    fn from_body(body: Body) -> Self::Future;
+    fn from_body(body: Vec<u8>) -> Result<Self, Self::Error>;
 }
 
 
 impl FromBody for Vec<u8> {
     type Error = FinchersError;
-    type Future = Flatten<FutureResult<IntoVec, FinchersError>>;
 
     fn check_request(req: &Request) -> bool {
         match req.header() {
@@ -100,16 +104,13 @@ impl FromBody for Vec<u8> {
         }
     }
 
-    fn from_body(body: Body) -> Self::Future {
-        ok(body.into_vec()).flatten()
+    fn from_body(body: Vec<u8>) -> Result<Self, Self::Error> {
+        Ok(body)
     }
 }
 
 impl FromBody for String {
     type Error = FinchersError;
-    type Future = Flatten<
-        FutureResult<AndThen<IntoVec, FinchersResult<String>, fn(Vec<u8>) -> FinchersResult<String>>, FinchersError>,
-    >;
 
     fn check_request(req: &Request) -> bool {
         match req.header() {
@@ -118,10 +119,7 @@ impl FromBody for String {
         }
     }
 
-    fn from_body(body: Body) -> Self::Future {
-        ok(body.into_vec().and_then(
-            (|body| String::from_utf8(body).map_err(|_| FinchersErrorKind::BadRequest.into())) as
-                fn(Vec<u8>) -> FinchersResult<String>,
-        )).flatten()
+    fn from_body(body: Vec<u8>) -> Result<Self, Self::Error> {
+        String::from_utf8(body).map_err(|_| FinchersErrorKind::BadRequest.into())
     }
 }

@@ -4,8 +4,9 @@ use std::marker::PhantomData;
 use serde::de::DeserializeOwned;
 
 use context::Context;
+use errors::FinchersError;
 use endpoint::{Endpoint, EndpointError, EndpointResult};
-use request::FromBody;
+use request::{FromBody, IntoVec};
 use json::Json;
 
 
@@ -21,10 +22,13 @@ impl<T> Clone for Body<T> {
 
 impl<T> Copy for Body<T> {}
 
-impl<T: FromBody> Endpoint for Body<T> {
+impl<T> Endpoint for Body<T>
+where
+    T: FromBody<Error = FinchersError>,
+{
     type Item = T;
-    type Error = T::Error;
-    type Future = T::Future;
+    type Error = FinchersError;
+    type Future = IntoVec<T>;
 
     fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
         if !T::check_request(ctx.request()) {
@@ -32,7 +36,7 @@ impl<T: FromBody> Endpoint for Body<T> {
         }
         ctx.take_body()
             .ok_or_else(|| EndpointError::EmptyBody)
-            .map(T::from_body)
+            .map(|body| body.into_vec::<T>())
     }
 }
 
