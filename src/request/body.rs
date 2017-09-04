@@ -22,10 +22,7 @@ impl From<hyper::Body> for Body {
 
 impl Body {
     /// Convert itself into the future of a `Vec<u8>`
-    pub fn into_vec<T>(self) -> IntoVec<T>
-    where
-        T: FromBody<Error = FinchersError>,
-    {
+    pub fn into_vec<T: FromBody>(self) -> IntoVec<T> {
         IntoVec {
             body: self.inner,
             buf: Some(Vec::new()),
@@ -53,30 +50,34 @@ pub struct IntoVec<T> {
     _marker: PhantomData<T>,
 }
 
-impl<T> IntoVec<T> {
-    fn poll_body(&mut self) -> Poll<Option<hyper::Chunk>, FinchersError> {
-        self.body
-            .poll()
-            .map_err(|err| FinchersErrorKind::ServerError(Box::new(err)).into())
-    }
-}
-
-impl<T> Future for IntoVec<T>
-where
-    T: FromBody<Error = FinchersError>,
-{
+impl<T: FromBody> Future for IntoVec<T> {
     type Item = T;
-    type Error = FinchersError;
+    type Error = IntoVecError<T::Error>;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        while let Some(item) = try_ready!(self.poll_body()) {
+        while let Some(item) = try_ready!(self.body.poll()) {
             if let Some(buf) = self.buf.as_mut() {
                 buf.extend_from_slice(&item);
             }
         }
 
         let buf = self.buf.take().expect("The buffer has been already taken");
-        T::from_body(buf).map(Into::into)
+        T::from_body(buf)
+            .map(Into::into)
+            .map_err(IntoVecError::Parse)
+    }
+}
+
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub enum IntoVecError<E> {
+    Hyper(hyper::Error),
+    Parse(E),
+}
+
+impl<T> From<hyper::Error> for IntoVecError<T> {
+    fn from(err: hyper::Error) -> Self {
+        IntoVecError::Hyper(err)
     }
 }
 
