@@ -1,11 +1,19 @@
 //! Definitions and reexports of incoming HTTP requests
 
 mod body;
+mod from_body;
+mod parse_body;
 mod request;
 
 
 #[doc(inline)]
-pub use self::body::{Body, FromBody, ParseBody, ParseBodyError};
+pub use self::body::Body;
+
+#[doc(inline)]
+pub use self::from_body::FromBody;
+
+#[doc(inline)]
+pub use self::parse_body::{ParseBody, ParseBodyError};
 
 #[doc(inline)]
 pub use self::request::Request;
