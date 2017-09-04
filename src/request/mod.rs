@@ -5,7 +5,7 @@ mod request;
 
 
 #[doc(inline)]
-pub use self::body::{Body, FromBody, IntoVec};
+pub use self::body::{Body, FromBody, ParseBody, ParseBodyError};
 
 #[doc(inline)]
 pub use self::request::Request;

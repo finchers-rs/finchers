@@ -5,7 +5,7 @@ use serde::de::DeserializeOwned;
 
 use context::Context;
 use endpoint::{Endpoint, EndpointError, EndpointResult};
-use request::FromBody;
+use request::{FromBody, ParseBody, ParseBodyError};
 use json::Json;
 
 
@@ -23,13 +23,16 @@ impl<T> Copy for Body<T> {}
 
 impl<T: FromBody> Endpoint for Body<T> {
     type Item = T;
-    type Error = T::Error;
-    type Future = T::Future;
+    type Error = ParseBodyError<T::Error>;
+    type Future = ParseBody<T>;
 
     fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
+        if !T::check_request(ctx.request()) {
+            return Err(EndpointError::Skipped);
+        }
         ctx.take_body()
             .ok_or_else(|| EndpointError::EmptyBody)
-            .map(|body| T::from_body(body, ctx.request()))
+            .map(Into::into)
     }
 }
 
