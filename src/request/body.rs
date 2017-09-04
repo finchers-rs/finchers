@@ -31,16 +31,6 @@ impl Body {
     }
 }
 
-impl Stream for Body {
-    type Item = hyper::Chunk;
-    type Error = FinchersError;
-
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
-        self.inner
-            .poll()
-            .map_err(|err| FinchersErrorKind::ServerError(Box::new(err)).into())
-    }
-}
 
 /// The type of a future returned from `Body::into_vec()`
 #[derive(Debug)]
