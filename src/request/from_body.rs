@@ -1,5 +1,5 @@
 use std::string::FromUtf8Error;
-use hyper::{header, mime};
+use hyper::mime;
 use util::NoReturn;
 use super::Request;
 
@@ -20,10 +20,8 @@ impl FromBody for Vec<u8> {
     type Error = NoReturn;
 
     fn check_request(req: &Request) -> bool {
-        match req.header() {
-            Some(&header::ContentType(ref mime)) if *mime == mime::APPLICATION_OCTET_STREAM => true,
-            _ => false,
-        }
+        req.media_type()
+            .map_or(false, |m| *m == mime::APPLICATION_OCTET_STREAM)
     }
 
     fn from_body(body: Vec<u8>) -> Result<Self, Self::Error> {
@@ -35,10 +33,8 @@ impl FromBody for String {
     type Error = FromUtf8Error;
 
     fn check_request(req: &Request) -> bool {
-        match req.header() {
-            Some(&header::ContentType(ref mime)) if *mime == mime::TEXT_PLAIN_UTF_8 => true,
-            _ => false,
-        }
+        req.media_type()
+            .map_or(false, |m| *m == mime::TEXT_PLAIN_UTF_8)
     }
 
     fn from_body(body: Vec<u8>) -> Result<Self, Self::Error> {

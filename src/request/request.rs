@@ -1,5 +1,6 @@
 use hyper::{Headers, Method, Uri};
-use hyper::header::Header;
+use hyper::header::{self, Header};
+use hyper::mime::Mime;
 use hyper::error::UriError;
 
 
@@ -39,5 +40,10 @@ impl Request {
     /// Return the reference of the header of HTTP request
     pub fn header<H: Header>(&self) -> Option<&H> {
         self.headers.get::<H>()
+    }
+
+    #[allow(missing_docs)]
+    pub fn media_type(&self) -> Option<&Mime> {
+        self.header().map(|&header::ContentType(ref m)| m)
     }
 }

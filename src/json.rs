@@ -1,6 +1,6 @@
 use std::ops::{Deref, DerefMut};
 use hyper::header::{ContentLength, ContentType};
-use hyper::mime::APPLICATION_JSON;
+use hyper::mime;
 use serde::{Deserialize, Serialize};
 use serde_json::{self, Value};
 
@@ -39,10 +39,8 @@ where
     type Error = serde_json::Error;
 
     fn check_request(req: &Request) -> bool {
-        match req.header() {
-            Some(&ContentType(ref mime)) if *mime == APPLICATION_JSON => true,
-            _ => false,
-        }
+        req.media_type()
+            .map_or(false, |m| *m == mime::APPLICATION_JSON)
     }
 
     fn from_body(body: Vec<u8>) -> Result<Self, Self::Error> {
