@@ -1,5 +1,5 @@
 use futures::{Future, Poll, Stream};
-use futures::future::{err, ok, AndThen, Flatten, FutureResult};
+use futures::future::{ok, AndThen, Flatten, FutureResult};
 use hyper;
 use hyper::header::ContentType;
 use hyper::mime::{TEXT_PLAIN_UTF_8, APPLICATION_OCTET_STREAM};
@@ -81,8 +81,11 @@ pub trait FromBody: Sized {
     /// A future returned from `from_body()`
     type Future: Future<Item = Self, Error = Self::Error>;
 
+    #[allow(missing_docs)]
+    fn check_request(req: &Request) -> bool;
+
     /// Convert the content of `body` to its type
-    fn from_body(body: Body, req: &Request) -> Self::Future;
+    fn from_body(body: Body) -> Self::Future;
 }
 
 
@@ -90,12 +93,14 @@ impl FromBody for Vec<u8> {
     type Error = FinchersError;
     type Future = Flatten<FutureResult<IntoVec, FinchersError>>;
 
-    fn from_body(body: Body, req: &Request) -> Self::Future {
+    fn check_request(req: &Request) -> bool {
         match req.header() {
-            Some(&ContentType(ref mime)) if *mime == APPLICATION_OCTET_STREAM => (),
-            _ => return err(FinchersErrorKind::BadRequest.into()).flatten(),
+            Some(&ContentType(ref mime)) if *mime == APPLICATION_OCTET_STREAM => true,
+            _ => false,
         }
+    }
 
+    fn from_body(body: Body) -> Self::Future {
         ok(body.into_vec()).flatten()
     }
 }
@@ -106,12 +111,14 @@ impl FromBody for String {
         FutureResult<AndThen<IntoVec, FinchersResult<String>, fn(Vec<u8>) -> FinchersResult<String>>, FinchersError>,
     >;
 
-    fn from_body(body: Body, req: &Request) -> Self::Future {
+    fn check_request(req: &Request) -> bool {
         match req.header() {
-            Some(&ContentType(ref mime)) if *mime == TEXT_PLAIN_UTF_8 => (),
-            _ => return err(FinchersErrorKind::BadRequest.into()).flatten(),
+            Some(&ContentType(ref mime)) if *mime == TEXT_PLAIN_UTF_8 => true,
+            _ => false,
         }
+    }
 
+    fn from_body(body: Body) -> Self::Future {
         ok(body.into_vec().and_then(
             (|body| String::from_utf8(body).map_err(|_| FinchersErrorKind::BadRequest.into())) as
                 fn(Vec<u8>) -> FinchersResult<String>,

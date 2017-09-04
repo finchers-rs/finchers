@@ -1,6 +1,6 @@
 use std::ops::{Deref, DerefMut};
 use futures::Future;
-use futures::future::{err, ok, AndThen, Flatten, FutureResult};
+use futures::future::{ok, AndThen, Flatten, FutureResult};
 use hyper::header::{ContentLength, ContentType};
 use hyper::mime::APPLICATION_JSON;
 use serde::{Deserialize, Serialize};
@@ -44,11 +44,14 @@ where
         FutureResult<AndThen<IntoVec, FinchersResult<Json<T>>, fn(Vec<u8>) -> FinchersResult<Json<T>>>, FinchersError>,
     >;
 
-    fn from_body(body: Body, req: &Request) -> Self::Future {
+    fn check_request(req: &Request) -> bool {
         match req.header() {
-            Some(&ContentType(ref mime)) if *mime == APPLICATION_JSON => (),
-            _ => return err(FinchersErrorKind::BadRequest.into()).flatten(),
+            Some(&ContentType(ref mime)) if *mime == APPLICATION_JSON => true,
+            _ => false,
         }
+    }
+
+    fn from_body(body: Body) -> Self::Future {
         ok(body.into_vec().and_then(
             (|body| match serde_json::from_slice(&body) {
                 Ok(val) => Ok(Json(val)),

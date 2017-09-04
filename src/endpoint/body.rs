@@ -27,9 +27,12 @@ impl<T: FromBody> Endpoint for Body<T> {
     type Future = T::Future;
 
     fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
+        if !T::check_request(ctx.request()) {
+            return Err(EndpointError::Skipped);
+        }
         ctx.take_body()
             .ok_or_else(|| EndpointError::EmptyBody)
-            .map(|body| T::from_body(body, ctx.request()))
+            .map(T::from_body)
     }
 }
 
