@@ -9,7 +9,6 @@ repository = "https://github.com/finchers-rs/finchers.git"
 documentation = "https://docs.rs/finchers"
 
 [dependencies]
-error-chain = "~0.10"
 hyper = "~0.11"
 futures = "^0.1.15"
 tokio-core = "~0.1"
