@@ -123,11 +123,17 @@ pub fn path_vec<T: FromPath>() -> PathVec<T> {
 }
 
 
-/// Represents the conversion from a path segment
-pub trait FromPath: Sized {
+#[allow(missing_docs)]
+pub trait PathExt: FromPath {
     /// equivalent to `path::<Self>()`
     const PATH: Path<Self> = Path(PhantomData);
+}
 
+impl<T: FromPath> PathExt for T {}
+
+
+/// Represents the conversion from a path segment
+pub trait FromPath: Sized {
     /// Try to convert a `str` to itself
     fn from_path(s: &str) -> Option<Self>;
 }

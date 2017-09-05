@@ -1,7 +1,7 @@
 extern crate finchers;
 
 use finchers::{Endpoint, Json};
-use finchers::endpoint::{query, FromPath};
+use finchers::endpoint::{query, PathExt};
 use finchers::endpoint::method::get;
 use finchers::server::Server;
 
