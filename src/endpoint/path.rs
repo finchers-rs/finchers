@@ -63,7 +63,7 @@ impl<T: FromParam> Endpoint for Path<T> {
     type Future = FutureResult<Self::Item, Self::Error>;
 
     fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
-        let value = match ctx.next_segment().and_then(T::from_path) {
+        let value = match ctx.next_segment().and_then(|s| T::from_param(s).ok()) {
             Some(val) => val,
             _ => return Err(EndpointError::TypeMismatch),
         };

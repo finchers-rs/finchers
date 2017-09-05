@@ -1,14 +1,21 @@
+use std::str::FromStr;
+
 /// Represents the conversion from a path segment
 pub trait FromParam: Sized {
+    /// The error type of `from_param()`
+    type Error;
+
     /// Try to convert a `str` to itself
-    fn from_path(s: &str) -> Option<Self>;
+    fn from_param(s: &str) -> Result<Self, Self::Error>;
 }
 
 macro_rules! impl_from_param {
     ($($t:ty),*) => {$(
         impl FromParam for $t {
-            fn from_path(s: &str) -> Option<Self> {
-                s.parse().ok()
+            type Error = <$t as FromStr>::Err;
+
+            fn from_param(s: &str) -> Result<Self, Self::Error> {
+                s.parse()
             }
         }
     )*}

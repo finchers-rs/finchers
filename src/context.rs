@@ -82,7 +82,7 @@ impl<'r, 'b> Context<'r, 'b> {
     {
         self.routes
             .take()
-            .map(|routes| routes.map(|s| T::from_path(s)).collect())
+            .map(|routes| routes.map(|s| T::from_param(s).ok()).collect())
     }
 
     /// Return the first value of the query parameter whose name is `name`, if exists
