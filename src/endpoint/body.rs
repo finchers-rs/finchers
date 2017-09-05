@@ -5,7 +5,7 @@ use serde::de::DeserializeOwned;
 
 use context::Context;
 use endpoint::{Endpoint, EndpointError, EndpointResult};
-use request::{FromBody, ParseBody, ParseBodyError};
+use request::{Form, FromBody, FromForm, ParseBody, ParseBodyError};
 use json::Json;
 
 
@@ -44,5 +44,10 @@ pub fn body<T: FromBody>() -> Body<T> {
 
 /// Equivalent to `body::<Json<T>>()`
 pub fn json_body<T: DeserializeOwned>() -> Body<Json<T>> {
+    Body(PhantomData)
+}
+
+/// Equivalent to `body::<Form<T>>()`
+pub fn form_body<T: FromForm>() -> Body<Form<T>> {
     Body(PhantomData)
 }

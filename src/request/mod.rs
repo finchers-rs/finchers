@@ -1,6 +1,7 @@
 //! Definitions and reexports of incoming HTTP requests
 
 mod body;
+mod form;
 mod from_body;
 mod parse_body;
 mod request;
@@ -8,6 +9,9 @@ mod request;
 
 #[doc(inline)]
 pub use self::body::Body;
+
+#[doc(inline)]
+pub use self::form::{Form, FormParseError, FromForm};
 
 #[doc(inline)]
 pub use self::from_body::FromBody;
