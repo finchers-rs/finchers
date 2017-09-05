@@ -3,7 +3,6 @@
 use std::borrow::Cow;
 use std::iter::FromIterator;
 use std::marker::PhantomData;
-use std::str::FromStr;
 use futures::future::{ok, FutureResult};
 
 use context::Context;
@@ -72,7 +71,7 @@ impl<T: FromPath> Endpoint for Path<T> {
 }
 
 /// Create an endpoint which represents a path element
-pub fn path<T: FromStr>() -> Path<T> {
+pub fn path<T: FromPath>() -> Path<T> {
     Path(PhantomData)
 }
 
