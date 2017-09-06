@@ -5,8 +5,7 @@ use url::form_urlencoded;
 use std::iter::FromIterator;
 use std::slice::Iter;
 
-use request::{Body, Request};
-use endpoint::path::FromPath;
+use request::{Body, FromParam, Request};
 
 
 #[doc(hidden)]
@@ -79,11 +78,11 @@ impl<'r, 'b> Context<'r, 'b> {
     pub fn collect_remaining_segments<I, T>(&mut self) -> Option<Option<I>>
     where
         I: FromIterator<T>,
-        T: FromPath,
+        T: FromParam,
     {
         self.routes
             .take()
-            .map(|routes| routes.map(|s| T::from_path(s)).collect())
+            .map(|routes| routes.map(|s| T::from_param(s).ok()).collect())
     }
 
     /// Return the first value of the query parameter whose name is `name`, if exists

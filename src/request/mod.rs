@@ -3,6 +3,7 @@
 mod body;
 mod form;
 mod from_body;
+mod from_param;
 mod parse_body;
 mod request;
 
@@ -15,6 +16,9 @@ pub use self::form::{Form, FormParseError, FromForm};
 
 #[doc(inline)]
 pub use self::from_body::FromBody;
+
+#[doc(inline)]
+pub use self::from_param::FromParam;
 
 #[doc(inline)]
 pub use self::parse_body::{ParseBody, ParseBodyError};

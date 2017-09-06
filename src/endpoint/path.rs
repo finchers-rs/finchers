@@ -3,11 +3,11 @@
 use std::borrow::Cow;
 use std::iter::FromIterator;
 use std::marker::PhantomData;
-use std::str::FromStr;
 use futures::future::{ok, FutureResult};
 
 use context::Context;
 use endpoint::{Endpoint, EndpointError, EndpointResult};
+use request::FromParam;
 use util::NoReturn;
 
 
@@ -57,13 +57,13 @@ impl<T> Clone for Path<T> {
 
 impl<T> Copy for Path<T> {}
 
-impl<T: FromPath> Endpoint for Path<T> {
+impl<T: FromParam> Endpoint for Path<T> {
     type Item = T;
     type Error = NoReturn;
     type Future = FutureResult<Self::Item, Self::Error>;
 
     fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
-        let value = match ctx.next_segment().and_then(T::from_path) {
+        let value = match ctx.next_segment().and_then(|s| T::from_param(s).ok()) {
             Some(val) => val,
             _ => return Err(EndpointError::TypeMismatch),
         };
@@ -72,7 +72,7 @@ impl<T: FromPath> Endpoint for Path<T> {
 }
 
 /// Create an endpoint which represents a path element
-pub fn path<T: FromStr>() -> Path<T> {
+pub fn path<T: FromParam>() -> Path<T> {
     Path(PhantomData)
 }
 
@@ -92,7 +92,7 @@ impl<I, T> Copy for PathSeq<I, T> {}
 impl<I, T> Endpoint for PathSeq<I, T>
 where
     I: FromIterator<T> + Default,
-    T: FromPath,
+    T: FromParam,
 {
     type Item = I;
     type Error = NoReturn;
@@ -110,7 +110,7 @@ where
 pub fn path_seq<I, T>() -> PathSeq<I, T>
 where
     I: FromIterator<T>,
-    T: FromPath,
+    T: FromParam,
 {
     PathSeq(PhantomData)
 }
@@ -119,42 +119,15 @@ where
 pub type PathVec<T> = PathSeq<Vec<T>, T>;
 
 /// Equivalent to `path_seq<Vec<T>, T>()`
-pub fn path_vec<T: FromPath>() -> PathVec<T> {
+pub fn path_vec<T: FromParam>() -> PathVec<T> {
     PathSeq(PhantomData)
 }
 
 
-/// Represents the conversion from a path segment
-pub trait FromPath: Sized {
+#[allow(missing_docs)]
+pub trait PathExt: FromParam {
     /// equivalent to `path::<Self>()`
     const PATH: Path<Self> = Path(PhantomData);
-
-    /// Try to convert a `str` to itself
-    fn from_path(s: &str) -> Option<Self>;
 }
 
-macro_rules! impl_from_path {
-    ($($t:ty),*) => {$(
-        impl FromPath for $t {
-            fn from_path(s: &str) -> Option<Self> {
-                s.parse().ok()
-            }
-        }
-    )*}
-}
-
-impl_from_path!(
-    i8,
-    u8,
-    i16,
-    u16,
-    i32,
-    u32,
-    i64,
-    u64,
-    isize,
-    usize,
-    f32,
-    f64,
-    String
-);
+impl<T: FromParam> PathExt for T {}

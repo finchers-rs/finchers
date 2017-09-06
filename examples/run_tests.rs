@@ -1,7 +1,7 @@
 extern crate finchers;
 
 use finchers::Endpoint;
-use finchers::endpoint::{EndpointError, FromPath};
+use finchers::endpoint::{EndpointError, PathExt};
 use finchers::endpoint::method::get;
 use finchers::test::{run_test, TestCase};
 
