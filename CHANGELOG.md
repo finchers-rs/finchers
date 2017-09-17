@@ -1,3 +1,35 @@
+<a name="0.5.0"></a>
+## 0.5.0 (2017-09-17)
+
+
+#### Bug Fixes
+
+*   modify `FromParam` ([4b1c940e](https://github.com/ubnt-intrepid/finchers/commit/4b1c940e6ced0268bb90450febfad2c97b92265e))
+*   move definition of associated constant to `PathExt` ([72d3c9e4](https://github.com/ubnt-intrepid/finchers/commit/72d3c9e46dd124e35fb3372e0e7633b68968b960), breaks [#](https://github.com/ubnt-intrepid/finchers/issues/))
+*   remove the associated type `FromBody::Future` ([4ee58c13](https://github.com/ubnt-intrepid/finchers/commit/4ee58c13886499fc005101dd11e47165f76f0c39), breaks [#](https://github.com/ubnt-intrepid/finchers/issues/))
+*   add a trait method `FromBody::check_request()` ([7c50c450](https://github.com/ubnt-intrepid/finchers/commit/7c50c4507113feb041488080e20c59ed2e78dd10), breaks [#](https://github.com/ubnt-intrepid/finchers/issues/))
+*   define `FromPath` ([51a155b3](https://github.com/ubnt-intrepid/finchers/commit/51a155b338150349919b5b89399ab0e074d5ca70))
+*   remove constants from `endpoint::path`, and replace them with the associated const `PathConst::PATH` ([576a5ab6](https://github.com/ubnt-intrepid/finchers/commit/576a5ab6322f0e85c56b9e7e89a8979988ab72f6))
+*   use `NoReturn` instead of `FinchersError` ([dfb4d4bc](https://github.com/ubnt-intrepid/finchers/commit/dfb4d4bc9f959ff1f48ef18ba171fc1412c0fba3))
+*   remove unnecessary constraints from `With` and `Skip` ([8b71bf00](https://github.com/ubnt-intrepid/finchers/commit/8b71bf003d838fd561a86c14268096967e1a05d6))
+*   change trait bound of `Server::run_http()` ([50223aac](https://github.com/ubnt-intrepid/finchers/commit/50223aaca99ffcd55b2986401a85e660dbd4689e), breaks [#](https://github.com/ubnt-intrepid/finchers/issues/))
+*   update example ([da30d6dd](https://github.com/ubnt-intrepid/finchers/commit/da30d6dde855fe593c60440f9110afb047a9a35d))
+*   add the associated type constraint to `Endpoint::or` ([7aef7bba](https://github.com/ubnt-intrepid/finchers/commit/7aef7bba568c27dd00b0e3a2f12c263ae310d3f2), breaks [#](https://github.com/ubnt-intrepid/finchers/issues/))
+
+#### Features
+
+*   add `Form` and helpers ([d7458d52](https://github.com/ubnt-intrepid/finchers/commit/d7458d52f09981d8f95cc3a939b3e76b5369a7cf))
+
+#### Breaking Changes
+
+*   move definition of associated constant to `PathExt` ([72d3c9e4](https://github.com/ubnt-intrepid/finchers/commit/72d3c9e46dd124e35fb3372e0e7633b68968b960), breaks [#](https://github.com/ubnt-intrepid/finchers/issues/))
+*   remove the associated type `FromBody::Future` ([4ee58c13](https://github.com/ubnt-intrepid/finchers/commit/4ee58c13886499fc005101dd11e47165f76f0c39), breaks [#](https://github.com/ubnt-intrepid/finchers/issues/))
+*   add a trait method `FromBody::check_request()` ([7c50c450](https://github.com/ubnt-intrepid/finchers/commit/7c50c4507113feb041488080e20c59ed2e78dd10), breaks [#](https://github.com/ubnt-intrepid/finchers/issues/))
+*   change trait bound of `Server::run_http()` ([50223aac](https://github.com/ubnt-intrepid/finchers/commit/50223aaca99ffcd55b2986401a85e660dbd4689e), breaks [#](https://github.com/ubnt-intrepid/finchers/issues/))
+*   add the associated type constraint to `Endpoint::or` ([7aef7bba](https://github.com/ubnt-intrepid/finchers/commit/7aef7bba568c27dd00b0e3a2f12c263ae310d3f2), breaks [#](https://github.com/ubnt-intrepid/finchers/issues/))
+
+
+
 <a name="0.4.0"></a>
 ## 0.4.0 (2017-08-26)
 
