@@ -113,7 +113,7 @@ where
 #[derive(Debug)]
 pub struct Server<E> {
     endpoint: E,
-    addr: Option<&'static str>,
+    addr: Option<String>,
     num_workers: Option<usize>,
 }
 
@@ -128,8 +128,8 @@ impl<E: NewEndpoint> Server<E> {
     }
 
     /// Set the listener address of the service
-    pub fn bind(mut self, addr: &'static str) -> Self {
-        self.addr = Some(addr);
+    pub fn bind<S: Into<String>>(mut self, addr: S) -> Self {
+        self.addr = Some(addr.into());
         self
     }
 
@@ -149,7 +149,7 @@ where
     /// Start a HTTP server
     pub fn run_http(self) {
         let endpoint = Arc::new(self.endpoint);
-        let addr = self.addr.unwrap_or("0.0.0.0:4000").parse().unwrap();
+        let addr = self.addr.unwrap_or("0.0.0.0:4000".into()).parse().unwrap();
         let num_workers = self.num_workers.unwrap_or(1);
 
         for _ in 0..(num_workers - 1) {
