@@ -1,3 +1,13 @@
+<a name="0.5.1"></a>
+### 0.5.1 (2017-12-07)
+
+
+#### Bug Fixes
+
+* **server:**  change the type of `Server::addr` from `&'static str` to `String` ([6c13abb0](https://github.com/ubnt-intrepid/finchers/commit/6c13abb02bf6602d8ae5228f90b2465dfd2318d9))
+
+
+
 <a name="0.5.0"></a>
 ## 0.5.0 (2017-09-17)
 
