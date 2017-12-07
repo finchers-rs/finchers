@@ -1,4 +1,4 @@
 [clog]
-repository = "https://github.com/ubnt-intrepid/finchers"
+repository = "https://github.com/finchers-rs/finchers"
 changelog = "CHANGELOG.md"
 from-latest-tag = true
