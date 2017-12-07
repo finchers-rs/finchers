@@ -24,6 +24,8 @@ mod benches {
         let core = Core::new().unwrap();
         let handle = core.handle();
 
-        b.iter(|| { let _ = endpoint.new_endpoint(&handle); });
+        b.iter(|| {
+            let _ = endpoint.new_endpoint(&handle);
+        });
     }
 }

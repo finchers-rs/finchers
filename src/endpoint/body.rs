@@ -1,12 +1,10 @@
 //! Definition of endpoints to parse request body
 
 use std::marker::PhantomData;
-use serde::de::DeserializeOwned;
 
 use context::Context;
 use endpoint::{Endpoint, EndpointError, EndpointResult};
-use request::{Form, FromBody, FromForm, ParseBody, ParseBodyError};
-use json::Json;
+use request::{FromBody, ParseBody, ParseBodyError};
 
 
 #[allow(missing_docs)]
@@ -39,15 +37,5 @@ impl<T: FromBody> Endpoint for Body<T> {
 
 /// Create an endpoint, represents the value of a request body
 pub fn body<T: FromBody>() -> Body<T> {
-    Body(PhantomData)
-}
-
-/// Equivalent to `body::<Json<T>>()`
-pub fn json_body<T: DeserializeOwned>() -> Body<Json<T>> {
-    Body(PhantomData)
-}
-
-/// Equivalent to `body::<Form<T>>()`
-pub fn form_body<T: FromForm>() -> Body<Form<T>> {
     Body(PhantomData)
 }
