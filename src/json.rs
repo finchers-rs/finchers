@@ -30,11 +30,9 @@ impl<T: Serialize> Responder for Json<T> {
     fn respond(self) -> Result<Response, Self::Error> {
         let body = serde_json::to_vec(&self.0)?;
         let len = body.len();
-        Ok(
-            Response::new()
-                .with_header(header::ContentType::json())
-                .with_header(header::ContentLength(len as u64))
-                .with_body(body),
-        )
+        Ok(Response::new()
+            .with_header(header::ContentType::json())
+            .with_header(header::ContentLength(len as u64))
+            .with_body(body))
     }
 }

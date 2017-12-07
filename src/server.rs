@@ -154,7 +154,9 @@ where
 
         for _ in 0..(num_workers - 1) {
             let endpoint = endpoint.clone();
-            thread::spawn(move || { serve(endpoint, num_workers, &addr); });
+            thread::spawn(move || {
+                serve(endpoint, num_workers, &addr);
+            });
         }
         serve(endpoint.clone(), num_workers, &addr);
     }

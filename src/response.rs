@@ -44,11 +44,9 @@ impl Responder for () {
     type Error = NoReturn;
 
     fn respond(self) -> Result<Response, Self::Error> {
-        Ok(
-            Response::new()
-                .with_status(StatusCode::NoContent)
-                .with_header(header::ContentLength(0)),
-        )
+        Ok(Response::new()
+            .with_status(StatusCode::NoContent)
+            .with_header(header::ContentLength(0)))
     }
 }
 
@@ -56,12 +54,10 @@ impl Responder for &'static str {
     type Error = NoReturn;
 
     fn respond(self) -> Result<Response, Self::Error> {
-        Ok(
-            Response::new()
-                .with_header(header::ContentType::plaintext())
-                .with_header(header::ContentLength(self.as_bytes().len() as u64))
-                .with_body(self),
-        )
+        Ok(Response::new()
+            .with_header(header::ContentType::plaintext())
+            .with_header(header::ContentLength(self.as_bytes().len() as u64))
+            .with_body(self))
     }
 }
 
@@ -69,12 +65,10 @@ impl Responder for String {
     type Error = NoReturn;
 
     fn respond(self) -> Result<Response, Self::Error> {
-        Ok(
-            Response::new()
-                .with_header(header::ContentType::plaintext())
-                .with_header(header::ContentLength(self.as_bytes().len() as u64))
-                .with_body(self),
-        )
+        Ok(Response::new()
+            .with_header(header::ContentType::plaintext())
+            .with_header(header::ContentLength(self.as_bytes().len() as u64))
+            .with_body(self))
     }
 }
 
