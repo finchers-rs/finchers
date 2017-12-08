@@ -3,7 +3,11 @@ use endpoint::{Endpoint, EndpointResult};
 
 
 /// Equivalent to `e1.with(e2)`
-pub fn with<E1, E2>(e1: E1, e2: E2) -> With<E1, E2> {
+pub fn with<E1, E2, E>(e1: E1, e2: E2) -> With<E1, E2>
+where
+    E1: Endpoint<Error = E>,
+    E2: Endpoint<Error = E>,
+{
     With { e1, e2 }
 }
 
