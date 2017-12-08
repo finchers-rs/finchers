@@ -1,8 +1,17 @@
-use hyper::{header, mime};
-use serde::ser::Serialize;
-use serde::de::DeserializeOwned;
-use serde_json::{self, Value};
+//!
+//! JSON support (parsing/responder) based on serde_json
+//!
 
+extern crate serde;
+extern crate serde_json;
+
+pub use self::serde_json::{Error, Value};
+
+use hyper::{header, mime};
+use self::serde::ser::Serialize;
+use self::serde::de::DeserializeOwned;
+
+use endpoint::body::{body, Body};
 use request::{FromBody, Request};
 use response::{Responder, Response};
 
@@ -12,7 +21,7 @@ use response::{Responder, Response};
 pub struct Json<T = Value>(pub T);
 
 impl<T: DeserializeOwned> FromBody for Json<T> {
-    type Error = serde_json::Error;
+    type Error = Error;
 
     fn check_request(req: &Request) -> bool {
         req.media_type()
@@ -25,7 +34,7 @@ impl<T: DeserializeOwned> FromBody for Json<T> {
 }
 
 impl<T: Serialize> Responder for Json<T> {
-    type Error = serde_json::Error;
+    type Error = Error;
 
     fn respond(self) -> Result<Response, Self::Error> {
         let body = serde_json::to_vec(&self.0)?;
@@ -35,4 +44,9 @@ impl<T: Serialize> Responder for Json<T> {
             .with_header(header::ContentLength(len as u64))
             .with_body(body))
     }
+}
+
+/// Create an endpoint with parsing JSON body
+pub fn json_body<T: DeserializeOwned>() -> Body<Json<T>> {
+    body::<Json<T>>()
 }

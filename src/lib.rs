@@ -8,8 +8,6 @@
 extern crate futures;
 extern crate hyper;
 extern crate net2;
-extern crate serde;
-extern crate serde_json;
 extern crate tokio_core;
 extern crate tokio_proto;
 extern crate tokio_service;
@@ -23,7 +21,9 @@ pub mod test;
 pub mod util;
 
 mod context;
-mod json;
+
+#[deprecated(since = "0.6.0", note = "use finchers-json instead")]
+pub mod json;
 
 
 pub use context::Context;
@@ -39,6 +39,3 @@ pub use response::{Responder, Response};
 
 #[doc(inline)]
 pub use server::Server;
-
-#[doc(inline)]
-pub use json::Json;

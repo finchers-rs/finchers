@@ -6,13 +6,14 @@ extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 
-use finchers::{Endpoint, Json};
+use finchers::Endpoint;
 use finchers::endpoint::method::{delete, get, post, put};
-use finchers::endpoint::{json_body, PathExt};
+use finchers::endpoint::PathExt;
 use finchers::response::{Created, Responder, Response};
 use finchers::server::Server;
 use finchers::util::NoReturn;
 use finchers::util::either::Either6;
+use finchers::json::{json_body, Json};
 use hyper::StatusCode;
 
 
@@ -119,15 +120,21 @@ fn main() {
         let get_todos = get(todos()).map(|()| Json(todo::list()));
 
         // DELETE /todos/:id
-        let delete_todo = delete(todos_id()).map(|id| { todo::delete(id); });
+        let delete_todo = delete(todos_id()).map(|id| {
+            todo::delete(id);
+        });
 
         // DELETE /todos
-        let delete_todos = delete(todos()).map(|()| { todo::clear(); });
+        let delete_todos = delete(todos()).map(|()| {
+            todo::clear();
+        });
 
         // PUT /todos/:id
         let put_todo = put(todos_id())
             .join(json_body::<Todo>().map_err(|_| ApiError::ParseBody))
-            .map(|(id, Json(new_todo))| { todo::set(id, new_todo); });
+            .map(|(id, Json(new_todo))| {
+                todo::set(id, new_todo);
+            });
 
         // POST /todos
         let post_todo = post(todos())

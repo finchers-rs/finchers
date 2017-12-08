@@ -3,9 +3,10 @@ extern crate num_cpus;
 #[macro_use]
 extern crate serde_derive;
 
-use finchers::{Endpoint, Json};
+use finchers::Endpoint;
 use finchers::endpoint::method::get;
 use finchers::server::Server;
+use finchers::json::Json;
 use finchers::util::either::Either2;
 
 #[derive(Serialize)]
