@@ -11,37 +11,27 @@ use request::FromParam;
 use util::NoReturn;
 
 
-impl<'a> Endpoint for &'a str {
+#[allow(missing_docs)]
+#[derive(Debug, Clone)]
+pub struct PathSegment<'a>(Cow<'a, str>);
+
+impl<'a> Endpoint for PathSegment<'a> {
     type Item = ();
     type Error = NoReturn;
     type Future = FutureResult<Self::Item, Self::Error>;
 
     fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
-        if !ctx.next_segment().map(|s| s == self).unwrap_or(false) {
+        if !ctx.next_segment().map(|s| s == self.0).unwrap_or(false) {
             return Err(EndpointError::Skipped);
         }
         Ok(ok(()))
     }
 }
 
-impl Endpoint for String {
-    type Item = ();
-    type Error = NoReturn;
-    type Future = FutureResult<Self::Item, Self::Error>;
-
-    fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
-        (&self as &str).apply(ctx)
-    }
-}
-
-impl<'a> Endpoint for Cow<'a, str> {
-    type Item = ();
-    type Error = NoReturn;
-    type Future = FutureResult<Self::Item, Self::Error>;
-
-    fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
-        (&*self as &str).apply(ctx)
-    }
+/// Create an endpoint which represents a path segment
+#[inline(always)]
+pub fn segment<'a, T: 'a + Into<Cow<'a, str>>>(segment: T) -> PathSegment<'a> {
+    PathSegment(segment.into())
 }
 
 
@@ -49,13 +39,13 @@ impl<'a> Endpoint for Cow<'a, str> {
 #[derive(Debug)]
 pub struct Path<T>(PhantomData<fn(T) -> T>);
 
+impl<T> Copy for Path<T> {}
+
 impl<T> Clone for Path<T> {
     fn clone(&self) -> Path<T> {
-        Path(PhantomData)
+        *self
     }
 }
-
-impl<T> Copy for Path<T> {}
 
 impl<T: FromParam> Endpoint for Path<T> {
     type Item = T;

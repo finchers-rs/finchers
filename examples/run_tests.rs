@@ -1,12 +1,12 @@
 extern crate finchers;
 
 use finchers::Endpoint;
-use finchers::endpoint::{EndpointError, PathExt};
+use finchers::endpoint::{segment, EndpointError, PathExt};
 use finchers::endpoint::method::get;
 use finchers::test::{run_test, TestCase};
 
 fn main() {
-    let endpoint = || get("foo".with("bar").with(u64::PATH));
+    let endpoint = || get(segment("foo").with(segment("bar")).with(u64::PATH));
 
     let input = TestCase::get("/foo/bar/42");
     let output = run_test(endpoint(), input);

@@ -1,14 +1,14 @@
 extern crate finchers;
 
 use finchers::Endpoint;
-use finchers::endpoint::{query, PathExt};
+use finchers::endpoint::{query, segment, PathExt};
 use finchers::endpoint::method::get;
 use finchers::json::Json;
 use finchers::server::Server;
 
 fn main() {
     let endpoint = |_: &_| {
-        get("hello".with(String::PATH))
+        get(segment("hello").with(String::PATH))
             .join(query::<String>("foo"))
             .map(|(name, foo)| Json(format!("Hello, {}, {}", name, foo)))
     };
