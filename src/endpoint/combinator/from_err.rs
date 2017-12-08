@@ -7,7 +7,11 @@ use context::Context;
 use endpoint::{Endpoint, EndpointResult};
 
 
-pub fn from_err<E, T>(endpoint: E) -> FromErr<E, T> {
+pub fn from_err<E, T>(endpoint: E) -> FromErr<E, T>
+where
+    E: Endpoint,
+    T: From<E::Error>,
+{
     FromErr {
         endpoint,
         _marker: PhantomData,

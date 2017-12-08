@@ -3,7 +3,11 @@ use endpoint::{Endpoint, EndpointResult};
 
 
 /// Equivalent to `e1.skip(e2)`
-pub fn skip<E1, E2>(e1: E1, e2: E2) -> Skip<E1, E2> {
+pub fn skip<E1, E2, E>(e1: E1, e2: E2) -> Skip<E1, E2>
+where
+    E1: Endpoint<Error = E>,
+    E2: Endpoint<Error = E>,
+{
     Skip { e1, e2 }
 }
 
@@ -14,10 +18,10 @@ pub struct Skip<E1, E2> {
     e2: E2,
 }
 
-impl<E1, E2> Endpoint for Skip<E1, E2>
+impl<E1, E2, E> Endpoint for Skip<E1, E2>
 where
-    E1: Endpoint,
-    E2: Endpoint,
+    E1: Endpoint<Error = E>,
+    E2: Endpoint<Error = E>,
 {
     type Item = E1::Item;
     type Error = E1::Error;

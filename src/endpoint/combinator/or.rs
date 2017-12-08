@@ -6,7 +6,11 @@ use util::either::Either2;
 
 
 /// Equivalent to `e1.or(e2)`
-pub fn or<E1, E2>(e1: E1, e2: E2) -> Or<E1, E2> {
+pub fn or<E1, E2, T, E>(e1: E1, e2: E2) -> Or<E1, E2>
+where
+    E1: Endpoint<Item = T, Error = E>,
+    E2: Endpoint<Item = T, Error = E>,
+{
     Or { e1, e2 }
 }
 

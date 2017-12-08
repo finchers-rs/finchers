@@ -6,7 +6,11 @@ use context::Context;
 use endpoint::{Endpoint, EndpointResult};
 
 
-pub fn inspect<E, F>(endpoint: E, f: F) -> Inspect<E, F> {
+pub fn inspect<E, F>(endpoint: E, f: F) -> Inspect<E, F>
+where
+    E: Endpoint,
+    F: FnOnce(&E::Item),
+{
     Inspect { endpoint, f }
 }
 
