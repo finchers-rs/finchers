@@ -75,14 +75,14 @@ impl<'r, 'b> Context<'r, 'b> {
     }
 
     /// Collect and return the remaining path segments, if available
-    pub fn collect_remaining_segments<I, T>(&mut self) -> Option<Option<I>>
+    pub fn collect_remaining_segments<I, T>(&mut self) -> Option<Result<I, T::Error>>
     where
         I: FromIterator<T>,
         T: FromParam,
     {
         self.routes
             .take()
-            .map(|routes| routes.map(|s| T::from_param(s).ok()).collect())
+            .map(|routes| routes.map(|s| T::from_param(s)).collect())
     }
 
     /// Return the first value of the query parameter whose name is `name`, if exists

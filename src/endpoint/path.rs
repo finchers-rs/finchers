@@ -63,11 +63,10 @@ impl<T: FromParam> Endpoint for Path<T> {
     type Future = FutureResult<Self::Item, Self::Error>;
 
     fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
-        let value = match ctx.next_segment().and_then(|s| T::from_param(s).ok()) {
-            Some(val) => val,
+        match ctx.next_segment().map(|s| T::from_param(s)) {
+            Some(Ok(value)) => Ok(ok(value)),
             _ => return Err(EndpointError::TypeMismatch),
-        };
-        Ok(ok(value))
+        }
     }
 }
 
@@ -99,10 +98,11 @@ where
     type Future = FutureResult<Self::Item, Self::Error>;
 
     fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
-        ctx.collect_remaining_segments()
-            .unwrap_or_else(|| Some(Default::default()))
-            .map(ok)
-            .ok_or(EndpointError::TypeMismatch)
+        match ctx.collect_remaining_segments() {
+            Some(Ok(seq)) => Ok(ok(seq)),
+            Some(Err(_)) => Err(EndpointError::TypeMismatch),
+            None => Ok(ok(Default::default())),
+        }
     }
 }
 
