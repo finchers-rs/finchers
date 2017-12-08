@@ -85,6 +85,11 @@ impl<'r, 'b> Context<'r, 'b> {
             .map(|routes| routes.map(|s| T::from_param(s)).collect())
     }
 
+    /// Count the length of remaining path segments
+    pub fn count_remaining_segments(&mut self) -> usize {
+        self.routes.take().map_or(0, |routes| routes.count())
+    }
+
     /// Return the first value of the query parameter whose name is `name`, if exists
     pub fn query<S: AsRef<str>>(&self, name: S) -> Option<&str> {
         self.inner

@@ -16,6 +16,9 @@ impl<E: Endpoint> Endpoint for MatchMethod<E> {
 
     fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
         let f = self.1.apply(ctx)?;
+        if ctx.count_remaining_segments() > 0 {
+            return Err(EndpointError::Skipped);
+        }
         if *ctx.request().method() != self.0 {
             return Err(EndpointError::InvalidMethod);
         }
