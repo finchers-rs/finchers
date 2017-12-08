@@ -31,4 +31,5 @@ pub use self::header::{header, header_opt};
 pub use self::query::{query, query_opt};
 
 #[doc(inline)]
-pub use self::path::{path, path_seq, path_vec, segment, PathExt};
+#[allow(deprecated)]
+pub use self::path::{param, params, segment, PathExt};

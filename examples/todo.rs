@@ -7,7 +7,7 @@ extern crate serde;
 extern crate serde_derive;
 
 use finchers::Endpoint;
-use finchers::endpoint::path::{segment, PathExt};
+use finchers::endpoint::path::{param, segment};
 use finchers::endpoint::method::{delete, get, post, put};
 use finchers::response::{Created, Responder, Response};
 use finchers::server::Server;
@@ -111,7 +111,11 @@ fn main() {
         use todo::{NewTodo, Todo};
 
         let todos = || segment("todos").map_err(|_| ApiError::Unknown);
-        let todos_id = || segment("todos").with(u64::PATH).map_err(|_| ApiError::Unknown);
+        let todos_id = || {
+            segment("todos")
+                .with(param::<u64>())
+                .map_err(|_| ApiError::Unknown)
+        };
 
         // GET /todos/:id
         let get_todo = get(todos_id()).map(|id| Json(todo::get(id)));

@@ -37,17 +37,17 @@ pub fn segment<'a, T: 'a + Into<Cow<'a, str>>>(segment: T) -> PathSegment<'a> {
 
 #[allow(missing_docs)]
 #[derive(Debug)]
-pub struct Path<T>(PhantomData<fn(T) -> T>);
+pub struct PathParam<T>(PhantomData<fn() -> T>);
 
-impl<T> Copy for Path<T> {}
+impl<T> Copy for PathParam<T> {}
 
-impl<T> Clone for Path<T> {
-    fn clone(&self) -> Path<T> {
+impl<T> Clone for PathParam<T> {
+    fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<T: FromParam> Endpoint for Path<T> {
+impl<T: FromParam> Endpoint for PathParam<T> {
     type Item = T;
     type Error = NoReturn;
     type Future = FutureResult<Self::Item, Self::Error>;
@@ -61,24 +61,25 @@ impl<T: FromParam> Endpoint for Path<T> {
 }
 
 /// Create an endpoint which represents a path element
-pub fn path<T: FromParam>() -> Path<T> {
-    Path(PhantomData)
+pub fn param<T: FromParam>() -> PathParam<T> {
+    PathParam(PhantomData)
 }
 
 
 #[allow(missing_docs)]
 #[derive(Debug)]
-pub struct PathSeq<I, T>(PhantomData<fn() -> (I, T)>);
+pub struct PathParams<I, T>(PhantomData<fn() -> (I, T)>);
 
-impl<I, T> Clone for PathSeq<I, T> {
-    fn clone(&self) -> PathSeq<I, T> {
-        PathSeq(PhantomData)
+impl<I, T> Copy for PathParams<I, T> {}
+
+impl<I, T> Clone for PathParams<I, T> {
+    fn clone(&self) -> Self {
+        *self
     }
 }
 
-impl<I, T> Copy for PathSeq<I, T> {}
 
-impl<I, T> Endpoint for PathSeq<I, T>
+impl<I, T> Endpoint for PathParams<I, T>
 where
     I: FromIterator<T> + Default,
     T: FromParam,
@@ -97,27 +98,21 @@ where
 }
 
 /// Create an endpoint which represents the sequence of remaining path elements
-pub fn path_seq<I, T>() -> PathSeq<I, T>
+pub fn params<I, T>() -> PathParams<I, T>
 where
     I: FromIterator<T>,
     T: FromParam,
 {
-    PathSeq(PhantomData)
-}
-
-#[allow(missing_docs)]
-pub type PathVec<T> = PathSeq<Vec<T>, T>;
-
-/// Equivalent to `path_seq<Vec<T>, T>()`
-pub fn path_vec<T: FromParam>() -> PathVec<T> {
-    PathSeq(PhantomData)
+    PathParams(PhantomData)
 }
 
 
 #[allow(missing_docs)]
+#[deprecated(since = "0.6.0", note = "use param::<T>() instead")]
 pub trait PathExt: FromParam {
     /// equivalent to `path::<Self>()`
-    const PATH: Path<Self> = Path(PhantomData);
+    const PATH: PathParam<Self> = PathParam(PhantomData);
 }
 
+#[allow(deprecated)]
 impl<T: FromParam> PathExt for T {}
