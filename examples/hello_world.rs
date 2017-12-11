@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 extern crate finchers;
 
 use finchers::Endpoint;
@@ -8,8 +10,8 @@ use finchers::server::Server;
 
 fn main() {
     let endpoint = |_: &_| {
-        get(segment("hello").with(param::<String>()))
-            .join(query::<String>("foo"))
+        get(segment("hello").with(param::<String, ()>()))
+            .join(query::<String, ()>("foo"))
             .map(|(name, foo)| Json(format!("Hello, {}, {}", name, foo)))
     };
 

@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 extern crate finchers;
 extern crate num_cpus;
 #[macro_use]
@@ -17,7 +19,7 @@ struct Message {
 
 fn main() {
     let endpoint = |_: &_| {
-        let json = get(segment("json")).map(|_| {
+        let json = get(segment::<_, ()>("json")).map(|_| {
             Json(Message {
                 message: "Hello, World!",
             })

@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 extern crate finchers;
 extern crate hyper;
 #[macro_use]
@@ -91,7 +93,6 @@ mod todo {
 
 enum ApiError {
     ParseBody,
-    Unknown,
 }
 
 impl Responder for ApiError {
@@ -100,7 +101,6 @@ impl Responder for ApiError {
         use ApiError::*;
         match self {
             ParseBody => Ok(Response::new().with_status(StatusCode::BadRequest)),
-            Unknown => unreachable!(),
         }
     }
 }
@@ -110,12 +110,8 @@ fn main() {
     let endpoint = |_: &_| {
         use todo::{NewTodo, Todo};
 
-        let todos = || segment("todos").map_err(|_| ApiError::Unknown);
-        let todos_id = || {
-            segment("todos")
-                .with(param::<u64>())
-                .map_err(|_| ApiError::Unknown)
-        };
+        let todos = || segment("todos");
+        let todos_id = || segment("todos").with(param::<u64, ApiError>());
 
         // GET /todos/:id
         let get_todo = get(todos_id()).map(|id| Json(todo::get(id)));

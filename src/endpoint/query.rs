@@ -6,24 +6,23 @@ use futures::future::{ok, FutureResult};
 
 use context::Context;
 use endpoint::{Endpoint, EndpointError, EndpointResult};
-use util::NoReturn;
 
 
 #[allow(missing_docs)]
 #[derive(Debug)]
-pub struct Query<T>(&'static str, PhantomData<fn(T) -> T>);
+pub struct Query<T, E>(&'static str, PhantomData<fn() -> (T, E)>);
 
-impl<T> Clone for Query<T> {
+impl<T, E> Clone for Query<T, E> {
     fn clone(&self) -> Self {
-        Query(self.0, PhantomData)
+        *self
     }
 }
 
-impl<T> Copy for Query<T> {}
+impl<T, E> Copy for Query<T, E> {}
 
-impl<T: FromStr> Endpoint for Query<T> {
+impl<T: FromStr, E> Endpoint for Query<T, E> {
     type Item = T;
-    type Error = NoReturn;
+    type Error = E;
     type Future = FutureResult<Self::Item, Self::Error>;
 
     fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
@@ -35,26 +34,26 @@ impl<T: FromStr> Endpoint for Query<T> {
 }
 
 /// Create an endpoint matches a query parameter named `name`
-pub fn query<T: FromStr>(name: &'static str) -> Query<T> {
+pub fn query<T: FromStr, E>(name: &'static str) -> Query<T, E> {
     Query(name, PhantomData)
 }
 
 
 #[allow(missing_docs)]
 #[derive(Debug)]
-pub struct QueryOpt<T>(&'static str, PhantomData<fn(T) -> T>);
+pub struct QueryOpt<T, E>(&'static str, PhantomData<fn() -> (T, E)>);
 
-impl<T> Clone for QueryOpt<T> {
-    fn clone(&self) -> QueryOpt<T> {
-        QueryOpt(self.0, PhantomData)
+impl<T, E> Clone for QueryOpt<T, E> {
+    fn clone(&self) -> Self {
+        *self
     }
 }
 
-impl<T> Copy for QueryOpt<T> {}
+impl<T, E> Copy for QueryOpt<T, E> {}
 
-impl<T: FromStr> Endpoint for QueryOpt<T> {
+impl<T: FromStr, E> Endpoint for QueryOpt<T, E> {
     type Item = Option<T>;
-    type Error = NoReturn;
+    type Error = E;
     type Future = FutureResult<Self::Item, Self::Error>;
 
     fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
@@ -66,6 +65,6 @@ impl<T: FromStr> Endpoint for QueryOpt<T> {
 }
 
 /// Create an endpoint matches a query parameter, which the value may not exist
-pub fn query_opt<T: FromStr>(name: &'static str) -> QueryOpt<T> {
+pub fn query_opt<T: FromStr, E>(name: &'static str) -> QueryOpt<T, E> {
     QueryOpt(name, PhantomData)
 }
