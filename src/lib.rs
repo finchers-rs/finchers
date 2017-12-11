@@ -22,10 +22,6 @@ pub mod util;
 
 mod context;
 
-#[deprecated(since = "0.6.0", note = "use finchers-json instead")]
-pub mod json;
-
-
 pub use context::Context;
 
 #[doc(inline)]
