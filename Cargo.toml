@@ -1,6 +1,6 @@
 [package]
 name = "finchers"
-version = "0.5.1"
+version = "0.6.0"
 description = "A combinator library for builidng HTTP services, based on Hyper and Futures"
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 license = "MIT/Apache-2.0"

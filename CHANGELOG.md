@@ -1,3 +1,34 @@
+<a name="0.6.0"></a>
+## 0.6.0 (2017-12-11)
+
+
+#### Features
+
+* **endpoint:**
+  *  add a method 'with_type' ([7d3e4cec](https://github.com/finchers-rs/finchers/commit/7d3e4cecc366c600e6fef04583eeb134d00e018f))
+  *  make the error type of some endpoints generic ([43229e02](https://github.com/finchers-rs/finchers/commit/43229e02bc4aa2d25e4633b6f3e1e3f1d775e7b1), breaks [#](https://github.com/finchers-rs/finchers/issues/))
+  *  rename `Path` and `PathSeq` to `PathParam` and `PathParams`, and so on ([1facb7d9](https://github.com/finchers-rs/finchers/commit/1facb7d9cb1d10e2daafa508f68b7faa50bc947e), breaks [#](https://github.com/finchers-rs/finchers/issues/))
+  *  add missing trait bounds ([caf35bad](https://github.com/finchers-rs/finchers/commit/caf35bad6a75ffc2ac9438582823777898017391))
+* **path:**  add a new endpoint `PathSegment` to represents the matcher of a path segment ([f6c59a74](https://github.com/finchers-rs/finchers/commit/f6c59a742d86d6b7627fcf371776b35414eac67c), breaks [#](https://github.com/finchers-rs/finchers/issues/))
+
+#### Bug Fixes
+
+* **context:**  change return type of collect_ramaining_segments() ([f9bfbb23](https://github.com/finchers-rs/finchers/commit/f9bfbb236884f4099152d6128bf551d84b43d865))
+* **endpoint:**  ensure that the length of remaining path segments be equal to zero, in `MatchMethod` ([1aad4a35](https://github.com/finchers-rs/finchers/commit/1aad4a353641ac426d229f79dbc77cdb939014da))
+* **json:**  make the support for JSON parsing/responder deprecated ([a605da89](https://github.com/finchers-rs/finchers/commit/a605da8933659c602a2e793e6520c9e1d9a76776), breaks [#](https://github.com/finchers-rs/finchers/issues/))
+
+#### Breaking Changes
+
+* **endpoint:**
+  *  make the error type of some endpoints generic ([43229e02](https://github.com/finchers-rs/finchers/commit/43229e02bc4aa2d25e4633b6f3e1e3f1d775e7b1), breaks [#](https://github.com/finchers-rs/finchers/issues/))
+  *  rename `Path` and `PathSeq` to `PathParam` and `PathParams`, and so on ([1facb7d9](https://github.com/finchers-rs/finchers/commit/1facb7d9cb1d10e2daafa508f68b7faa50bc947e), breaks [#](https://github.com/finchers-rs/finchers/issues/))
+* **json:**
+  *  make the support for JSON parsing/responder deprecated ([a605da89](https://github.com/finchers-rs/finchers/commit/a605da8933659c602a2e793e6520c9e1d9a76776), breaks [#](https://github.com/finchers-rs/finchers/issues/))
+  * the JSON parsing/responder has been moved to `finchers_json` ([21d44294](https://github.com/finchers-rs/finchers/commit/21d44294f136794ee03f9401f53db69af15debfb))
+* **path:**  add a new endpoint `PathSegment` to represents the matcher of a path segment ([f6c59a74](https://github.com/finchers-rs/finchers/commit/f6c59a742d86d6b7627fcf371776b35414eac67c), breaks [#](https://github.com/finchers-rs/finchers/issues/))
+
+
+
 <a name="0.5.1"></a>
 ### 0.5.1 (2017-12-07)
 
