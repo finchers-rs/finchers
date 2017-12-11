@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 extern crate finchers;
 extern crate num_cpus;
 #[macro_use]
@@ -25,7 +27,9 @@ fn main() {
 
         let plaintext = get(segment("plaintext")).map(|_| "Hello, World!");
 
-        (json.map(Either2::E1)).or(plaintext.map(Either2::E2))
+        (json.map(Either2::E1))
+            .or(plaintext.map(Either2::E2))
+            .with_type::<_, ()>()
     };
 
     Server::new(endpoint)

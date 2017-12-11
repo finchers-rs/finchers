@@ -6,7 +6,7 @@ use finchers::endpoint::method::get;
 use finchers::test::{run_test, TestCase};
 
 fn main() {
-    let endpoint = || get(segment("foo").with(segment("bar")).with(param::<u64>()));
+    let endpoint = || get(segment("foo").with(segment("bar")).with(param::<u64, ()>()));
 
     let input = TestCase::get("/foo/bar/42");
     let output = run_test(endpoint(), input);

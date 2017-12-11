@@ -162,4 +162,13 @@ pub trait Endpoint {
     {
         inspect(self, f)
     }
+
+    #[allow(missing_docs)]
+    #[inline]
+    fn with_type<T, E>(self) -> Self
+    where
+        Self: Sized + Endpoint<Item = T, Error = E>,
+    {
+        self
+    }
 }

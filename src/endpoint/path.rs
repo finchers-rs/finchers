@@ -8,16 +8,15 @@ use futures::future::{ok, FutureResult};
 use context::Context;
 use endpoint::{Endpoint, EndpointError, EndpointResult};
 use request::FromParam;
-use util::NoReturn;
 
 
 #[allow(missing_docs)]
 #[derive(Debug, Clone)]
-pub struct PathSegment<'a>(Cow<'a, str>);
+pub struct PathSegment<'a, E>(Cow<'a, str>, PhantomData<fn() -> E>);
 
-impl<'a> Endpoint for PathSegment<'a> {
+impl<'a, E> Endpoint for PathSegment<'a, E> {
     type Item = ();
-    type Error = NoReturn;
+    type Error = E;
     type Future = FutureResult<Self::Item, Self::Error>;
 
     fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
@@ -30,26 +29,26 @@ impl<'a> Endpoint for PathSegment<'a> {
 
 /// Create an endpoint which represents a path segment
 #[inline(always)]
-pub fn segment<'a, T: 'a + Into<Cow<'a, str>>>(segment: T) -> PathSegment<'a> {
-    PathSegment(segment.into())
+pub fn segment<'a, T: 'a + Into<Cow<'a, str>>, E>(segment: T) -> PathSegment<'a, E> {
+    PathSegment(segment.into(), PhantomData)
 }
 
 
 #[allow(missing_docs)]
 #[derive(Debug)]
-pub struct PathParam<T>(PhantomData<fn() -> T>);
+pub struct PathParam<T, E>(PhantomData<fn() -> (T, E)>);
 
-impl<T> Copy for PathParam<T> {}
+impl<T, E> Copy for PathParam<T, E> {}
 
-impl<T> Clone for PathParam<T> {
+impl<T, E> Clone for PathParam<T, E> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<T: FromParam> Endpoint for PathParam<T> {
+impl<T: FromParam, E> Endpoint for PathParam<T, E> {
     type Item = T;
-    type Error = NoReturn;
+    type Error = E;
     type Future = FutureResult<Self::Item, Self::Error>;
 
     fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
@@ -61,31 +60,31 @@ impl<T: FromParam> Endpoint for PathParam<T> {
 }
 
 /// Create an endpoint which represents a path element
-pub fn param<T: FromParam>() -> PathParam<T> {
+pub fn param<T: FromParam, E>() -> PathParam<T, E> {
     PathParam(PhantomData)
 }
 
 
 #[allow(missing_docs)]
 #[derive(Debug)]
-pub struct PathParams<I, T>(PhantomData<fn() -> (I, T)>);
+pub struct PathParams<I, T, E>(PhantomData<fn() -> (I, T, E)>);
 
-impl<I, T> Copy for PathParams<I, T> {}
+impl<I, T, E> Copy for PathParams<I, T, E> {}
 
-impl<I, T> Clone for PathParams<I, T> {
+impl<I, T, E> Clone for PathParams<I, T, E> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
 
-impl<I, T> Endpoint for PathParams<I, T>
+impl<I, T, E> Endpoint for PathParams<I, T, E>
 where
     I: FromIterator<T> + Default,
     T: FromParam,
 {
     type Item = I;
-    type Error = NoReturn;
+    type Error = E;
     type Future = FutureResult<Self::Item, Self::Error>;
 
     fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
@@ -98,7 +97,7 @@ where
 }
 
 /// Create an endpoint which represents the sequence of remaining path elements
-pub fn params<I, T>() -> PathParams<I, T>
+pub fn params<I, T, E>() -> PathParams<I, T, E>
 where
     I: FromIterator<T>,
     T: FromParam,
@@ -109,10 +108,10 @@ where
 
 #[allow(missing_docs)]
 #[deprecated(since = "0.6.0", note = "use param::<T>() instead")]
-pub trait PathExt: FromParam {
+pub trait PathExt<E>: FromParam {
     /// equivalent to `path::<Self>()`
-    const PATH: PathParam<Self> = PathParam(PhantomData);
+    const PATH: PathParam<Self, E> = PathParam(PhantomData);
 }
 
 #[allow(deprecated)]
-impl<T: FromParam> PathExt for T {}
+impl<T: FromParam, E> PathExt<E> for T {}

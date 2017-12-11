@@ -6,23 +6,22 @@ use hyper::header::{self, Authorization, ContentType};
 
 use context::Context;
 use endpoint::{Endpoint, EndpointError, EndpointResult};
-use util::NoReturn;
 
 #[allow(missing_docs)]
 #[derive(Debug)]
-pub struct Header<H>(PhantomData<fn(H) -> H>);
+pub struct Header<H, E>(PhantomData<fn() -> (H, E)>);
 
-impl<H> Clone for Header<H> {
-    fn clone(&self) -> Header<H> {
-        Header(PhantomData)
+impl<H, E> Clone for Header<H, E> {
+    fn clone(&self) -> Self {
+        *self
     }
 }
 
-impl<H> Copy for Header<H> {}
+impl<H, E> Copy for Header<H, E> {}
 
-impl<H: header::Header + Clone> Endpoint for Header<H> {
+impl<H: header::Header + Clone, E> Endpoint for Header<H, E> {
     type Item = H;
-    type Error = NoReturn;
+    type Error = E;
     type Future = FutureResult<Self::Item, Self::Error>;
 
     fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
@@ -37,20 +36,20 @@ impl<H: header::Header + Clone> Endpoint for Header<H> {
 
 #[allow(missing_docs)]
 #[derive(Debug)]
-pub struct HeaderOpt<H>(PhantomData<fn() -> H>);
+pub struct HeaderOpt<H, E>(PhantomData<fn() -> (H, E)>);
 
-impl<H> Clone for HeaderOpt<H> {
-    fn clone(&self) -> HeaderOpt<H> {
-        HeaderOpt(PhantomData)
+impl<H, E> Clone for HeaderOpt<H, E> {
+    fn clone(&self) -> Self {
+        *self
     }
 }
 
-impl<H> Copy for HeaderOpt<H> {}
+impl<H, E> Copy for HeaderOpt<H, E> {}
 
 
-impl<H: header::Header + Clone> Endpoint for HeaderOpt<H> {
+impl<H: header::Header + Clone, E> Endpoint for HeaderOpt<H, E> {
     type Item = Option<H>;
-    type Error = NoReturn;
+    type Error = E;
     type Future = FutureResult<Self::Item, Self::Error>;
 
     fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
@@ -60,22 +59,22 @@ impl<H: header::Header + Clone> Endpoint for HeaderOpt<H> {
 
 
 /// Create an endpoint matches the value of a request header
-pub fn header<H: header::Header + Clone>() -> Header<H> {
+pub fn header<H: header::Header + Clone, E>() -> Header<H, E> {
     Header(PhantomData)
 }
 
 /// Create an endpoint matches the value of a request header, which the value may not exist
-pub fn header_opt<H: header::Header + Clone>() -> HeaderOpt<H> {
+pub fn header_opt<H: header::Header + Clone, E>() -> HeaderOpt<H, E> {
     HeaderOpt(PhantomData)
 }
 
 
 /// Equivalent to `header::<Authorization<S>>()`
-pub fn authorization<S: header::Scheme + 'static>() -> Header<Authorization<S>> {
+pub fn authorization<S: header::Scheme + 'static, E>() -> Header<Authorization<S>, E> {
     header()
 }
 
 /// Equivalent to `header::<ContentType>()`
-pub fn content_type() -> Header<ContentType> {
+pub fn content_type<E>() -> Header<ContentType, E> {
     header()
 }
