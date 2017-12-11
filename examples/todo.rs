@@ -108,37 +108,32 @@ impl Responder for ApiError {
 
 fn main() {
     let endpoint = |_: &_| {
-        use todo::{NewTodo, Todo};
-
-        let todos = || segment("todos");
-        let todos_id = || segment("todos").with(param::<u64, ApiError>());
-
         // GET /todos/:id
-        let get_todo = get(todos_id()).map(|id| Json(todo::get(id)));
+        let get_todo = get(segment("todos").with(param())).map(|id: u64| Json(todo::get(id)));
 
         // GET /todos
-        let get_todos = get(todos()).map(|()| Json(todo::list()));
+        let get_todos = get(segment("todos")).map(|()| Json(todo::list()));
 
         // DELETE /todos/:id
-        let delete_todo = delete(todos_id()).map(|id| {
+        let delete_todo = delete(segment("todos").with(param())).map(|id: u64| {
             todo::delete(id);
         });
 
         // DELETE /todos
-        let delete_todos = delete(todos()).map(|()| {
+        let delete_todos = delete(segment("todos")).map(|()| {
             todo::clear();
         });
 
         // PUT /todos/:id
-        let put_todo = put(todos_id())
-            .join(json_body::<Todo>().map_err(|_| ApiError::ParseBody))
-            .map(|(id, Json(new_todo))| {
+        let put_todo = put(segment("todos").with(param()))
+            .join(json_body().map_err(|_| ApiError::ParseBody))
+            .map(|(id, Json(new_todo)): (u64, _)| {
                 todo::set(id, new_todo);
             });
 
         // POST /todos
-        let post_todo = post(todos())
-            .with(json_body::<NewTodo>().map_err(|_| ApiError::ParseBody))
+        let post_todo = post(segment("todos"))
+            .with(json_body().map_err(|_| ApiError::ParseBody))
             .map(|Json(new_todo)| Created(Json(todo::save(new_todo))));
 
         (get_todo.map(Either6::E1))

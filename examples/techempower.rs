@@ -19,7 +19,7 @@ struct Message {
 
 fn main() {
     let endpoint = |_: &_| {
-        let json = get(segment::<_, ()>("json")).map(|_| {
+        let json = get(segment("json")).map(|_| {
             Json(Message {
                 message: "Hello, World!",
             })
@@ -27,7 +27,9 @@ fn main() {
 
         let plaintext = get(segment("plaintext")).map(|_| "Hello, World!");
 
-        (json.map(Either2::E1)).or(plaintext.map(Either2::E2))
+        (json.map(Either2::E1))
+            .or(plaintext.map(Either2::E2))
+            .with_type::<_, ()>()
     };
 
     Server::new(endpoint)
