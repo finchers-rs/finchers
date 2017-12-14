@@ -5,7 +5,7 @@ use futures::future::{ok, FutureResult};
 use hyper::header::{self, Authorization, ContentType};
 
 use context::Context;
-use endpoint::{Endpoint, EndpointError, EndpointResult};
+use endpoint::{Endpoint, EndpointError};
 
 #[allow(missing_docs)]
 #[derive(Debug)]
@@ -24,7 +24,7 @@ impl<H: header::Header + Clone, E> Endpoint for Header<H, E> {
     type Error = E;
     type Future = FutureResult<Self::Item, Self::Error>;
 
-    fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
+    fn apply(&self, ctx: &mut Context) -> Result<Self::Future, EndpointError> {
         ctx.request()
             .header()
             .cloned()
@@ -52,7 +52,7 @@ impl<H: header::Header + Clone, E> Endpoint for HeaderOpt<H, E> {
     type Error = E;
     type Future = FutureResult<Self::Item, Self::Error>;
 
-    fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
+    fn apply(&self, ctx: &mut Context) -> Result<Self::Future, EndpointError> {
         Ok(ok(ctx.request().header().cloned()))
     }
 }

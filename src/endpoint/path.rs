@@ -6,7 +6,7 @@ use std::marker::PhantomData;
 use futures::future::{ok, FutureResult};
 
 use context::Context;
-use endpoint::{Endpoint, EndpointError, EndpointResult};
+use endpoint::{Endpoint, EndpointError};
 use request::FromParam;
 
 
@@ -19,7 +19,7 @@ impl<'a, E> Endpoint for PathSegment<'a, E> {
     type Error = E;
     type Future = FutureResult<Self::Item, Self::Error>;
 
-    fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
+    fn apply(&self, ctx: &mut Context) -> Result<Self::Future, EndpointError> {
         if !ctx.next_segment().map(|s| s == self.0).unwrap_or(false) {
             return Err(EndpointError::Skipped);
         }
@@ -51,7 +51,7 @@ impl<T: FromParam, E> Endpoint for PathParam<T, E> {
     type Error = E;
     type Future = FutureResult<Self::Item, Self::Error>;
 
-    fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
+    fn apply(&self, ctx: &mut Context) -> Result<Self::Future, EndpointError> {
         match ctx.next_segment().map(|s| T::from_param(s)) {
             Some(Ok(value)) => Ok(ok(value)),
             _ => return Err(EndpointError::TypeMismatch),
@@ -87,7 +87,7 @@ where
     type Error = E;
     type Future = FutureResult<Self::Item, Self::Error>;
 
-    fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
+    fn apply(&self, ctx: &mut Context) -> Result<Self::Future, EndpointError> {
         match ctx.collect_remaining_segments() {
             Some(Ok(seq)) => Ok(ok(seq)),
             Some(Err(_)) => Err(EndpointError::TypeMismatch),

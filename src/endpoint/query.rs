@@ -5,7 +5,7 @@ use std::str::FromStr;
 use futures::future::{ok, FutureResult};
 
 use context::Context;
-use endpoint::{Endpoint, EndpointError, EndpointResult};
+use endpoint::{Endpoint, EndpointError};
 
 
 #[allow(missing_docs)]
@@ -25,7 +25,7 @@ impl<T: FromStr, E> Endpoint for Query<T, E> {
     type Error = E;
     type Future = FutureResult<Self::Item, Self::Error>;
 
-    fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
+    fn apply(&self, ctx: &mut Context) -> Result<Self::Future, EndpointError> {
         ctx.query(self.0)
             .ok_or(EndpointError::Skipped)
             .and_then(|s| s.parse().map_err(|_| EndpointError::TypeMismatch))
@@ -56,7 +56,7 @@ impl<T: FromStr, E> Endpoint for QueryOpt<T, E> {
     type Error = E;
     type Future = FutureResult<Self::Item, Self::Error>;
 
-    fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
+    fn apply(&self, ctx: &mut Context) -> Result<Self::Future, EndpointError> {
         ctx.query(self.0)
             .map(|s| s.parse().map_err(|_| EndpointError::TypeMismatch))
             .map_or(Ok(None), |s| s.map(Some))

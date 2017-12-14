@@ -3,7 +3,7 @@
 use std::marker::PhantomData;
 
 use context::Context;
-use endpoint::{Endpoint, EndpointError, EndpointResult};
+use endpoint::{Endpoint, EndpointError};
 use request::{FromBody, ParseBody, ParseBodyError};
 
 
@@ -24,7 +24,7 @@ impl<T: FromBody> Endpoint for Body<T> {
     type Error = ParseBodyError<T::Error>;
     type Future = ParseBody<T>;
 
-    fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
+    fn apply(&self, ctx: &mut Context) -> Result<Self::Future, EndpointError> {
         if !T::check_request(ctx.request()) {
             return Err(EndpointError::Skipped);
         }

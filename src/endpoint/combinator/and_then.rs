@@ -1,41 +1,81 @@
-use futures::{Future, IntoFuture};
-use futures::future;
+use std::marker::PhantomData;
+use std::sync::Arc;
+use futures::{Future, IntoFuture, Poll};
 
 use context::Context;
-use endpoint::{Endpoint, EndpointResult};
+use endpoint::{Endpoint, EndpointError};
+use super::chain::Chain;
 
 
 /// Equivalent to `e.and_then(f)`
-pub fn and_then<E, F, Fut>(endpoint: E, f: F) -> AndThen<E, F>
+pub fn and_then<E, F, R>(endpoint: E, f: F) -> AndThen<E, F, R>
 where
     E: Endpoint,
-    F: FnOnce(E::Item) -> Fut,
-    Fut: IntoFuture<Error = E::Error>,
+    F: Fn(E::Item) -> R,
+    R: IntoFuture<Error = E::Error>,
 {
-    AndThen { endpoint, f }
+    AndThen {
+        endpoint,
+        f: Arc::new(f),
+        _marker: PhantomData,
+    }
 }
 
 
 /// The return type of `and_then()`
 #[derive(Debug)]
-pub struct AndThen<E, F> {
-    endpoint: E,
-    f: F,
-}
-
-impl<E, F, Fut> Endpoint for AndThen<E, F>
+pub struct AndThen<E, F, R>
 where
     E: Endpoint,
-    F: FnOnce(E::Item) -> Fut,
-    Fut: IntoFuture<Error = E::Error>,
+    F: Fn(E::Item) -> R,
+    R: IntoFuture<Error = E::Error>,
 {
-    type Item = Fut::Item;
-    type Error = Fut::Error;
-    type Future = future::AndThen<E::Future, Fut, F>;
+    endpoint: E,
+    f: Arc<F>,
+    _marker: PhantomData<R>,
+}
 
-    fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
-        let AndThen { endpoint, f } = self;
-        let fut = endpoint.apply(ctx)?;
-        Ok(fut.and_then(f))
+impl<E, F, R> Endpoint for AndThen<E, F, R>
+where
+    E: Endpoint,
+    F: Fn(E::Item) -> R,
+    R: IntoFuture<Error = E::Error>,
+{
+    type Item = R::Item;
+    type Error = R::Error;
+    type Future = AndThenFuture<E, F, R>;
+
+    fn apply(&self, ctx: &mut Context) -> Result<Self::Future, EndpointError> {
+        let f = self.endpoint.apply(ctx)?;
+        Ok(AndThenFuture {
+            inner: Chain::new(f, self.f.clone()),
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct AndThenFuture<E, F, R>
+where
+    E: Endpoint,
+    F: Fn(E::Item) -> R,
+    R: IntoFuture<Error = E::Error>,
+{
+    inner: Chain<E::Future, R::Future, Arc<F>>,
+}
+
+impl<E, F, R> Future for AndThenFuture<E, F, R>
+where
+    E: Endpoint,
+    F: Fn(E::Item) -> R,
+    R: IntoFuture<Error = E::Error>,
+{
+    type Item = R::Item;
+    type Error = R::Error;
+
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        self.inner.poll(|result, f| match result {
+            Ok(item) => Ok(Err((*f)(item).into_future())),
+            Err(err) => Err(err),
+        })
     }
 }

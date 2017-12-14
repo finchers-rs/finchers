@@ -14,7 +14,7 @@ use tokio_core::reactor::{Core, Handle};
 use tokio_service::Service;
 
 use context::{Context, RequestInfo};
-use endpoint::{Endpoint, EndpointError, EndpointResult, NewEndpoint};
+use endpoint::{Endpoint, EndpointError};
 use request;
 use response::Responder;
 
@@ -22,13 +22,13 @@ use response::Responder;
 /// A wrapper of a `NewEndpoint`, to provide hyper's HTTP services
 #[derive(Debug, Clone)]
 pub struct EndpointService<E> {
-    endpoint: E,
+    endpoint: Arc<E>,
     handle: Handle,
 }
 
 impl<E> Service for EndpointService<E>
 where
-    E: NewEndpoint,
+    E: Endpoint,
     E::Item: Responder,
     E::Error: Responder,
 {
@@ -52,17 +52,16 @@ where
 
 impl<E> EndpointService<E>
 where
-    E: NewEndpoint,
+    E: Endpoint,
     E::Item: Responder,
     E::Error: Responder,
 {
-    fn apply_endpoint(&self, req: &RequestInfo) -> EndpointResult<E::Future> {
+    fn apply_endpoint(&self, req: &RequestInfo) -> Result<E::Future, EndpointError> {
         // Create the instance of `Context` from the reference of `RequestInfo`.
         let mut ctx = Context::from(req);
 
         // Create a new endpoint from the inner factory. and evaluate it.
-        let endpoint = self.endpoint.new_endpoint(&self.handle);
-        let mut result = endpoint.apply(&mut ctx);
+        let mut result = self.endpoint.apply(&mut ctx);
 
         // check if the remaining path segments are exist.
         if ctx.next_segment().is_some() {
@@ -117,7 +116,7 @@ pub struct Server<E> {
     num_workers: Option<usize>,
 }
 
-impl<E: NewEndpoint> Server<E> {
+impl<E: Endpoint> Server<E> {
     /// Create a new instance of `Server` from a `NewEndpoint`
     pub fn new(endpoint: E) -> Self {
         Self {
@@ -142,7 +141,7 @@ impl<E: NewEndpoint> Server<E> {
 
 impl<E> Server<E>
 where
-    E: NewEndpoint + Send + Sync + 'static,
+    E: Endpoint + Send + Sync + 'static,
     E::Item: Responder,
     E::Error: Responder,
 {
@@ -162,9 +161,9 @@ where
     }
 }
 
-fn serve<E>(endpoint: E, num_workers: usize, addr: &SocketAddr)
+fn serve<E>(endpoint: Arc<E>, num_workers: usize, addr: &SocketAddr)
 where
-    E: NewEndpoint + Clone + 'static,
+    E: Endpoint + 'static,
     E::Item: Responder,
     E::Error: Responder,
 {

@@ -1,11 +1,40 @@
 //! Definition of `Endpoint`
 
+use std::rc::Rc;
+use std::sync::Arc;
 use futures::{Future, IntoFuture};
+use hyper::StatusCode;
 
 use context::Context;
-use super::combinator::{and_then, from_err, inspect, map, map_err, or, or_else, skip, then, with, AndThen, FromErr,
-                        Inspect, Map, MapErr, Or, OrElse, Skip, Then, With};
-use super::result::EndpointResult;
+use response::{Responder, Response};
+use util::NoReturn;
+
+use super::combinator::*;
+
+
+/// The error type during `Endpoint::apply()`
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EndpointError {
+    /// This endpoint does not matches the current request
+    Skipped,
+    /// The instance of requst body has already been taken
+    EmptyBody,
+    /// The header is not set
+    EmptyHeader,
+    /// The method of the current request is invalid in the endpoint
+    InvalidMethod,
+    /// The type of a path segment or a query parameter is not convertible to the endpoint
+    TypeMismatch,
+}
+
+impl Responder for EndpointError {
+    type Error = NoReturn;
+
+    fn respond(self) -> Result<Response, Self::Error> {
+        Ok(Response::new().with_status(StatusCode::NotFound))
+    }
+}
+
 
 
 /// A HTTP endpoint, which provides the futures from incoming HTTP requests
@@ -20,53 +49,17 @@ pub trait Endpoint {
     type Future: Future<Item = Self::Item, Error = Self::Error>;
 
     /// Apply the incoming HTTP request, and return the future of its response
-    fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future>;
+    fn apply(&self, ctx: &mut Context) -> Result<Self::Future, EndpointError>;
 
 
     /// Combine itself and the other endpoint, and create a combinator which returns a pair of its
     /// `Item`s.
-    fn join<E>(self, e: E) -> (Self, E)
+    fn join<E>(self, e: E) -> Join<Self, E>
     where
         Self: Sized,
         E: Endpoint<Error = Self::Error>,
     {
-        (self, e)
-    }
-
-    /// Combine itself and two other endpoints, and create a combinator which returns a tuple of its
-    /// `Item`s.
-    fn join3<E1, E2>(self, e1: E1, e2: E2) -> (Self, E1, E2)
-    where
-        Self: Sized,
-        E1: Endpoint<Error = Self::Error>,
-        E2: Endpoint<Error = Self::Error>,
-    {
-        (self, e1, e2)
-    }
-
-    /// Combine itself and three other endpoints, and create a combinator which returns a tuple of its
-    /// `Item`s.
-    fn join4<E1, E2, E3>(self, e1: E1, e2: E2, e3: E3) -> (Self, E1, E2, E3)
-    where
-        Self: Sized,
-        E1: Endpoint<Error = Self::Error>,
-        E2: Endpoint<Error = Self::Error>,
-        E3: Endpoint<Error = Self::Error>,
-    {
-        (self, e1, e2, e3)
-    }
-
-    /// Combine itself and four other endpoints, and create a combinator which returns a tuple of its
-    /// `Item`s.
-    fn join5<E1, E2, E3, E4>(self, e1: E1, e2: E2, e3: E3, e4: E4) -> (Self, E1, E2, E3, E4)
-    where
-        Self: Sized,
-        E1: Endpoint<Error = Self::Error>,
-        E2: Endpoint<Error = Self::Error>,
-        E3: Endpoint<Error = Self::Error>,
-        E4: Endpoint<Error = Self::Error>,
-    {
-        (self, e1, e2, e3, e4)
+        join(self, e)
     }
 
     /// Combine itself and the other endpoint, and create a combinator which returns `E::Item`.
@@ -98,49 +91,49 @@ pub trait Endpoint {
     }
 
     /// Combine itself and a function to change the return value to another type.
-    fn map<F, U>(self, f: F) -> Map<Self, F>
+    fn map<F, U>(self, f: F) -> Map<Self, F, U>
     where
         Self: Sized,
-        F: FnOnce(Self::Item) -> U,
+        F: Fn(Self::Item) -> U,
     {
         map(self, f)
     }
 
     /// Combine itself and a function to change the error value to another type.
-    fn map_err<F, U>(self, f: F) -> MapErr<Self, F>
+    fn map_err<F, U>(self, f: F) -> MapErr<Self, F, U>
     where
         Self: Sized,
-        F: FnOnce(Self::Error) -> U,
+        F: Fn(Self::Error) -> U,
     {
         map_err(self, f)
     }
 
     #[allow(missing_docs)]
-    fn and_then<F, Fut>(self, f: F) -> AndThen<Self, F>
+    fn and_then<F, R>(self, f: F) -> AndThen<Self, F, R>
     where
         Self: Sized,
-        F: FnOnce(Self::Item) -> Fut,
-        Fut: IntoFuture<Error = Self::Error>,
+        F: Fn(Self::Item) -> R,
+        R: IntoFuture<Error = Self::Error>,
     {
         and_then(self, f)
     }
 
     #[allow(missing_docs)]
-    fn or_else<F, Fut>(self, f: F) -> OrElse<Self, F>
+    fn or_else<F, R>(self, f: F) -> OrElse<Self, F, R>
     where
         Self: Sized,
-        F: FnOnce(Self::Error) -> Fut,
-        Fut: IntoFuture<Item = Self::Item>,
+        F: Fn(Self::Error) -> R,
+        R: IntoFuture<Item = Self::Item>,
     {
         or_else(self, f)
     }
 
     #[allow(missing_docs)]
-    fn then<F, Fut>(self, f: F) -> Then<Self, F>
+    fn then<F, R>(self, f: F) -> Then<Self, F, R>
     where
         Self: Sized,
-        F: FnOnce(Result<Self::Item, Self::Error>) -> Fut,
-        Fut: IntoFuture,
+        F: Fn(Result<Self::Item, Self::Error>) -> R,
+        R: IntoFuture,
     {
         then(self, f)
     }
@@ -158,7 +151,7 @@ pub trait Endpoint {
     fn inspect<F>(self, f: F) -> Inspect<Self, F>
     where
         Self: Sized,
-        F: FnOnce(&Self::Item),
+        F: Fn(&Self::Item),
     {
         inspect(self, f)
     }
@@ -170,5 +163,35 @@ pub trait Endpoint {
         Self: Sized + Endpoint<Item = T, Error = E>,
     {
         self
+    }
+}
+
+impl<E: Endpoint> Endpoint for Box<E> {
+    type Item = E::Item;
+    type Error = E::Error;
+    type Future = E::Future;
+
+    fn apply(&self, ctx: &mut Context) -> Result<Self::Future, EndpointError> {
+        (**self).apply(ctx)
+    }
+}
+
+impl<E: Endpoint> Endpoint for Rc<E> {
+    type Item = E::Item;
+    type Error = E::Error;
+    type Future = E::Future;
+
+    fn apply(&self, ctx: &mut Context) -> Result<Self::Future, EndpointError> {
+        (**self).apply(ctx)
+    }
+}
+
+impl<E: Endpoint> Endpoint for Arc<E> {
+    type Item = E::Item;
+    type Error = E::Error;
+    type Future = E::Future;
+
+    fn apply(&self, ctx: &mut Context) -> Result<Self::Future, EndpointError> {
+        (**self).apply(ctx)
     }
 }
