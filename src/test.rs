@@ -72,8 +72,8 @@ where
 {
     let req = input.request;
     let body = input.body.unwrap_or_default();
-    let base = context::RequestInfo::new(&req, body);
-    let mut ctx = Context::from(&base);
+    let base = context::RequestInfo::new(req, body);
+    let mut ctx = Context::new(base);
 
     let f = endpoint.as_ref().apply(&mut ctx)?;
 

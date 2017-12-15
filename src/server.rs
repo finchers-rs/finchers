@@ -40,10 +40,10 @@ where
     fn call(&self, req: hyper::Request) -> Self::Future {
         // reconstruct the instance of `hyper::Request` and parse its path and queries.
         let (req, body) = request::reconstruct(req);
-        let info = RequestInfo::new(&req, body);
+        let info = RequestInfo::new(req, body);
 
         // create and apply the endpoint to parsed `RequestInfo`
-        let inner = self.apply_endpoint(&info);
+        let inner = self.apply_endpoint(info);
         EndpointFuture {
             inner: inner.map_err(Some),
         }
@@ -56,9 +56,9 @@ where
     E::Item: Responder,
     E::Error: Responder,
 {
-    fn apply_endpoint(&self, req: &RequestInfo) -> Result<E::Future, EndpointError> {
+    fn apply_endpoint(&self, req: RequestInfo) -> Result<E::Future, EndpointError> {
         // Create the instance of `Context` from the reference of `RequestInfo`.
-        let mut ctx = Context::from(req);
+        let mut ctx = Context::new(req);
 
         // Create a new endpoint from the inner factory. and evaluate it.
         let mut result = self.endpoint.apply(&mut ctx);
