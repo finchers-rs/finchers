@@ -6,6 +6,7 @@ use std::sync::Arc;
 use std::thread;
 
 use futures::Stream;
+use hyper::Chunk;
 use hyper::server::Http;
 use net2::TcpBuilder;
 use tokio_core::net::TcpListener;
@@ -56,29 +57,29 @@ where
     /// Start a HTTP server
     pub fn run_http(self) {
         let endpoint = Arc::new(self.endpoint);
+        let proto = Http::new();
         let addr = self.addr.unwrap_or("0.0.0.0:4000".into()).parse().unwrap();
         let num_workers = self.num_workers.unwrap_or(1);
 
         for _ in 0..(num_workers - 1) {
             let endpoint = endpoint.clone();
+            let proto = proto.clone();
             thread::spawn(move || {
-                serve(endpoint, num_workers, &addr);
+                serve(endpoint, proto, num_workers, &addr);
             });
         }
-        serve(endpoint.clone(), num_workers, &addr);
+        serve(endpoint, proto, num_workers, &addr);
     }
 }
 
-fn serve<E>(endpoint: Arc<E>, num_workers: usize, addr: &SocketAddr)
+fn serve<E>(endpoint: E, proto: Http<Chunk>, num_workers: usize, addr: &SocketAddr)
 where
-    E: Endpoint + 'static,
+    E: Endpoint + Clone + 'static,
     E::Item: Responder,
     E::Error: Responder,
 {
     let mut core = Core::new().unwrap();
     let handle = core.handle();
-
-    let proto = Http::new();
 
     let listener = listener(&addr, num_workers, &handle).unwrap();
     let server = listener.incoming().for_each(|(sock, addr)| {
