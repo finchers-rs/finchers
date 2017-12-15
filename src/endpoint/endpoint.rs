@@ -27,7 +27,7 @@ pub enum EndpointError {
 }
 
 impl Responder for EndpointError {
-    fn respond(self) -> Response {
+    fn respond_to(self, _: &mut Context) -> Response {
         Response::new().with_status(StatusCode::NotFound)
     }
 }

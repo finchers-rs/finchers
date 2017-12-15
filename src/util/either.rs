@@ -5,6 +5,7 @@
 use std::fmt::{self, Display};
 use std::error::Error;
 use futures::{Async, Future, Poll};
+use context::Context;
 use response::{Responder, Response};
 
 macro_rules! define_either {
@@ -69,10 +70,10 @@ macro_rules! define_either {
         where
         $( $variant: Responder ),*
         {
-            fn respond(self) -> Response {
+            fn respond_to(self, ctx: &mut Context) -> Response {
                 match self {
                     $(
-                        $name :: $variant (e) => e.respond(),
+                        $name :: $variant (e) => e.respond_to(ctx),
                     )*
                 }
             }

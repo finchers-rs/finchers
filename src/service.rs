@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 
-use futures::{Future, Poll};
+use futures::{Async, Future, Poll};
 use hyper;
 use tokio_core::reactor::Handle;
 use tokio_service::Service;
@@ -78,21 +78,17 @@ where
     type Error = hyper::Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        // Check the result of `Endpoint::apply()`.
-        let inner = match self.result.as_mut() {
-            Ok(inner) => inner,
-            Err(err) => {
+        let response = match self.result {
+            Ok(ref mut inner) => match inner.poll(&mut self.ctx) {
+                Ok(Async::NotReady) => return Ok(Async::NotReady),
+                Ok(Async::Ready(item)) => item.respond_to(&mut self.ctx),
+                Err(err) => err.respond_to(&mut self.ctx),
+            },
+            Err(ref mut err) => {
                 let err = err.take().expect("cannot reject twice");
-                return Ok(err.respond().into());
+                err.respond_to(&mut self.ctx)
             }
         };
-
-        // Query the future returned from the endpoint
-        let item = inner.poll(&mut self.ctx);
-        // ...and convert its success/error value to `hyper::Response`.
-        let item = item.map(|item| item.map(Responder::respond))
-            .map_err(Responder::respond);
-
-        Ok(item.unwrap_or_else(Into::into))
+        Ok(Async::Ready(response))
     }
 }
