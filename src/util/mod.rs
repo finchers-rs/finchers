@@ -23,8 +23,7 @@ impl error::Error for NoReturn {
 }
 
 impl Responder for NoReturn {
-    type Error = NoReturn;
-    fn respond(self) -> Result<Response, Self::Error> {
+    fn respond(self) -> Response {
         unreachable!()
     }
 }

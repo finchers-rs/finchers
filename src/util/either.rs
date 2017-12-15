@@ -69,12 +69,10 @@ macro_rules! define_either {
         where
         $( $variant: Responder ),*
         {
-            type Error = $name <$( $variant :: Error ),*>;
-
-            fn respond(self) -> Result<Response, Self::Error> {
+            fn respond(self) -> Response {
                 match self {
                     $(
-                        $name :: $variant (e) => e.respond().map_err($name :: $variant),
+                        $name :: $variant (e) => e.respond(),
                     )*
                 }
             }

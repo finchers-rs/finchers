@@ -83,15 +83,15 @@ where
             Ok(inner) => inner,
             Err(err) => {
                 let err = err.take().expect("cannot reject twice");
-                return Ok(err.into_response().into());
+                return Ok(err.respond().into());
             }
         };
 
         // Query the future returned from the endpoint
         let item = inner.poll(&mut self.ctx);
         // ...and convert its success/error value to `hyper::Response`.
-        let item = item.map(|item| item.map(Responder::into_response))
-            .map_err(Responder::into_response);
+        let item = item.map(|item| item.map(Responder::respond))
+            .map_err(Responder::respond);
 
         Ok(item.unwrap_or_else(Into::into))
     }

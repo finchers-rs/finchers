@@ -7,7 +7,6 @@ use hyper::StatusCode;
 use context::Context;
 use response::{Responder, Response};
 use task::{IntoTask, Task};
-use util::NoReturn;
 
 use super::combinator::*;
 
@@ -28,10 +27,8 @@ pub enum EndpointError {
 }
 
 impl Responder for EndpointError {
-    type Error = NoReturn;
-
-    fn respond(self) -> Result<Response, Self::Error> {
-        Ok(Response::new().with_status(StatusCode::NotFound))
+    fn respond(self) -> Response {
+        Response::new().with_status(StatusCode::NotFound)
     }
 }
 
