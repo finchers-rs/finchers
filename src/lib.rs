@@ -17,6 +17,8 @@ pub mod endpoint;
 pub mod request;
 pub mod response;
 pub mod server;
+pub mod service;
+pub mod task;
 pub mod test;
 pub mod util;
 
@@ -25,7 +27,7 @@ mod context;
 pub use context::Context;
 
 #[doc(inline)]
-pub use endpoint::{Endpoint, NewEndpoint};
+pub use endpoint::Endpoint;
 
 #[doc(inline)]
 pub use request::Request;
@@ -35,3 +37,6 @@ pub use response::{Responder, Response};
 
 #[doc(inline)]
 pub use server::Server;
+
+#[doc(inline)]
+pub use task::{IntoTask, Task};

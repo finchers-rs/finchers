@@ -1,8 +1,6 @@
 //! Definition of the trait `Endpoint` and its implementors
 
 mod endpoint;
-mod new_endpoint;
-mod result;
 
 pub mod body;
 pub mod combinator;
@@ -13,13 +11,7 @@ pub mod query;
 
 // re-exports
 #[doc(inline)]
-pub use self::endpoint::Endpoint;
-
-#[doc(inline)]
-pub use self::new_endpoint::NewEndpoint;
-
-#[doc(inline)]
-pub use self::result::{EndpointError, EndpointResult};
+pub use self::endpoint::{Endpoint, EndpointError};
 
 #[doc(inline)]
 pub use self::body::body;

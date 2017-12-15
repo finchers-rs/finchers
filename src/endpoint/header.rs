@@ -1,11 +1,11 @@
 //! Definition of endpoints to parse request headers
 
 use std::marker::PhantomData;
-use futures::future::{ok, FutureResult};
 use hyper::header::{self, Authorization, ContentType};
 
 use context::Context;
-use endpoint::{Endpoint, EndpointError, EndpointResult};
+use endpoint::{Endpoint, EndpointError};
+use task::{ok, TaskResult};
 
 #[allow(missing_docs)]
 #[derive(Debug)]
@@ -22,9 +22,9 @@ impl<H, E> Copy for Header<H, E> {}
 impl<H: header::Header + Clone, E> Endpoint for Header<H, E> {
     type Item = H;
     type Error = E;
-    type Future = FutureResult<Self::Item, Self::Error>;
+    type Task = TaskResult<Self::Item, Self::Error>;
 
-    fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
+    fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
         ctx.request()
             .header()
             .cloned()
@@ -50,9 +50,9 @@ impl<H, E> Copy for HeaderOpt<H, E> {}
 impl<H: header::Header + Clone, E> Endpoint for HeaderOpt<H, E> {
     type Item = Option<H>;
     type Error = E;
-    type Future = FutureResult<Self::Item, Self::Error>;
+    type Task = TaskResult<Self::Item, Self::Error>;
 
-    fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
+    fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
         Ok(ok(ctx.request().header().cloned()))
     }
 }

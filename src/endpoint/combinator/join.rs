@@ -2,18 +2,21 @@
 
 use context::Context;
 use endpoint::{Endpoint, EndpointError};
+use task;
 
 
-pub fn skip<E1, E2>(e1: E1, e2: E2) -> Skip<E1, E2>
+// TODO: add Join3, Join4, Join5
+
+pub fn join<E1, E2>(e1: E1, e2: E2) -> Join<E1, E2>
 where
     E1: Endpoint,
     E2: Endpoint<Error = E1::Error>,
 {
-    Skip { e1, e2 }
+    Join { e1, e2 }
 }
 
 #[derive(Debug)]
-pub struct Skip<E1, E2>
+pub struct Join<E1, E2>
 where
     E1: Endpoint,
     E2: Endpoint<Error = E1::Error>,
@@ -22,18 +25,18 @@ where
     e2: E2,
 }
 
-impl<E1, E2> Endpoint for Skip<E1, E2>
+impl<E1, E2> Endpoint for Join<E1, E2>
 where
     E1: Endpoint,
     E2: Endpoint<Error = E1::Error>,
 {
-    type Item = E1::Item;
+    type Item = (E1::Item, E2::Item);
     type Error = E1::Error;
-    type Task = E1::Task;
+    type Task = task::Join<E1::Task, E2::Task>;
 
     fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
         let f1 = self.e1.apply(ctx)?;
-        let _f2 = self.e2.apply(ctx)?;
-        Ok(f1)
+        let f2 = self.e2.apply(ctx)?;
+        Ok(task::join(f1, f2))
     }
 }

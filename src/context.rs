@@ -1,31 +1,32 @@
-use std::borrow::Cow;
 use std::cell::RefCell;
 use std::collections::HashMap;
-use url::form_urlencoded;
+use std::rc::Rc;
 use std::iter::FromIterator;
-use std::slice::Iter;
 
-use request::{Body, FromParam, Request};
+use hyper;
+use url::form_urlencoded;
+
+use request::{self, Body, FromParam, Request};
 
 
 #[doc(hidden)]
 #[derive(Debug)]
-pub struct RequestInfo<'r> {
+pub struct RequestInfo {
     /// The information of incoming HTTP request, without the request body
-    request: &'r Request,
+    request: Request,
 
     /// The stream of request body
     body: RefCell<Option<Body>>,
 
     /// A HashMap contains parsed result of query parameters
-    queries: HashMap<Cow<'r, str>, Vec<Cow<'r, str>>>,
+    queries: HashMap<String, Vec<String>>,
 
     /// The elements of path segments.
-    routes: Vec<&'r str>,
+    routes: Vec<String>,
 }
 
-impl<'r> RequestInfo<'r> {
-    pub fn new(request: &'r Request, body: Body) -> Self {
+impl RequestInfo {
+    pub fn new(request: Request, body: Body) -> Self {
         let body = RefCell::new(Some(body));
         let routes = to_path_segments(request.path());
         let queries = request.query().map(to_query_map).unwrap_or_default();
@@ -41,24 +42,27 @@ impl<'r> RequestInfo<'r> {
 
 /// A set of values, contains the incoming HTTP request and the finchers-specific context.
 #[derive(Debug, Clone)]
-pub struct Context<'b, 'r: 'b> {
-    inner: &'b RequestInfo<'r>,
-    /// An iterator of remaining path segments in the context.
-    routes: Option<Iter<'b, &'r str>>,
+pub struct Context {
+    inner: Rc<RequestInfo>,
+    pos: usize,
 }
 
-impl<'r, 'b> From<&'b RequestInfo<'r>> for Context<'r, 'b> {
-    fn from(base: &'b RequestInfo<'r>) -> Self {
+impl Context {
+    pub(crate) fn from_hyper(req: hyper::Request) -> Self {
+        let (req, body) = request::reconstruct(req);
+        let info = RequestInfo::new(req, body);
+        Self::new(info)
+    }
+
+    pub(crate) fn new(inner: RequestInfo) -> Self {
         Context {
-            inner: base,
-            routes: Some(base.routes.iter()),
+            inner: Rc::new(inner),
+            pos: 0,
         }
     }
-}
 
-impl<'r, 'b> Context<'r, 'b> {
     /// Return the reference of `Request`
-    pub fn request(&self) -> &'r Request {
+    pub fn request(&self) -> &Request {
         &self.inner.request
     }
 
@@ -69,9 +73,12 @@ impl<'r, 'b> Context<'r, 'b> {
 
     /// Pop and return the front element of path segments.
     pub fn next_segment(&mut self) -> Option<&str> {
-        self.routes
-            .as_mut()
-            .and_then(|routes| routes.next().map(|s| *s))
+        if self.pos >= self.inner.routes.len() {
+            return None;
+        }
+        let pos = self.pos;
+        self.pos += 1;
+        Some(&self.inner.routes[pos])
     }
 
     /// Collect and return the remaining path segments, if available
@@ -80,14 +87,22 @@ impl<'r, 'b> Context<'r, 'b> {
         I: FromIterator<T>,
         T: FromParam,
     {
-        self.routes
-            .take()
-            .map(|routes| routes.map(|s| T::from_param(s)).collect())
+        if self.pos >= self.inner.routes.len() {
+            return None;
+        }
+        let pos = self.pos;
+        self.pos = self.inner.routes.len();
+        Some(
+            self.inner.routes[pos..]
+                .into_iter()
+                .map(|s| T::from_param(s))
+                .collect(),
+        )
     }
 
     /// Count the length of remaining path segments
     pub fn count_remaining_segments(&mut self) -> usize {
-        self.routes.take().map_or(0, |routes| routes.count())
+        self.inner.routes.len() - self.pos
     }
 
     /// Return the first value of the query parameter whose name is `name`, if exists
@@ -109,10 +124,11 @@ impl<'r, 'b> Context<'r, 'b> {
 }
 
 
-fn to_path_segments<'t>(s: &'t str) -> Vec<&'t str> {
+fn to_path_segments(s: &str) -> Vec<String> {
     s.trim_left_matches("/")
         .split("/")
         .filter(|s| s.trim() != "")
+        .map(ToOwned::to_owned)
         .collect()
 }
 
@@ -137,10 +153,13 @@ mod to_path_segments_test {
 }
 
 
-fn to_query_map<'t>(s: &'t str) -> HashMap<Cow<'t, str>, Vec<Cow<'t, str>>> {
+fn to_query_map(s: &str) -> HashMap<String, Vec<String>> {
     let mut queries = HashMap::new();
     for (key, value) in form_urlencoded::parse(s.as_bytes()) {
-        queries.entry(key).or_insert(Vec::new()).push(value);
+        queries
+            .entry(key.into_owned())
+            .or_insert(Vec::new())
+            .push(value.into_owned());
     }
     queries
 }

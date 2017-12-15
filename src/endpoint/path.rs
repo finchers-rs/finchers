@@ -3,11 +3,11 @@
 use std::borrow::Cow;
 use std::iter::FromIterator;
 use std::marker::PhantomData;
-use futures::future::{ok, FutureResult};
 
 use context::Context;
-use endpoint::{Endpoint, EndpointError, EndpointResult};
+use endpoint::{Endpoint, EndpointError};
 use request::FromParam;
+use task::{ok, TaskResult};
 
 
 #[allow(missing_docs)]
@@ -17,9 +17,9 @@ pub struct PathSegment<'a, E>(Cow<'a, str>, PhantomData<fn() -> E>);
 impl<'a, E> Endpoint for PathSegment<'a, E> {
     type Item = ();
     type Error = E;
-    type Future = FutureResult<Self::Item, Self::Error>;
+    type Task = TaskResult<Self::Item, Self::Error>;
 
-    fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
+    fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
         if !ctx.next_segment().map(|s| s == self.0).unwrap_or(false) {
             return Err(EndpointError::Skipped);
         }
@@ -49,9 +49,9 @@ impl<T, E> Clone for PathParam<T, E> {
 impl<T: FromParam, E> Endpoint for PathParam<T, E> {
     type Item = T;
     type Error = E;
-    type Future = FutureResult<Self::Item, Self::Error>;
+    type Task = TaskResult<Self::Item, Self::Error>;
 
-    fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
+    fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
         match ctx.next_segment().map(|s| T::from_param(s)) {
             Some(Ok(value)) => Ok(ok(value)),
             _ => return Err(EndpointError::TypeMismatch),
@@ -85,9 +85,9 @@ where
 {
     type Item = I;
     type Error = E;
-    type Future = FutureResult<Self::Item, Self::Error>;
+    type Task = TaskResult<Self::Item, Self::Error>;
 
-    fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
+    fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
         match ctx.collect_remaining_segments() {
             Some(Ok(seq)) => Ok(ok(seq)),
             Some(Err(_)) => Err(EndpointError::TypeMismatch),

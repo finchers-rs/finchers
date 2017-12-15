@@ -1,39 +1,52 @@
-use futures::{Future, IntoFuture};
-use futures::future;
+use std::marker::PhantomData;
+use std::sync::Arc;
 
 use context::Context;
-use endpoint::{Endpoint, EndpointResult};
+use endpoint::{Endpoint, EndpointError};
+use task::{self, IntoTask};
 
 
 /// Equivalent to `e.or_else(f)`
-pub fn or_else<E, F, Fut>(endpoint: E, f: F) -> OrElse<E, F>
+pub fn or_else<E, F, R>(endpoint: E, f: F) -> OrElse<E, F, R>
 where
     E: Endpoint,
-    F: FnOnce(E::Error) -> Fut,
-    Fut: IntoFuture<Item = E::Item>,
+    F: Fn(E::Error) -> R,
+    R: IntoTask<Item = E::Item>,
 {
-    OrElse(endpoint, f)
+    OrElse {
+        endpoint,
+        f: Arc::new(f),
+        _marker: PhantomData,
+    }
 }
 
 
 /// The return type of `or_else()`
 #[derive(Debug)]
-pub struct OrElse<E, F>(E, F);
-
-// The implementation of `Endpoint` for `AndThen`.
-impl<E, F, Fut> Endpoint for OrElse<E, F>
+pub struct OrElse<E, F, R>
 where
     E: Endpoint,
-    F: FnOnce(E::Error) -> Fut,
-    Fut: IntoFuture<Item = E::Item>,
+    F: Fn(E::Error) -> R,
+    R: IntoTask<Item = E::Item>,
 {
-    type Item = Fut::Item;
-    type Error = Fut::Error;
-    type Future = future::OrElse<E::Future, Fut, F>;
+    endpoint: E,
+    f: Arc<F>,
+    _marker: PhantomData<R>,
+}
 
-    fn apply(self, ctx: &mut Context) -> EndpointResult<Self::Future> {
-        let OrElse(endpoint, f) = self;
-        let fut = endpoint.apply(ctx)?;
-        Ok(fut.or_else(f))
+// The implementation of `Endpoint` for `AndThen`.
+impl<E, F, R> Endpoint for OrElse<E, F, R>
+where
+    E: Endpoint,
+    F: Fn(E::Error) -> R,
+    R: IntoTask<Item = E::Item>,
+{
+    type Item = R::Item;
+    type Error = R::Error;
+    type Task = task::OrElse<E::Task, F, R>;
+
+    fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
+        let task = self.endpoint.apply(ctx)?;
+        Ok(task::or_else(task, self.f.clone()))
     }
 }

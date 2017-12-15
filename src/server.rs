@@ -5,108 +5,16 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::thread;
 
-use futures::{Future, Poll, Stream};
-use hyper;
+use futures::Stream;
+use hyper::Chunk;
 use hyper::server::Http;
 use net2::TcpBuilder;
 use tokio_core::net::TcpListener;
 use tokio_core::reactor::{Core, Handle};
-use tokio_service::Service;
 
-use context::{Context, RequestInfo};
-use endpoint::{Endpoint, EndpointError, EndpointResult, NewEndpoint};
-use request;
+use endpoint::Endpoint;
 use response::Responder;
-
-
-/// A wrapper of a `NewEndpoint`, to provide hyper's HTTP services
-#[derive(Debug, Clone)]
-pub struct EndpointService<E> {
-    endpoint: E,
-    handle: Handle,
-}
-
-impl<E> Service for EndpointService<E>
-where
-    E: NewEndpoint,
-    E::Item: Responder,
-    E::Error: Responder,
-{
-    type Request = hyper::Request;
-    type Response = hyper::Response;
-    type Error = hyper::Error;
-    type Future = EndpointFuture<E::Future>;
-
-    fn call(&self, req: hyper::Request) -> Self::Future {
-        // reconstruct the instance of `hyper::Request` and parse its path and queries.
-        let (req, body) = request::reconstruct(req);
-        let info = RequestInfo::new(&req, body);
-
-        // create and apply the endpoint to parsed `RequestInfo`
-        let inner = self.apply_endpoint(&info);
-        EndpointFuture {
-            inner: inner.map_err(Some),
-        }
-    }
-}
-
-impl<E> EndpointService<E>
-where
-    E: NewEndpoint,
-    E::Item: Responder,
-    E::Error: Responder,
-{
-    fn apply_endpoint(&self, req: &RequestInfo) -> EndpointResult<E::Future> {
-        // Create the instance of `Context` from the reference of `RequestInfo`.
-        let mut ctx = Context::from(req);
-
-        // Create a new endpoint from the inner factory. and evaluate it.
-        let endpoint = self.endpoint.new_endpoint(&self.handle);
-        let mut result = endpoint.apply(&mut ctx);
-
-        // check if the remaining path segments are exist.
-        if ctx.next_segment().is_some() {
-            result = Err(EndpointError::Skipped);
-        }
-
-        result
-    }
-}
-
-/// The type of a future returned from `EndpointService::call()`
-#[derive(Debug)]
-pub struct EndpointFuture<F> {
-    inner: Result<F, Option<EndpointError>>,
-}
-
-impl<F> Future for EndpointFuture<F>
-where
-    F: Future,
-    F::Item: Responder,
-    F::Error: Responder,
-{
-    type Item = hyper::Response;
-    type Error = hyper::Error;
-
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        // Check the result of `Endpoint::apply()`.
-        let inner = match self.inner.as_mut() {
-            Ok(inner) => inner,
-            Err(err) => {
-                let err = err.take().expect("cannot reject twice");
-                return Ok(err.into_response().into());
-            }
-        };
-
-        // Query the future returned from the endpoint
-        let item = inner.poll();
-        // ...and convert its success/error value to `hyper::Response`.
-        let item = item.map(|item| item.map(Responder::into_response))
-            .map_err(Responder::into_response);
-
-        Ok(item.unwrap_or_else(Into::into))
-    }
-}
+use service::EndpointService;
 
 
 /// The factory of HTTP service
@@ -117,7 +25,7 @@ pub struct Server<E> {
     num_workers: Option<usize>,
 }
 
-impl<E: NewEndpoint> Server<E> {
+impl<E: Endpoint> Server<E> {
     /// Create a new instance of `Server` from a `NewEndpoint`
     pub fn new(endpoint: E) -> Self {
         Self {
@@ -142,48 +50,41 @@ impl<E: NewEndpoint> Server<E> {
 
 impl<E> Server<E>
 where
-    E: NewEndpoint + Send + Sync + 'static,
+    E: Endpoint + Send + Sync + 'static,
     E::Item: Responder,
     E::Error: Responder,
 {
     /// Start a HTTP server
     pub fn run_http(self) {
         let endpoint = Arc::new(self.endpoint);
+        let proto = Http::new();
         let addr = self.addr.unwrap_or("0.0.0.0:4000".into()).parse().unwrap();
         let num_workers = self.num_workers.unwrap_or(1);
 
         for _ in 0..(num_workers - 1) {
             let endpoint = endpoint.clone();
+            let proto = proto.clone();
             thread::spawn(move || {
-                serve(endpoint, num_workers, &addr);
+                serve(endpoint, proto, num_workers, &addr);
             });
         }
-        serve(endpoint.clone(), num_workers, &addr);
+        serve(endpoint, proto, num_workers, &addr);
     }
 }
 
-fn serve<E>(endpoint: E, num_workers: usize, addr: &SocketAddr)
+fn serve<E>(endpoint: E, proto: Http<Chunk>, num_workers: usize, addr: &SocketAddr)
 where
-    E: NewEndpoint + Clone + 'static,
+    E: Endpoint + Clone + 'static,
     E::Item: Responder,
     E::Error: Responder,
 {
     let mut core = Core::new().unwrap();
     let handle = core.handle();
 
-    let proto = Http::new();
-
     let listener = listener(&addr, num_workers, &handle).unwrap();
     let server = listener.incoming().for_each(|(sock, addr)| {
-        proto.bind_connection(
-            &handle,
-            sock,
-            addr,
-            EndpointService {
-                endpoint: endpoint.clone(),
-                handle: handle.clone(),
-            },
-        );
+        let service = EndpointService::new(endpoint.clone(), &handle);
+        proto.bind_connection(&handle, sock, addr, service);
         Ok(())
     });
 
