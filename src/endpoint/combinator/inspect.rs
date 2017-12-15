@@ -1,10 +1,10 @@
 #![allow(missing_docs)]
 
 use std::sync::Arc;
-use futures::{Future, Poll};
 
 use context::Context;
 use endpoint::{Endpoint, EndpointError};
+use task::{Poll, Task};
 
 
 pub fn inspect<E, F>(endpoint: E, f: F) -> Inspect<E, F>
@@ -36,11 +36,11 @@ where
 {
     type Item = E::Item;
     type Error = E::Error;
-    type Future = InspectFuture<E, F>;
+    type Task = InspectTask<E, F>;
 
-    fn apply(&self, ctx: &mut Context) -> Result<Self::Future, EndpointError> {
+    fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
         let inner = self.endpoint.apply(ctx)?;
-        Ok(InspectFuture {
+        Ok(InspectTask {
             inner,
             f: self.f.clone(),
         })
@@ -49,16 +49,16 @@ where
 
 
 #[derive(Debug)]
-pub struct InspectFuture<E, F>
+pub struct InspectTask<E, F>
 where
     E: Endpoint,
     F: Fn(&E::Item),
 {
-    inner: E::Future,
+    inner: E::Task,
     f: Arc<F>,
 }
 
-impl<E, F> Future for InspectFuture<E, F>
+impl<E, F> Task for InspectTask<E, F>
 where
     E: Endpoint,
     F: Fn(&E::Item),
@@ -66,8 +66,8 @@ where
     type Item = E::Item;
     type Error = E::Error;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let item = try_ready!(self.inner.poll());
+    fn poll(&mut self, ctx: &mut Context) -> Poll<Self::Item, Self::Error> {
+        let item = try_ready!(self.inner.poll(ctx));
         (*self.f)(&item);
         Ok(item.into())
     }

@@ -1,9 +1,9 @@
 use std::marker::PhantomData;
 use std::sync::Arc;
-use futures::{Future, IntoFuture, Poll};
 
 use context::Context;
 use endpoint::{Endpoint, EndpointError};
+use task::{IntoTask, Poll, Task};
 use super::chain::Chain;
 
 
@@ -12,7 +12,7 @@ pub fn then<E, F, R>(endpoint: E, f: F) -> Then<E, F, R>
 where
     E: Endpoint,
     F: Fn(Result<E::Item, E::Error>) -> R,
-    R: IntoFuture,
+    R: IntoTask,
 {
     Then {
         endpoint,
@@ -28,7 +28,7 @@ pub struct Then<E, F, R>
 where
     E: Endpoint,
     F: Fn(Result<E::Item, E::Error>) -> R,
-    R: IntoFuture,
+    R: IntoTask,
 {
     endpoint: E,
     f: Arc<F>,
@@ -39,41 +39,41 @@ impl<E, F, R> Endpoint for Then<E, F, R>
 where
     E: Endpoint,
     F: Fn(Result<E::Item, E::Error>) -> R,
-    R: IntoFuture,
+    R: IntoTask,
 {
     type Item = R::Item;
     type Error = R::Error;
-    type Future = ThenFuture<E, F, R>;
+    type Task = ThenTask<E, F, R>;
 
-    fn apply(&self, ctx: &mut Context) -> Result<Self::Future, EndpointError> {
+    fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
         let fut = self.endpoint.apply(ctx)?;
-        Ok(ThenFuture {
+        Ok(ThenTask {
             inner: Chain::new(fut, self.f.clone()),
         })
     }
 }
 
 #[derive(Debug)]
-pub struct ThenFuture<E, F, R>
+pub struct ThenTask<E, F, R>
 where
     E: Endpoint,
     F: Fn(Result<E::Item, E::Error>) -> R,
-    R: IntoFuture,
+    R: IntoTask,
 {
-    inner: Chain<E::Future, R::Future, Arc<F>>,
+    inner: Chain<E::Task, R::Task, Arc<F>>,
 }
 
-impl<E, F, R> Future for ThenFuture<E, F, R>
+impl<E, F, R> Task for ThenTask<E, F, R>
 where
     E: Endpoint,
     F: Fn(Result<E::Item, E::Error>) -> R,
-    R: IntoFuture,
+    R: IntoTask,
 {
     type Item = R::Item;
     type Error = R::Error;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self, ctx: &mut Context) -> Poll<Self::Item, Self::Error> {
         self.inner
-            .poll(|result, f| Ok(Err((*f)(result).into_future())))
+            .poll(ctx, |result, f| Ok(Err((*f)(result).into_task())))
     }
 }

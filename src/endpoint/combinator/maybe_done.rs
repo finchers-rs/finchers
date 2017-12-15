@@ -1,8 +1,9 @@
 use std::mem;
-use futures::{Async, Future};
+use context::Context;
+use task::{Async, Task};
 
 #[derive(Debug)]
-pub enum MaybeDone<A: Future> {
+pub enum MaybeDone<A: Task> {
     NotYet(A),
     Done(A::Item),
     Gone,
@@ -10,10 +11,10 @@ pub enum MaybeDone<A: Future> {
 
 use self::MaybeDone::*;
 
-impl<A: Future> MaybeDone<A> {
-    pub fn poll(&mut self) -> Result<bool, A::Error> {
+impl<A: Task> MaybeDone<A> {
+    pub fn poll(&mut self, ctx: &mut Context) -> Result<bool, A::Error> {
         let result = match *self {
-            NotYet(ref mut a) => a.poll()?,
+            NotYet(ref mut a) => a.poll(ctx)?,
             Done(..) => return Ok(true),
             Gone => panic!("cannot resolve twice"),
         };

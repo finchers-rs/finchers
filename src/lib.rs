@@ -17,6 +17,7 @@ pub mod endpoint;
 pub mod request;
 pub mod response;
 pub mod server;
+pub mod task;
 pub mod test;
 pub mod util;
 
@@ -35,3 +36,6 @@ pub use response::{Responder, Response};
 
 #[doc(inline)]
 pub use server::Server;
+
+#[doc(inline)]
+pub use task::{IntoTask, Task};

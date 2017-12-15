@@ -1,5 +1,6 @@
 //! Helper functions for testing
 
+use futures::{Future, Poll};
 use hyper::Method;
 use hyper::header::Header;
 use tokio_core::reactor::Core;
@@ -7,6 +8,7 @@ use tokio_core::reactor::Core;
 use context::{self, Context};
 use endpoint::{Endpoint, EndpointError};
 use request::{Body, Request};
+use task::Task;
 
 /// A test case for `run_test()`
 #[derive(Debug)]
@@ -75,8 +77,26 @@ where
     let base = context::RequestInfo::new(req, body);
     let mut ctx = Context::new(base);
 
-    let f = endpoint.as_ref().apply(&mut ctx)?;
+    let task = endpoint.as_ref().apply(&mut ctx)?;
+    let fut: EndpointFuture<E> = EndpointFuture { task, ctx };
 
     let mut core = Core::new().unwrap();
-    Ok(core.run(f))
+    Ok(core.run(fut))
+}
+
+
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct EndpointFuture<E: Endpoint> {
+    pub(crate) task: E::Task,
+    pub(crate) ctx: Context,
+}
+
+impl<E: Endpoint> Future for EndpointFuture<E> {
+    type Item = E::Item;
+    type Error = E::Error;
+
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        self.task.poll(&mut self.ctx)
+    }
 }

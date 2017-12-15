@@ -2,11 +2,10 @@
 
 use std::marker::PhantomData;
 use std::str::FromStr;
-use futures::future::{ok, FutureResult};
 
 use context::Context;
 use endpoint::{Endpoint, EndpointError};
-
+use task::{ok, TaskResult};
 
 #[allow(missing_docs)]
 #[derive(Debug)]
@@ -23,9 +22,9 @@ impl<T, E> Copy for Query<T, E> {}
 impl<T: FromStr, E> Endpoint for Query<T, E> {
     type Item = T;
     type Error = E;
-    type Future = FutureResult<Self::Item, Self::Error>;
+    type Task = TaskResult<Self::Item, Self::Error>;
 
-    fn apply(&self, ctx: &mut Context) -> Result<Self::Future, EndpointError> {
+    fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
         ctx.query(self.0)
             .ok_or(EndpointError::Skipped)
             .and_then(|s| s.parse().map_err(|_| EndpointError::TypeMismatch))
@@ -54,9 +53,9 @@ impl<T, E> Copy for QueryOpt<T, E> {}
 impl<T: FromStr, E> Endpoint for QueryOpt<T, E> {
     type Item = Option<T>;
     type Error = E;
-    type Future = FutureResult<Self::Item, Self::Error>;
+    type Task = TaskResult<Self::Item, Self::Error>;
 
-    fn apply(&self, ctx: &mut Context) -> Result<Self::Future, EndpointError> {
+    fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
         ctx.query(self.0)
             .map(|s| s.parse().map_err(|_| EndpointError::TypeMismatch))
             .map_or(Ok(None), |s| s.map(Some))

@@ -28,9 +28,9 @@ where
 {
     type Item = E2::Item;
     type Error = E2::Error;
-    type Future = E2::Future;
+    type Task = E2::Task;
 
-    fn apply(&self, ctx: &mut Context) -> Result<Self::Future, EndpointError> {
+    fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
         let _f1 = self.e1.apply(ctx)?;
         let f2 = self.e2.apply(ctx)?;
         Ok(f2)

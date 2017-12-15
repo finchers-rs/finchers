@@ -2,11 +2,11 @@
 
 use std::rc::Rc;
 use std::sync::Arc;
-use futures::{Future, IntoFuture};
 use hyper::StatusCode;
 
 use context::Context;
 use response::{Responder, Response};
+use task::{IntoTask, Task};
 use util::NoReturn;
 
 use super::combinator::*;
@@ -46,10 +46,10 @@ pub trait Endpoint {
     type Error;
 
     /// The type of future created by this endpoint
-    type Future: Future<Item = Self::Item, Error = Self::Error>;
+    type Task: Task<Item = Self::Item, Error = Self::Error>;
 
     /// Apply the incoming HTTP request, and return the future of its response
-    fn apply(&self, ctx: &mut Context) -> Result<Self::Future, EndpointError>;
+    fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError>;
 
 
     /// Combine itself and the other endpoint, and create a combinator which returns a pair of its
@@ -113,7 +113,7 @@ pub trait Endpoint {
     where
         Self: Sized,
         F: Fn(Self::Item) -> R,
-        R: IntoFuture<Error = Self::Error>,
+        R: IntoTask<Error = Self::Error>,
     {
         and_then(self, f)
     }
@@ -123,7 +123,7 @@ pub trait Endpoint {
     where
         Self: Sized,
         F: Fn(Self::Error) -> R,
-        R: IntoFuture<Item = Self::Item>,
+        R: IntoTask<Item = Self::Item>,
     {
         or_else(self, f)
     }
@@ -133,7 +133,7 @@ pub trait Endpoint {
     where
         Self: Sized,
         F: Fn(Result<Self::Item, Self::Error>) -> R,
-        R: IntoFuture,
+        R: IntoTask,
     {
         then(self, f)
     }
@@ -169,9 +169,9 @@ pub trait Endpoint {
 impl<E: Endpoint> Endpoint for Box<E> {
     type Item = E::Item;
     type Error = E::Error;
-    type Future = E::Future;
+    type Task = E::Task;
 
-    fn apply(&self, ctx: &mut Context) -> Result<Self::Future, EndpointError> {
+    fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
         (**self).apply(ctx)
     }
 }
@@ -179,9 +179,9 @@ impl<E: Endpoint> Endpoint for Box<E> {
 impl<E: Endpoint> Endpoint for Rc<E> {
     type Item = E::Item;
     type Error = E::Error;
-    type Future = E::Future;
+    type Task = E::Task;
 
-    fn apply(&self, ctx: &mut Context) -> Result<Self::Future, EndpointError> {
+    fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
         (**self).apply(ctx)
     }
 }
@@ -189,9 +189,9 @@ impl<E: Endpoint> Endpoint for Rc<E> {
 impl<E: Endpoint> Endpoint for Arc<E> {
     type Item = E::Item;
     type Error = E::Error;
-    type Future = E::Future;
+    type Task = E::Task;
 
-    fn apply(&self, ctx: &mut Context) -> Result<Self::Future, EndpointError> {
+    fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
         (**self).apply(ctx)
     }
 }

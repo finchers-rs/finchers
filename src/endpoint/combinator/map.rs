@@ -1,9 +1,9 @@
 use std::marker::PhantomData;
 use std::sync::Arc;
-use futures::{Future, Poll};
 
 use context::Context;
 use endpoint::{Endpoint, EndpointError};
+use task::{Poll, Task};
 
 
 /// Equivalent to `e.map(f)`
@@ -39,11 +39,11 @@ where
 {
     type Item = R;
     type Error = E::Error;
-    type Future = MapFuture<E, F, R>;
+    type Task = MapTask<E, F, R>;
 
-    fn apply(&self, ctx: &mut Context) -> Result<Self::Future, EndpointError> {
+    fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
         let inner = self.endpoint.apply(ctx)?;
-        Ok(MapFuture {
+        Ok(MapTask {
             inner,
             f: self.f.clone(),
             _marker: PhantomData,
@@ -53,17 +53,17 @@ where
 
 
 #[derive(Debug)]
-pub struct MapFuture<E, F, R>
+pub struct MapTask<E, F, R>
 where
     E: Endpoint,
     F: Fn(E::Item) -> R,
 {
-    inner: E::Future,
+    inner: E::Task,
     f: Arc<F>,
     _marker: PhantomData<R>,
 }
 
-impl<E, F, R> Future for MapFuture<E, F, R>
+impl<E, F, R> Task for MapTask<E, F, R>
 where
     E: Endpoint,
     F: Fn(E::Item) -> R,
@@ -71,8 +71,8 @@ where
     type Item = R;
     type Error = E::Error;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let item = try_ready!(self.inner.poll());
+    fn poll(&mut self, ctx: &mut Context) -> Poll<Self::Item, Self::Error> {
+        let item = try_ready!(self.inner.poll(ctx));
         Ok((*self.f)(item).into())
     }
 }

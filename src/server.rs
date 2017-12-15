@@ -17,6 +17,7 @@ use context::{Context, RequestInfo};
 use endpoint::{Endpoint, EndpointError};
 use request;
 use response::Responder;
+use test;
 
 
 /// A wrapper of a `NewEndpoint`, to provide hyper's HTTP services
@@ -35,17 +36,24 @@ where
     type Request = hyper::Request;
     type Response = hyper::Response;
     type Error = hyper::Error;
-    type Future = EndpointFuture<E::Future>;
+    type Future = EndpointFuture<test::EndpointFuture<E>>;
 
     fn call(&self, req: hyper::Request) -> Self::Future {
         // reconstruct the instance of `hyper::Request` and parse its path and queries.
         let (req, body) = request::reconstruct(req);
         let info = RequestInfo::new(req, body);
 
+        // Create the instance of `Context` from the reference of `RequestInfo`.
+        let mut ctx = Context::new(info);
+
         // create and apply the endpoint to parsed `RequestInfo`
-        let inner = self.apply_endpoint(info);
+        let result = self.apply_endpoint(&mut ctx);
+
         EndpointFuture {
-            inner: inner.map_err(Some),
+            inner: match result {
+                Ok(task) => Ok(test::EndpointFuture { task, ctx }),
+                Err(err) => Err(Some(err)),
+            },
         }
     }
 }
@@ -56,12 +64,9 @@ where
     E::Item: Responder,
     E::Error: Responder,
 {
-    fn apply_endpoint(&self, req: RequestInfo) -> Result<E::Future, EndpointError> {
-        // Create the instance of `Context` from the reference of `RequestInfo`.
-        let mut ctx = Context::new(req);
-
+    fn apply_endpoint(&self, ctx: &mut Context) -> Result<E::Task, EndpointError> {
         // Create a new endpoint from the inner factory. and evaluate it.
-        let mut result = self.endpoint.apply(&mut ctx);
+        let mut result = self.endpoint.apply(ctx);
 
         // check if the remaining path segments are exist.
         if ctx.next_segment().is_some() {
@@ -74,7 +79,7 @@ where
 
 /// The type of a future returned from `EndpointService::call()`
 #[derive(Debug)]
-pub struct EndpointFuture<F> {
+pub struct EndpointFuture<F: Future> {
     inner: Result<F, Option<EndpointError>>,
 }
 
