@@ -24,7 +24,7 @@ impl error::Error for NoReturn {
 }
 
 impl Responder for NoReturn {
-    fn respond_to(self, _: &mut Context) -> Response {
+    fn respond_to(&mut self, _: &mut Context) -> Response {
         unreachable!()
     }
 }

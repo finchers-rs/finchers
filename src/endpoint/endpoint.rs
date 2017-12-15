@@ -5,7 +5,7 @@ use std::sync::Arc;
 use hyper::StatusCode;
 
 use context::Context;
-use response::{Responder, Response};
+use response::{IntoResponder, Responder, Response};
 use task::{IntoTask, Task};
 
 use super::combinator::*;
@@ -26,9 +26,19 @@ pub enum EndpointError {
     TypeMismatch,
 }
 
-impl Responder for EndpointError {
-    fn respond_to(self, _: &mut Context) -> Response {
+#[derive(Debug)]
+pub struct EndpointErrorResponder(EndpointError);
+
+impl Responder for EndpointErrorResponder {
+    fn respond_to(&mut self, _: &mut Context) -> Response {
         Response::new().with_status(StatusCode::NotFound)
+    }
+}
+
+impl IntoResponder for EndpointError {
+    type Responder = EndpointErrorResponder;
+    fn into_responder(self) -> EndpointErrorResponder {
+        EndpointErrorResponder(self)
     }
 }
 

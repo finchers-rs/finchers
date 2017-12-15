@@ -7,7 +7,7 @@ use tokio_service::Service;
 
 use context::Context;
 use endpoint::{Endpoint, EndpointError};
-use response::Responder;
+use response::{IntoResponder, Responder};
 use task::Task;
 
 
@@ -16,8 +16,8 @@ use task::Task;
 pub struct EndpointService<E>
 where
     E: Endpoint,
-    E::Item: Responder,
-    E::Error: Responder,
+    E::Item: IntoResponder,
+    E::Error: IntoResponder,
 {
     endpoint: E,
 }
@@ -25,8 +25,8 @@ where
 impl<E> EndpointService<E>
 where
     E: Endpoint,
-    E::Item: Responder,
-    E::Error: Responder,
+    E::Item: IntoResponder,
+    E::Error: IntoResponder,
 {
     pub fn new(endpoint: E, _handle: &Handle) -> Self {
         // TODO: clone the instance of Handle and implement it to Context
@@ -37,8 +37,8 @@ where
 impl<E> Service for EndpointService<E>
 where
     E: Endpoint,
-    E::Item: Responder,
-    E::Error: Responder,
+    E::Item: IntoResponder,
+    E::Error: IntoResponder,
 {
     type Request = hyper::Request;
     type Response = hyper::Response;
@@ -61,8 +61,8 @@ where
 pub struct EndpointServiceFuture<E>
 where
     E: Endpoint,
-    E::Item: Responder,
-    E::Error: Responder,
+    E::Item: IntoResponder,
+    E::Error: IntoResponder,
 {
     result: Result<E::Task, Option<EndpointError>>,
     ctx: Context,
@@ -71,8 +71,8 @@ where
 impl<E> Future for EndpointServiceFuture<E>
 where
     E: Endpoint,
-    E::Item: Responder,
-    E::Error: Responder,
+    E::Item: IntoResponder,
+    E::Error: IntoResponder,
 {
     type Item = hyper::Response;
     type Error = hyper::Error;
@@ -81,12 +81,12 @@ where
         let response = match self.result {
             Ok(ref mut inner) => match inner.poll(&mut self.ctx) {
                 Ok(Async::NotReady) => return Ok(Async::NotReady),
-                Ok(Async::Ready(item)) => item.respond_to(&mut self.ctx),
-                Err(err) => err.respond_to(&mut self.ctx),
+                Ok(Async::Ready(item)) => item.into_responder().respond_to(&mut self.ctx),
+                Err(err) => err.into_responder().respond_to(&mut self.ctx),
             },
             Err(ref mut err) => {
                 let err = err.take().expect("cannot reject twice");
-                err.respond_to(&mut self.ctx)
+                err.into_responder().respond_to(&mut self.ctx)
             }
         };
         Ok(Async::Ready(response))

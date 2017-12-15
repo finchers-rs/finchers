@@ -13,7 +13,7 @@ use tokio_core::net::TcpListener;
 use tokio_core::reactor::{Core, Handle};
 
 use endpoint::Endpoint;
-use response::Responder;
+use response::IntoResponder;
 use service::EndpointService;
 
 
@@ -51,8 +51,8 @@ impl<E: Endpoint> Server<E> {
 impl<E> Server<E>
 where
     E: Endpoint + Send + Sync + 'static,
-    E::Item: Responder,
-    E::Error: Responder,
+    E::Item: IntoResponder,
+    E::Error: IntoResponder,
 {
     /// Start a HTTP server
     pub fn run_http(self) {
@@ -75,8 +75,8 @@ where
 fn serve<E>(endpoint: E, proto: Http<Chunk>, num_workers: usize, addr: &SocketAddr)
 where
     E: Endpoint + Clone + 'static,
-    E::Item: Responder,
-    E::Error: Responder,
+    E::Item: IntoResponder,
+    E::Error: IntoResponder,
 {
     let mut core = Core::new().unwrap();
     let handle = core.handle();

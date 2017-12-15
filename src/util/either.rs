@@ -70,10 +70,10 @@ macro_rules! define_either {
         where
         $( $variant: Responder ),*
         {
-            fn respond_to(self, ctx: &mut Context) -> Response {
-                match self {
+            fn respond_to(&mut self, ctx: &mut Context) -> Response {
+                match *self {
                     $(
-                        $name :: $variant (e) => e.respond_to(ctx),
+                        $name :: $variant (ref mut e) => e.respond_to(ctx),
                     )*
                 }
             }
