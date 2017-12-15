@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use context::Context;
 use endpoint::{Endpoint, EndpointError};
-use task::{Poll, Task};
+use task;
 
 
 /// Equivalent to `e.map(f)`
@@ -39,40 +39,10 @@ where
 {
     type Item = R;
     type Error = E::Error;
-    type Task = MapTask<E, F, R>;
+    type Task = task::Map<E::Task, F, R>;
 
     fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
         let inner = self.endpoint.apply(ctx)?;
-        Ok(MapTask {
-            inner,
-            f: self.f.clone(),
-            _marker: PhantomData,
-        })
-    }
-}
-
-
-#[derive(Debug)]
-pub struct MapTask<E, F, R>
-where
-    E: Endpoint,
-    F: Fn(E::Item) -> R,
-{
-    inner: E::Task,
-    f: Arc<F>,
-    _marker: PhantomData<R>,
-}
-
-impl<E, F, R> Task for MapTask<E, F, R>
-where
-    E: Endpoint,
-    F: Fn(E::Item) -> R,
-{
-    type Item = R;
-    type Error = E::Error;
-
-    fn poll(&mut self, ctx: &mut Context) -> Poll<Self::Item, Self::Error> {
-        let item = try_ready!(self.inner.poll(ctx));
-        Ok((*self.f)(item).into())
+        Ok(task::map(inner, self.f.clone()))
     }
 }

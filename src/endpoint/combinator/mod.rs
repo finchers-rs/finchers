@@ -1,13 +1,11 @@
 //! Definition of combinators
 
 mod and_then;
-mod chain;
 mod from_err;
 mod inspect;
 mod join;
 mod map;
 mod map_err;
-mod maybe_done;
 mod or;
 mod or_else;
 mod skip;

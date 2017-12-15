@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 
 use context::Context;
 use endpoint::{Endpoint, EndpointError};
-use task::{Poll, Task};
+use task;
 
 
 pub fn from_err<E, T>(endpoint: E) -> FromErr<E, T>
@@ -36,37 +36,10 @@ where
 {
     type Item = E::Item;
     type Error = T;
-    type Task = FromErrTask<E, T>;
+    type Task = task::FromErr<E::Task, T>;
 
     fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
         let inner = self.endpoint.apply(ctx)?;
-        Ok(FromErrTask {
-            inner,
-            _marker: PhantomData,
-        })
-    }
-}
-
-
-#[derive(Debug)]
-pub struct FromErrTask<E, T>
-where
-    E: Endpoint,
-    T: From<E::Error>,
-{
-    inner: E::Task,
-    _marker: PhantomData<T>,
-}
-
-impl<E, T> Task for FromErrTask<E, T>
-where
-    E: Endpoint,
-    T: From<E::Error>,
-{
-    type Item = E::Item;
-    type Error = T;
-
-    fn poll(&mut self, ctx: &mut Context) -> Poll<Self::Item, Self::Error> {
-        self.inner.poll(ctx).map_err(T::from)
+        Ok(task::from_err(inner))
     }
 }

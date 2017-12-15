@@ -3,8 +3,7 @@ use std::sync::Arc;
 
 use context::Context;
 use endpoint::{Endpoint, EndpointError};
-use task::{IntoTask, Poll, Task};
-use super::chain::Chain;
+use task::{self, IntoTask};
 
 
 /// Equivalent to `e.or_else(f)`
@@ -44,39 +43,10 @@ where
 {
     type Item = R::Item;
     type Error = R::Error;
-    type Task = OrElseTask<E, F, R>;
+    type Task = task::OrElse<E::Task, F, R>;
 
     fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
-        let fut = self.endpoint.apply(ctx)?;
-        Ok(OrElseTask {
-            inner: Chain::new(fut, self.f.clone()),
-        })
-    }
-}
-
-#[derive(Debug)]
-pub struct OrElseTask<E, F, R>
-where
-    E: Endpoint,
-    F: Fn(E::Error) -> R,
-    R: IntoTask<Item = E::Item>,
-{
-    inner: Chain<E::Task, R::Task, Arc<F>>,
-}
-
-impl<E, F, R> Task for OrElseTask<E, F, R>
-where
-    E: Endpoint,
-    F: Fn(E::Error) -> R,
-    R: IntoTask<Item = E::Item>,
-{
-    type Item = R::Item;
-    type Error = R::Error;
-
-    fn poll(&mut self, ctx: &mut Context) -> Poll<Self::Item, Self::Error> {
-        self.inner.poll(ctx, |result, f| match result {
-            Ok(item) => Ok(Ok(item)),
-            Err(err) => Ok(Err((*f)(err).into_task())),
-        })
+        let task = self.endpoint.apply(ctx)?;
+        Ok(task::or_else(task, self.f.clone()))
     }
 }
