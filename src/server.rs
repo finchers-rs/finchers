@@ -22,9 +22,33 @@ use test;
 
 /// A wrapper of a `NewEndpoint`, to provide hyper's HTTP services
 #[derive(Debug, Clone)]
-pub struct EndpointService<E> {
-    endpoint: Arc<E>,
+pub struct EndpointService<E>
+where
+    E: Endpoint,
+    E::Item: Responder,
+    E::Error: Responder,
+{
+    endpoint: E,
     handle: Handle,
+}
+
+impl<E> EndpointService<E>
+where
+    E: Endpoint,
+    E::Item: Responder,
+    E::Error: Responder,
+{
+    fn apply_endpoint(&self, ctx: &mut Context) -> Result<E::Task, EndpointError> {
+        // Create a new endpoint from the inner factory. and evaluate it.
+        let mut result = self.endpoint.apply(ctx);
+
+        // check if the remaining path segments are exist.
+        if ctx.next_segment().is_some() {
+            result = Err(EndpointError::Skipped);
+        }
+
+        result
+    }
 }
 
 impl<E> Service for EndpointService<E>
@@ -58,28 +82,15 @@ where
     }
 }
 
-impl<E> EndpointService<E>
-where
-    E: Endpoint,
-    E::Item: Responder,
-    E::Error: Responder,
-{
-    fn apply_endpoint(&self, ctx: &mut Context) -> Result<E::Task, EndpointError> {
-        // Create a new endpoint from the inner factory. and evaluate it.
-        let mut result = self.endpoint.apply(ctx);
-
-        // check if the remaining path segments are exist.
-        if ctx.next_segment().is_some() {
-            result = Err(EndpointError::Skipped);
-        }
-
-        result
-    }
-}
 
 /// The type of a future returned from `EndpointService::call()`
 #[derive(Debug)]
-pub struct EndpointFuture<F: Future> {
+pub struct EndpointFuture<F>
+where
+    F: Future,
+    F::Item: Responder,
+    F::Error: Responder,
+{
     inner: Result<F, Option<EndpointError>>,
 }
 
