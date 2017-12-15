@@ -7,7 +7,7 @@ use tokio_core::reactor::Core;
 use context::{Context, RequestInfo};
 use endpoint::{Endpoint, EndpointError};
 use request::{Body, Request};
-use server::create_task_future;
+use service::create_task_future;
 
 
 /// A test case for `run_test()`

@@ -17,6 +17,7 @@ pub mod endpoint;
 pub mod request;
 pub mod response;
 pub mod server;
+pub mod service;
 pub mod task;
 pub mod test;
 pub mod util;
