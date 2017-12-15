@@ -1,11 +1,8 @@
-//! Definitions and reexports related to HTTP response
-
 use std::error;
-use hyper::StatusCode;
-use hyper::header;
-use util::NoReturn;
+use hyper::{header, StatusCode};
 
-pub use hyper::Response;
+use util::NoReturn;
+use super::Response;
 
 
 /// The type to be converted to `hyper::Response`
@@ -69,51 +66,5 @@ impl Responder for String {
             .with_header(header::ContentType::plaintext())
             .with_header(header::ContentLength(self.as_bytes().len() as u64))
             .with_body(self))
-    }
-}
-
-
-/// A wrapper of responders, to represents the status `201 Created`
-#[derive(Debug)]
-pub struct Created<T>(pub T);
-
-impl<T: Responder> Responder for Created<T> {
-    type Error = T::Error;
-    fn respond(self) -> Result<Response, Self::Error> {
-        self.0
-            .respond()
-            .map(|res| res.with_status(StatusCode::Created))
-    }
-}
-
-
-/// A responder represents the status `204 No Content`
-#[derive(Debug)]
-pub struct NoContent;
-
-impl Responder for NoContent {
-    type Error = NoReturn;
-    fn respond(self) -> Result<Response, Self::Error> {
-        Ok(Response::new().with_status(StatusCode::NoContent))
-    }
-}
-
-
-/// A wrapper of responders, to overwrite the value of `ContentType`.
-#[derive(Debug)]
-pub struct ContentType<T>(header::ContentType, T);
-
-impl<T: Responder> ContentType<T> {
-    /// Create a new instance of `ContentType`
-    pub fn new(content_type: header::ContentType, responder: T) -> Self {
-        ContentType(content_type, responder)
-    }
-}
-
-impl<T: Responder> Responder for ContentType<T> {
-    type Error = T::Error;
-    fn respond(self) -> Result<Response, Self::Error> {
-        let Self { 0: c, 1: res } = self;
-        res.respond().map(|res| res.with_header(c))
     }
 }
