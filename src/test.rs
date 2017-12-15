@@ -1,14 +1,14 @@
 //! Helper functions for testing
 
-use futures::{Future, Poll};
 use hyper::Method;
 use hyper::header::Header;
 use tokio_core::reactor::Core;
 
-use context::{self, Context};
+use context::{Context, RequestInfo};
 use endpoint::{Endpoint, EndpointError};
 use request::{Body, Request};
-use task::Task;
+use server::create_task_future;
+
 
 /// A test case for `run_test()`
 #[derive(Debug)]
@@ -65,6 +65,14 @@ impl TestCase {
     }
 }
 
+impl Into<RequestInfo> for TestCase {
+    fn into(self) -> RequestInfo {
+        let req = self.request;
+        let body = self.body.unwrap_or_default();
+        RequestInfo::new(req, body)
+    }
+}
+
 
 /// Invoke given endpoint and return its result
 pub fn run_test<T, E>(endpoint: T, input: TestCase) -> Result<Result<E::Item, E::Error>, EndpointError>
@@ -72,31 +80,10 @@ where
     T: AsRef<E>,
     E: Endpoint,
 {
-    let req = input.request;
-    let body = input.body.unwrap_or_default();
-    let base = context::RequestInfo::new(req, body);
-    let mut ctx = Context::new(base);
-
-    let task = endpoint.as_ref().apply(&mut ctx)?;
-    let fut: EndpointFuture<E> = EndpointFuture { task, ctx };
-
     let mut core = Core::new().unwrap();
+
+    let ctx = Context::new(input.into());
+    let fut = create_task_future(endpoint.as_ref(), ctx)?;
+
     Ok(core.run(fut))
-}
-
-
-#[allow(missing_docs)]
-#[derive(Debug)]
-pub struct EndpointFuture<E: Endpoint> {
-    pub(crate) task: E::Task,
-    pub(crate) ctx: Context,
-}
-
-impl<E: Endpoint> Future for EndpointFuture<E> {
-    type Item = E::Item;
-    type Error = E::Error;
-
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        self.task.poll(&mut self.ctx)
-    }
 }

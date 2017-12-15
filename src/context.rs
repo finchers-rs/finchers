@@ -2,9 +2,11 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::iter::FromIterator;
+
+use hyper;
 use url::form_urlencoded;
 
-use request::{Body, FromParam, Request};
+use request::{self, Body, FromParam, Request};
 
 
 #[doc(hidden)]
@@ -46,6 +48,12 @@ pub struct Context {
 }
 
 impl Context {
+    pub(crate) fn from_hyper(req: hyper::Request) -> Self {
+        let (req, body) = request::reconstruct(req);
+        let info = RequestInfo::new(req, body);
+        Self::new(info)
+    }
+
     pub(crate) fn new(inner: RequestInfo) -> Self {
         Context {
             inner: Rc::new(inner),

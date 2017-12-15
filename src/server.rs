@@ -13,11 +13,10 @@ use tokio_core::net::TcpListener;
 use tokio_core::reactor::{Core, Handle};
 use tokio_service::Service;
 
-use context::{Context, RequestInfo};
+use context::Context;
 use endpoint::{Endpoint, EndpointError};
-use request;
 use response::Responder;
-use test;
+use task::Task;
 
 
 /// A wrapper of a `NewEndpoint`, to provide hyper's HTTP services
@@ -32,25 +31,6 @@ where
     handle: Handle,
 }
 
-impl<E> EndpointService<E>
-where
-    E: Endpoint,
-    E::Item: Responder,
-    E::Error: Responder,
-{
-    fn apply_endpoint(&self, ctx: &mut Context) -> Result<E::Task, EndpointError> {
-        // Create a new endpoint from the inner factory. and evaluate it.
-        let mut result = self.endpoint.apply(ctx);
-
-        // check if the remaining path segments are exist.
-        if ctx.next_segment().is_some() {
-            result = Err(EndpointError::Skipped);
-        }
-
-        result
-    }
-}
-
 impl<E> Service for EndpointService<E>
 where
     E: Endpoint,
@@ -60,43 +40,80 @@ where
     type Request = hyper::Request;
     type Response = hyper::Response;
     type Error = hyper::Error;
-    type Future = EndpointFuture<test::EndpointFuture<E>>;
+    type Future = RespondFuture<TaskFuture<E::Task>>;
 
     fn call(&self, req: hyper::Request) -> Self::Future {
-        // reconstruct the instance of `hyper::Request` and parse its path and queries.
-        let (req, body) = request::reconstruct(req);
-        let info = RequestInfo::new(req, body);
+        let ctx = Context::from_hyper(req);
+        let task = create_task_future(&self.endpoint, ctx);
+        RespondFuture::new(task)
+    }
+}
 
-        // Create the instance of `Context` from the reference of `RequestInfo`.
-        let mut ctx = Context::new(info);
 
-        // create and apply the endpoint to parsed `RequestInfo`
-        let result = self.apply_endpoint(&mut ctx);
+pub(crate) fn create_task_future<E: Endpoint>(
+    endpoint: &E,
+    mut ctx: Context,
+) -> Result<TaskFuture<E::Task>, EndpointError> {
+    let mut result = endpoint.apply(&mut ctx);
 
-        EndpointFuture {
-            inner: match result {
-                Ok(task) => Ok(test::EndpointFuture { task, ctx }),
-                Err(err) => Err(Some(err)),
-            },
-        }
+    // check if the remaining path segments are exist.
+    if ctx.count_remaining_segments() > 0 {
+        result = Err(EndpointError::Skipped);
+    }
+
+    result.map(|task| TaskFuture::new(task, ctx))
+}
+
+
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct TaskFuture<T: Task> {
+    task: T,
+    ctx: Context,
+}
+
+impl<T: Task> TaskFuture<T> {
+    #[allow(missing_docs)]
+    pub fn new(task: T, ctx: Context) -> Self {
+        TaskFuture { task, ctx }
+    }
+}
+
+impl<T: Task> Future for TaskFuture<T> {
+    type Item = T::Item;
+    type Error = T::Error;
+
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        self.task.poll(&mut self.ctx)
     }
 }
 
 
 /// The type of a future returned from `EndpointService::call()`
 #[derive(Debug)]
-pub struct EndpointFuture<F>
+pub struct RespondFuture<F: Future>
 where
-    F: Future,
     F::Item: Responder,
     F::Error: Responder,
 {
     inner: Result<F, Option<EndpointError>>,
 }
 
-impl<F> Future for EndpointFuture<F>
+impl<F: Future> RespondFuture<F>
 where
-    F: Future,
+    F::Item: Responder,
+    F::Error: Responder,
+{
+    #[allow(missing_docs)]
+    pub fn new(result: Result<F, EndpointError>) -> Self {
+        RespondFuture {
+            inner: result.map_err(Some),
+        }
+    }
+}
+
+impl<F: Future> Future for RespondFuture<F>
+where
     F::Item: Responder,
     F::Error: Responder,
 {
