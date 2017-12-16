@@ -7,7 +7,7 @@ use tokio_service::Service;
 
 use context::Context;
 use endpoint::{Endpoint, EndpointError};
-use response::{IntoResponder, Responder, Response, ResponseBuilder, StatusCode};
+use response::{IntoResponder, Responder};
 use task::Task;
 
 
@@ -17,7 +17,7 @@ pub struct EndpointService<E>
 where
     E: Endpoint,
     E::Item: IntoResponder,
-    E::Error: IntoResponder,
+    E::Error: IntoResponder + From<EndpointError>,
 {
     endpoint: E,
 }
@@ -26,7 +26,7 @@ impl<E> EndpointService<E>
 where
     E: Endpoint,
     E::Item: IntoResponder,
-    E::Error: IntoResponder,
+    E::Error: IntoResponder + From<EndpointError>,
 {
     pub fn new(endpoint: E, _handle: &Handle) -> Self {
         // TODO: clone the instance of Handle and implement it to Context
@@ -38,7 +38,7 @@ impl<E> Service for EndpointService<E>
 where
     E: Endpoint,
     E::Item: IntoResponder,
-    E::Error: IntoResponder,
+    E::Error: IntoResponder + From<EndpointError>,
 {
     type Request = hyper::Request;
     type Response = hyper::Response;
@@ -62,53 +62,47 @@ pub struct EndpointServiceFuture<E>
 where
     E: Endpoint,
     E::Item: IntoResponder,
-    E::Error: IntoResponder,
+    E::Error: IntoResponder + From<EndpointError>,
 {
     result: Result<E::Task, Option<EndpointError>>,
     ctx: Context,
+}
+
+impl<E> EndpointServiceFuture<E>
+where
+    E: Endpoint,
+    E::Item: IntoResponder,
+    E::Error: IntoResponder + From<EndpointError>,
+{
+    fn poll_task(&mut self) -> Poll<E::Item, E::Error> {
+        match self.result {
+            Ok(ref mut inner) => inner.poll(&mut self.ctx),
+            Err(ref mut err) => {
+                let err = err.take().expect("cannot reject twice");
+                Err(err.into())
+            }
+        }
+    }
+
+    fn respond<T: IntoResponder>(&mut self, t: T) -> hyper::Response {
+        t.into_responder().respond_to(&mut self.ctx).into_raw()
+    }
 }
 
 impl<E> Future for EndpointServiceFuture<E>
 where
     E: Endpoint,
     E::Item: IntoResponder,
-    E::Error: IntoResponder,
+    E::Error: IntoResponder + From<EndpointError>,
 {
     type Item = hyper::Response;
     type Error = hyper::Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let response = match self.result {
-            Ok(ref mut inner) => match inner.poll(&mut self.ctx) {
-                Ok(Async::NotReady) => return Ok(Async::NotReady),
-                Ok(Async::Ready(item)) => item.into_responder().respond_to(&mut self.ctx),
-                Err(err) => err.into_responder().respond_to(&mut self.ctx),
-            },
-            Err(ref mut err) => {
-                // TODO: custom responder
-                let err = err.take().expect("cannot reject twice");
-                err.into_responder().respond_to(&mut self.ctx)
-            }
-        };
-        Ok(Async::Ready(response.into_raw()))
-    }
-}
-
-
-#[derive(Debug)]
-pub struct EndpointErrorResponder(EndpointError);
-
-impl Responder for EndpointErrorResponder {
-    fn respond_to(&mut self, _: &mut Context) -> Response {
-        ResponseBuilder::default()
-            .status(StatusCode::NotFound)
-            .finish()
-    }
-}
-
-impl IntoResponder for EndpointError {
-    type Responder = EndpointErrorResponder;
-    fn into_responder(self) -> EndpointErrorResponder {
-        EndpointErrorResponder(self)
+        match self.poll_task() {
+            Ok(Async::Ready(item)) => Ok(Async::Ready(self.respond(item))),
+            Ok(Async::NotReady) => Ok(Async::NotReady),
+            Err(err) => Ok(Async::Ready(self.respond(err))),
+        }
     }
 }

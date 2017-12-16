@@ -27,7 +27,7 @@ mod context;
 pub use context::Context;
 
 #[doc(inline)]
-pub use endpoint::{Endpoint, IntoEndpoint};
+pub use endpoint::{Endpoint, EndpointError, IntoEndpoint};
 
 #[doc(inline)]
 pub use request::Request;

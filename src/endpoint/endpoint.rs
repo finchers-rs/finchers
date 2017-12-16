@@ -1,5 +1,7 @@
 //! Definition of `Endpoint`
 
+use std::fmt::{self, Display};
+use std::error::Error;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -22,6 +24,25 @@ pub enum EndpointError {
     InvalidMethod,
     /// The type of a path segment or a query parameter is not convertible to the endpoint
     TypeMismatch,
+}
+
+impl Display for EndpointError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(self.description())
+    }
+}
+
+impl Error for EndpointError {
+    fn description(&self) -> &str {
+        use EndpointError::*;
+        match *self {
+            Skipped => "skipped",
+            EmptyBody => "empty body",
+            EmptyHeader => "empty header",
+            InvalidMethod => "invalid method",
+            TypeMismatch => "type mismatch",
+        }
+    }
 }
 
 

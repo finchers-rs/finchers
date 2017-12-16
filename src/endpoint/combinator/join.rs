@@ -30,7 +30,7 @@ macro_rules! generate {
             $(
                 $T: $T,
             )*
-            _marker: PhantomData<E>,
+            _marker: PhantomData<fn() -> E>,
         }
 
         impl<$($T,)* E> Endpoint for $Join<$($T,)* E>

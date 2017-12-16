@@ -29,7 +29,7 @@ where
 {
     endpoint: E,
     f: Arc<F>,
-    _marker: PhantomData<R>,
+    _marker: PhantomData<fn() -> R>,
 }
 
 impl<E, F, R> Endpoint for MapErr<E, F, R>

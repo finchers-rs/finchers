@@ -31,10 +31,9 @@ where
 {
     endpoint: E,
     f: Arc<F>,
-    _marker: PhantomData<R>,
+    _marker: PhantomData<fn() -> R>,
 }
 
-// The implementation of `Endpoint` for `AndThen`.
 impl<E, F, R> Endpoint for OrElse<E, F, R>
 where
     E: Endpoint,
