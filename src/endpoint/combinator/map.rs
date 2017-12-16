@@ -32,20 +32,6 @@ where
     _marker: PhantomData<fn() -> R>,
 }
 
-unsafe impl<E, F, R> Send for Map<E, F, R>
-where
-    E: Endpoint + Send,
-    F: Fn(E::Item) -> R + Send,
-{
-}
-
-unsafe impl<E, F, R> Sync for Map<E, F, R>
-where
-    E: Endpoint + Sync,
-    F: Fn(E::Item) -> R + Sync,
-{
-}
-
 impl<E, F, R> Endpoint for Map<E, F, R>
 where
     E: Endpoint,

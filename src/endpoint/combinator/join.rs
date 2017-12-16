@@ -33,20 +33,6 @@ macro_rules! generate {
             _marker: PhantomData<fn() -> E>,
         }
 
-        unsafe impl<$($T,)* E> Send for $Join<$($T,)* E>
-        where $(
-            $T: Endpoint<Error = E> + Send,
-        )*
-        {
-        }
-
-        unsafe impl<$($T,)* E> Sync for $Join<$($T,)* E>
-        where $(
-            $T: Endpoint<Error = E> + Sync,
-        )*
-        {
-        }
-
         impl<$($T,)* E> Endpoint for $Join<$($T,)* E>
         where $(
             $T: Endpoint<Error = E>,

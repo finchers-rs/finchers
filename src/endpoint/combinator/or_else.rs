@@ -34,22 +34,6 @@ where
     _marker: PhantomData<fn() -> R>,
 }
 
-unsafe impl<E, F, R> Send for OrElse<E, F, R>
-where
-    E: Endpoint + Send,
-    F: Fn(E::Error) -> R + Send,
-    R: IntoTask<Item = E::Item>,
-{
-}
-
-unsafe impl<E, F, R> Sync for OrElse<E, F, R>
-where
-    E: Endpoint + Sync,
-    F: Fn(E::Error) -> R + Sync,
-    R: IntoTask<Item = E::Item>,
-{
-}
-
 impl<E, F, R> Endpoint for OrElse<E, F, R>
 where
     E: Endpoint,

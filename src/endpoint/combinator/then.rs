@@ -34,22 +34,6 @@ where
     _marker: PhantomData<fn() -> R>,
 }
 
-unsafe impl<E, F, R> Send for Then<E, F, R>
-where
-    E: Endpoint + Send,
-    F: Fn(Result<E::Item, E::Error>) -> R + Send,
-    R: IntoTask,
-{
-}
-
-unsafe impl<E, F, R> Sync for Then<E, F, R>
-where
-    E: Endpoint + Sync,
-    F: Fn(Result<E::Item, E::Error>) -> R + Sync,
-    R: IntoTask,
-{
-}
-
 impl<E, F, R> Endpoint for Then<E, F, R>
 where
     E: Endpoint,

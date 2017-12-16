@@ -29,20 +29,6 @@ where
     _marker: PhantomData<fn() -> T>,
 }
 
-unsafe impl<E, T> Send for FromErr<E, T>
-where
-    E: Endpoint + Send,
-    T: From<E::Error>,
-{
-}
-
-unsafe impl<E, T> Sync for FromErr<E, T>
-where
-    E: Endpoint + Sync,
-    T: From<E::Error>,
-{
-}
-
 impl<E, T> Endpoint for FromErr<E, T>
 where
     E: Endpoint,
