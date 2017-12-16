@@ -6,11 +6,13 @@ mod from_err;
 mod futures;
 mod inspect;
 mod join;
+mod join_all;
 mod map_err;
 mod map;
 mod maybe_done;
 mod or_else;
 mod or;
+mod poll_fn;
 mod result;
 mod then;
 
@@ -23,10 +25,12 @@ pub use self::from_err::{from_err, FromErr};
 pub use self::futures::{future, TaskFuture};
 pub use self::inspect::{inspect, Inspect};
 pub use self::join::{join, Join, Join3, Join4, Join5, Join6, join3, join4, join5, join6};
+pub use self::join_all::{join_all, JoinAll};
 pub use self::map_err::{map_err, MapErr};
 pub use self::map::{map, Map};
 pub use self::or_else::{or_else, OrElse};
 pub use self::or::{left, right, Or};
+pub use self::poll_fn::{poll_fn, PollFn};
 pub use self::result::{err, ok, result, TaskResult};
 pub use self::then::{then, Then};
 

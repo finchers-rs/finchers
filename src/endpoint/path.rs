@@ -125,14 +125,3 @@ where
 {
     PathParams(PhantomData)
 }
-
-
-#[allow(missing_docs)]
-#[deprecated(since = "0.6.0", note = "use param::<T>() instead")]
-pub trait PathExt<E>: FromParam {
-    /// equivalent to `path::<Self>()`
-    const PATH: PathParam<Self, E> = PathParam(PhantomData);
-}
-
-#[allow(deprecated)]
-impl<T: FromParam, E> PathExt<E> for T {}
