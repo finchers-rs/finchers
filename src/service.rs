@@ -11,7 +11,7 @@ use response::{IntoResponder, Responder, Response, ResponseBuilder, StatusCode};
 use task::Task;
 
 
-/// A wrapper of a `NewEndpoint`, to provide hyper's HTTP services
+/// An HTTP service which wraps a `Endpoint`.
 #[derive(Debug, Clone)]
 pub struct EndpointService<E>
 where
@@ -56,7 +56,7 @@ where
 }
 
 
-/// The returned future from `EndpointService::call()`
+/// A future returned from `EndpointService::call()`
 #[derive(Debug)]
 pub struct EndpointServiceFuture<E>
 where
@@ -85,6 +85,7 @@ where
                 Err(err) => err.into_responder().respond_to(&mut self.ctx),
             },
             Err(ref mut err) => {
+                // TODO: custom responder
                 let err = err.take().expect("cannot reject twice");
                 err.into_responder().respond_to(&mut self.ctx)
             }

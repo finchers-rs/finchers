@@ -36,7 +36,7 @@ pub use request::Request;
 pub use response::{Responder, Response};
 
 #[doc(inline)]
-pub use server::Server;
+pub use server::ServerBuilder;
 
 #[doc(inline)]
 pub use task::{IntoTask, Task};
