@@ -3,21 +3,21 @@
 
 use std::marker::PhantomData;
 use context::Context;
-use endpoint::{Endpoint, EndpointError};
+use endpoint::{Endpoint, EndpointError, IntoEndpoint};
 use task;
 
 
 macro_rules! generate {
     ($(
-        ($new:ident, $Join:ident, <$($T:ident),*>),
+        ($new:ident, $Join:ident, <$($T:ident : $A:ident),*>),
     )*) => {$(
-        pub fn $new<$($T,)* E>($( $T: $T ),*) -> $Join <$($T,)* E>
+        pub fn $new<$($T,)* $($A,)* E>($( $T: $T ),*) -> $Join <$($T::Endpoint,)* E>
         where $(
-            $T: Endpoint<Error = E>,
+            $T: IntoEndpoint<$A, E>,
         )*
         {
             $Join {
-                $($T,)*
+                $($T: $T.into_endpoint(),)*
                 _marker: PhantomData,
             }
         }
@@ -49,13 +49,25 @@ macro_rules! generate {
                 Ok(task::$new($($T),*))
             }
         }
+
+        impl<$($T,)* $($A,)* E> IntoEndpoint<($($A),*), E> for ($($T),*)
+        where $(
+            $T: IntoEndpoint<$A, E>,
+        )* {
+            type Endpoint = $Join<$($T::Endpoint,)* E>;
+
+            fn into_endpoint(self) -> Self::Endpoint {
+                let ($($T),*) = self;
+                $new ($($T),*)
+            }
+        }
     )*};
 }
 
 generate! {
-    (join, Join, <E1, E2>),
-    (join3, Join3, <E1, E2, E3>),
-    (join4, Join4, <E1, E2, E3, E4>),
-    (join5, Join5, <E1, E2, E3, E4, E5>),
-    (join6, Join6, <E1, E2, E3, E4, E5, E6>),
+    (join,  Join,  <E1:T1, E2:T2>),
+    (join3, Join3, <E1:T1, E2:T2, E3:T3>),
+    (join4, Join4, <E1:T1, E2:T2, E3:T3, E4:T4>),
+    (join5, Join5, <E1:T1, E2:T2, E3:T3, E4:T4, E5:T5>),
+    (join6, Join6, <E1:T1, E2:T2, E3:T3, E4:T4, E5:T5, E6:T6>),
 }

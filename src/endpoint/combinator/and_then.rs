@@ -2,19 +2,19 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 
 use context::Context;
-use endpoint::{Endpoint, EndpointError};
+use endpoint::{Endpoint, EndpointError, IntoEndpoint};
 use task::{self, IntoTask};
 
 
 /// Equivalent to `e.and_then(f)`
-pub fn and_then<E, F, R>(endpoint: E, f: F) -> AndThen<E, F, R>
+pub fn and_then<E, F, R, A, B>(endpoint: E, f: F) -> AndThen<E::Endpoint, F, R>
 where
-    E: Endpoint,
-    F: Fn(E::Item) -> R,
-    R: IntoTask<Error = E::Error>,
+    E: IntoEndpoint<A, B>,
+    F: Fn(A) -> R,
+    R: IntoTask<Error = B>,
 {
     AndThen {
-        endpoint,
+        endpoint: endpoint.into_endpoint(),
         f: Arc::new(f),
         _marker: PhantomData,
     }

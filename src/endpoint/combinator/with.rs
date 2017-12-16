@@ -1,14 +1,17 @@
 #![allow(missing_docs)]
 
 use context::Context;
-use endpoint::{Endpoint, EndpointError};
+use endpoint::{Endpoint, EndpointError, IntoEndpoint};
 
-pub fn with<E1, E2>(e1: E1, e2: E2) -> With<E1, E2>
+pub fn with<E1, E2, A, B, C>(e1: E1, e2: E2) -> With<E1::Endpoint, E2::Endpoint>
 where
-    E1: Endpoint,
-    E2: Endpoint<Error = E1::Error>,
+    E1: IntoEndpoint<A, B>,
+    E2: IntoEndpoint<C, B>,
 {
-    With { e1, e2 }
+    With {
+        e1: e1.into_endpoint(),
+        e2: e2.into_endpoint(),
+    }
 }
 
 #[derive(Debug)]
