@@ -237,3 +237,22 @@ impl<E: Endpoint> Endpoint for Arc<E> {
         (**self).apply(ctx)
     }
 }
+
+
+#[allow(missing_docs)]
+pub trait IntoEndpoint<T, E> {
+    type Endpoint: Endpoint<Item = T, Error = E>;
+
+    fn into_endpoint(self) -> Self::Endpoint;
+}
+
+impl<E, A, B> IntoEndpoint<A, B> for E
+where
+    E: Endpoint<Item = A, Error = B>,
+{
+    type Endpoint = E;
+
+    fn into_endpoint(self) -> Self::Endpoint {
+        self
+    }
+}
