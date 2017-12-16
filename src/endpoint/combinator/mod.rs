@@ -15,7 +15,7 @@ mod with;
 pub use self::and_then::{and_then, AndThen};
 pub use self::from_err::{from_err, FromErr};
 pub use self::inspect::{inspect, Inspect};
-pub use self::join::{join, Join};
+pub use self::join::{join, Join, Join3, Join4, Join5, Join6, join3, join4, join5, join6};
 pub use self::map::{map, Map};
 pub use self::map_err::{map_err, MapErr};
 pub use self::or::{or, Or};

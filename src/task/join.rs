@@ -1,6 +1,8 @@
 #![allow(missing_docs)]
+#![allow(non_snake_case)]
 
 use std::fmt;
+use std::marker::PhantomData;
 
 use context::Context;
 use super::{Async, Poll, Task};
@@ -8,84 +10,96 @@ use super::maybe_done::MaybeDone;
 
 // TODO: add Join3, Join4, Join5
 
-pub fn join<T1, T2>(t1: T1, t2: T2) -> Join<T1, T2>
-where
-    T1: Task,
-    T2: Task<Error = T1::Error>,
-{
-    Join {
-        t1: MaybeDone::NotYet(t1),
-        t2: MaybeDone::NotYet(t2),
-    }
-}
-
-
-pub struct Join<T1, T2>
-where
-    T1: Task,
-    T2: Task<Error = T1::Error>,
-{
-    t1: MaybeDone<T1>,
-    t2: MaybeDone<T2>,
-}
-
-impl<T1, T2> fmt::Debug for Join<T1, T2>
-where
-    T1: Task + fmt::Debug,
-    T1::Item: fmt::Debug,
-    T2: Task<Error = T1::Error> + fmt::Debug,
-    T2::Item: fmt::Debug,
-{
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct(stringify!(Join<T1, T2>))
-            .field("f1", &self.t1)
-            .field("f2", &self.t2)
-            .finish()
-    }
-}
-
-impl<T1, T2> Join<T1, T2>
-where
-    T1: Task,
-    T2: Task<Error = T1::Error>,
-{
-    fn erase(&mut self) {
-        self.t1 = MaybeDone::Gone;
-        self.t2 = MaybeDone::Gone;
-    }
-}
-
-impl<T1, T2> Task for Join<T1, T2>
-where
-    T1: Task,
-    T2: Task<Error = T1::Error>,
-{
-    type Item = (T1::Item, T2::Item);
-    type Error = T1::Error;
-
-    fn poll(&mut self, ctx: &mut Context) -> Poll<Self::Item, Self::Error> {
-        let mut all_done = true;
-
-        all_done = all_done && match self.t1.poll(ctx) {
-            Ok(done) => done,
-            Err(e) => {
-                self.erase();
-                return Err(e);
+macro_rules! generate {
+    ($(
+        ($new:ident, $Join:ident, <$($T:ident),*>),
+    )*) => {
+        $(
+            pub fn $new <$( $T, )* E>($($T: $T),*)
+                -> $Join <$( $T, )* E>
+            where $(
+                $T: Task<Error = E>,
+            )*
+            {
+                $Join {
+                    $(
+                        $T: MaybeDone::NotYet($T),
+                    )*
+                    _marker: PhantomData,
+                }
             }
-        };
 
-        all_done = all_done && match self.t2.poll(ctx) {
-            Ok(done) => done,
-            Err(e) => {
-                self.erase();
-                return Err(e);
+            pub struct $Join<$($T),*, E>
+            where $(
+                $T: Task<Error = E>,
+            )*
+            {
+                $( $T: MaybeDone<$T>, )*
+                _marker: PhantomData<E>,
             }
-        };
 
-        if all_done {
-            Ok(Async::Ready((self.t1.take(), self.t2.take())))
-        } else {
-            Ok(Async::NotReady)
-        }
-    }
+            impl<$($T,)* E> fmt::Debug for $Join<$($T,)* E>
+            where $(
+                $T: Task<Error = E> + fmt::Debug,
+                $T::Item: fmt::Debug,
+            )*
+            {
+                fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                    f.debug_struct(stringify!(Join<T1, T2>))
+                        $(
+                            .field(stringify!($T), &self.$T)
+                        )*
+                        .finish()
+                }
+            }
+
+            impl<$($T,)* E> $Join<$($T,)* E>
+            where $(
+                $T: Task<Error = E>,
+            )*
+            {
+                fn erase(&mut self) {
+                    $(
+                        self.$T = MaybeDone::Gone;
+                    )*
+                }
+            }
+
+            impl<$($T,)* E> Task for $Join<$($T,)* E>
+            where $(
+                $T: Task<Error = E>,
+            )*
+            {
+                type Item = ($($T::Item),*);
+                type Error = E;
+
+                fn poll(&mut self, ctx: &mut Context) -> Poll<Self::Item, Self::Error> {
+                    let mut all_done = true;
+                    $(
+                        all_done = all_done && match self.$T.poll(ctx) {
+                            Ok(done) => done,
+                            Err(e) => {
+                                self.erase();
+                                return Err(e);
+                            }
+                        };
+                    )*
+
+                    if all_done {
+                        Ok(Async::Ready(($(self.$T.take()),*)))
+                    } else {
+                        Ok(Async::NotReady)
+                    }
+                }
+            }
+        )*
+    };
+}
+
+generate! {
+    (join, Join, <T1, T2>),
+    (join3, Join3, <T1, T2, T3>),
+    (join4, Join4, <T1, T2, T3, T4>),
+    (join5, Join5, <T1, T2, T3, T4, T5>),
+    (join6, Join6, <T1, T2, T3, T4, T5, T6>),
 }
