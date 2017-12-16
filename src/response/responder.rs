@@ -1,7 +1,6 @@
 use std::borrow::Cow;
-use hyper::{header, StatusCode};
 use context::Context;
-use super::Response;
+use super::{header, Response, ResponseBuilder, StatusCode};
 
 
 /// The type to be converted to `hyper::Response`
@@ -22,9 +21,10 @@ pub struct UnitResponder;
 
 impl Responder for UnitResponder {
     fn respond_to(&mut self, _: &mut Context) -> Response {
-        Response::new()
-            .with_status(StatusCode::NoContent)
-            .with_header(header::ContentLength(0))
+        ResponseBuilder::default()
+            .status(StatusCode::NoContent)
+            .header(header::ContentLength(0))
+            .finish()
     }
 }
 
@@ -42,10 +42,11 @@ pub struct StringResponder(Option<Cow<'static, str>>);
 impl Responder for StringResponder {
     fn respond_to(&mut self, _: &mut Context) -> Response {
         let body = self.0.take().expect("cannot respond twice");
-        Response::new()
-            .with_header(header::ContentType::plaintext())
-            .with_header(header::ContentLength(body.len() as u64))
-            .with_body(body)
+        ResponseBuilder::default()
+            .header(header::ContentType::plaintext())
+            .header(header::ContentLength(body.len() as u64))
+            .body(body)
+            .finish()
     }
 }
 

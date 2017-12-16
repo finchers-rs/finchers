@@ -1,13 +1,13 @@
 #![allow(missing_docs)]
 
 use futures::{Async, Future, Poll};
-use hyper::{self, StatusCode};
+use hyper;
 use tokio_core::reactor::Handle;
 use tokio_service::Service;
 
 use context::Context;
 use endpoint::{Endpoint, EndpointError};
-use response::{IntoResponder, Responder, Response};
+use response::{IntoResponder, Responder, Response, ResponseBuilder, StatusCode};
 use task::Task;
 
 
@@ -89,7 +89,7 @@ where
                 err.into_responder().respond_to(&mut self.ctx)
             }
         };
-        Ok(Async::Ready(response))
+        Ok(Async::Ready(response.into_raw()))
     }
 }
 
@@ -99,7 +99,9 @@ pub struct EndpointErrorResponder(EndpointError);
 
 impl Responder for EndpointErrorResponder {
     fn respond_to(&mut self, _: &mut Context) -> Response {
-        Response::new().with_status(StatusCode::NotFound)
+        ResponseBuilder::default()
+            .status(StatusCode::NotFound)
+            .finish()
     }
 }
 
