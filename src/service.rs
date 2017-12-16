@@ -68,6 +68,27 @@ where
     ctx: Context,
 }
 
+impl<E> EndpointServiceFuture<E>
+where
+    E: Endpoint,
+    E::Item: IntoResponder,
+    E::Error: IntoResponder + From<EndpointError>,
+{
+    fn poll_task(&mut self) -> Poll<E::Item, E::Error> {
+        match self.result {
+            Ok(ref mut inner) => inner.poll(&mut self.ctx),
+            Err(ref mut err) => {
+                let err = err.take().expect("cannot reject twice");
+                Err(err.into())
+            }
+        }
+    }
+
+    fn respond<T: IntoResponder>(&mut self, t: T) -> hyper::Response {
+        t.into_responder().respond_to(&mut self.ctx).into_raw()
+    }
+}
+
 impl<E> Future for EndpointServiceFuture<E>
 where
     E: Endpoint,
@@ -78,20 +99,10 @@ where
     type Error = hyper::Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let response = match self.result {
-            Ok(ref mut inner) => match inner.poll(&mut self.ctx) {
-                Ok(Async::NotReady) => return Ok(Async::NotReady),
-                Ok(Async::Ready(item)) => item.into_responder().respond_to(&mut self.ctx),
-                Err(err) => err.into_responder().respond_to(&mut self.ctx),
-            },
-            Err(ref mut err) => {
-                // TODO: custom responder
-                let err = err.take().expect("cannot reject twice");
-                E::Error::from(err)
-                    .into_responder()
-                    .respond_to(&mut self.ctx)
-            }
-        };
-        Ok(Async::Ready(response.into_raw()))
+        match self.poll_task() {
+            Ok(Async::Ready(item)) => Ok(Async::Ready(self.respond(item))),
+            Ok(Async::NotReady) => Ok(Async::NotReady),
+            Err(err) => Ok(Async::Ready(self.respond(err))),
+        }
     }
 }
