@@ -1,5 +1,6 @@
 //! Definition of HTTP services for Hyper
 
+use std::borrow::Cow;
 use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -13,106 +14,130 @@ use tokio_core::net::TcpListener;
 use tokio_core::reactor::{Core, Handle};
 
 use endpoint::Endpoint;
-use response::Responder;
+use response::IntoResponder;
 use service::EndpointService;
 
 
 /// The factory of HTTP service
 #[derive(Debug)]
-pub struct Server<E> {
-    endpoint: E,
-    addr: Option<String>,
-    num_workers: Option<usize>,
+pub struct ServerBuilder {
+    addr: Cow<'static, str>,
+    num_workers: usize,
 }
 
-impl<E: Endpoint> Server<E> {
-    /// Create a new instance of `Server` from a `NewEndpoint`
-    pub fn new(endpoint: E) -> Self {
-        Self {
-            endpoint,
-            addr: None,
-            num_workers: None,
+impl Default for ServerBuilder {
+    fn default() -> Self {
+        ServerBuilder {
+            addr: "0.0.0.0:4000".into(),
+            num_workers: 1,
         }
     }
+}
 
+impl ServerBuilder {
     /// Set the listener address of the service
-    pub fn bind<S: Into<String>>(mut self, addr: S) -> Self {
-        self.addr = Some(addr.into());
+    pub fn bind<S: Into<Cow<'static, str>>>(mut self, addr: S) -> Self {
+        self.addr = addr.into();
         self
     }
 
     /// Set the number of worker threads
     pub fn num_workers(mut self, n: usize) -> Self {
-        self.num_workers = Some(n);
+        self.num_workers = n;
         self
     }
-}
 
-impl<E> Server<E>
-where
-    E: Endpoint + Send + Sync + 'static,
-    E::Item: Responder,
-    E::Error: Responder,
-{
-    /// Start a HTTP server
-    pub fn run_http(self) {
-        let endpoint = Arc::new(self.endpoint);
+    /// Start an HTTP server with given endpoint
+    pub fn run_http<E>(&self, endpoint: E)
+    where
+        E: Endpoint + Send + Sync + 'static,
+        E::Item: IntoResponder,
+        E::Error: IntoResponder,
+    {
+        let endpoint = Arc::new(endpoint);
         let proto = Http::new();
-        let addr = self.addr.unwrap_or("0.0.0.0:4000".into()).parse().unwrap();
-        let num_workers = self.num_workers.unwrap_or(1);
+        let addr = self.addr.parse().unwrap();
+        let reuse_port = self.num_workers > 1;
 
-        for _ in 0..(num_workers - 1) {
+        for _ in 0..(self.num_workers - 1) {
             let endpoint = endpoint.clone();
             let proto = proto.clone();
             thread::spawn(move || {
-                serve(endpoint, proto, num_workers, &addr);
+                let _ = Worker {
+                    endpoint,
+                    proto,
+                    addr: &addr,
+                    reuse_port,
+                }.run();
             });
         }
-        serve(endpoint, proto, num_workers, &addr);
+        let _ = Worker {
+            endpoint,
+            proto,
+            addr: &addr,
+            reuse_port,
+        }.run();
     }
 }
 
-fn serve<E>(endpoint: E, proto: Http<Chunk>, num_workers: usize, addr: &SocketAddr)
+
+#[derive(Debug)]
+struct Worker<'a, E>
 where
     E: Endpoint + Clone + 'static,
-    E::Item: Responder,
-    E::Error: Responder,
+    E::Item: IntoResponder,
+    E::Error: IntoResponder,
 {
-    let mut core = Core::new().unwrap();
-    let handle = core.handle();
-
-    let listener = listener(&addr, num_workers, &handle).unwrap();
-    let server = listener.incoming().for_each(|(sock, addr)| {
-        let service = EndpointService::new(endpoint.clone(), &handle);
-        proto.bind_connection(&handle, sock, addr, service);
-        Ok(())
-    });
-
-    core.run(server).unwrap()
+    endpoint: E,
+    proto: Http<Chunk>,
+    addr: &'a SocketAddr,
+    reuse_port: bool,
 }
 
-fn listener(addr: &SocketAddr, num_workers: usize, handle: &Handle) -> io::Result<TcpListener> {
-    let listener = match *addr {
-        SocketAddr::V4(_) => TcpBuilder::new_v4()?,
-        SocketAddr::V6(_) => TcpBuilder::new_v6()?,
-    };
-    configure_tcp(&listener, num_workers)?;
-    listener.reuse_address(true)?;
-    listener.bind(addr)?;
-    let l = listener.listen(1024)?;
-    TcpListener::from_listener(l, addr, handle)
+impl<'a, E> Worker<'a, E>
+where
+    E: Endpoint + Clone + 'static,
+    E::Item: IntoResponder,
+    E::Error: IntoResponder,
+{
+    fn run(&self) -> io::Result<()> {
+        let mut core = Core::new()?;
+        let handle = core.handle();
+
+        let server = self.build_listener(&handle)?
+            .incoming()
+            .for_each(|(sock, addr)| {
+                let service = EndpointService::new(self.endpoint.clone(), &handle);
+                self.proto.bind_connection(&handle, sock, addr, service);
+                Ok(())
+            });
+
+        core.run(server)
+    }
+
+    fn build_listener(&self, handle: &Handle) -> io::Result<TcpListener> {
+        let listener = match *self.addr {
+            SocketAddr::V4(..) => TcpBuilder::new_v4()?,
+            SocketAddr::V6(..) => TcpBuilder::new_v6()?,
+        };
+        configure_tcp(&listener, self.reuse_port)?;
+        listener.reuse_address(true)?;
+        listener.bind(&self.addr)?;
+        let l = listener.listen(1024)?;
+        TcpListener::from_listener(l, &self.addr, handle)
+    }
 }
 
 #[cfg(not(windows))]
-fn configure_tcp(tcp: &TcpBuilder, workers: usize) -> io::Result<()> {
+fn configure_tcp(tcp: &TcpBuilder, reuse_port: bool) -> io::Result<()> {
     use net2::unix::UnixTcpBuilderExt;
-    if workers > 1 {
+    if reuse_port {
         tcp.reuse_port(true)?;
     }
     Ok(())
 }
 
 #[cfg(windows)]
-fn configure_tcp(_: &TcpBuilder, _: usize) -> io::Result<()> {
+fn configure_tcp(_: &TcpBuilder, _: bool) -> io::Result<()> {
     Ok(())
 }

@@ -1,23 +1,23 @@
 #![allow(missing_docs)]
 
-use futures::{Future, Poll};
+use futures::{Async, Future, Poll};
 use hyper;
 use tokio_core::reactor::Handle;
 use tokio_service::Service;
 
 use context::Context;
 use endpoint::{Endpoint, EndpointError};
-use response::Responder;
+use response::{IntoResponder, Responder, Response, ResponseBuilder, StatusCode};
 use task::Task;
 
 
-/// A wrapper of a `NewEndpoint`, to provide hyper's HTTP services
+/// An HTTP service which wraps a `Endpoint`.
 #[derive(Debug, Clone)]
 pub struct EndpointService<E>
 where
     E: Endpoint,
-    E::Item: Responder,
-    E::Error: Responder,
+    E::Item: IntoResponder,
+    E::Error: IntoResponder,
 {
     endpoint: E,
 }
@@ -25,8 +25,8 @@ where
 impl<E> EndpointService<E>
 where
     E: Endpoint,
-    E::Item: Responder,
-    E::Error: Responder,
+    E::Item: IntoResponder,
+    E::Error: IntoResponder,
 {
     pub fn new(endpoint: E, _handle: &Handle) -> Self {
         // TODO: clone the instance of Handle and implement it to Context
@@ -37,108 +37,78 @@ where
 impl<E> Service for EndpointService<E>
 where
     E: Endpoint,
-    E::Item: Responder,
-    E::Error: Responder,
+    E::Item: IntoResponder,
+    E::Error: IntoResponder,
 {
     type Request = hyper::Request;
     type Response = hyper::Response;
     type Error = hyper::Error;
-    type Future = RespondFuture<TaskFuture<E::Task>>;
+    type Future = EndpointServiceFuture<E>;
 
     fn call(&self, req: hyper::Request) -> Self::Future {
-        let ctx = Context::from_hyper(req);
-        let task = create_task_future(&self.endpoint, ctx);
-        RespondFuture::new(task)
-    }
-}
-
-
-pub(crate) fn create_task_future<E: Endpoint>(
-    endpoint: &E,
-    mut ctx: Context,
-) -> Result<TaskFuture<E::Task>, EndpointError> {
-    let mut result = endpoint.apply(&mut ctx);
-
-    // check if the remaining path segments are exist.
-    if ctx.count_remaining_segments() > 0 {
-        result = Err(EndpointError::Skipped);
-    }
-
-    result.map(|task| TaskFuture::new(task, ctx))
-}
-
-
-#[allow(missing_docs)]
-#[derive(Debug)]
-pub struct TaskFuture<T: Task> {
-    task: T,
-    ctx: Context,
-}
-
-impl<T: Task> TaskFuture<T> {
-    #[allow(missing_docs)]
-    pub fn new(task: T, ctx: Context) -> Self {
-        TaskFuture { task, ctx }
-    }
-}
-
-impl<T: Task> Future for TaskFuture<T> {
-    type Item = T::Item;
-    type Error = T::Error;
-
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        self.task.poll(&mut self.ctx)
-    }
-}
-
-
-/// The type of a future returned from `EndpointService::call()`
-#[derive(Debug)]
-pub struct RespondFuture<F: Future>
-where
-    F::Item: Responder,
-    F::Error: Responder,
-{
-    inner: Result<F, Option<EndpointError>>,
-}
-
-impl<F: Future> RespondFuture<F>
-where
-    F::Item: Responder,
-    F::Error: Responder,
-{
-    #[allow(missing_docs)]
-    pub fn new(result: Result<F, EndpointError>) -> Self {
-        RespondFuture {
-            inner: result.map_err(Some),
+        let mut ctx = Context::from_hyper(req);
+        let result = self.endpoint.apply(&mut ctx);
+        EndpointServiceFuture {
+            result: result.map_err(Some),
+            ctx,
         }
     }
 }
 
-impl<F: Future> Future for RespondFuture<F>
+
+/// A future returned from `EndpointService::call()`
+#[derive(Debug)]
+pub struct EndpointServiceFuture<E>
 where
-    F::Item: Responder,
-    F::Error: Responder,
+    E: Endpoint,
+    E::Item: IntoResponder,
+    E::Error: IntoResponder,
+{
+    result: Result<E::Task, Option<EndpointError>>,
+    ctx: Context,
+}
+
+impl<E> Future for EndpointServiceFuture<E>
+where
+    E: Endpoint,
+    E::Item: IntoResponder,
+    E::Error: IntoResponder,
 {
     type Item = hyper::Response;
     type Error = hyper::Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        // Check the result of `Endpoint::apply()`.
-        let inner = match self.inner.as_mut() {
-            Ok(inner) => inner,
-            Err(err) => {
+        let response = match self.result {
+            Ok(ref mut inner) => match inner.poll(&mut self.ctx) {
+                Ok(Async::NotReady) => return Ok(Async::NotReady),
+                Ok(Async::Ready(item)) => item.into_responder().respond_to(&mut self.ctx),
+                Err(err) => err.into_responder().respond_to(&mut self.ctx),
+            },
+            Err(ref mut err) => {
+                // TODO: custom responder
                 let err = err.take().expect("cannot reject twice");
-                return Ok(err.into_response().into());
+                err.into_responder().respond_to(&mut self.ctx)
             }
         };
+        Ok(Async::Ready(response.into_raw()))
+    }
+}
 
-        // Query the future returned from the endpoint
-        let item = inner.poll();
-        // ...and convert its success/error value to `hyper::Response`.
-        let item = item.map(|item| item.map(Responder::into_response))
-            .map_err(Responder::into_response);
 
-        Ok(item.unwrap_or_else(Into::into))
+#[derive(Debug)]
+pub struct EndpointErrorResponder(EndpointError);
+
+impl Responder for EndpointErrorResponder {
+    fn respond_to(&mut self, _: &mut Context) -> Response {
+        ResponseBuilder::default()
+            .status(StatusCode::NotFound)
+            .finish()
+    }
+}
+
+impl IntoResponder for EndpointError {
+    type Responder = EndpointErrorResponder;
+    fn into_responder(self) -> EndpointErrorResponder {
+        EndpointErrorResponder(self)
     }
 }
