@@ -7,7 +7,7 @@ use endpoint::{Endpoint, EndpointError, IntoEndpoint};
 
 #[allow(missing_docs)]
 #[derive(Debug, Clone)]
-pub struct MatchMethod<E>(Method, E);
+pub struct MatchMethod<E: Endpoint>(Method, E);
 
 impl<E: Endpoint> Endpoint for MatchMethod<E> {
     type Item = E::Item;

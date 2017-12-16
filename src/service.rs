@@ -7,7 +7,7 @@ use tokio_service::Service;
 
 use context::Context;
 use endpoint::{Endpoint, EndpointError};
-use response::{IntoResponder, Responder, Response, ResponseBuilder, StatusCode};
+use response::{IntoResponder, Responder};
 use task::Task;
 
 
@@ -17,7 +17,7 @@ pub struct EndpointService<E>
 where
     E: Endpoint,
     E::Item: IntoResponder,
-    E::Error: IntoResponder,
+    E::Error: IntoResponder + From<EndpointError>,
 {
     endpoint: E,
 }
@@ -26,7 +26,7 @@ impl<E> EndpointService<E>
 where
     E: Endpoint,
     E::Item: IntoResponder,
-    E::Error: IntoResponder,
+    E::Error: IntoResponder + From<EndpointError>,
 {
     pub fn new(endpoint: E, _handle: &Handle) -> Self {
         // TODO: clone the instance of Handle and implement it to Context
@@ -38,7 +38,7 @@ impl<E> Service for EndpointService<E>
 where
     E: Endpoint,
     E::Item: IntoResponder,
-    E::Error: IntoResponder,
+    E::Error: IntoResponder + From<EndpointError>,
 {
     type Request = hyper::Request;
     type Response = hyper::Response;
@@ -62,7 +62,7 @@ pub struct EndpointServiceFuture<E>
 where
     E: Endpoint,
     E::Item: IntoResponder,
-    E::Error: IntoResponder,
+    E::Error: IntoResponder + From<EndpointError>,
 {
     result: Result<E::Task, Option<EndpointError>>,
     ctx: Context,
@@ -72,7 +72,7 @@ impl<E> Future for EndpointServiceFuture<E>
 where
     E: Endpoint,
     E::Item: IntoResponder,
-    E::Error: IntoResponder,
+    E::Error: IntoResponder + From<EndpointError>,
 {
     type Item = hyper::Response;
     type Error = hyper::Error;
@@ -87,28 +87,11 @@ where
             Err(ref mut err) => {
                 // TODO: custom responder
                 let err = err.take().expect("cannot reject twice");
-                err.into_responder().respond_to(&mut self.ctx)
+                E::Error::from(err)
+                    .into_responder()
+                    .respond_to(&mut self.ctx)
             }
         };
         Ok(Async::Ready(response.into_raw()))
-    }
-}
-
-
-#[derive(Debug)]
-pub struct EndpointErrorResponder(EndpointError);
-
-impl Responder for EndpointErrorResponder {
-    fn respond_to(&mut self, _: &mut Context) -> Response {
-        ResponseBuilder::default()
-            .status(StatusCode::NotFound)
-            .finish()
-    }
-}
-
-impl IntoResponder for EndpointError {
-    type Responder = EndpointErrorResponder;
-    fn into_responder(self) -> EndpointErrorResponder {
-        EndpointErrorResponder(self)
     }
 }

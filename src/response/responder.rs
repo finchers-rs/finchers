@@ -15,6 +15,13 @@ pub trait IntoResponder {
     fn into_responder(self) -> Self::Responder;
 }
 
+impl<R: Responder> IntoResponder for R {
+    type Responder = R;
+    fn into_responder(self) -> Self::Responder {
+        self
+    }
+}
+
 
 #[derive(Debug)]
 pub struct UnitResponder;

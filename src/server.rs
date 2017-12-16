@@ -13,7 +13,7 @@ use net2::TcpBuilder;
 use tokio_core::net::TcpListener;
 use tokio_core::reactor::{Core, Handle};
 
-use endpoint::Endpoint;
+use endpoint::{Endpoint, EndpointError};
 use response::IntoResponder;
 use service::EndpointService;
 
@@ -52,7 +52,7 @@ impl ServerBuilder {
     where
         E: Endpoint + Send + Sync + 'static,
         E::Item: IntoResponder,
-        E::Error: IntoResponder,
+        E::Error: IntoResponder + From<EndpointError>,
     {
         let endpoint = Arc::new(endpoint);
         let proto = Http::new();
@@ -86,7 +86,7 @@ struct Worker<'a, E>
 where
     E: Endpoint + Clone + 'static,
     E::Item: IntoResponder,
-    E::Error: IntoResponder,
+    E::Error: IntoResponder + From<EndpointError>,
 {
     endpoint: E,
     proto: Http<Chunk>,
@@ -98,7 +98,7 @@ impl<'a, E> Worker<'a, E>
 where
     E: Endpoint + Clone + 'static,
     E::Item: IntoResponder,
-    E::Error: IntoResponder,
+    E::Error: IntoResponder + From<EndpointError>,
 {
     fn run(&self) -> io::Result<()> {
         let mut core = Core::new()?;

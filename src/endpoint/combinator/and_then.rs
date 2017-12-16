@@ -31,7 +31,23 @@ where
 {
     endpoint: E,
     f: Arc<F>,
-    _marker: PhantomData<R>,
+    _marker: PhantomData<fn() -> R>,
+}
+
+unsafe impl<E, F, R> Send for AndThen<E, F, R>
+where
+    E: Endpoint + Send,
+    F: Fn(E::Item) -> R + Send,
+    R: IntoTask<Error = E::Error>,
+{
+}
+
+unsafe impl<E, F, R> Sync for AndThen<E, F, R>
+where
+    E: Endpoint + Sync,
+    F: Fn(E::Item) -> R + Sync,
+    R: IntoTask<Error = E::Error>,
+{
 }
 
 impl<E, F, R> Endpoint for AndThen<E, F, R>
