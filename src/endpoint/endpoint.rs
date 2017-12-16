@@ -2,10 +2,8 @@
 
 use std::rc::Rc;
 use std::sync::Arc;
-use hyper::StatusCode;
 
 use context::Context;
-use response::{IntoResponder, Responder, Response};
 use task::{IntoTask, Task};
 
 use super::combinator::*;
@@ -24,22 +22,6 @@ pub enum EndpointError {
     InvalidMethod,
     /// The type of a path segment or a query parameter is not convertible to the endpoint
     TypeMismatch,
-}
-
-#[derive(Debug)]
-pub struct EndpointErrorResponder(EndpointError);
-
-impl Responder for EndpointErrorResponder {
-    fn respond_to(&mut self, _: &mut Context) -> Response {
-        Response::new().with_status(StatusCode::NotFound)
-    }
-}
-
-impl IntoResponder for EndpointError {
-    type Responder = EndpointErrorResponder;
-    fn into_responder(self) -> EndpointErrorResponder {
-        EndpointErrorResponder(self)
-    }
 }
 
 
