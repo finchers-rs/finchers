@@ -18,21 +18,22 @@ The concept and design of this library is highly inspired by [`finch`](https://g
 ```rust
 extern crate finchers;
 
-use finchers::{Endpoint, Json};
-use finchers::endpoint::FromPath;
+use finchers::{Endpoint, ServerBuilder};
+use finchers::endpoint::param;
 use finchers::endpoint::method::get;
-use finchers::server::Server;
 
 fn main() {
     // create an endpoint
-    let endpoint = |_: &_| {
-        get("hello".with(String::PATH)).map(|name| {
-            Json(format!("Hello, {}", name))
-        })
-    };
+    let endpoint = get(("hello", param()))
+        .map(|(_, name)| name)
+        .and_then(|name: String| -> Result<_, ()> {
+            Ok(format!("Hello, {}", name))
+        });
 
     // start a HTTP server.
-    Server::new(endpoint).bind("127.0.0.1:3000").run_http();
+    ServerBuilder::default()
+        .bind("127.0.0.1:3000")
+        .run_http(endpoint);
 }
 ```
 
