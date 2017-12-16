@@ -2,19 +2,19 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 
 use context::Context;
-use endpoint::{Endpoint, EndpointError};
+use endpoint::{Endpoint, EndpointError, IntoEndpoint};
 use task::{self, IntoTask};
 
 
 /// Equivalent to `e.or_else(f)`
-pub fn or_else<E, F, R>(endpoint: E, f: F) -> OrElse<E, F, R>
+pub fn or_else<E, F, R, A, B>(endpoint: E, f: F) -> OrElse<E::Endpoint, F, R>
 where
-    E: Endpoint,
-    F: Fn(E::Error) -> R,
-    R: IntoTask<Item = E::Item>,
+    E: IntoEndpoint<A, B>,
+    F: Fn(B) -> R,
+    R: IntoTask<Item = A>,
 {
     OrElse {
-        endpoint,
+        endpoint: endpoint.into_endpoint(),
         f: Arc::new(f),
         _marker: PhantomData,
     }

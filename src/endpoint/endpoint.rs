@@ -43,12 +43,65 @@ pub trait Endpoint {
 
     /// Combine itself and the other endpoint, and create a combinator which returns a pair of its
     /// `Item`s.
-    fn join<E>(self, e: E) -> Join<Self, E>
+    fn join<E>(self, e: E) -> Join<Self, E, Self::Error>
     where
         Self: Sized,
         E: Endpoint<Error = Self::Error>,
     {
         join(self, e)
+    }
+
+    #[allow(missing_docs)]
+    fn join3<E1, E2>(self, e1: E1, e2: E2) -> Join3<Self, E1, E2, Self::Error>
+    where
+        Self: Sized,
+        E1: Endpoint<Error = Self::Error>,
+        E2: Endpoint<Error = Self::Error>,
+    {
+        join3(self, e1, e2)
+    }
+
+    #[allow(missing_docs)]
+    fn join4<E1, E2, E3>(self, e1: E1, e2: E2, e3: E3) -> Join4<Self, E1, E2, E3, Self::Error>
+    where
+        Self: Sized,
+        E1: Endpoint<Error = Self::Error>,
+        E2: Endpoint<Error = Self::Error>,
+        E3: Endpoint<Error = Self::Error>,
+    {
+        join4(self, e1, e2, e3)
+    }
+
+    #[allow(missing_docs)]
+    fn join5<E1, E2, E3, E4>(self, e1: E1, e2: E2, e3: E3, e4: E4) -> Join5<Self, E1, E2, E3, E4, Self::Error>
+    where
+        Self: Sized,
+        E1: Endpoint<Error = Self::Error>,
+        E2: Endpoint<Error = Self::Error>,
+        E3: Endpoint<Error = Self::Error>,
+        E4: Endpoint<Error = Self::Error>,
+    {
+        join5(self, e1, e2, e3, e4)
+    }
+
+    #[allow(missing_docs)]
+    fn join6<E1, E2, E3, E4, E5>(
+        self,
+        e1: E1,
+        e2: E2,
+        e3: E3,
+        e4: E4,
+        e5: E5,
+    ) -> Join6<Self, E1, E2, E3, E4, E5, Self::Error>
+    where
+        Self: Sized,
+        E1: Endpoint<Error = Self::Error>,
+        E2: Endpoint<Error = Self::Error>,
+        E3: Endpoint<Error = Self::Error>,
+        E4: Endpoint<Error = Self::Error>,
+        E5: Endpoint<Error = Self::Error>,
+    {
+        join6(self, e1, e2, e3, e4, e5)
     }
 
     /// Combine itself and the other endpoint, and create a combinator which returns `E::Item`.
@@ -182,5 +235,24 @@ impl<E: Endpoint> Endpoint for Arc<E> {
 
     fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
         (**self).apply(ctx)
+    }
+}
+
+
+#[allow(missing_docs)]
+pub trait IntoEndpoint<T, E> {
+    type Endpoint: Endpoint<Item = T, Error = E>;
+
+    fn into_endpoint(self) -> Self::Endpoint;
+}
+
+impl<E, A, B> IntoEndpoint<A, B> for E
+where
+    E: Endpoint<Item = A, Error = B>,
+{
+    type Endpoint = E;
+
+    fn into_endpoint(self) -> Self::Endpoint {
+        self
     }
 }

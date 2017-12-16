@@ -1,42 +1,73 @@
 #![allow(missing_docs)]
+#![allow(non_snake_case)]
 
+use std::marker::PhantomData;
 use context::Context;
-use endpoint::{Endpoint, EndpointError};
+use endpoint::{Endpoint, EndpointError, IntoEndpoint};
 use task;
 
 
-// TODO: add Join3, Join4, Join5
+macro_rules! generate {
+    ($(
+        ($new:ident, $Join:ident, <$($T:ident : $A:ident),*>),
+    )*) => {$(
+        pub fn $new<$($T,)* $($A,)* E>($( $T: $T ),*) -> $Join <$($T::Endpoint,)* E>
+        where $(
+            $T: IntoEndpoint<$A, E>,
+        )*
+        {
+            $Join {
+                $($T: $T.into_endpoint(),)*
+                _marker: PhantomData,
+            }
+        }
 
-pub fn join<E1, E2>(e1: E1, e2: E2) -> Join<E1, E2>
-where
-    E1: Endpoint,
-    E2: Endpoint<Error = E1::Error>,
-{
-    Join { e1, e2 }
+        #[derive(Debug)]
+        pub struct $Join<$($T,)* E>
+        where $(
+            $T: Endpoint<Error = E>,
+        )* {
+            $(
+                $T: $T,
+            )*
+            _marker: PhantomData<E>,
+        }
+
+        impl<$($T,)* E> Endpoint for $Join<$($T,)* E>
+        where $(
+            $T: Endpoint<Error = E>,
+        )*
+        {
+            type Item = ($($T::Item),*);
+            type Error = E;
+            type Task = task::$Join<$($T::Task,)* E>;
+
+            fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
+                $(
+                    let $T = self.$T.apply(ctx)?;
+                )*
+                Ok(task::$new($($T),*))
+            }
+        }
+
+        impl<$($T,)* $($A,)* E> IntoEndpoint<($($A),*), E> for ($($T),*)
+        where $(
+            $T: IntoEndpoint<$A, E>,
+        )* {
+            type Endpoint = $Join<$($T::Endpoint,)* E>;
+
+            fn into_endpoint(self) -> Self::Endpoint {
+                let ($($T),*) = self;
+                $new ($($T),*)
+            }
+        }
+    )*};
 }
 
-#[derive(Debug)]
-pub struct Join<E1, E2>
-where
-    E1: Endpoint,
-    E2: Endpoint<Error = E1::Error>,
-{
-    e1: E1,
-    e2: E2,
-}
-
-impl<E1, E2> Endpoint for Join<E1, E2>
-where
-    E1: Endpoint,
-    E2: Endpoint<Error = E1::Error>,
-{
-    type Item = (E1::Item, E2::Item);
-    type Error = E1::Error;
-    type Task = task::Join<E1::Task, E2::Task>;
-
-    fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
-        let f1 = self.e1.apply(ctx)?;
-        let f2 = self.e2.apply(ctx)?;
-        Ok(task::join(f1, f2))
-    }
+generate! {
+    (join,  Join,  <E1:T1, E2:T2>),
+    (join3, Join3, <E1:T1, E2:T2, E3:T3>),
+    (join4, Join4, <E1:T1, E2:T2, E3:T3, E4:T4>),
+    (join5, Join5, <E1:T1, E2:T2, E3:T3, E4:T4, E5:T5>),
+    (join6, Join6, <E1:T1, E2:T2, E3:T3, E4:T4, E5:T5, E6:T6>),
 }

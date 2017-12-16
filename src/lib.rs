@@ -27,13 +27,13 @@ mod context;
 pub use context::Context;
 
 #[doc(inline)]
-pub use endpoint::Endpoint;
+pub use endpoint::{Endpoint, IntoEndpoint};
 
 #[doc(inline)]
 pub use request::Request;
 
 #[doc(inline)]
-pub use response::{Responder, Response};
+pub use response::{IntoResponder, Responder, Response};
 
 #[doc(inline)]
 pub use server::ServerBuilder;

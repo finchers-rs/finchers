@@ -11,7 +11,7 @@ pub mod query;
 
 // re-exports
 #[doc(inline)]
-pub use self::endpoint::{Endpoint, EndpointError};
+pub use self::endpoint::{Endpoint, EndpointError, IntoEndpoint};
 
 #[doc(inline)]
 pub use self::body::body;

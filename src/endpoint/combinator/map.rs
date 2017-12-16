@@ -2,18 +2,18 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 
 use context::Context;
-use endpoint::{Endpoint, EndpointError};
+use endpoint::{Endpoint, EndpointError, IntoEndpoint};
 use task;
 
 
 /// Equivalent to `e.map(f)`
-pub fn map<E, F, R>(endpoint: E, f: F) -> Map<E, F, R>
+pub fn map<E, F, R, A, B>(endpoint: E, f: F) -> Map<E::Endpoint, F, R>
 where
-    E: Endpoint,
-    F: Fn(E::Item) -> R,
+    E: IntoEndpoint<A, B>,
+    F: Fn(A) -> R,
 {
     Map {
-        endpoint,
+        endpoint: endpoint.into_endpoint(),
         f: Arc::new(f),
         _marker: PhantomData,
     }

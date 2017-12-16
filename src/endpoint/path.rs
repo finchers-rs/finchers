@@ -5,7 +5,7 @@ use std::iter::FromIterator;
 use std::marker::PhantomData;
 
 use context::Context;
-use endpoint::{Endpoint, EndpointError};
+use endpoint::{Endpoint, EndpointError, IntoEndpoint};
 use request::FromParam;
 use task::{ok, TaskResult};
 
@@ -24,6 +24,27 @@ impl<'a, E> Endpoint for PathSegment<'a, E> {
             return Err(EndpointError::Skipped);
         }
         Ok(ok(()))
+    }
+}
+
+impl<'a, E> IntoEndpoint<(), E> for &'a str {
+    type Endpoint = PathSegment<'a, E>;
+    fn into_endpoint(self) -> Self::Endpoint {
+        segment(self)
+    }
+}
+
+impl<E> IntoEndpoint<(), E> for String {
+    type Endpoint = PathSegment<'static, E>;
+    fn into_endpoint(self) -> Self::Endpoint {
+        segment(self)
+    }
+}
+
+impl<'a, E> IntoEndpoint<(), E> for Cow<'a, str> {
+    type Endpoint = PathSegment<'a, E>;
+    fn into_endpoint(self) -> Self::Endpoint {
+        segment(self)
     }
 }
 

@@ -1,15 +1,18 @@
 use context::Context;
-use endpoint::{Endpoint, EndpointError};
+use endpoint::{Endpoint, EndpointError, IntoEndpoint};
 use task;
 
 
 /// Equivalent to `e1.or(e2)`
-pub fn or<E1, E2>(e1: E1, e2: E2) -> Or<E1, E2>
+pub fn or<E1, E2, A, B>(e1: E1, e2: E2) -> Or<E1::Endpoint, E2::Endpoint>
 where
-    E1: Endpoint,
-    E2: Endpoint<Item = E1::Item, Error = E1::Error>,
+    E1: IntoEndpoint<A, B>,
+    E2: IntoEndpoint<A, B>,
 {
-    Or { e1, e2 }
+    Or {
+        e1: e1.into_endpoint(),
+        e2: e2.into_endpoint(),
+    }
 }
 
 

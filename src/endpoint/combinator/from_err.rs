@@ -3,17 +3,17 @@
 use std::marker::PhantomData;
 
 use context::Context;
-use endpoint::{Endpoint, EndpointError};
+use endpoint::{Endpoint, EndpointError, IntoEndpoint};
 use task;
 
 
-pub fn from_err<E, T>(endpoint: E) -> FromErr<E, T>
+pub fn from_err<E, T, A, B>(endpoint: E) -> FromErr<E::Endpoint, T>
 where
-    E: Endpoint,
-    T: From<E::Error>,
+    E: IntoEndpoint<A, B>,
+    T: From<B>,
 {
     FromErr {
-        endpoint,
+        endpoint: endpoint.into_endpoint(),
         _marker: PhantomData,
     }
 }

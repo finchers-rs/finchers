@@ -3,17 +3,17 @@
 use std::sync::Arc;
 
 use context::Context;
-use endpoint::{Endpoint, EndpointError};
+use endpoint::{Endpoint, EndpointError, IntoEndpoint};
 use task;
 
 
-pub fn inspect<E, F>(endpoint: E, f: F) -> Inspect<E, F>
+pub fn inspect<E, F, A, B>(endpoint: E, f: F) -> Inspect<E::Endpoint, F>
 where
-    E: Endpoint,
-    F: Fn(&E::Item),
+    E: IntoEndpoint<A, B>,
+    F: Fn(&A),
 {
     Inspect {
-        endpoint,
+        endpoint: endpoint.into_endpoint(),
         f: Arc::new(f),
     }
 }
