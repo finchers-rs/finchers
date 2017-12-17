@@ -5,14 +5,15 @@ use super::{IntoTask, Poll, Task};
 use super::chain::Chain;
 
 
-pub fn or_else<T, F, R>(task: T, f: Arc<F>) -> OrElse<T, F, R>
+pub fn or_else<T, A, F, R>(task: T, f: A) -> OrElse<T, F, R>
 where
     T: Task,
+    A: Into<Arc<F>>,
     F: Fn(T::Error) -> R,
     R: IntoTask<Item = T::Item>,
 {
     OrElse {
-        inner: Chain::new(task, f),
+        inner: Chain::new(task, f.into()),
     }
 }
 

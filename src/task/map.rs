@@ -5,14 +5,15 @@ use context::Context;
 use super::{Poll, Task};
 
 
-pub fn map<T, F, R>(task: T, f: Arc<F>) -> Map<T, F, R>
+pub fn map<T, A, F, R>(task: T, f: A) -> Map<T, F, R>
 where
     T: Task,
+    A: Into<Arc<F>>,
     F: Fn(T::Item) -> R,
 {
     Map {
         task,
-        f,
+        f: f.into(),
         _marker: PhantomData,
     }
 }

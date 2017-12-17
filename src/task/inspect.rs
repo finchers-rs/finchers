@@ -6,12 +6,13 @@ use context::Context;
 use super::{Poll, Task};
 
 
-pub fn inspect<T, F>(task: T, f: Arc<F>) -> Inspect<T, F>
+pub fn inspect<T, F, A>(task: T, f: A) -> Inspect<T, F>
 where
     T: Task,
+    A: Into<Arc<F>>,
     F: Fn(&T::Item),
 {
-    Inspect { task, f }
+    Inspect { task, f: f.into() }
 }
 
 

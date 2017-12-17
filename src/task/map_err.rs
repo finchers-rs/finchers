@@ -5,14 +5,15 @@ use context::Context;
 use super::{Poll, Task};
 
 
-pub fn map_err<T, F, R>(task: T, f: Arc<F>) -> MapErr<T, F, R>
+pub fn map_err<T, A, F, R>(task: T, f: A) -> MapErr<T, F, R>
 where
     T: Task,
+    A: Into<Arc<F>>,
     F: Fn(T::Error) -> R,
 {
     MapErr {
         task,
-        f,
+        f: f.into(),
         _marker: PhantomData,
     }
 }

@@ -5,14 +5,15 @@ use super::{IntoTask, Poll, Task};
 use super::chain::Chain;
 
 
-pub fn and_then<T, F, R>(task: T, f: Arc<F>) -> AndThen<T, F, R>
+pub fn and_then<T, A, F, R>(task: T, f: A) -> AndThen<T, F, R>
 where
     T: Task,
+    A: Into<Arc<F>>,
     F: Fn(T::Item) -> R,
     R: IntoTask<Error = T::Error>,
 {
     AndThen {
-        inner: Chain::new(task, f),
+        inner: Chain::new(task, f.into()),
     }
 }
 
