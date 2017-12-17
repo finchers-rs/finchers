@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use context::Context;
 use super::{Poll, Task};
-use super::oneshot_fn::{owned, shared, Caller, OneshotFn};
+use super::oneshot_fn::*;
 
 
 pub fn inspect<T, F>(task: T, f: F) -> Inspect<T, F, fn(&T::Item)>

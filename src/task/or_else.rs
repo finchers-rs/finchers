@@ -3,7 +3,7 @@ use std::sync::Arc;
 use context::Context;
 use super::{IntoTask, Poll, Task};
 use super::chain::Chain;
-use super::oneshot_fn::{owned, shared, Caller, OneshotFn};
+use super::oneshot_fn::*;
 
 
 pub fn or_else<T, F, R>(task: T, f: F) -> OrElse<T, F, fn(T::Error) -> R, R>

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use context::Context;
 use super::{Poll, Task};
-use super::oneshot_fn::{owned, shared, Caller, OneshotFn};
+use super::oneshot_fn::*;
 
 
 pub fn map_err<T, F, R>(task: T, f: F) -> MapErr<T, F, fn(T::Error) -> R>

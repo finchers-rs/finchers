@@ -65,7 +65,62 @@ pub trait Task {
         inspect(self, f)
     }
 
-    // TODO: add join(), join3(), join4(), join5(), join6(),
+    fn join<T>(self, t: T) -> Join<Self, T, Self::Error>
+    where
+        Self: Sized,
+        T: Task<Error = Self::Error>,
+    {
+        join(self, t)
+    }
+
+    fn join3<T1, T2>(self, t1: T1, t2: T2) -> Join3<Self, T1, T2, Self::Error>
+    where
+        Self: Sized,
+        T1: Task<Error = Self::Error>,
+        T2: Task<Error = Self::Error>,
+    {
+        join3(self, t1, t2)
+    }
+
+    fn join4<T1, T2, T3>(self, t1: T1, t2: T2, t3: T3) -> Join4<Self, T1, T2, T3, Self::Error>
+    where
+        Self: Sized,
+        T1: Task<Error = Self::Error>,
+        T2: Task<Error = Self::Error>,
+        T3: Task<Error = Self::Error>,
+    {
+        join4(self, t1, t2, t3)
+    }
+
+    fn join5<T1, T2, T3, T4>(self, t1: T1, t2: T2, t3: T3, t4: T4) -> Join5<Self, T1, T2, T3, T4, Self::Error>
+    where
+        Self: Sized,
+        T1: Task<Error = Self::Error>,
+        T2: Task<Error = Self::Error>,
+        T3: Task<Error = Self::Error>,
+        T4: Task<Error = Self::Error>,
+    {
+        join5(self, t1, t2, t3, t4)
+    }
+
+    fn join6<T1, T2, T3, T4, T5>(
+        self,
+        t1: T1,
+        t2: T2,
+        t3: T3,
+        t4: T4,
+        t5: T5,
+    ) -> Join6<Self, T1, T2, T3, T4, T5, Self::Error>
+    where
+        Self: Sized,
+        T1: Task<Error = Self::Error>,
+        T2: Task<Error = Self::Error>,
+        T3: Task<Error = Self::Error>,
+        T4: Task<Error = Self::Error>,
+        T5: Task<Error = Self::Error>,
+    {
+        join6(self, t1, t2, t3, t4, t5)
+    }
 
     fn map<F, R>(self, f: F) -> Map<Self, F, fn(Self::Item) -> R>
     where
