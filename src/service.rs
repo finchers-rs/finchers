@@ -5,7 +5,7 @@ use hyper;
 use tokio_core::reactor::Handle;
 use tokio_service::Service;
 
-use request::Request;
+use request;
 use endpoint::{Endpoint, EndpointContext, EndpointError};
 use task::{Task, TaskContext};
 use response::{IntoResponder, Responder, ResponderContext};
@@ -46,10 +46,10 @@ where
     type Future = EndpointServiceFuture<E>;
 
     fn call(&self, req: hyper::Request) -> Self::Future {
-        let info = Request::from_hyper(req);
+        let (request, body) = request::reconstruct(req);
 
         let result = {
-            let mut ctx = EndpointContext::new(&info);
+            let mut ctx = EndpointContext::new(&request);
             self.endpoint.apply(&mut ctx)
         };
 
@@ -58,7 +58,7 @@ where
                 Ok(t) => Polling(t),
                 Err(e) => NotMatched(e),
             },
-            ctx: Some(TaskContext { request: info }),
+            ctx: Some(TaskContext::new(request, body)),
         }
     }
 }
@@ -105,7 +105,10 @@ where
     }
 
     fn respond<T: IntoResponder>(&mut self, t: T) -> hyper::Response {
-        let TaskContext { request } = self.ctx.take().expect("cannot resolve/reject twice");
+        let (request, _) = self.ctx
+            .take()
+            .expect("cannot resolve/reject twice")
+            .deconstruct();
         let mut ctx = ResponderContext { request: &request };
         t.into_responder().respond_to(&mut ctx).into_raw()
     }

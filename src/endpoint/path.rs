@@ -4,8 +4,7 @@ use std::borrow::Cow;
 use std::iter::FromIterator;
 use std::marker::PhantomData;
 
-use endpoint::{Endpoint, EndpointContext, EndpointError, IntoEndpoint};
-use request::FromParam;
+use endpoint::{Endpoint, EndpointContext, EndpointError, FromParam, IntoEndpoint};
 use task::{ok, TaskResult};
 
 

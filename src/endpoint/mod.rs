@@ -6,6 +6,7 @@ pub mod method;
 mod apply_fn;
 mod body;
 mod context;
+mod from_param;
 mod header;
 mod lazy;
 mod path;
@@ -16,6 +17,7 @@ mod result;
 // re-exports
 pub use self::apply_fn::{apply_fn, ApplyFn};
 pub use self::body::body;
+pub use self::from_param::FromParam;
 pub use self::context::EndpointContext;
 pub use self::header::{header, header_opt};
 pub use self::lazy::{lazy, Lazy};

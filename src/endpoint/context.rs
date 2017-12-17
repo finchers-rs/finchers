@@ -2,7 +2,8 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use url::form_urlencoded;
-use request::{Body, FromParam, Request};
+use request::{Body, Request};
+use super::FromParam;
 
 
 /// A set of values, contains the incoming HTTP request and the finchers-specific context.
@@ -35,7 +36,7 @@ impl<'a> EndpointContext<'a> {
     #[deprecated]
     #[allow(missing_docs)]
     pub fn take_body(&self) -> Option<Body> {
-        self.request.body.borrow_mut().take()
+        panic!()
     }
 
 

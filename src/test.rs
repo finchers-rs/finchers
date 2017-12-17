@@ -1,6 +1,5 @@
 //! Helper functions for testing
 
-use std::cell::RefCell;
 use futures::{Future, Poll};
 use hyper::Method;
 use hyper::header::Header;
@@ -15,13 +14,17 @@ use task::{Task, TaskContext};
 #[derive(Debug)]
 pub struct TestCase {
     request: Request,
+    body: Option<Body>,
 }
 
 impl TestCase {
     /// Construct a `TestCase` from given HTTP method and URI
     pub fn new(method: Method, uri: &str) -> Self {
-        let request = Request::new(method, uri, Default::default()).expect("invalid URI");
-        Self { request }
+        let request = Request::new(method, uri).expect("invalid URI");
+        Self {
+            request,
+            body: None,
+        }
     }
 
     /// Equivalent to `TestCase::new(Method::Get, uri)`
@@ -57,14 +60,8 @@ impl TestCase {
 
     /// Set the request body of this test case
     pub fn with_body<B: Into<Body>>(mut self, body: B) -> Self {
-        self.request.body = RefCell::new(Some(body.into()));
+        self.body = Some(body.into());
         self
-    }
-}
-
-impl Into<Request> for TestCase {
-    fn into(self) -> Request {
-        self.request
     }
 }
 
@@ -77,7 +74,7 @@ where
 {
     let mut core = Core::new().unwrap();
 
-    let request = input.request;
+    let TestCase { request, body } = input;
 
     let task = {
         let mut ctx = EndpointContext::new(&request);
@@ -86,7 +83,7 @@ where
 
     Ok(core.run(TestFuture {
         task,
-        ctx: TaskContext { request },
+        ctx: TaskContext::new(request, body.unwrap_or_default()),
     }))
 }
 
