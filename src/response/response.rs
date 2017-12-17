@@ -1,6 +1,5 @@
 use hyper::{Body, Response as RawResponse};
-use context::Context;
-use super::{header, IntoResponder, Responder, StatusCode};
+use super::{header, IntoResponder, Responder, ResponderContext, StatusCode};
 
 #[derive(Debug)]
 pub struct Response(RawResponse);
@@ -42,7 +41,7 @@ impl ResponseBuilder {
 pub struct RawResponder(Option<Response>);
 
 impl Responder for RawResponder {
-    fn respond_to(&mut self, _: &mut Context) -> Response {
+    fn respond_to(&mut self, _: &mut ResponderContext) -> Response {
         self.0.take().expect("cannot respond twice")
     }
 }

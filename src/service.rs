@@ -5,8 +5,9 @@ use hyper;
 use tokio_core::reactor::Handle;
 use tokio_service::Service;
 
-use context::Context;
+use context::{EndpointContext, ResponderContext, TaskContext};
 use endpoint::{Endpoint, EndpointError};
+use request::RequestInfo;
 use response::{IntoResponder, Responder};
 use task::Task;
 
@@ -46,27 +47,44 @@ where
     type Future = EndpointServiceFuture<E>;
 
     fn call(&self, req: hyper::Request) -> Self::Future {
-        let mut ctx = Context::from_hyper(req);
-        let result = self.endpoint.apply(&mut ctx);
+        let info = RequestInfo::from_hyper(req);
+
+        let result = {
+            let mut ctx = EndpointContext::new(&info);
+            self.endpoint.apply(&mut ctx)
+        };
+
         EndpointServiceFuture {
-            result: result.map_err(Some),
-            ctx,
+            inner: match result {
+                Ok(t) => Polling(t),
+                Err(e) => NotMatched(e),
+            },
+            ctx: Some(TaskContext { request: info }),
         }
     }
 }
 
 
 /// A future returned from `EndpointService::call()`
-#[derive(Debug)]
+#[allow(missing_debug_implementations)]
 pub struct EndpointServiceFuture<E>
 where
     E: Endpoint,
     E::Item: IntoResponder,
     E::Error: IntoResponder + From<EndpointError>,
 {
-    result: Result<E::Task, Option<EndpointError>>,
-    ctx: Context,
+    inner: Inner<E::Task>,
+    ctx: Option<TaskContext>,
 }
+
+#[allow(missing_debug_implementations)]
+enum Inner<T: Task> {
+    NotMatched(EndpointError),
+    Polling(T),
+    Done,
+}
+use self::Inner::*;
+use std::mem;
 
 impl<E> EndpointServiceFuture<E>
 where
@@ -75,17 +93,22 @@ where
     E::Error: IntoResponder + From<EndpointError>,
 {
     fn poll_task(&mut self) -> Poll<E::Item, E::Error> {
-        match self.result {
-            Ok(ref mut inner) => inner.poll(&mut self.ctx),
-            Err(ref mut err) => {
-                let err = err.take().expect("cannot reject twice");
-                Err(err.into())
-            }
+        let ctx = self.ctx.as_mut().expect("cannot resolve/reject twice");
+        match self.inner {
+            Polling(ref mut t) => return t.poll(ctx),
+            NotMatched(..) => {}
+            Done => panic!(),
+        }
+        match mem::replace(&mut self.inner, Done) {
+            NotMatched(e) => Err(e.into()),
+            _ => panic!(),
         }
     }
 
     fn respond<T: IntoResponder>(&mut self, t: T) -> hyper::Response {
-        t.into_responder().respond_to(&mut self.ctx).into_raw()
+        let TaskContext { request } = self.ctx.take().expect("cannot resolve/reject twice");
+        let mut ctx = ResponderContext { request: &request };
+        t.into_responder().respond_to(&mut ctx).into_raw()
     }
 }
 

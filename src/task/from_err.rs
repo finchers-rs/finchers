@@ -2,8 +2,7 @@
 
 use std::marker::PhantomData;
 
-use context::Context;
-use super::{Poll, Task};
+use super::{Poll, Task, TaskContext};
 
 
 pub fn from_err<T, E>(task: T) -> FromErr<T, E>
@@ -36,7 +35,7 @@ where
     type Item = T::Item;
     type Error = E;
 
-    fn poll(&mut self, ctx: &mut Context) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self, ctx: &mut TaskContext) -> Poll<Self::Item, Self::Error> {
         self.task.poll(ctx).map_err(Into::into)
     }
 }

@@ -1,6 +1,5 @@
 use std::mem;
-use context::Context;
-use task::{Async, Task};
+use task::{Async, Task, TaskContext};
 
 #[derive(Debug)]
 pub enum MaybeDone<A: Task> {
@@ -12,7 +11,7 @@ pub enum MaybeDone<A: Task> {
 use self::MaybeDone::*;
 
 impl<A: Task> MaybeDone<A> {
-    pub fn poll(&mut self, ctx: &mut Context) -> Result<bool, A::Error> {
+    pub fn poll(&mut self, ctx: &mut TaskContext) -> Result<bool, A::Error> {
         let result = match *self {
             NotYet(ref mut a) => a.poll(ctx)?,
             Done(..) => return Ok(true),

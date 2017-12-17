@@ -3,8 +3,7 @@
 pub mod either;
 
 use std::{error, fmt};
-use context::Context;
-use response::{Responder, Response};
+use response::{Responder, ResponderContext, Response};
 
 
 /// A type represents the never-returned errors.
@@ -24,7 +23,7 @@ impl error::Error for NoReturn {
 }
 
 impl Responder for NoReturn {
-    fn respond_to(&mut self, _: &mut Context) -> Response {
+    fn respond_to(&mut self, _: &mut ResponderContext) -> Response {
         unreachable!()
     }
 }

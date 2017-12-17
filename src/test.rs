@@ -5,10 +5,9 @@ use hyper::Method;
 use hyper::header::Header;
 use tokio_core::reactor::Core;
 
-use context::{Context, RequestInfo};
-use endpoint::{Endpoint, EndpointError};
-use request::{Body, Request};
-use task::Task;
+use endpoint::{Endpoint, EndpointContext, EndpointError};
+use request::{Body, Request, RequestInfo};
+use task::{Task, TaskContext};
 
 
 /// A test case for `run_test()`
@@ -83,16 +82,23 @@ where
 {
     let mut core = Core::new().unwrap();
 
-    let mut ctx = Context::new(input.into());
-    let task = endpoint.as_ref().apply(&mut ctx)?;
+    let info = RequestInfo::from(input.into());
 
-    Ok(core.run(TestFuture { task, ctx }))
+    let task = {
+        let mut ctx = EndpointContext::new(&info);
+        endpoint.as_ref().apply(&mut ctx)?
+    };
+
+    Ok(core.run(TestFuture {
+        task,
+        ctx: TaskContext { request: info },
+    }))
 }
 
 #[derive(Debug)]
 struct TestFuture<T: Task> {
     task: T,
-    ctx: Context,
+    ctx: TaskContext,
 }
 
 impl<T: Task> Future for TestFuture<T> {

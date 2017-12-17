@@ -3,8 +3,7 @@
 use std::marker::PhantomData;
 use hyper::header;
 
-use context::Context;
-use endpoint::{Endpoint, EndpointError};
+use endpoint::{Endpoint, EndpointContext, EndpointError};
 use task::{ok, TaskResult};
 
 #[allow(missing_docs)]
@@ -24,8 +23,9 @@ impl<H: header::Header + Clone, E> Endpoint for Header<H, E> {
     type Error = E;
     type Task = TaskResult<Self::Item, Self::Error>;
 
-    fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
+    fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
         ctx.request()
+            .request()
             .header()
             .cloned()
             .map(ok)
@@ -52,8 +52,8 @@ impl<H: header::Header + Clone, E> Endpoint for HeaderOpt<H, E> {
     type Error = E;
     type Task = TaskResult<Self::Item, Self::Error>;
 
-    fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
-        Ok(ok(ctx.request().header().cloned()))
+    fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
+        Ok(ok(ctx.request().request().header().cloned()))
     }
 }
 

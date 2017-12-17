@@ -4,8 +4,7 @@
 use std::fmt;
 use std::marker::PhantomData;
 
-use context::Context;
-use super::{Async, Poll, Task};
+use super::{Async, Poll, Task, TaskContext};
 use super::maybe_done::MaybeDone;
 
 // TODO: add Join3, Join4, Join5
@@ -73,7 +72,7 @@ macro_rules! generate {
                 type Item = ($($T::Item),*);
                 type Error = E;
 
-                fn poll(&mut self, ctx: &mut Context) -> Poll<Self::Item, Self::Error> {
+                fn poll(&mut self, ctx: &mut TaskContext) -> Poll<Self::Item, Self::Error> {
                     let mut all_done = true;
                     $(
                         all_done = all_done && match self.$T.poll(ctx) {

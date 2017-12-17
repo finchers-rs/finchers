@@ -2,8 +2,7 @@
 
 use std::sync::Arc;
 
-use context::Context;
-use endpoint::{Endpoint, EndpointError, IntoEndpoint};
+use endpoint::{Endpoint, EndpointContext, EndpointError, IntoEndpoint};
 use task;
 
 
@@ -38,7 +37,7 @@ where
     type Error = E::Error;
     type Task = task::Inspect<E::Task, fn(&E::Item), F>;
 
-    fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
+    fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
         let inner = self.endpoint.apply(ctx)?;
         Ok(task::inspect_shared(inner, self.f.clone()))
     }

@@ -2,9 +2,8 @@
 
 use std::marker::PhantomData;
 use std::sync::Arc;
-use context::Context;
 use task::IntoTask;
-use super::{Endpoint, EndpointError};
+use super::{Endpoint, EndpointContext, EndpointError};
 
 
 pub fn lazy<F, R>(f: F) -> Lazy<F, R>
@@ -37,7 +36,7 @@ where
     type Error = R::Error;
     type Task = R::Task;
 
-    fn apply(&self, _: &mut Context) -> Result<Self::Task, EndpointError> {
+    fn apply(&self, _: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
         Ok((*self.f)().into_task())
     }
 }

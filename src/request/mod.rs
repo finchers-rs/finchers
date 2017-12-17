@@ -6,6 +6,7 @@ mod from_body;
 mod from_param;
 mod parse_body;
 mod request;
+mod request_info;
 
 
 #[doc(inline)]
@@ -25,6 +26,8 @@ pub use self::parse_body::{ParseBody, ParseBodyError};
 
 #[doc(inline)]
 pub use self::request::Request;
+
+pub use self::request_info::RequestInfo;
 
 
 use hyper;

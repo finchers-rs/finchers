@@ -33,14 +33,14 @@ pub use self::poll_fn::{poll_fn, PollFn};
 pub use self::result::{err, ok, result, TaskResult};
 pub use self::then::{then, then_shared, Then};
 
-use context::Context;
+pub use context::TaskContext;
 
 
 pub trait Task {
     type Item;
     type Error;
 
-    fn poll(&mut self, ctx: &mut Context) -> Poll<Self::Item, Self::Error>;
+    fn poll(&mut self, ctx: &mut TaskContext) -> Poll<Self::Item, Self::Error>;
 
     fn and_then<F, R>(self, f: F) -> AndThen<Self, F, fn(Self::Item) -> R, R>
     where

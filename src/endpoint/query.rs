@@ -3,8 +3,7 @@
 use std::marker::PhantomData;
 use std::str::FromStr;
 
-use context::Context;
-use endpoint::{Endpoint, EndpointError};
+use endpoint::{Endpoint, EndpointContext, EndpointError};
 use task::{ok, TaskResult};
 
 #[allow(missing_docs)]
@@ -24,8 +23,9 @@ impl<T: FromStr, E> Endpoint for Query<T, E> {
     type Error = E;
     type Task = TaskResult<Self::Item, Self::Error>;
 
-    fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
-        ctx.query(self.0)
+    fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
+        ctx.request()
+            .query(self.0)
             .ok_or(EndpointError::Skipped)
             .and_then(|s| s.parse().map_err(|_| EndpointError::TypeMismatch))
             .map(ok)
@@ -55,8 +55,9 @@ impl<T: FromStr, E> Endpoint for QueryOpt<T, E> {
     type Error = E;
     type Task = TaskResult<Self::Item, Self::Error>;
 
-    fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
-        ctx.query(self.0)
+    fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
+        ctx.request()
+            .query(self.0)
             .map(|s| s.parse().map_err(|_| EndpointError::TypeMismatch))
             .map_or(Ok(None), |s| s.map(Some))
             .map(ok)

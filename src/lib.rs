@@ -24,7 +24,7 @@ pub mod util;
 
 mod context;
 
-pub use context::Context;
+pub use context::{EndpointContext, ResponderContext, TaskContext};
 
 #[doc(inline)]
 pub use endpoint::{Endpoint, EndpointError, IntoEndpoint};

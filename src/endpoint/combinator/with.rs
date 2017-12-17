@@ -1,7 +1,6 @@
 #![allow(missing_docs)]
 
-use context::Context;
-use endpoint::{Endpoint, EndpointError, IntoEndpoint};
+use endpoint::{Endpoint, EndpointContext, EndpointError, IntoEndpoint};
 
 pub fn with<E1, E2, A, B, C>(e1: E1, e2: E2) -> With<E1::Endpoint, E2::Endpoint>
 where
@@ -33,7 +32,7 @@ where
     type Error = E2::Error;
     type Task = E2::Task;
 
-    fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
+    fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
         let _f1 = self.e1.apply(ctx)?;
         let f2 = self.e2.apply(ctx)?;
         Ok(f2)

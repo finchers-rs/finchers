@@ -4,8 +4,7 @@ use std::borrow::Cow;
 use std::iter::FromIterator;
 use std::marker::PhantomData;
 
-use context::Context;
-use endpoint::{Endpoint, EndpointError, IntoEndpoint};
+use endpoint::{Endpoint, EndpointContext, EndpointError, IntoEndpoint};
 use request::FromParam;
 use task::{ok, TaskResult};
 
@@ -19,7 +18,7 @@ impl<'a, E> Endpoint for PathSegment<'a, E> {
     type Error = E;
     type Task = TaskResult<Self::Item, Self::Error>;
 
-    fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
+    fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
         if !ctx.next_segment().map(|s| s == self.0).unwrap_or(false) {
             return Err(EndpointError::Skipped);
         }
@@ -72,7 +71,7 @@ impl<T: FromParam, E> Endpoint for PathParam<T, E> {
     type Error = E;
     type Task = TaskResult<Self::Item, Self::Error>;
 
-    fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
+    fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
         match ctx.next_segment().map(|s| T::from_param(s)) {
             Some(Ok(value)) => Ok(ok(value)),
             _ => return Err(EndpointError::TypeMismatch),
@@ -108,7 +107,7 @@ where
     type Error = E;
     type Task = TaskResult<Self::Item, Self::Error>;
 
-    fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
+    fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
         match ctx.collect_remaining_segments() {
             Some(Ok(seq)) => Ok(ok(seq)),
             Some(Err(_)) => Err(EndpointError::TypeMismatch),

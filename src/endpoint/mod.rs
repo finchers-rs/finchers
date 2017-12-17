@@ -23,11 +23,13 @@ pub use self::path::{param, params, segment};
 pub use self::reject::{reject, Reject};
 pub use self::result::{err, ok, result, EndpointErr, EndpointOk, EndpointResult};
 
+pub use context::EndpointContext;
+
+
 use std::fmt::{self, Display};
 use std::error::Error;
 use std::rc::Rc;
 use std::sync::Arc;
-use context::Context;
 use task::{IntoTask, Task};
 use self::combinator::*;
 
@@ -81,7 +83,7 @@ pub trait Endpoint {
     type Task: Task<Item = Self::Item, Error = Self::Error>;
 
     /// Apply the incoming HTTP request, and return the future of its response
-    fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError>;
+    fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError>;
 
 
     /// Combine itself and the other endpoint, and create a combinator which returns a pair of its
@@ -256,7 +258,7 @@ impl<E: Endpoint> Endpoint for Box<E> {
     type Error = E::Error;
     type Task = E::Task;
 
-    fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
+    fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
         (**self).apply(ctx)
     }
 }
@@ -266,7 +268,7 @@ impl<E: Endpoint> Endpoint for Rc<E> {
     type Error = E::Error;
     type Task = E::Task;
 
-    fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
+    fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
         (**self).apply(ctx)
     }
 }
@@ -276,7 +278,7 @@ impl<E: Endpoint> Endpoint for Arc<E> {
     type Error = E::Error;
     type Task = E::Task;
 
-    fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
+    fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
         (**self).apply(ctx)
     }
 }

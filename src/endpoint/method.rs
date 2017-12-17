@@ -2,8 +2,7 @@
 
 use hyper::Method;
 
-use context::Context;
-use endpoint::{Endpoint, EndpointError, IntoEndpoint};
+use endpoint::{Endpoint, EndpointContext, EndpointError, IntoEndpoint};
 
 #[allow(missing_docs)]
 #[derive(Debug, Clone)]
@@ -14,12 +13,12 @@ impl<E: Endpoint> Endpoint for MatchMethod<E> {
     type Error = E::Error;
     type Task = E::Task;
 
-    fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
+    fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
         let f = self.1.apply(ctx)?;
         if ctx.count_remaining_segments() > 0 {
             return Err(EndpointError::Skipped);
         }
-        if *ctx.request().method() != self.0 {
+        if *ctx.request().request().method() != self.0 {
             return Err(EndpointError::InvalidMethod);
         }
         Ok(f)
