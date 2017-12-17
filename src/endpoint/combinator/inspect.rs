@@ -36,10 +36,10 @@ where
 {
     type Item = E::Item;
     type Error = E::Error;
-    type Task = task::Inspect<E::Task, F>;
+    type Task = task::Inspect<E::Task, fn(&E::Item), F>;
 
     fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
         let inner = self.endpoint.apply(ctx)?;
-        Ok(task::inspect(inner, self.f.clone()))
+        Ok(task::inspect_shared(inner, self.f.clone()))
     }
 }

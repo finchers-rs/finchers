@@ -39,10 +39,10 @@ where
 {
     type Item = E::Item;
     type Error = R;
-    type Task = task::MapErr<E::Task, F, R>;
+    type Task = task::MapErr<E::Task, fn(E::Error) -> R, F>;
 
     fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
         let inner = self.endpoint.apply(ctx)?;
-        Ok(task::map_err(inner, self.f.clone()))
+        Ok(task::map_err_shared(inner, self.f.clone()))
     }
 }

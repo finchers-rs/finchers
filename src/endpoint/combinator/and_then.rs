@@ -42,10 +42,10 @@ where
 {
     type Item = R::Item;
     type Error = R::Error;
-    type Task = task::AndThen<E::Task, F, R>;
+    type Task = task::AndThen<E::Task, fn(E::Item) -> R, F, R>;
 
     fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
         let f = self.endpoint.apply(ctx)?;
-        Ok(task::and_then(f, self.f.clone()))
+        Ok(task::and_then_shared(f, self.f.clone()))
     }
 }
