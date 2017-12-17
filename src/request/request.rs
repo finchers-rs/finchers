@@ -1,25 +1,38 @@
-use hyper::{Headers, Method, Uri};
+use std::cell::RefCell;
+use hyper::{self, Headers, Method, Uri};
 use hyper::header::{self, Header};
 use hyper::mime::Mime;
 use hyper::error::UriError;
+use super::Body;
 
-
-/// The value of incoming HTTP request, without the request body
+/// The value of incoming HTTP request
 #[derive(Debug)]
 pub struct Request {
     pub(crate) method: Method,
     pub(crate) uri: Uri,
     pub(crate) headers: Headers,
+    pub(crate) body: RefCell<Option<Body>>,
 }
 
 impl Request {
     /// Create a new instance of `Request` from given HTTP method and URI
-    pub fn new(method: Method, uri: &str) -> Result<Request, UriError> {
+    pub fn new(method: Method, uri: &str, body: Body) -> Result<Request, UriError> {
         Ok(Request {
             method,
             uri: uri.parse()?,
             headers: Default::default(),
+            body: RefCell::new(Some(body)),
         })
+    }
+
+    pub(crate) fn from_hyper(req: hyper::Request) -> Self {
+        let (method, uri, _version, headers, body) = req.deconstruct();
+        Request {
+            method,
+            uri,
+            headers,
+            body: RefCell::new(Some(Body::from(body))),
+        }
     }
 
     /// Return the reference of HTTP method

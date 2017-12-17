@@ -25,7 +25,6 @@ impl<H: header::Header + Clone, E> Endpoint for Header<H, E> {
 
     fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
         ctx.request()
-            .request()
             .header()
             .cloned()
             .map(ok)
@@ -53,7 +52,7 @@ impl<H: header::Header + Clone, E> Endpoint for HeaderOpt<H, E> {
     type Task = TaskResult<Self::Item, Self::Error>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
-        Ok(ok(ctx.request().request().header().cloned()))
+        Ok(ok(ctx.request().header().cloned()))
     }
 }
 

@@ -18,7 +18,7 @@ impl<E: Endpoint> Endpoint for MatchMethod<E> {
         if ctx.count_remaining_segments() > 0 {
             return Err(EndpointError::Skipped);
         }
-        if *ctx.request().request().method() != self.0 {
+        if *ctx.request().method() != self.0 {
             return Err(EndpointError::InvalidMethod);
         }
         Ok(f)

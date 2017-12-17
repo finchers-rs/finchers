@@ -1,30 +1,42 @@
+use std::borrow::Cow;
+use std::collections::HashMap;
 use std::iter::FromIterator;
-use request::{FromParam, RequestInfo};
+use url::form_urlencoded;
+use request::{Body, FromParam, Request};
 
 
 /// A set of values, contains the incoming HTTP request and the finchers-specific context.
 #[derive(Debug, Clone)]
 pub struct EndpointContext<'a> {
-    request: &'a RequestInfo,
-    routes: Vec<String>,
+    request: &'a Request,
+    routes: Vec<&'a str>,
+    queries: HashMap<Cow<'a, str>, Vec<Cow<'a, str>>>,
     pos: usize,
 }
 
 impl<'a> EndpointContext<'a> {
     #[allow(missing_docs)]
-    pub fn new(request: &'a RequestInfo) -> Self {
-        let routes = to_path_segments(request.request().path());
+    pub fn new(request: &'a Request) -> Self {
+        let routes = to_path_segments(request.path());
+        let queries = request.query().map(to_query_map).unwrap_or_default();
         EndpointContext {
             request,
             routes,
+            queries,
             pos: 0,
         }
     }
 
     #[allow(missing_docs)]
-    pub fn request(&self) -> &RequestInfo {
-        &self.request
+    pub fn request(&self) -> &Request {
+        self.request
     }
+
+    #[deprecated]
+    pub fn take_body(&self) -> Option<Body> {
+        self.request.body.borrow_mut().take()
+    }
+
 
     /// Pop and return the front element of path segments.
     pub fn next_segment(&mut self) -> Option<&str> {
@@ -59,14 +71,28 @@ impl<'a> EndpointContext<'a> {
     pub fn count_remaining_segments(&mut self) -> usize {
         self.routes.len() - self.pos
     }
+
+    /// Return the first value of the query parameter whose name is `name`, if exists
+    pub fn query<S: AsRef<str>>(&self, name: S) -> Option<&str> {
+        self.queries
+            .get(name.as_ref())
+            .and_then(|q| q.get(0).map(|s| &*s as &str))
+    }
+
+    /// Returns all query parameters with name `name`
+    pub fn queries<S: AsRef<str>>(&self, name: S) -> Vec<&str> {
+        self.queries
+            .get(name.as_ref())
+            .map(|q| q.iter().map(|s| &*s as &str).collect())
+            .unwrap_or_default()
+    }
 }
 
 
-fn to_path_segments(s: &str) -> Vec<String> {
+fn to_path_segments(s: &str) -> Vec<&str> {
     s.trim_left_matches("/")
         .split("/")
         .filter(|s| s.trim() != "")
-        .map(ToOwned::to_owned)
         .collect()
 }
 
@@ -88,4 +114,13 @@ mod to_path_segments_test {
     fn case3() {
         assert_eq!(to_path_segments("/foo/bar/"), &["foo", "bar"]);
     }
+}
+
+
+fn to_query_map(s: &str) -> HashMap<Cow<str>, Vec<Cow<str>>> {
+    let mut queries = HashMap::new();
+    for (key, value) in form_urlencoded::parse(s.as_bytes()) {
+        queries.entry(key).or_insert(Vec::new()).push(value);
+    }
+    queries
 }

@@ -24,12 +24,12 @@ impl<T: FromBody> Endpoint for Body<T> {
     type Error = ParseBodyError<T::Error>;
     type Task = TaskFuture<ParseBody<T>>;
 
+    #[allow(deprecated)]
     fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
-        if !T::check_request(ctx.request().request()) {
+        if !T::check_request(ctx.request()) {
             return Err(EndpointError::Skipped);
         }
-        ctx.request()
-            .take_body()
+        ctx.take_body()
             .ok_or_else(|| EndpointError::EmptyBody)
             .map(Into::into)
             .map(future)

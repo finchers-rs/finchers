@@ -7,7 +7,7 @@ use tokio_service::Service;
 
 use context::{EndpointContext, ResponderContext, TaskContext};
 use endpoint::{Endpoint, EndpointError};
-use request::RequestInfo;
+use request::Request;
 use response::{IntoResponder, Responder};
 use task::Task;
 
@@ -47,7 +47,7 @@ where
     type Future = EndpointServiceFuture<E>;
 
     fn call(&self, req: hyper::Request) -> Self::Future {
-        let info = RequestInfo::from_hyper(req);
+        let info = Request::from_hyper(req);
 
         let result = {
             let mut ctx = EndpointContext::new(&info);
