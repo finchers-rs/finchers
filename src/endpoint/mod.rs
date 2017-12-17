@@ -15,7 +15,7 @@ mod result;
 // re-exports
 pub use self::apply_fn::{apply_fn, ApplyFn};
 pub use self::body::body;
-pub use self::header::{authorization, content_type, header, header_opt};
+pub use self::header::{header, header_opt};
 pub use self::lazy::{lazy, Lazy};
 pub use self::method::MatchMethod;
 pub use self::query::{query, query_opt};
