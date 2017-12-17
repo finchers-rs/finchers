@@ -1,7 +1,7 @@
 //! Definition of endpoints to parse request headers
 
 use std::marker::PhantomData;
-use hyper::header::{self, Authorization, ContentType};
+use hyper::header;
 
 use context::Context;
 use endpoint::{Endpoint, EndpointError};
@@ -66,15 +66,4 @@ pub fn header<H: header::Header + Clone, E>() -> Header<H, E> {
 /// Create an endpoint matches the value of a request header, which the value may not exist
 pub fn header_opt<H: header::Header + Clone, E>() -> HeaderOpt<H, E> {
     HeaderOpt(PhantomData)
-}
-
-
-/// Equivalent to `header::<Authorization<S>>()`
-pub fn authorization<S: header::Scheme + 'static, E>() -> Header<Authorization<S>, E> {
-    header()
-}
-
-/// Equivalent to `header::<ContentType>()`
-pub fn content_type<E>() -> Header<ContentType, E> {
-    header()
 }
