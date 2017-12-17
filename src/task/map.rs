@@ -1,44 +1,51 @@
-use std::marker::PhantomData;
 use std::sync::Arc;
 
 use context::Context;
 use super::{Poll, Task};
+use super::oneshot_fn::*;
 
 
-pub fn map<T, F, R>(task: T, f: Arc<F>) -> Map<T, F, R>
+pub fn map<T, F, R>(task: T, f: F) -> Map<T, F, fn(T::Item) -> R>
 where
     T: Task,
-    F: Fn(T::Item) -> R,
+    F: FnOnce(T::Item) -> R,
 {
     Map {
         task,
-        f,
-        _marker: PhantomData,
+        f: Some(owned(f)),
+    }
+}
+
+pub fn map_shared<T, F, R>(task: T, f: Arc<F>) -> Map<T, fn(T::Item) -> R, F>
+where
+    T: Task,
+    F: FnOnce(T::Item) -> R,
+{
+    Map {
+        task,
+        f: Some(shared(f)),
     }
 }
 
 
 #[derive(Debug)]
-pub struct Map<T, F, R>
-where
-    T: Task,
-    F: Fn(T::Item) -> R,
-{
+pub struct Map<T, F1, F2> {
     task: T,
-    f: Arc<F>,
-    _marker: PhantomData<R>,
+    f: Option<OneshotFn<F1, F2>>,
 }
 
-impl<T, F, R> Task for Map<T, F, R>
+impl<T, F1, F2, R> Task for Map<T, F1, F2>
 where
     T: Task,
-    F: Fn(T::Item) -> R,
+    F1: FnOnce(T::Item) -> R,
+    F2: Fn(T::Item) -> R,
 {
     type Item = R;
     type Error = T::Error;
 
     fn poll(&mut self, ctx: &mut Context) -> Poll<Self::Item, Self::Error> {
         let item = try_ready!(self.task.poll(ctx));
-        Ok((*self.f)(item).into())
+        let f = self.f.take().expect("cannot resolve twice");
+        Ok(f.call(item).into())
     }
 }
