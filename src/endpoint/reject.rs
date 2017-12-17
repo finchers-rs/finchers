@@ -6,20 +6,20 @@ use task::TaskResult;
 use super::{Endpoint, EndpointError};
 
 
-pub fn empty<T, E>(error: EndpointError) -> Empty<T, E> {
-    Empty {
+pub fn reject<T, E>(error: EndpointError) -> Reject<T, E> {
+    Reject {
         error,
         _marker: PhantomData,
     }
 }
 
 #[derive(Debug)]
-pub struct Empty<T, E> {
+pub struct Reject<T, E> {
     error: EndpointError,
     _marker: PhantomData<fn() -> (T, E)>,
 }
 
-impl<T, E> Endpoint for Empty<T, E> {
+impl<T, E> Endpoint for Reject<T, E> {
     type Item = T;
     type Error = E;
     type Task = TaskResult<T, E>;
