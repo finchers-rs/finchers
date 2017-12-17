@@ -5,11 +5,10 @@ use hyper;
 use tokio_core::reactor::Handle;
 use tokio_service::Service;
 
-use context::{EndpointContext, ResponderContext, TaskContext};
-use endpoint::{Endpoint, EndpointError};
 use request::Request;
-use response::{IntoResponder, Responder};
-use task::Task;
+use endpoint::{Endpoint, EndpointContext, EndpointError};
+use task::{Task, TaskContext};
+use response::{IntoResponder, Responder, ResponderContext};
 
 
 /// An HTTP service which wraps a `Endpoint`.

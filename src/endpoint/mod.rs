@@ -5,6 +5,7 @@ pub mod method;
 
 mod apply_fn;
 mod body;
+mod context;
 mod header;
 mod lazy;
 mod path;
@@ -15,6 +16,7 @@ mod result;
 // re-exports
 pub use self::apply_fn::{apply_fn, ApplyFn};
 pub use self::body::body;
+pub use self::context::EndpointContext;
 pub use self::header::{header, header_opt};
 pub use self::lazy::{lazy, Lazy};
 pub use self::method::MatchMethod;
@@ -22,8 +24,6 @@ pub use self::query::{query, query_opt};
 pub use self::path::{param, params, segment};
 pub use self::reject::{reject, Reject};
 pub use self::result::{err, ok, result, EndpointErr, EndpointOk, EndpointResult};
-
-pub use context::EndpointContext;
 
 
 use std::fmt::{self, Display};

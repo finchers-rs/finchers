@@ -22,21 +22,18 @@ pub mod task;
 pub mod test;
 pub mod util;
 
-mod context;
-
-pub use context::{EndpointContext, ResponderContext, TaskContext};
 
 #[doc(inline)]
-pub use endpoint::{Endpoint, EndpointError, IntoEndpoint};
+pub use endpoint::{Endpoint, EndpointContext, EndpointError, IntoEndpoint};
 
 #[doc(inline)]
 pub use request::Request;
 
 #[doc(inline)]
-pub use response::{IntoResponder, Responder, Response};
+pub use response::{IntoResponder, Responder, ResponderContext, Response};
 
 #[doc(inline)]
 pub use server::ServerBuilder;
 
 #[doc(inline)]
-pub use task::{IntoTask, Task};
+pub use task::{IntoTask, Task, TaskContext};

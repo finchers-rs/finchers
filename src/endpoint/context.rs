@@ -33,6 +33,7 @@ impl<'a> EndpointContext<'a> {
     }
 
     #[deprecated]
+    #[allow(missing_docs)]
     pub fn take_body(&self) -> Option<Body> {
         self.request.body.borrow_mut().take()
     }
