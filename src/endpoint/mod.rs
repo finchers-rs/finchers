@@ -299,3 +299,14 @@ where
         self
     }
 }
+
+impl<T, A, B> IntoEndpoint<Vec<A>, B> for Vec<T>
+where
+    T: IntoEndpoint<A, B>,
+{
+    type Endpoint = JoinAll<T::Endpoint>;
+
+    fn into_endpoint(self) -> Self::Endpoint {
+        join_all(self)
+    }
+}
