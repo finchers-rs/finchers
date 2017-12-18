@@ -2,15 +2,19 @@
 extern crate error_chain;
 extern crate finchers;
 
+use std::string::FromUtf8Error;
 use finchers::{Endpoint, EndpointError};
-use finchers::endpoint::method::get;
-use finchers::endpoint::param;
-use finchers::response::{Responder, Response, ResponseBuilder, StatusCode, ResponderContext};
+use finchers::endpoint::method::{get, post};
+use finchers::endpoint::{body, param};
+use finchers::request::BodyError;
+use finchers::response::{Responder, ResponderContext, Response, ResponseBuilder, StatusCode};
 use finchers::ServerBuilder;
 
 error_chain! {
     foreign_links {
         Endpoint(EndpointError);
+        BodyRecv(BodyError);
+        FromUtf8(FromUtf8Error);
     }
 }
 
@@ -23,10 +27,15 @@ impl Responder for Error {
 }
 
 fn main() {
-    // GET /foo/:id/bar
-    let endpoint = get(("foo", param(), "bar"))
-        .map(|(_, name, _)| name)
-        .and_then(|name: String| -> Result<_> { Ok(format!("Hello, {}", name)) });
+    // GET /foo/:id
+    let endpoint1 = get(("foo", param()))
+        .and_then(|(_, name): (_, String)| Ok(format!("Hello, {}", name)));
+
+    // POST /foo/:id [String] (Content-type: text/plain; charset=utf-8)
+    let endpoint2 = post(("foo", param(), body()))
+        .and_then(|(_, name, body): (_, String, String)| Ok(format!("Hello, {} ({})", name, body)));
+
+    let endpoint = endpoint1.or(endpoint2).with_type::<_, Error>();
 
     ServerBuilder::default()
         .bind("0.0.0.0:8080")

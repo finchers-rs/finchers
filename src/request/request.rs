@@ -5,8 +5,7 @@ use hyper::error::UriError;
 use super::Body;
 
 
-#[allow(missing_docs)]
-pub fn reconstruct(req: hyper::Request) -> (Request, Body) {
+pub(crate) fn reconstruct(req: hyper::Request) -> (Request, Body) {
     let (method, uri, _version, headers, body) = req.deconstruct();
     (
         Request {
@@ -14,7 +13,7 @@ pub fn reconstruct(req: hyper::Request) -> (Request, Body) {
             uri,
             headers,
         },
-        body.into(),
+        Body::from_raw(body),
     )
 }
 

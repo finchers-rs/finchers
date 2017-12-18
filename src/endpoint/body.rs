@@ -3,41 +3,49 @@
 use std::marker::PhantomData;
 
 use endpoint::{Endpoint, EndpointContext, EndpointError};
-use request::{FromBody, ParseBody, ParseBodyError};
-use task::{future, TaskFuture};
+use request::{BodyError, FromBody};
+use task;
+
+
+/// Create an endpoint, represents the value of a request body
+pub fn body<T, E>() -> Body<T, E>
+where
+    T: FromBody,
+    E: From<BodyError> + From<T::Error>,
+{
+    Body {
+        _marker: PhantomData,
+    }
+}
 
 
 #[allow(missing_docs)]
 #[derive(Debug)]
-pub struct Body<T>(PhantomData<fn(T) -> T>);
+pub struct Body<T, E> {
+    _marker: PhantomData<fn() -> (T, E)>,
+}
 
-impl<T> Clone for Body<T> {
-    fn clone(&self) -> Body<T> {
-        Body(PhantomData)
+impl<T, E> Copy for Body<T, E> {}
+
+impl<T, E> Clone for Body<T, E> {
+    fn clone(&self) -> Self {
+        *self
     }
 }
 
-impl<T> Copy for Body<T> {}
-
-impl<T: FromBody> Endpoint for Body<T> {
+impl<T, E> Endpoint for Body<T, E>
+where
+    T: FromBody,
+    E: From<BodyError> + From<T::Error>,
+{
     type Item = T;
-    type Error = ParseBodyError<T::Error>;
-    type Task = TaskFuture<ParseBody<T>>;
+    type Error = E;
+    type Task = task::Body<T, E>;
 
-    #[allow(deprecated)]
     fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
-        if !T::check_request(ctx.request()) {
-            return Err(EndpointError::Skipped);
+        match T::check_request(ctx.request()) {
+            true => Ok(task::Body::default()),
+            false => Err(EndpointError::Skipped),
         }
-        ctx.take_body()
-            .ok_or_else(|| EndpointError::EmptyBody)
-            .map(Into::into)
-            .map(future)
     }
-}
-
-
-/// Create an endpoint, represents the value of a request body
-pub fn body<T: FromBody>() -> Body<T> {
-    Body(PhantomData)
 }
