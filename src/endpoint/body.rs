@@ -7,36 +7,37 @@ use request::FromBody;
 use task::{ParseBody, ParseBodyError};
 
 
-#[allow(missing_docs)]
-#[derive(Debug)]
-pub struct Body<T>(PhantomData<fn(T) -> T>);
-
-impl<T> Clone for Body<T> {
-    fn clone(&self) -> Body<T> {
-        Body(PhantomData)
+/// Create an endpoint, represents the value of a request body
+pub fn body<T: FromBody>() -> Body<T> {
+    Body {
+        _marker: PhantomData,
     }
 }
 
+
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct Body<T> {
+    _marker: PhantomData<fn() -> T>,
+}
+
 impl<T> Copy for Body<T> {}
+
+impl<T> Clone for Body<T> {
+    fn clone(&self) -> Body<T> {
+        *self
+    }
+}
 
 impl<T: FromBody> Endpoint for Body<T> {
     type Item = T;
     type Error = ParseBodyError<T::Error>;
     type Task = ParseBody<T>;
 
-    #[allow(deprecated)]
     fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
-        if !T::check_request(ctx.request()) {
-            return Err(EndpointError::Skipped);
+        match T::check_request(ctx.request()) {
+            true => Ok(ParseBody::default()),
+            false => Err(EndpointError::Skipped),
         }
-        ctx.take_body()
-            .ok_or_else(|| EndpointError::EmptyBody)
-            .map(|body| ParseBody::new(body.inner))
     }
-}
-
-
-/// Create an endpoint, represents the value of a request body
-pub fn body<T: FromBody>() -> Body<T> {
-    Body(PhantomData)
 }

@@ -4,7 +4,7 @@ use std::iter::FromIterator;
 use std::path::{Component, Components, Path};
 use std::rc::Rc;
 use url::form_urlencoded;
-use request::{Body, Request};
+use request::Request;
 use super::FromParam;
 
 
@@ -33,13 +33,6 @@ impl<'a> EndpointContext<'a> {
     pub fn request(&self) -> &Request {
         self.request
     }
-
-    #[deprecated]
-    #[allow(missing_docs)]
-    pub fn take_body(&self) -> Option<Body> {
-        panic!()
-    }
-
 
     /// Pop and return the front element of path segments.
     pub fn next_segment(&mut self) -> Option<&str> {

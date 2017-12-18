@@ -1,25 +1,31 @@
 use std::marker::PhantomData;
 use futures::Stream;
 use hyper;
-use request::FromBody;
+use request::{Body, FromBody};
 use task::{Poll, Task, TaskContext};
 
 /// The type of a future returned from `Body::into_vec()`
 #[derive(Debug)]
 pub struct ParseBody<T> {
-    body: hyper::Body,
-    buf: Option<Vec<u8>>,
-    _marker: PhantomData<T>,
+    inner: Option<(Body, Vec<u8>)>,
+    _marker: PhantomData<fn() -> T>,
+}
+
+impl<T: FromBody> Default for ParseBody<T> {
+    fn default() -> Self {
+        ParseBody {
+            inner: None,
+            _marker: PhantomData,
+        }
+    }
 }
 
 impl<T: FromBody> ParseBody<T> {
-    /// Construct a new `ParseBody<T>` from raw body stream
-    pub fn new(body: hyper::Body) -> Self {
-        ParseBody {
-            body,
-            buf: Some(Vec::new()),
-            _marker: PhantomData,
-        }
+    fn inner_mut(&mut self, ctx: &mut TaskContext) -> &mut (Body, Vec<u8>) {
+        self.inner.get_or_insert_with(|| {
+            let body = ctx.take_body().expect("cannot take the request body twice");
+            (body, vec![])
+        })
     }
 }
 
@@ -27,14 +33,18 @@ impl<T: FromBody> Task for ParseBody<T> {
     type Item = T;
     type Error = ParseBodyError<T::Error>;
 
-    fn poll(&mut self, _ctx: &mut TaskContext) -> Poll<Self::Item, Self::Error> {
-        while let Some(item) = try_ready!(self.body.poll()) {
-            if let Some(buf) = self.buf.as_mut() {
-                buf.extend_from_slice(&item);
+    fn poll(&mut self, ctx: &mut TaskContext) -> Poll<Self::Item, Self::Error> {
+        loop {
+            let (ref mut body, ref mut buf) = *self.inner_mut(ctx);
+            match try_ready!(body.inner.poll()) {
+                Some(item) => buf.extend_from_slice(&item),
+                None => break,
             }
         }
 
-        let buf = self.buf.take().expect("The buffer has been already taken");
+        let (_, buf) = self.inner
+            .take()
+            .expect("The buffer has been already taken");
         T::from_body(buf)
             .map(Into::into)
             .map_err(ParseBodyError::Parse)

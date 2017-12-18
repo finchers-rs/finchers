@@ -42,8 +42,6 @@ use self::combinator::*;
 pub enum EndpointError {
     /// This endpoint does not matches the current request
     Skipped,
-    /// The instance of requst body has already been taken
-    EmptyBody,
     /// The header is not set
     EmptyHeader,
     /// The method of the current request is invalid in the endpoint
@@ -63,7 +61,6 @@ impl Error for EndpointError {
         use EndpointError::*;
         match *self {
             Skipped => "skipped",
-            EmptyBody => "empty body",
             EmptyHeader => "empty header",
             InvalidMethod => "invalid method",
             TypeMismatch => "type mismatch",
