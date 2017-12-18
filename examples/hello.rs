@@ -2,10 +2,10 @@
 extern crate error_chain;
 extern crate finchers;
 
-use finchers::{Context, Endpoint, EndpointError};
+use finchers::{Endpoint, EndpointError};
 use finchers::endpoint::method::get;
 use finchers::endpoint::param;
-use finchers::response::{Responder, Response, ResponseBuilder, StatusCode};
+use finchers::response::{Responder, Response, ResponseBuilder, StatusCode, ResponderContext};
 use finchers::ServerBuilder;
 
 error_chain! {
@@ -15,7 +15,7 @@ error_chain! {
 }
 
 impl Responder for Error {
-    fn respond_to(&mut self, _: &mut Context) -> Response {
+    fn respond_to(&mut self, _: &mut ResponderContext) -> Response {
         ResponseBuilder::default()
             .status(StatusCode::NotFound)
             .finish()
