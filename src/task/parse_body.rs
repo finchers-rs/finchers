@@ -1,8 +1,8 @@
 use std::marker::PhantomData;
-use futures::{Future, Poll, Stream};
+use futures::Stream;
 use hyper;
-use super::FromBody;
-
+use request::FromBody;
+use task::{Poll, Task, TaskContext};
 
 /// The type of a future returned from `Body::into_vec()`
 #[derive(Debug)]
@@ -23,11 +23,11 @@ impl<T: FromBody> ParseBody<T> {
     }
 }
 
-impl<T: FromBody> Future for ParseBody<T> {
+impl<T: FromBody> Task for ParseBody<T> {
     type Item = T;
     type Error = ParseBodyError<T::Error>;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self, _ctx: &mut TaskContext) -> Poll<Self::Item, Self::Error> {
         while let Some(item) = try_ready!(self.body.poll()) {
             if let Some(buf) = self.buf.as_mut() {
                 buf.extend_from_slice(&item);

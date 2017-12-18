@@ -3,8 +3,8 @@
 use std::marker::PhantomData;
 
 use endpoint::{Endpoint, EndpointContext, EndpointError};
-use request::{FromBody, ParseBody, ParseBodyError};
-use task::{future, TaskFuture};
+use request::FromBody;
+use task::{ParseBody, ParseBodyError};
 
 
 #[allow(missing_docs)]
@@ -22,7 +22,7 @@ impl<T> Copy for Body<T> {}
 impl<T: FromBody> Endpoint for Body<T> {
     type Item = T;
     type Error = ParseBodyError<T::Error>;
-    type Task = TaskFuture<ParseBody<T>>;
+    type Task = ParseBody<T>;
 
     #[allow(deprecated)]
     fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
@@ -31,8 +31,7 @@ impl<T: FromBody> Endpoint for Body<T> {
         }
         ctx.take_body()
             .ok_or_else(|| EndpointError::EmptyBody)
-            .map(Into::into)
-            .map(future)
+            .map(|body| ParseBody::new(body.inner))
     }
 }
 
