@@ -1,7 +1,10 @@
+use std::fmt;
+use std::error;
 use std::string::FromUtf8Error;
 use hyper::mime;
-use util::NoReturn;
+use response::{Responder, ResponderContext, Response};
 use super::Request;
+
 
 /// A trait represents the conversion from `Body`.
 pub trait FromBody: Sized {
@@ -42,5 +45,28 @@ impl FromBody for String {
 
     fn from_body(body: Vec<u8>) -> Result<Self, Self::Error> {
         String::from_utf8(body)
+    }
+}
+
+
+/// A type represents the never-returned errors.
+#[derive(Debug)]
+pub enum NoReturn {}
+
+impl fmt::Display for NoReturn {
+    fn fmt(&self, _: &mut fmt::Formatter) -> fmt::Result {
+        unreachable!()
+    }
+}
+
+impl error::Error for NoReturn {
+    fn description(&self) -> &str {
+        unreachable!()
+    }
+}
+
+impl Responder for NoReturn {
+    fn respond_to(&mut self, _: &mut ResponderContext) -> Response {
+        unreachable!()
     }
 }

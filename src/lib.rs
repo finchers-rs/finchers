@@ -1,4 +1,5 @@
 #![deny(missing_docs)]
+#![deny(warnings)]
 #![deny(missing_debug_implementations)]
 
 //! Finchers is a combinator library for building HTTP services, based on
@@ -20,7 +21,6 @@ pub mod server;
 pub mod service;
 pub mod task;
 pub mod test;
-pub mod util;
 
 
 #[doc(inline)]
