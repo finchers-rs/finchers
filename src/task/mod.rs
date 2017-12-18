@@ -22,7 +22,7 @@ mod then;
 pub use futures::{Async, Poll};
 
 pub use self::and_then::{and_then, and_then_shared, AndThen};
-pub use self::body::{Body, BodyError};
+pub use self::body::Body;
 pub use self::context::TaskContext;
 pub use self::from_err::{from_err, FromErr};
 pub use self::futures::{future, TaskFuture};
