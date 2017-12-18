@@ -1,6 +1,8 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::iter::FromIterator;
+use std::path::{Component, Components, Path};
+use std::rc::Rc;
 use url::form_urlencoded;
 use request::{Body, Request};
 use super::FromParam;
@@ -10,21 +12,20 @@ use super::FromParam;
 #[derive(Debug, Clone)]
 pub struct EndpointContext<'a> {
     request: &'a Request,
-    routes: Vec<&'a str>,
-    queries: HashMap<Cow<'a, str>, Vec<Cow<'a, str>>>,
-    pos: usize,
+    routes: Option<Components<'a>>,
+    queries: Rc<Option<HashMap<Cow<'a, str>, Vec<Cow<'a, str>>>>>,
 }
 
 impl<'a> EndpointContext<'a> {
     #[allow(missing_docs)]
     pub fn new(request: &'a Request) -> Self {
-        let routes = to_path_segments(request.path());
-        let queries = request.query().map(to_query_map).unwrap_or_default();
+        let mut routes = Path::new(request.path()).components();
+        routes.next(); // skip the root ("/")
+        let queries = request.query().map(parse_queries);
         EndpointContext {
             request,
-            routes,
-            queries,
-            pos: 0,
+            routes: Some(routes),
+            queries: Rc::new(queries),
         }
     }
 
@@ -42,12 +43,12 @@ impl<'a> EndpointContext<'a> {
 
     /// Pop and return the front element of path segments.
     pub fn next_segment(&mut self) -> Option<&str> {
-        if self.pos >= self.routes.len() {
-            return None;
-        }
-        let pos = self.pos;
-        self.pos += 1;
-        Some(&self.routes[pos])
+        self.routes.as_mut().and_then(|r| {
+            r.next().map(|c| match c {
+                Component::Normal(s) => s.to_str().unwrap(),
+                _ => panic!("relatative path is not supported"),
+            })
+        })
     }
 
     /// Collect and return the remaining path segments, if available
@@ -56,70 +57,42 @@ impl<'a> EndpointContext<'a> {
         I: FromIterator<T>,
         T: FromParam,
     {
-        if self.pos >= self.routes.len() {
-            return None;
-        }
-        let pos = self.pos;
-        self.pos = self.routes.len();
+        let routes = self.routes.take()?;
         Some(
-            self.routes[pos..]
-                .into_iter()
-                .map(|s| T::from_param(s))
+            routes
+                .map(|c| match c {
+                    Component::Normal(s) => T::from_param(s.to_str().unwrap()),
+                    _ => panic!("relative path is not supported"),
+                })
                 .collect(),
         )
     }
 
     /// Count the length of remaining path segments
     pub fn count_remaining_segments(&mut self) -> usize {
-        self.routes.len() - self.pos
+        self.routes.take().map_or(0, |routes| routes.count())
     }
 
     /// Return the first value of the query parameter whose name is `name`, if exists
-    pub fn query<S: AsRef<str>>(&self, name: S) -> Option<&str> {
-        self.queries
+    pub fn query<S: AsRef<str>>(&mut self, name: S) -> Option<&str> {
+        let queries = (*self.queries).as_ref()?;
+        queries
             .get(name.as_ref())
             .and_then(|q| q.get(0).map(|s| &*s as &str))
     }
 
     /// Returns all query parameters with name `name`
-    pub fn queries<S: AsRef<str>>(&self, name: S) -> Vec<&str> {
-        self.queries
+    pub fn queries<S: AsRef<str>>(&mut self, name: S) -> Option<Vec<&str>> {
+        let queries = (*self.queries).as_ref()?;
+        queries
             .get(name.as_ref())
             .map(|q| q.iter().map(|s| &*s as &str).collect())
-            .unwrap_or_default()
     }
 }
 
 
-fn to_path_segments(s: &str) -> Vec<&str> {
-    s.trim_left_matches("/")
-        .split("/")
-        .filter(|s| s.trim() != "")
-        .collect()
-}
 
-#[cfg(test)]
-mod to_path_segments_test {
-    use super::to_path_segments;
-
-    #[test]
-    fn case1() {
-        assert_eq!(to_path_segments("/"), &[] as &[&str]);
-    }
-
-    #[test]
-    fn case2() {
-        assert_eq!(to_path_segments("/foo"), &["foo"]);
-    }
-
-    #[test]
-    fn case3() {
-        assert_eq!(to_path_segments("/foo/bar/"), &["foo", "bar"]);
-    }
-}
-
-
-fn to_query_map(s: &str) -> HashMap<Cow<str>, Vec<Cow<str>>> {
+fn parse_queries(s: &str) -> HashMap<Cow<str>, Vec<Cow<str>>> {
     let mut queries = HashMap::new();
     for (key, value) in form_urlencoded::parse(s.as_bytes()) {
         queries.entry(key).or_insert(Vec::new()).push(value);
