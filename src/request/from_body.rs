@@ -5,10 +5,10 @@ use super::Request;
 
 /// A trait represents the conversion from `Body`.
 pub trait FromBody: Sized {
-    #[allow(missing_docs)]
+    /// The error type returned from `from_body()`
     type Error;
 
-    #[allow(missing_docs)]
+    /// Check whether the incoming request is matched or not
     fn check_request(req: &Request) -> bool;
 
     /// Convert the content of `body` to its type
@@ -19,9 +19,10 @@ pub trait FromBody: Sized {
 impl FromBody for Vec<u8> {
     type Error = NoReturn;
 
-    fn check_request(req: &Request) -> bool {
-        req.media_type()
-            .map_or(false, |m| *m == mime::APPLICATION_OCTET_STREAM)
+    fn check_request(_req: &Request) -> bool {
+        // req.media_type()
+        //     .map_or(true, |m| *m == mime::APPLICATION_OCTET_STREAM)
+        true
     }
 
     fn from_body(body: Vec<u8>) -> Result<Self, Self::Error> {
@@ -33,8 +34,10 @@ impl FromBody for String {
     type Error = FromUtf8Error;
 
     fn check_request(req: &Request) -> bool {
-        req.media_type()
-            .map_or(false, |m| *m == mime::TEXT_PLAIN_UTF_8)
+        req.media_type().map_or(true, |m| {
+            m.type_() == mime::TEXT && m.subtype() == mime::PLAIN
+                && m.get_param("charset").map_or(true, |m| m == mime::UTF_8)
+        })
     }
 
     fn from_body(body: Vec<u8>) -> Result<Self, Self::Error> {
