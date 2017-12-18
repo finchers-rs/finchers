@@ -1,6 +1,7 @@
 #![allow(missing_docs)]
 
 mod and_then;
+mod body;
 mod chain;
 mod context;
 mod from_err;
@@ -14,7 +15,6 @@ mod map;
 mod maybe_done;
 mod oneshot_fn;
 mod or_else;
-mod parse_body;
 mod poll_fn;
 mod result;
 mod then;
@@ -22,6 +22,7 @@ mod then;
 pub use futures::{Async, Poll};
 
 pub use self::and_then::{and_then, and_then_shared, AndThen};
+pub use self::body::{Body, BodyError};
 pub use self::context::TaskContext;
 pub use self::from_err::{from_err, FromErr};
 pub use self::futures::{future, TaskFuture};
@@ -32,7 +33,6 @@ pub use self::lazy::{lazy, Lazy};
 pub use self::map_err::{map_err, map_err_shared, MapErr};
 pub use self::map::{map, map_shared, Map};
 pub use self::or_else::{or_else, or_else_shared, OrElse};
-pub use self::parse_body::{ParseBody, ParseBodyError};
 pub use self::poll_fn::{poll_fn, PollFn};
 pub use self::result::{err, ok, result, TaskResult};
 pub use self::then::{then, then_shared, Then};
