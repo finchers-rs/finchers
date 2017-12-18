@@ -1,14 +1,18 @@
 //! Definition of combinators
 
 mod and_then;
+mod apply_fn;
 mod from_err;
 mod inspect;
 mod join;
 mod join_all;
+mod lazy;
 mod map;
 mod map_err;
 mod or;
 mod or_else;
+mod reject;
+mod result;
 mod skip;
 mod skip_all;
 mod then;
@@ -27,3 +31,7 @@ pub use self::skip::{skip, Skip};
 pub use self::skip_all::{skip_all, SkipAll};
 pub use self::then::{then, Then};
 pub use self::with::{with, With};
+pub use self::apply_fn::{apply_fn, ApplyFn};
+pub use self::lazy::{lazy, Lazy};
+pub use self::reject::{reject, Reject};
+pub use self::result::{err, ok, result, EndpointErr, EndpointOk, EndpointResult};

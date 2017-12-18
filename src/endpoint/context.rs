@@ -3,9 +3,9 @@ use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::path::{Component, Components, Path};
 use std::rc::Rc;
+use std::str::FromStr;
 use url::form_urlencoded;
 use request::Request;
-use super::FromParam;
 
 
 /// A set of values, contains the incoming HTTP request and the finchers-specific context.
@@ -92,3 +92,41 @@ fn parse_queries(s: &str) -> HashMap<Cow<str>, Vec<Cow<str>>> {
     }
     queries
 }
+
+
+/// Represents the conversion from a path segment
+pub trait FromParam: Sized {
+    /// The error type of `from_param()`
+    type Error;
+
+    /// Try to convert a `str` to itself
+    fn from_param(s: &str) -> Result<Self, Self::Error>;
+}
+
+macro_rules! impl_from_param {
+    ($($t:ty),*) => {$(
+        impl FromParam for $t {
+            type Error = <$t as FromStr>::Err;
+
+            fn from_param(s: &str) -> Result<Self, Self::Error> {
+                s.parse()
+            }
+        }
+    )*}
+}
+
+impl_from_param!(
+    i8,
+    u8,
+    i16,
+    u16,
+    i32,
+    u32,
+    i64,
+    u64,
+    isize,
+    usize,
+    f32,
+    f64,
+    String
+);

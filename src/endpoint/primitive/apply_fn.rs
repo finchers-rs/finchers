@@ -2,7 +2,7 @@
 
 use std::marker::PhantomData;
 use std::sync::Arc;
-use super::{Endpoint, EndpointContext, EndpointError};
+use endpoint::{Endpoint, EndpointContext, EndpointError};
 use task::IntoTask;
 
 pub fn apply_fn<F, T>(f: F) -> ApplyFn<F, T>

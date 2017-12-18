@@ -39,6 +39,6 @@ where
 
     fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
         let inner = self.endpoint.apply(ctx)?;
-        Ok(task::inspect_shared(inner, self.f.clone()))
+        Ok(task::shared::inspect(inner, self.f.clone()))
     }
 }

@@ -5,14 +5,14 @@ use endpoint::{Endpoint, EndpointContext, EndpointError, IntoEndpoint};
 use task::{self, IntoTask};
 
 
-/// Equivalent to `e.and_then(f)`
-pub fn and_then<E, F, R, A, B>(endpoint: E, f: F) -> AndThen<E::Endpoint, F, R>
+/// Equivalent to `e.then(f)`
+pub fn then<E, F, R, A, B>(endpoint: E, f: F) -> Then<E::Endpoint, F, R>
 where
     E: IntoEndpoint<A, B>,
-    F: Fn(A) -> R,
-    R: IntoTask<Error = B>,
+    F: Fn(Result<A, B>) -> R,
+    R: IntoTask,
 {
-    AndThen {
+    Then {
         endpoint: endpoint.into_endpoint(),
         f: Arc::new(f),
         _marker: PhantomData,
@@ -20,31 +20,31 @@ where
 }
 
 
-/// The return type of `and_then()`
+/// The return type of `then()`
 #[derive(Debug)]
-pub struct AndThen<E, F, R>
+pub struct Then<E, F, R>
 where
     E: Endpoint,
-    F: Fn(E::Item) -> R,
-    R: IntoTask<Error = E::Error>,
+    F: Fn(Result<E::Item, E::Error>) -> R,
+    R: IntoTask,
 {
     endpoint: E,
     f: Arc<F>,
     _marker: PhantomData<fn() -> R>,
 }
 
-impl<E, F, R> Endpoint for AndThen<E, F, R>
+impl<E, F, R> Endpoint for Then<E, F, R>
 where
     E: Endpoint,
-    F: Fn(E::Item) -> R,
-    R: IntoTask<Error = E::Error>,
+    F: Fn(Result<E::Item, E::Error>) -> R,
+    R: IntoTask,
 {
     type Item = R::Item;
     type Error = R::Error;
-    type Task = task::AndThen<E::Task, fn(E::Item) -> R, F, R>;
+    type Task = task::Then<E::Task, fn(Result<E::Item, E::Error>) -> R, F, R>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
-        let f = self.endpoint.apply(ctx)?;
-        Ok(task::and_then_shared(f, self.f.clone()))
+        let fut = self.endpoint.apply(ctx)?;
+        Ok(task::shared::then(fut, self.f.clone()))
     }
 }

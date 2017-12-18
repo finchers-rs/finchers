@@ -1,8 +1,8 @@
 #![allow(missing_docs)]
 
 use std::marker::PhantomData;
+use endpoint::{Endpoint, EndpointContext, EndpointError};
 use task::TaskResult;
-use super::{Endpoint, EndpointContext, EndpointError};
 
 
 pub fn reject<T, E>(error: EndpointError) -> Reject<T, E> {

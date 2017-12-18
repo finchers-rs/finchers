@@ -45,6 +45,6 @@ where
 
     fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
         let task = self.endpoint.apply(ctx)?;
-        Ok(task::or_else_shared(task, self.f.clone()))
+        Ok(task::shared::or_else(task, self.f.clone()))
     }
 }

@@ -2,8 +2,8 @@
 
 use std::marker::PhantomData;
 use std::sync::Arc;
+use endpoint::{Endpoint, EndpointContext, EndpointError};
 use task::IntoTask;
-use super::{Endpoint, EndpointContext, EndpointError};
 
 
 pub fn lazy<F, R>(f: F) -> Lazy<F, R>
