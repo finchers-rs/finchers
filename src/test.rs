@@ -5,10 +5,9 @@ use hyper::Method;
 use hyper::header::Header;
 use tokio_core::reactor::Core;
 
-use context::{Context, RequestInfo};
-use endpoint::{Endpoint, EndpointError};
+use endpoint::{Endpoint, EndpointContext, EndpointError};
 use request::{Body, Request};
-use task::Task;
+use task::{Task, TaskContext};
 
 
 /// A test case for `run_test()`
@@ -66,14 +65,6 @@ impl TestCase {
     }
 }
 
-impl Into<RequestInfo> for TestCase {
-    fn into(self) -> RequestInfo {
-        let req = self.request;
-        let body = self.body.unwrap_or_default();
-        RequestInfo::new(req, body)
-    }
-}
-
 
 /// Invoke given endpoint and return its result
 pub fn run_test<T, E>(endpoint: T, input: TestCase) -> Result<Result<E::Item, E::Error>, EndpointError>
@@ -83,16 +74,23 @@ where
 {
     let mut core = Core::new().unwrap();
 
-    let mut ctx = Context::new(input.into());
-    let task = endpoint.as_ref().apply(&mut ctx)?;
+    let TestCase { request, body } = input;
 
-    Ok(core.run(TestFuture { task, ctx }))
+    let task = {
+        let mut ctx = EndpointContext::new(&request);
+        endpoint.as_ref().apply(&mut ctx)?
+    };
+
+    Ok(core.run(TestFuture {
+        task,
+        ctx: TaskContext::new(request, body.unwrap_or_default()),
+    }))
 }
 
 #[derive(Debug)]
 struct TestFuture<T: Task> {
     task: T,
-    ctx: Context,
+    ctx: TaskContext,
 }
 
 impl<T: Task> Future for TestFuture<T> {

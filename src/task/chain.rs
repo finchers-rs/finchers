@@ -1,8 +1,7 @@
 // imported from futures::future::chain;
 
 use std::mem;
-use context::Context;
-use task::{Async, Poll, Task};
+use task::{Async, Poll, Task, TaskContext};
 
 #[derive(Debug)]
 pub enum Chain<A, B, C> {
@@ -18,7 +17,7 @@ impl<A: Task, B: Task, C> Chain<A, B, C> {
         Chain::First(a, c)
     }
 
-    pub fn poll<F>(&mut self, ctx: &mut Context, f: F) -> Poll<B::Item, B::Error>
+    pub fn poll<F>(&mut self, ctx: &mut TaskContext, f: F) -> Poll<B::Item, B::Error>
     where
         F: FnOnce(Result<A::Item, A::Error>, C) -> Result<Result<B::Item, B>, B::Error>,
     {

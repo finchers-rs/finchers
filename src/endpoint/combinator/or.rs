@@ -1,6 +1,5 @@
-use context::Context;
-use endpoint::{Endpoint, EndpointError, IntoEndpoint};
-use task::{Poll, Task};
+use endpoint::{Endpoint, EndpointContext, EndpointError, IntoEndpoint};
+use task::{Poll, Task, TaskContext};
 
 
 /// Equivalent to `e1.or(e2)`
@@ -32,7 +31,7 @@ where
     type Error = E1::Error;
     type Task = OrTask<E1::Task, E2::Task>;
 
-    fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
+    fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
         let mut ctx1 = ctx.clone();
         match self.e1.apply(&mut ctx1) {
             Ok(fut) => {
@@ -71,7 +70,7 @@ where
     type Item = T1::Item;
     type Error = T1::Error;
 
-    fn poll(&mut self, ctx: &mut Context) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self, ctx: &mut TaskContext) -> Poll<Self::Item, Self::Error> {
         match self.inner {
             Either::Left(ref mut e) => e.poll(ctx),
             Either::Right(ref mut e) => e.poll(ctx),

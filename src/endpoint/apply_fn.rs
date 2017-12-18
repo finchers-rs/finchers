@@ -2,13 +2,12 @@
 
 use std::marker::PhantomData;
 use std::sync::Arc;
-use context::Context;
-use super::{Endpoint, EndpointError};
+use super::{Endpoint, EndpointContext, EndpointError};
 use task::IntoTask;
 
 pub fn apply_fn<F, T>(f: F) -> ApplyFn<F, T>
 where
-    F: Fn(&mut Context) -> Result<T, EndpointError>,
+    F: Fn(&mut EndpointContext) -> Result<T, EndpointError>,
     T: IntoTask,
 {
     ApplyFn {
@@ -20,7 +19,7 @@ where
 #[derive(Debug)]
 pub struct ApplyFn<F, T>
 where
-    F: Fn(&mut Context) -> Result<T, EndpointError>,
+    F: Fn(&mut EndpointContext) -> Result<T, EndpointError>,
     T: IntoTask,
 {
     f: Arc<F>,
@@ -29,14 +28,14 @@ where
 
 impl<F, T> Endpoint for ApplyFn<F, T>
 where
-    F: Fn(&mut Context) -> Result<T, EndpointError>,
+    F: Fn(&mut EndpointContext) -> Result<T, EndpointError>,
     T: IntoTask,
 {
     type Item = T::Item;
     type Error = T::Error;
     type Task = T::Task;
 
-    fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
+    fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
         (*self.f)(ctx).map(IntoTask::into_task)
     }
 }

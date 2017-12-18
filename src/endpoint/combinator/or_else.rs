@@ -1,8 +1,7 @@
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-use context::Context;
-use endpoint::{Endpoint, EndpointError, IntoEndpoint};
+use endpoint::{Endpoint, EndpointContext, EndpointError, IntoEndpoint};
 use task::{self, IntoTask};
 
 
@@ -44,7 +43,7 @@ where
     type Error = R::Error;
     type Task = task::OrElse<E::Task, fn(E::Error) -> R, F, R>;
 
-    fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
+    fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
         let task = self.endpoint.apply(ctx)?;
         Ok(task::or_else_shared(task, self.f.clone()))
     }

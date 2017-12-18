@@ -1,9 +1,8 @@
 #![allow(missing_docs)]
 
 use std::marker::PhantomData;
-use context::Context;
 use task::TaskResult;
-use super::{Endpoint, EndpointError};
+use super::{Endpoint, EndpointContext, EndpointError};
 
 
 pub fn reject<T, E>(error: EndpointError) -> Reject<T, E> {
@@ -24,7 +23,7 @@ impl<T, E> Endpoint for Reject<T, E> {
     type Error = E;
     type Task = TaskResult<T, E>;
 
-    fn apply(&self, _: &mut Context) -> Result<Self::Task, EndpointError> {
+    fn apply(&self, _: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
         Err(self.error)
     }
 }

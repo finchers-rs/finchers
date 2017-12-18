@@ -1,7 +1,6 @@
 #![allow(missing_docs)]
 
-use context::Context;
-use endpoint::{Endpoint, EndpointError, IntoEndpoint};
+use endpoint::{Endpoint, EndpointContext, EndpointError, IntoEndpoint};
 
 
 pub fn skip<E1, E2, A, B, C>(e1: E1, e2: E2) -> Skip<E1::Endpoint, E2::Endpoint>
@@ -34,7 +33,7 @@ where
     type Error = E1::Error;
     type Task = E1::Task;
 
-    fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
+    fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
         let f1 = self.e1.apply(ctx)?;
         let _f2 = self.e2.apply(ctx)?;
         Ok(f1)

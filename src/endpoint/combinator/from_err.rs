@@ -2,8 +2,7 @@
 
 use std::marker::PhantomData;
 
-use context::Context;
-use endpoint::{Endpoint, EndpointError, IntoEndpoint};
+use endpoint::{Endpoint, EndpointContext, EndpointError, IntoEndpoint};
 use task;
 
 
@@ -38,7 +37,7 @@ where
     type Error = T;
     type Task = task::FromErr<E::Task, T>;
 
-    fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
+    fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
         let inner = self.endpoint.apply(ctx)?;
         Ok(task::from_err(inner))
     }

@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
-use context::Context;
-use super::{Poll, Task};
+use super::{Poll, Task, TaskContext};
 use super::oneshot_fn::*;
 
 
@@ -43,7 +42,7 @@ where
     type Item = R;
     type Error = T::Error;
 
-    fn poll(&mut self, ctx: &mut Context) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self, ctx: &mut TaskContext) -> Poll<Self::Item, Self::Error> {
         let item = try_ready!(self.task.poll(ctx));
         let f = self.f.take().expect("cannot resolve twice");
         Ok(f.call(item).into())

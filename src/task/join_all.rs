@@ -1,8 +1,7 @@
 #![allow(missing_docs)]
 
 use std::fmt;
-use context::Context;
-use super::{Async, IntoTask, Poll, Task};
+use super::{Async, IntoTask, Poll, Task, TaskContext};
 use super::maybe_done::MaybeDone;
 
 pub fn join_all<I>(iter: I) -> JoinAll<<I::Item as IntoTask>::Task>
@@ -38,7 +37,7 @@ impl<T: Task> Task for JoinAll<T> {
     type Item = Vec<T::Item>;
     type Error = T::Error;
 
-    fn poll(&mut self, ctx: &mut Context) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self, ctx: &mut TaskContext) -> Poll<Self::Item, Self::Error> {
         let mut all_done = Ok(true);
         for t in &mut self.inner {
             match t.poll(ctx) {

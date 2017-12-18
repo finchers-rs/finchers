@@ -1,10 +1,24 @@
-use hyper::{Headers, Method, Uri};
+use hyper::{self, Headers, Method, Uri};
 use hyper::header::{self, Header};
 use hyper::mime::Mime;
 use hyper::error::UriError;
+use super::Body;
 
 
-/// The value of incoming HTTP request, without the request body
+#[allow(missing_docs)]
+pub fn reconstruct(req: hyper::Request) -> (Request, Body) {
+    let (method, uri, _version, headers, body) = req.deconstruct();
+    (
+        Request {
+            method,
+            uri,
+            headers,
+        },
+        body.into(),
+    )
+}
+
+/// The value of incoming HTTP request
 #[derive(Debug)]
 pub struct Request {
     pub(crate) method: Method,

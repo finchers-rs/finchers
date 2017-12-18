@@ -2,8 +2,7 @@
 #![allow(non_snake_case)]
 
 use std::marker::PhantomData;
-use context::Context;
-use endpoint::{Endpoint, EndpointError, IntoEndpoint};
+use endpoint::{Endpoint, EndpointContext, EndpointError, IntoEndpoint};
 use task;
 
 
@@ -42,7 +41,7 @@ macro_rules! generate {
             type Error = E;
             type Task = task::$Join<$($T::Task,)* E>;
 
-            fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
+            fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
                 $(
                     let $T = self.$T.apply(ctx)?;
                 )*

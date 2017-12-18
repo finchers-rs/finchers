@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
-use context::Context;
-use super::{Poll, Task};
+use super::{Poll, Task, TaskContext};
 use super::oneshot_fn::*;
 
 
@@ -43,7 +42,7 @@ where
     type Item = T::Item;
     type Error = R;
 
-    fn poll(&mut self, ctx: &mut Context) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self, ctx: &mut TaskContext) -> Poll<Self::Item, Self::Error> {
         match self.task.poll(ctx) {
             Ok(async) => Ok(async),
             Err(e) => {

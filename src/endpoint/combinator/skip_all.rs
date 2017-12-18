@@ -1,8 +1,7 @@
 #![allow(missing_docs)]
 
-use context::Context;
 use task::{self, TaskResult};
-use super::super::{Endpoint, EndpointError, IntoEndpoint};
+use super::super::{Endpoint, EndpointContext, EndpointError, IntoEndpoint};
 
 pub fn skip_all<I, E, A, B>(iter: I) -> SkipAll<E::Endpoint>
 where
@@ -24,7 +23,7 @@ impl<E: Endpoint> Endpoint for SkipAll<E> {
     type Error = E::Error;
     type Task = TaskResult<(), E::Error>;
 
-    fn apply(&self, ctx: &mut Context) -> Result<Self::Task, EndpointError> {
+    fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
         for endpoint in &self.endpoints {
             let _ = endpoint.apply(ctx)?;
         }

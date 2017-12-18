@@ -1,12 +1,11 @@
 use std::borrow::Cow;
-use context::Context;
-use super::{header, Response, ResponseBuilder, StatusCode};
+use super::{header, ResponderContext, Response, ResponseBuilder, StatusCode};
 
 
 /// The type to be converted to `hyper::Response`
 pub trait Responder {
     /// Convert itself to `hyper::Response`
-    fn respond_to(&mut self, ctx: &mut Context) -> Response;
+    fn respond_to(&mut self, ctx: &mut ResponderContext) -> Response;
 }
 
 /// The type to convert to a `Responder`
@@ -27,7 +26,7 @@ impl<R: Responder> IntoResponder for R {
 pub struct UnitResponder;
 
 impl Responder for UnitResponder {
-    fn respond_to(&mut self, _: &mut Context) -> Response {
+    fn respond_to(&mut self, _: &mut ResponderContext) -> Response {
         ResponseBuilder::default()
             .status(StatusCode::NoContent)
             .header(header::ContentLength(0))
@@ -47,7 +46,7 @@ impl IntoResponder for () {
 pub struct StringResponder(Option<Cow<'static, str>>);
 
 impl Responder for StringResponder {
-    fn respond_to(&mut self, _: &mut Context) -> Response {
+    fn respond_to(&mut self, _: &mut ResponderContext) -> Response {
         let body = self.0.take().expect("cannot respond twice");
         ResponseBuilder::default()
             .header(header::ContentType::plaintext())

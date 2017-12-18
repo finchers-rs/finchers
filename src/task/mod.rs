@@ -2,6 +2,7 @@
 
 mod and_then;
 mod chain;
+mod context;
 mod from_err;
 mod futures;
 mod inspect;
@@ -20,6 +21,7 @@ mod then;
 pub use futures::{Async, Poll};
 
 pub use self::and_then::{and_then, and_then_shared, AndThen};
+pub use self::context::TaskContext;
 pub use self::from_err::{from_err, FromErr};
 pub use self::futures::{future, TaskFuture};
 pub use self::inspect::{inspect, inspect_shared, Inspect};
@@ -33,14 +35,12 @@ pub use self::poll_fn::{poll_fn, PollFn};
 pub use self::result::{err, ok, result, TaskResult};
 pub use self::then::{then, then_shared, Then};
 
-use context::Context;
-
 
 pub trait Task {
     type Item;
     type Error;
 
-    fn poll(&mut self, ctx: &mut Context) -> Poll<Self::Item, Self::Error>;
+    fn poll(&mut self, ctx: &mut TaskContext) -> Poll<Self::Item, Self::Error>;
 
     fn and_then<F, R>(self, f: F) -> AndThen<Self, F, fn(Self::Item) -> R, R>
     where
