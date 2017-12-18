@@ -1,5 +1,3 @@
-#![allow(missing_docs)]
-
 use task;
 use endpoint::{Endpoint, EndpointContext, EndpointError, IntoEndpoint};
 

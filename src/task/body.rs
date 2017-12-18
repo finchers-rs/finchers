@@ -3,7 +3,7 @@ use futures::Stream;
 use request::{self, BodyError, FromBody};
 use task::{Poll, Task, TaskContext};
 
-/// The type of a future returned from `Body::into_vec()`
+
 #[derive(Debug)]
 pub struct Body<T, E> {
     inner: Option<(request::Body, Vec<u8>)>,

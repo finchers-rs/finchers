@@ -1,8 +1,5 @@
-#![allow(missing_docs)]
-
 use futures::{Async, Future, Poll};
 use hyper;
-use tokio_core::reactor::Handle;
 use tokio_service::Service;
 
 use request;
@@ -11,7 +8,9 @@ use task::{Task, TaskContext};
 use response::{IntoResponder, Responder, ResponderContext};
 
 
-/// An HTTP service which wraps a `Endpoint`.
+/// A wrapper of an `Endpoint` to spawned from `tokio-proto`.
+///
+/// It is helpful if you want to customize the backend features related to `tokio-proto`.
 #[derive(Debug, Clone)]
 pub struct EndpointService<E>
 where
@@ -28,7 +27,8 @@ where
     E::Item: IntoResponder,
     E::Error: IntoResponder + From<EndpointError>,
 {
-    pub fn new(endpoint: E, _handle: &Handle) -> Self {
+    /// Create a new `EndpointService` which wraps an `Endpoint` and some contexts.
+    pub fn new(endpoint: E) -> Self {
         // TODO: clone the instance of Handle and implement it to Context
         EndpointService { endpoint }
     }
@@ -64,8 +64,8 @@ where
 }
 
 
-/// A future returned from `EndpointService::call()`
-#[allow(missing_debug_implementations)]
+/// A future returned from `EndpointService::call`
+#[derive(Debug)]
 pub struct EndpointServiceFuture<E>
 where
     E: Endpoint,
@@ -76,7 +76,7 @@ where
     ctx: Option<TaskContext>,
 }
 
-#[allow(missing_debug_implementations)]
+#[derive(Debug)]
 enum Inner<T: Task> {
     NotMatched(EndpointError),
     Polling(T),

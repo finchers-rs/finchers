@@ -2,7 +2,7 @@ use endpoint::{Endpoint, EndpointContext, EndpointError, IntoEndpoint};
 use task::{Poll, Task, TaskContext};
 
 
-/// Equivalent to `e1.or(e2)`
+
 pub fn or<E1, E2, A, B>(e1: E1, e2: E2) -> Or<E1::Endpoint, E2::Endpoint>
 where
     E1: IntoEndpoint<A, B>,
@@ -15,7 +15,7 @@ where
 }
 
 
-/// The return type of `or(e1, e2)`
+
 #[derive(Debug)]
 pub struct Or<E1, E2> {
     e1: E1,

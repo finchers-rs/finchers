@@ -1,5 +1,3 @@
-//! Definition of endpoints to parse request body
-
 use std::marker::PhantomData;
 
 use endpoint::{Endpoint, EndpointContext, EndpointError};
@@ -7,7 +5,7 @@ use request::{BodyError, FromBody};
 use task;
 
 
-/// Create an endpoint, represents the value of a request body
+
 pub fn body<T, E>() -> Body<T, E>
 where
     T: FromBody,
@@ -19,7 +17,7 @@ where
 }
 
 
-#[allow(missing_docs)]
+
 #[derive(Debug)]
 pub struct Body<T, E> {
     _marker: PhantomData<fn() -> (T, E)>,

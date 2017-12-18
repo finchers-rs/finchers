@@ -1,4 +1,3 @@
-#![allow(missing_docs)]
 #![allow(non_snake_case)]
 
 use std::marker::PhantomData;

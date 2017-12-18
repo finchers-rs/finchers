@@ -1,5 +1,3 @@
-#![allow(missing_docs)]
-
 use endpoint::{Endpoint, EndpointContext, EndpointError, IntoEndpoint};
 
 pub fn with<E1, E2, A, B, C>(e1: E1, e2: E2) -> With<E1::Endpoint, E2::Endpoint>

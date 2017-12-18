@@ -1,14 +1,13 @@
-//! Definition of endpoints to parse path segments
-
 use std::borrow::Cow;
 use std::iter::FromIterator;
 use std::marker::PhantomData;
+use std::str::FromStr;
 
-use endpoint::{Endpoint, EndpointContext, EndpointError, FromParam, IntoEndpoint};
+use endpoint::{Endpoint, EndpointContext, EndpointError, IntoEndpoint};
 use task::{ok, TaskResult};
 
 
-#[allow(missing_docs)]
+
 #[derive(Debug, Clone)]
 pub struct PathSegment<'a, E>(Cow<'a, str>, PhantomData<fn() -> E>);
 
@@ -46,14 +45,14 @@ impl<'a, E> IntoEndpoint<(), E> for Cow<'a, str> {
     }
 }
 
-/// Create an endpoint which represents a path segment
+
 #[inline(always)]
 pub fn segment<'a, T: 'a + Into<Cow<'a, str>>, E>(segment: T) -> PathSegment<'a, E> {
     PathSegment(segment.into(), PhantomData)
 }
 
 
-#[allow(missing_docs)]
+
 #[derive(Debug)]
 pub struct PathParam<T, E>(PhantomData<fn() -> (T, E)>);
 
@@ -65,26 +64,26 @@ impl<T, E> Clone for PathParam<T, E> {
     }
 }
 
-impl<T: FromParam, E> Endpoint for PathParam<T, E> {
+impl<T: FromStr, E> Endpoint for PathParam<T, E> {
     type Item = T;
     type Error = E;
     type Task = TaskResult<Self::Item, Self::Error>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
-        match ctx.next_segment().map(|s| T::from_param(s)) {
+        match ctx.next_segment().map(|s| s.parse()) {
             Some(Ok(value)) => Ok(ok(value)),
             _ => return Err(EndpointError::TypeMismatch),
         }
     }
 }
 
-/// Create an endpoint which represents a path element
-pub fn param<T: FromParam, E>() -> PathParam<T, E> {
+
+pub fn param<T: FromStr, E>() -> PathParam<T, E> {
     PathParam(PhantomData)
 }
 
 
-#[allow(missing_docs)]
+
 #[derive(Debug)]
 pub struct PathParams<I, T, E>(PhantomData<fn() -> (I, T, E)>);
 
@@ -100,7 +99,7 @@ impl<I, T, E> Clone for PathParams<I, T, E> {
 impl<I, T, E> Endpoint for PathParams<I, T, E>
 where
     I: FromIterator<T> + Default,
-    T: FromParam,
+    T: FromStr,
 {
     type Item = I;
     type Error = E;
@@ -115,11 +114,11 @@ where
     }
 }
 
-/// Create an endpoint which represents the sequence of remaining path elements
+
 pub fn params<I, T, E>() -> PathParams<I, T, E>
 where
     I: FromIterator<T>,
-    T: FromParam,
+    T: FromStr,
 {
     PathParams(PhantomData)
 }

@@ -1,5 +1,3 @@
-#![allow(missing_docs)]
-
 use std::fmt;
 use super::{Async, IntoTask, Poll, Task, TaskContext};
 use super::maybe_done::MaybeDone;

@@ -17,7 +17,7 @@ pub(crate) fn reconstruct(req: hyper::Request) -> (Request, Body) {
     )
 }
 
-/// The value of incoming HTTP request
+
 #[derive(Debug)]
 pub struct Request {
     pub(crate) method: Method,
@@ -55,7 +55,7 @@ impl Request {
         self.headers.get::<H>()
     }
 
-    #[allow(missing_docs)]
+
     pub fn media_type(&self) -> Option<&Mime> {
         self.header().map(|&header::ContentType(ref m)| m)
     }

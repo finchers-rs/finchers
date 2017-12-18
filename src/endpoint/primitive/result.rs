@@ -1,5 +1,3 @@
-#![allow(missing_docs)]
-
 use std::marker::PhantomData;
 use endpoint::{Endpoint, EndpointContext, EndpointError};
 use task::{self, TaskResult};

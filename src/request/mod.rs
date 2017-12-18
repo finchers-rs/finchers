@@ -1,4 +1,4 @@
-//! Definitions and reexports of incoming HTTP requests
+//! Incoming HTTP requests
 
 mod body;
 mod from_body;

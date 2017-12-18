@@ -1,5 +1,3 @@
-//! Definition of HTTP services for Hyper
-
 use std::borrow::Cow;
 use std::io;
 use std::net::SocketAddr;
@@ -15,40 +13,38 @@ use tokio_core::reactor::{Core, Handle};
 
 use endpoint::{Endpoint, EndpointError};
 use response::IntoResponder;
-use service::EndpointService;
+use super::EndpointService;
 
 
-/// The factory of HTTP service
+#[allow(missing_docs)]
 #[derive(Debug)]
-pub struct ServerBuilder {
+pub struct Server {
     addr: Cow<'static, str>,
     num_workers: usize,
 }
 
-impl Default for ServerBuilder {
+impl Default for Server {
     fn default() -> Self {
-        ServerBuilder {
+        Server {
             addr: "0.0.0.0:4000".into(),
             num_workers: 1,
         }
     }
 }
 
-impl ServerBuilder {
-    /// Set the listener address of the service
+#[allow(missing_docs)]
+impl Server {
     pub fn bind<S: Into<Cow<'static, str>>>(mut self, addr: S) -> Self {
         self.addr = addr.into();
         self
     }
 
-    /// Set the number of worker threads
     pub fn num_workers(mut self, n: usize) -> Self {
         self.num_workers = n;
         self
     }
 
-    /// Start an HTTP server with given endpoint
-    pub fn run_http<E>(&self, endpoint: E)
+    pub fn serve<E>(&self, endpoint: E)
     where
         E: Endpoint + Send + Sync + 'static,
         E::Item: IntoResponder,
@@ -107,7 +103,7 @@ where
         let server = self.build_listener(&handle)?
             .incoming()
             .for_each(|(sock, addr)| {
-                let service = EndpointService::new(self.endpoint.clone(), &handle);
+                let service = EndpointService::new(self.endpoint.clone());
                 self.proto.bind_connection(&handle, sock, addr, service);
                 Ok(())
             });

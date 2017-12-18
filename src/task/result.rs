@@ -1,5 +1,3 @@
-#![allow(missing_docs)]
-
 use task::{Async, Poll, Task, TaskContext};
 
 

@@ -5,7 +5,7 @@ use endpoint::{Endpoint, EndpointContext, EndpointError, IntoEndpoint};
 use task;
 
 
-/// Equivalent to `e.map_err(f)`
+
 pub fn map_err<E, F, R, A, B>(endpoint: E, f: F) -> MapErr<E::Endpoint, F, R>
 where
     E: IntoEndpoint<A, B>,
@@ -19,7 +19,7 @@ where
 }
 
 
-/// The return type of `map_err(e, f)`
+
 #[derive(Debug)]
 pub struct MapErr<E, F, R>
 where

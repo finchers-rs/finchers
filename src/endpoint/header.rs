@@ -1,12 +1,10 @@
-//! Definition of endpoints to parse request headers
-
 use std::marker::PhantomData;
 use hyper::header;
 
 use endpoint::{Endpoint, EndpointContext, EndpointError};
 use task::{ok, TaskResult};
 
-#[allow(missing_docs)]
+
 #[derive(Debug)]
 pub struct Header<H, E>(PhantomData<fn() -> (H, E)>);
 
@@ -33,7 +31,7 @@ impl<H: header::Header + Clone, E> Endpoint for Header<H, E> {
 }
 
 
-#[allow(missing_docs)]
+
 #[derive(Debug)]
 pub struct HeaderOpt<H, E>(PhantomData<fn() -> (H, E)>);
 
@@ -57,12 +55,12 @@ impl<H: header::Header + Clone, E> Endpoint for HeaderOpt<H, E> {
 }
 
 
-/// Create an endpoint matches the value of a request header
+
 pub fn header<H: header::Header + Clone, E>() -> Header<H, E> {
     Header(PhantomData)
 }
 
-/// Create an endpoint matches the value of a request header, which the value may not exist
+
 pub fn header_opt<H: header::Header + Clone, E>() -> HeaderOpt<H, E> {
     HeaderOpt(PhantomData)
 }

@@ -2,13 +2,12 @@ use std::borrow::Cow;
 use super::{header, ResponderContext, Response, ResponseBuilder, StatusCode};
 
 
-/// The type to be converted to `hyper::Response`
+
 pub trait Responder {
-    /// Convert itself to `hyper::Response`
     fn respond_to(&mut self, ctx: &mut ResponderContext) -> Response;
 }
 
-/// The type to convert to a `Responder`
+
 pub trait IntoResponder {
     type Responder: Responder;
     fn into_responder(self) -> Self::Responder;

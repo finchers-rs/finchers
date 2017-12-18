@@ -1,4 +1,4 @@
-#![allow(missing_docs)]
+//! The definition of `Responder` layer
 
 mod context;
 mod responder;

@@ -3,12 +3,11 @@ extern crate error_chain;
 extern crate finchers;
 
 use std::string::FromUtf8Error;
-use finchers::{Endpoint, EndpointError};
+use finchers::prelude::*;
 use finchers::endpoint::method::{get, post};
 use finchers::endpoint::{body, param};
 use finchers::request::BodyError;
-use finchers::response::{Responder, ResponderContext, Response, ResponseBuilder, StatusCode};
-use finchers::ServerBuilder;
+use finchers::response::StatusCode;
 
 error_chain! {
     foreign_links {
@@ -37,8 +36,8 @@ fn main() {
 
     let endpoint = endpoint1.or(endpoint2).with_type::<_, Error>();
 
-    ServerBuilder::default()
+    Server::default()
         .bind("0.0.0.0:8080")
         .num_workers(1)
-        .run_http(endpoint);
+        .serve(endpoint);
 }

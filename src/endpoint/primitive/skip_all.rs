@@ -1,5 +1,3 @@
-#![allow(missing_docs)]
-
 use task::{self, TaskResult};
 use super::super::{Endpoint, EndpointContext, EndpointError, IntoEndpoint};
 

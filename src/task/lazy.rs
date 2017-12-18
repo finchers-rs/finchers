@@ -1,5 +1,3 @@
-#![allow(missing_docs)]
-
 use std::mem;
 use super::{IntoTask, Poll, Task, TaskContext};
 

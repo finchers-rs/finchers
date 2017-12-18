@@ -1,4 +1,4 @@
-#![allow(missing_docs)]
+//! The definition of `Task` layer
 
 mod and_then;
 mod body;

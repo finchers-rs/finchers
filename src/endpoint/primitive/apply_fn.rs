@@ -1,5 +1,3 @@
-#![allow(missing_docs)]
-
 use std::marker::PhantomData;
 use std::sync::Arc;
 use endpoint::{Endpoint, EndpointContext, EndpointError};

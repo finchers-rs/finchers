@@ -5,7 +5,7 @@ use futures::{Poll, Stream};
 use hyper;
 
 
-/// The abstruction of `hyper::Chunk`, represents a piece of message body.
+
 #[derive(Debug)]
 pub struct Chunk(hyper::Chunk);
 
@@ -17,7 +17,7 @@ impl Deref for Chunk {
 }
 
 
-/// An error during receiving pieces of message body.
+
 #[derive(Debug)]
 pub struct BodyError(hyper::Error);
 
@@ -41,7 +41,8 @@ impl error::Error for BodyError {
 
 
 
-/// The instance of request body.
+
+
 #[derive(Default, Debug)]
 pub struct Body {
     inner: hyper::Body,

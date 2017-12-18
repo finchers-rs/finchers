@@ -6,7 +6,7 @@ use response::{Responder, ResponderContext, Response};
 use super::Request;
 
 
-/// A trait represents the conversion from `Body`.
+
 pub trait FromBody: Sized {
     /// The error type returned from `from_body()`
     type Error;
@@ -49,7 +49,7 @@ impl FromBody for String {
 }
 
 
-/// A type represents the never-returned errors.
+
 #[derive(Debug)]
 pub enum NoReturn {}
 

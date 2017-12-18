@@ -1,12 +1,10 @@
-//! Definition of endpoints to parse query parameters
-
 use std::marker::PhantomData;
 use std::str::FromStr;
 
 use endpoint::{Endpoint, EndpointContext, EndpointError};
 use task::{ok, TaskResult};
 
-#[allow(missing_docs)]
+
 #[derive(Debug)]
 pub struct Query<T, E>(&'static str, PhantomData<fn() -> (T, E)>);
 
@@ -31,13 +29,13 @@ impl<T: FromStr, E> Endpoint for Query<T, E> {
     }
 }
 
-/// Create an endpoint matches a query parameter named `name`
+
 pub fn query<T: FromStr, E>(name: &'static str) -> Query<T, E> {
     Query(name, PhantomData)
 }
 
 
-#[allow(missing_docs)]
+
 #[derive(Debug)]
 pub struct QueryOpt<T, E>(&'static str, PhantomData<fn() -> (T, E)>);
 
@@ -62,7 +60,7 @@ impl<T: FromStr, E> Endpoint for QueryOpt<T, E> {
     }
 }
 
-/// Create an endpoint matches a query parameter, which the value may not exist
+
 pub fn query_opt<T: FromStr, E>(name: &'static str) -> QueryOpt<T, E> {
     QueryOpt(name, PhantomData)
 }

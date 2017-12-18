@@ -8,7 +8,7 @@ pub struct TaskContext {
 }
 
 impl TaskContext {
-    pub fn new(request: Request, body: Body) -> Self {
+    pub(crate) fn new(request: Request, body: Body) -> Self {
         Self {
             request,
             body: Some(body),

@@ -1,5 +1,3 @@
-#![allow(missing_docs)]
-
 use futures::Future;
 use task::{Poll, Task, TaskContext};
 
