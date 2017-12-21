@@ -1,30 +1,50 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::iter::FromIterator;
 use std::path::{Component, Components, Path};
 use std::rc::Rc;
-use std::str::FromStr;
 use url::form_urlencoded;
 use request::Request;
+
+
+#[allow(missing_docs)]
+#[derive(Debug, Clone)]
+pub struct Segments<'a>(Components<'a>);
+
+impl<'a> From<&'a str> for Segments<'a> {
+    fn from(path: &'a str) -> Self {
+        let mut components = Path::new(path).components();
+        components.next(); // skip the root ("/")
+        Segments(components)
+    }
+}
+
+impl<'a> Iterator for Segments<'a> {
+    type Item = &'a str;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next().map(|c| match c {
+            Component::Normal(s) => s.to_str().unwrap(),
+            _ => panic!("relatative path is not supported"),
+        })
+    }
+}
 
 
 /// A set of values, contains the incoming HTTP request and the finchers-specific context.
 #[derive(Debug, Clone)]
 pub struct EndpointContext<'a> {
     request: &'a Request,
-    routes: Option<Components<'a>>,
+    segments: Option<Segments<'a>>,
     queries: Rc<Option<HashMap<Cow<'a, str>, Vec<Cow<'a, str>>>>>,
 }
 
 impl<'a> EndpointContext<'a> {
     #[allow(missing_docs)]
     pub fn new(request: &'a Request) -> Self {
-        let mut routes = Path::new(request.path()).components();
-        routes.next(); // skip the root ("/")
         let queries = request.query().map(parse_queries);
         EndpointContext {
             request,
-            routes: Some(routes),
+            segments: Some(Segments::from(request.path())),
             queries: Rc::new(queries),
         }
     }
@@ -36,34 +56,12 @@ impl<'a> EndpointContext<'a> {
 
     /// Pop and return the front element of path segments.
     pub fn next_segment(&mut self) -> Option<&str> {
-        self.routes.as_mut().and_then(|r| {
-            r.next().map(|c| match c {
-                Component::Normal(s) => s.to_str().unwrap(),
-                _ => panic!("relatative path is not supported"),
-            })
-        })
+        self.segments.as_mut().and_then(|r| r.next())
     }
 
     /// Collect and return the remaining path segments, if available
-    pub fn collect_remaining_segments<I, T>(&mut self) -> Option<Result<I, T::Err>>
-    where
-        I: FromIterator<T>,
-        T: FromStr,
-    {
-        let routes = self.routes.take()?;
-        Some(
-            routes
-                .map(|c| match c {
-                    Component::Normal(s) => s.to_str().unwrap().parse(),
-                    _ => panic!("relative path is not supported"),
-                })
-                .collect(),
-        )
-    }
-
-    /// Count the length of remaining path segments
-    pub fn count_remaining_segments(&mut self) -> usize {
-        self.routes.take().map_or(0, |routes| routes.count())
+    pub fn take_segments(&mut self) -> Option<Segments<'a>> {
+        self.segments.take()
     }
 
     /// Return the first value of the query parameter whose name is `name`, if exists

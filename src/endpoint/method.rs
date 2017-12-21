@@ -15,7 +15,7 @@ impl<E: Endpoint> Endpoint for MatchMethod<E> {
 
     fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
         let f = self.1.apply(ctx)?;
-        if ctx.count_remaining_segments() > 0 {
+        if ctx.take_segments().map_or(0, |s| s.count()) > 0 {
             return Err(EndpointError::Skipped);
         }
         if *ctx.request().method() != self.0 {

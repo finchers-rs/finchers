@@ -108,7 +108,9 @@ where
     type Task = TaskResult<Self::Item, Self::Error>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
-        match ctx.collect_remaining_segments() {
+        match ctx.take_segments()
+            .map(|s| s.map(|s| s.parse()).collect::<Result<_, _>>())
+        {
             Some(Ok(seq)) => Ok(ok(seq)),
             Some(Err(_)) => Err(EndpointError::TypeMismatch),
             None => Ok(ok(Default::default())),
