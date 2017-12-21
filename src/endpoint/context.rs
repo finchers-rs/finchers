@@ -1,8 +1,4 @@
-use std::borrow::Cow;
-use std::collections::HashMap;
 use std::path::{Component, Components, Path};
-use std::rc::Rc;
-use url::form_urlencoded;
 use request::Request;
 
 
@@ -35,17 +31,14 @@ impl<'a> Iterator for Segments<'a> {
 pub struct EndpointContext<'a> {
     request: &'a Request,
     segments: Option<Segments<'a>>,
-    queries: Rc<Option<HashMap<Cow<'a, str>, Vec<Cow<'a, str>>>>>,
 }
 
 impl<'a> EndpointContext<'a> {
     #[allow(missing_docs)]
     pub fn new(request: &'a Request) -> Self {
-        let queries = request.query().map(parse_queries);
         EndpointContext {
             request,
             segments: Some(Segments::from(request.path())),
-            queries: Rc::new(queries),
         }
     }
 
@@ -63,20 +56,4 @@ impl<'a> EndpointContext<'a> {
     pub fn take_segments(&mut self) -> Option<Segments<'a>> {
         self.segments.take()
     }
-
-    /// Returns all query parameters with name `name`
-    pub fn find_param(&mut self, name: &str) -> Option<&[Cow<str>]> {
-        let queries = (*self.queries).as_ref()?;
-        queries.get(name).map(|q| &q[..])
-    }
-}
-
-
-
-fn parse_queries(s: &str) -> HashMap<Cow<str>, Vec<Cow<str>>> {
-    let mut queries = HashMap::new();
-    for (key, value) in form_urlencoded::parse(s.as_bytes()) {
-        queries.entry(key).or_insert(Vec::new()).push(value);
-    }
-    queries
 }

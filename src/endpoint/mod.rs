@@ -7,7 +7,6 @@ mod body;
 mod context;
 mod endpoint;
 mod header;
-mod param;
 mod path;
 mod result;
 
@@ -32,7 +31,6 @@ pub use self::context::{EndpointContext, Segments};
 pub use self::endpoint::{Endpoint, EndpointError, IntoEndpoint};
 pub use self::header::{header, header_opt};
 pub use self::method::MatchMethod;
-pub use self::param::param;
 pub use self::path::{path, paths};
 pub use self::result::{err, ok, result, EndpointErr, EndpointOk, EndpointResult};
 
