@@ -6,7 +6,6 @@ mod apply_fn;
 mod body;
 mod context;
 mod endpoint;
-mod from_param;
 mod header;
 mod path;
 mod query;
@@ -29,7 +28,6 @@ mod with;
 // re-exports
 pub use self::apply_fn::{apply_fn, ApplyFn};
 pub use self::body::body;
-pub use self::from_param::FromParam;
 pub use self::context::EndpointContext;
 pub use self::endpoint::{Endpoint, EndpointError, IntoEndpoint};
 pub use self::header::{header, header_opt};

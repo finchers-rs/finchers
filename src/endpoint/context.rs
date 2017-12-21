@@ -3,9 +3,9 @@ use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::path::{Component, Components, Path};
 use std::rc::Rc;
+use std::str::FromStr;
 use url::form_urlencoded;
 use request::Request;
-use super::FromParam;
 
 
 /// A set of values, contains the incoming HTTP request and the finchers-specific context.
@@ -45,16 +45,16 @@ impl<'a> EndpointContext<'a> {
     }
 
     /// Collect and return the remaining path segments, if available
-    pub fn collect_remaining_segments<I, T>(&mut self) -> Option<Result<I, T::Error>>
+    pub fn collect_remaining_segments<I, T>(&mut self) -> Option<Result<I, T::Err>>
     where
         I: FromIterator<T>,
-        T: FromParam,
+        T: FromStr,
     {
         let routes = self.routes.take()?;
         Some(
             routes
                 .map(|c| match c {
-                    Component::Normal(s) => T::from_param(s.to_str().unwrap()),
+                    Component::Normal(s) => s.to_str().unwrap().parse(),
                     _ => panic!("relative path is not supported"),
                 })
                 .collect(),
