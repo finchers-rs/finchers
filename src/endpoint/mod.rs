@@ -8,10 +8,8 @@ mod context;
 mod endpoint;
 mod from_param;
 mod header;
-mod lazy;
 mod path;
 mod query;
-mod reject;
 mod result;
 
 mod and_then;
@@ -35,11 +33,9 @@ pub use self::from_param::FromParam;
 pub use self::context::EndpointContext;
 pub use self::endpoint::{Endpoint, EndpointError, IntoEndpoint};
 pub use self::header::{header, header_opt};
-pub use self::lazy::{lazy, Lazy};
 pub use self::method::MatchMethod;
 pub use self::query::{query, query_opt};
 pub use self::path::{param, params, segment};
-pub use self::reject::{reject, Reject};
 pub use self::result::{err, ok, result, EndpointErr, EndpointOk, EndpointResult};
 
 pub use self::and_then::{and_then, AndThen};
