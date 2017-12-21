@@ -64,20 +64,10 @@ impl<'a> EndpointContext<'a> {
         self.segments.take()
     }
 
-    /// Return the first value of the query parameter whose name is `name`, if exists
-    pub fn query<S: AsRef<str>>(&mut self, name: S) -> Option<&str> {
-        let queries = (*self.queries).as_ref()?;
-        queries
-            .get(name.as_ref())
-            .and_then(|q| q.get(0).map(|s| &*s as &str))
-    }
-
     /// Returns all query parameters with name `name`
-    pub fn queries<S: AsRef<str>>(&mut self, name: S) -> Option<Vec<&str>> {
+    pub fn find_param(&mut self, name: &str) -> Option<&[Cow<str>]> {
         let queries = (*self.queries).as_ref()?;
-        queries
-            .get(name.as_ref())
-            .map(|q| q.iter().map(|s| &*s as &str).collect())
+        queries.get(name).map(|q| &q[..])
     }
 }
 

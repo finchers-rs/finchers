@@ -7,8 +7,8 @@ mod body;
 mod context;
 mod endpoint;
 mod header;
+mod param;
 mod path;
-mod query;
 mod result;
 
 mod and_then;
@@ -32,8 +32,8 @@ pub use self::context::{EndpointContext, Segments};
 pub use self::endpoint::{Endpoint, EndpointError, IntoEndpoint};
 pub use self::header::{header, header_opt};
 pub use self::method::MatchMethod;
-pub use self::query::{query, query_opt};
-pub use self::path::{param, params, segment};
+pub use self::param::param;
+pub use self::path::{path, paths};
 pub use self::result::{err, ok, result, EndpointErr, EndpointOk, EndpointResult};
 
 pub use self::and_then::{and_then, AndThen};
