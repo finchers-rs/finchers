@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-use endpoint::{Endpoint, EndpointContext, EndpointError, IntoEndpoint};
+use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
 use task;
 
 
@@ -40,8 +40,8 @@ where
     type Error = E::Error;
     type Task = task::Map<E::Task, fn(E::Item) -> R, F>;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
+    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
         let inner = self.endpoint.apply(ctx)?;
-        Ok(task::map_shared(inner, self.f.clone()))
+        Some(task::map_shared(inner, self.f.clone()))
     }
 }

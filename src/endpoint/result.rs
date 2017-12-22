@@ -2,7 +2,7 @@
 
 use std::marker::PhantomData;
 use task::{self, TaskResult};
-use super::{Endpoint, EndpointContext, EndpointError};
+use super::{Endpoint, EndpointContext};
 
 
 pub fn ok<T: Clone, E>(x: T) -> EndpointOk<T, E> {
@@ -23,8 +23,8 @@ impl<T: Clone, E> Endpoint for EndpointOk<T, E> {
     type Error = E;
     type Task = TaskResult<T, E>;
 
-    fn apply(&self, _: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
-        Ok(task::ok(self.x.clone()))
+    fn apply(&self, _: &mut EndpointContext) -> Option<Self::Task> {
+        Some(task::ok(self.x.clone()))
     }
 }
 
@@ -47,8 +47,8 @@ impl<T, E: Clone> Endpoint for EndpointErr<T, E> {
     type Error = E;
     type Task = TaskResult<T, E>;
 
-    fn apply(&self, _: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
-        Ok(task::err(self.x.clone()))
+    fn apply(&self, _: &mut EndpointContext) -> Option<Self::Task> {
+        Some(task::err(self.x.clone()))
     }
 }
 
@@ -68,7 +68,7 @@ impl<T: Clone, E: Clone> Endpoint for EndpointResult<T, E> {
     type Error = E;
     type Task = TaskResult<T, E>;
 
-    fn apply(&self, _: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
-        Ok(task::result(self.x.clone()))
+    fn apply(&self, _: &mut EndpointContext) -> Option<Self::Task> {
+        Some(task::result(self.x.clone()))
     }
 }

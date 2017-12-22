@@ -5,7 +5,7 @@ use hyper::Method;
 use hyper::header::Header;
 use tokio_core::reactor::Core;
 
-use endpoint::{Endpoint, EndpointContext, EndpointError};
+use endpoint::{Endpoint, EndpointContext};
 use request::{Body, Request};
 use task::{Task, TaskContext};
 
@@ -67,7 +67,7 @@ impl TestCase {
 
 
 /// Invoke given endpoint and return its result
-pub fn run_test<T, E>(endpoint: T, input: TestCase) -> Result<Result<E::Item, E::Error>, EndpointError>
+pub fn run_test<T, E>(endpoint: T, input: TestCase) -> Option<Result<E::Item, E::Error>>
 where
     T: AsRef<E>,
     E: Endpoint,
@@ -81,7 +81,7 @@ where
         endpoint.as_ref().apply(&mut ctx)?
     };
 
-    Ok(core.run(TestFuture {
+    Some(core.run(TestFuture {
         task,
         ctx: TaskContext::new(request, body.unwrap_or_default()),
     }))

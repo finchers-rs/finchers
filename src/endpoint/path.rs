@@ -5,8 +5,8 @@ use std::iter::FromIterator;
 use std::marker::PhantomData;
 use std::str::FromStr;
 
-use endpoint::{Endpoint, EndpointContext, EndpointError, IntoEndpoint};
-use task::{ok, TaskResult};
+use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
+use task::{ok, result, TaskResult};
 
 
 #[allow(missing_docs)]
@@ -18,11 +18,11 @@ impl<'a, E> Endpoint for MatchPath<'a, E> {
     type Error = E;
     type Task = TaskResult<Self::Item, Self::Error>;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
+    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
         if !ctx.next_segment().map(|s| s == self.0).unwrap_or(false) {
-            return Err(EndpointError::Skipped);
+            return None;
         }
-        Ok(ok(()))
+        Some(ok(()))
     }
 }
 
@@ -57,15 +57,19 @@ pub fn path<T: FromStr, E>() -> ExtractPath<T, E> {
 #[derive(Debug)]
 pub struct ExtractPath<T, E>(PhantomData<fn() -> (T, E)>);
 
-impl<T: FromStr, E> Endpoint for ExtractPath<T, E> {
+impl<T, E> Endpoint for ExtractPath<T, E>
+where
+    T: FromStr,
+    E: From<T::Err>,
+{
     type Item = T;
     type Error = E;
     type Task = TaskResult<Self::Item, Self::Error>;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
+    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
         match ctx.next_segment().map(|s| s.parse()) {
-            Some(Ok(value)) => Ok(ok(value)),
-            _ => return Err(EndpointError::TypeMismatch),
+            Some(res) => Some(result(res.map_err(Into::into))),
+            _ => return None,
         }
     }
 }
@@ -89,17 +93,18 @@ impl<I, T, E> Endpoint for ExtractPaths<I, T, E>
 where
     I: FromIterator<T>,
     T: FromStr,
+    E: From<T::Err>,
 {
     type Item = I;
     type Error = E;
     type Task = TaskResult<Self::Item, Self::Error>;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
+    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
         match ctx.take_segments()
             .map(|s| s.map(|s| s.parse()).collect::<Result<_, _>>())
         {
-            Some(Ok(value)) => Ok(ok(value)),
-            _ => return Err(EndpointError::TypeMismatch),
+            Some(res) => Some(result(res.map_err(Into::into))),
+            _ => return None,
         }
     }
 }

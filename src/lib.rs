@@ -24,7 +24,7 @@ pub mod util;
 
 
 #[doc(inline)]
-pub use endpoint::{Endpoint, EndpointContext, EndpointError, IntoEndpoint};
+pub use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
 
 #[doc(inline)]
 pub use request::Request;

@@ -2,7 +2,7 @@
 
 use std::marker::PhantomData;
 
-use endpoint::{Endpoint, EndpointContext, EndpointError};
+use endpoint::{Endpoint, EndpointContext};
 use request::{BodyError, FromBody};
 use task;
 
@@ -42,10 +42,10 @@ where
     type Error = E;
     type Task = task::Body<T, E>;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
+    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
         match T::check_request(ctx.request()) {
-            true => Ok(task::Body::default()),
-            false => Err(EndpointError::Skipped),
+            true => Some(task::Body::default()),
+            false => None,
         }
     }
 }

@@ -1,4 +1,4 @@
-use endpoint::{Endpoint, EndpointContext, EndpointError, IntoEndpoint};
+use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
 use task::{Poll, Task, TaskContext};
 
 
@@ -31,23 +31,23 @@ where
     type Error = E1::Error;
     type Task = OrTask<E1::Task, E2::Task>;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
+    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
         let mut ctx1 = ctx.clone();
         match self.e1.apply(&mut ctx1) {
-            Ok(fut) => {
+            Some(fut) => {
                 *ctx = ctx1;
-                return Ok(OrTask {
+                return Some(OrTask {
                     inner: Either::Left(fut),
                 });
             }
-            Err(..) => {}
+            None => {}
         }
 
         match self.e2.apply(ctx) {
-            Ok(fut) => Ok(OrTask {
+            Some(fut) => Some(OrTask {
                 inner: Either::Right(fut),
             }),
-            Err(err) => Err(err),
+            None => None,
         }
     }
 }

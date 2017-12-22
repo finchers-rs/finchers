@@ -1,6 +1,8 @@
 //! Definition of HTTP services for Hyper
 
 use std::borrow::Cow;
+use std::error;
+use std::fmt;
 use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -13,9 +15,26 @@ use net2::TcpBuilder;
 use tokio_core::net::TcpListener;
 use tokio_core::reactor::{Core, Handle};
 
-use endpoint::{Endpoint, EndpointError};
+use endpoint::Endpoint;
 use response::IntoResponder;
 use service::EndpointService;
+
+
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct NotFound;
+
+impl fmt::Display for NotFound {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("not found")
+    }
+}
+
+impl error::Error for NotFound {
+    fn description(&self) -> &str {
+        "not found"
+    }
+}
 
 
 /// The factory of HTTP service
@@ -52,7 +71,7 @@ impl ServerBuilder {
     where
         E: Endpoint + Send + Sync + 'static,
         E::Item: IntoResponder,
-        E::Error: IntoResponder + From<EndpointError>,
+        E::Error: IntoResponder + From<NotFound>,
     {
         let endpoint = Arc::new(endpoint);
         let proto = Http::new();
@@ -86,7 +105,7 @@ struct Worker<'a, E>
 where
     E: Endpoint + Clone + 'static,
     E::Item: IntoResponder,
-    E::Error: IntoResponder + From<EndpointError>,
+    E::Error: IntoResponder + From<NotFound>,
 {
     endpoint: E,
     proto: Http<Chunk>,
@@ -98,7 +117,7 @@ impl<'a, E> Worker<'a, E>
 where
     E: Endpoint + Clone + 'static,
     E::Item: IntoResponder,
-    E::Error: IntoResponder + From<EndpointError>,
+    E::Error: IntoResponder + From<NotFound>,
 {
     fn run(&self) -> io::Result<()> {
         let mut core = Core::new()?;

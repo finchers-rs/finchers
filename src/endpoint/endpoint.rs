@@ -1,43 +1,7 @@
-use std::fmt::{self, Display};
-use std::error::Error;
 use std::rc::Rc;
 use std::sync::Arc;
 use task::{IntoTask, Task};
 use super::*;
-
-
-
-/// The error type during `Endpoint::apply()`
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum EndpointError {
-    /// This endpoint does not matches the current request
-    Skipped,
-    /// The header is not set
-    EmptyHeader,
-    /// The method of the current request is invalid in the endpoint
-    InvalidMethod,
-    /// The type of a path segment or a query parameter is not convertible to the endpoint
-    TypeMismatch,
-}
-
-impl Display for EndpointError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(self.description())
-    }
-}
-
-impl Error for EndpointError {
-    fn description(&self) -> &str {
-        use EndpointError::*;
-        match *self {
-            Skipped => "skipped",
-            EmptyHeader => "empty header",
-            InvalidMethod => "invalid method",
-            TypeMismatch => "type mismatch",
-        }
-    }
-}
-
 
 
 /// A HTTP endpoint, which provides the futures from incoming HTTP requests
@@ -52,7 +16,7 @@ pub trait Endpoint {
     type Task: Task<Item = Self::Item, Error = Self::Error>;
 
     /// Apply the incoming HTTP request, and return the future of its response
-    fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError>;
+    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task>;
 
 
     /// Combine itself and the other endpoint, and create a combinator which returns a pair of its
@@ -227,7 +191,7 @@ impl<E: Endpoint> Endpoint for Box<E> {
     type Error = E::Error;
     type Task = E::Task;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
+    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
         (**self).apply(ctx)
     }
 }
@@ -237,7 +201,7 @@ impl<E: Endpoint> Endpoint for Rc<E> {
     type Error = E::Error;
     type Task = E::Task;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
+    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
         (**self).apply(ctx)
     }
 }
@@ -247,7 +211,7 @@ impl<E: Endpoint> Endpoint for Arc<E> {
     type Error = E::Error;
     type Task = E::Task;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
+    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
         (**self).apply(ctx)
     }
 }

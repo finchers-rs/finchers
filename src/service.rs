@@ -6,10 +6,10 @@ use tokio_core::reactor::Handle;
 use tokio_service::Service;
 
 use request;
-use endpoint::{Endpoint, EndpointContext, EndpointError};
+use endpoint::{Endpoint, EndpointContext};
 use task::{Task, TaskContext};
 use response::{IntoResponder, Responder, ResponderContext};
-
+use super::server::NotFound;
 
 /// An HTTP service which wraps a `Endpoint`.
 #[derive(Debug, Clone)]
@@ -17,7 +17,7 @@ pub struct EndpointService<E>
 where
     E: Endpoint,
     E::Item: IntoResponder,
-    E::Error: IntoResponder + From<EndpointError>,
+    E::Error: IntoResponder + From<NotFound>,
 {
     endpoint: E,
 }
@@ -26,7 +26,7 @@ impl<E> EndpointService<E>
 where
     E: Endpoint,
     E::Item: IntoResponder,
-    E::Error: IntoResponder + From<EndpointError>,
+    E::Error: IntoResponder + From<NotFound>,
 {
     pub fn new(endpoint: E, _handle: &Handle) -> Self {
         // TODO: clone the instance of Handle and implement it to Context
@@ -38,7 +38,7 @@ impl<E> Service for EndpointService<E>
 where
     E: Endpoint,
     E::Item: IntoResponder,
-    E::Error: IntoResponder + From<EndpointError>,
+    E::Error: IntoResponder + From<NotFound>,
 {
     type Request = hyper::Request;
     type Response = hyper::Response;
@@ -55,8 +55,8 @@ where
 
         EndpointServiceFuture {
             inner: match result {
-                Ok(t) => Polling(t),
-                Err(e) => NotMatched(e),
+                Some(t) => Polling(t),
+                None => NotMatched,
             },
             ctx: Some(TaskContext::new(request, body)),
         }
@@ -70,7 +70,7 @@ pub struct EndpointServiceFuture<E>
 where
     E: Endpoint,
     E::Item: IntoResponder,
-    E::Error: IntoResponder + From<EndpointError>,
+    E::Error: IntoResponder + From<NotFound>,
 {
     inner: Inner<E::Task>,
     ctx: Option<TaskContext>,
@@ -78,7 +78,7 @@ where
 
 #[allow(missing_debug_implementations)]
 enum Inner<T: Task> {
-    NotMatched(EndpointError),
+    NotMatched,
     Polling(T),
     Done,
 }
@@ -89,17 +89,17 @@ impl<E> EndpointServiceFuture<E>
 where
     E: Endpoint,
     E::Item: IntoResponder,
-    E::Error: IntoResponder + From<EndpointError>,
+    E::Error: IntoResponder + From<NotFound>,
 {
     fn poll_task(&mut self) -> Poll<E::Item, E::Error> {
         let ctx = self.ctx.as_mut().expect("cannot resolve/reject twice");
         match self.inner {
             Polling(ref mut t) => return t.poll(ctx),
-            NotMatched(..) => {}
+            NotMatched => {}
             Done => panic!(),
         }
         match mem::replace(&mut self.inner, Done) {
-            NotMatched(e) => Err(e.into()),
+            NotMatched => Err(NotFound.into()),
             _ => panic!(),
         }
     }
@@ -118,7 +118,7 @@ impl<E> Future for EndpointServiceFuture<E>
 where
     E: Endpoint,
     E::Item: IntoResponder,
-    E::Error: IntoResponder + From<EndpointError>,
+    E::Error: IntoResponder + From<NotFound>,
 {
     type Item = hyper::Response;
     type Error = hyper::Error;
