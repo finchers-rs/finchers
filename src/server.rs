@@ -13,9 +13,14 @@ use net2::TcpBuilder;
 use tokio_core::net::TcpListener;
 use tokio_core::reactor::{Core, Handle};
 
-use endpoint::{Endpoint, EndpointError};
+use endpoint::Endpoint;
 use response::IntoResponder;
 use service::EndpointService;
+
+
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct NotFound;
 
 
 /// The factory of HTTP service
@@ -52,7 +57,7 @@ impl ServerBuilder {
     where
         E: Endpoint + Send + Sync + 'static,
         E::Item: IntoResponder,
-        E::Error: IntoResponder + From<EndpointError>,
+        E::Error: IntoResponder + From<NotFound>,
     {
         let endpoint = Arc::new(endpoint);
         let proto = Http::new();
@@ -86,7 +91,7 @@ struct Worker<'a, E>
 where
     E: Endpoint + Clone + 'static,
     E::Item: IntoResponder,
-    E::Error: IntoResponder + From<EndpointError>,
+    E::Error: IntoResponder + From<NotFound>,
 {
     endpoint: E,
     proto: Http<Chunk>,
@@ -98,7 +103,7 @@ impl<'a, E> Worker<'a, E>
 where
     E: Endpoint + Clone + 'static,
     E::Item: IntoResponder,
-    E::Error: IntoResponder + From<EndpointError>,
+    E::Error: IntoResponder + From<NotFound>,
 {
     fn run(&self) -> io::Result<()> {
         let mut core = Core::new()?;

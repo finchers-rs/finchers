@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 
 use task;
-use endpoint::{Endpoint, EndpointContext, EndpointError, IntoEndpoint};
+use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
 
 
 pub fn join_all<I, E, A, B>(iter: I) -> JoinAll<E::Endpoint>
@@ -25,11 +25,11 @@ impl<E: Endpoint> Endpoint for JoinAll<E> {
     type Error = E::Error;
     type Task = task::JoinAll<E::Task>;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
+    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
         let tasks: Vec<_> = self.inner
             .iter()
             .map(|e| e.apply(ctx))
-            .collect::<Result<_, EndpointError>>()?;
-        Ok(task::join_all(tasks))
+            .collect::<Option<_>>()?;
+        Some(task::join_all(tasks))
     }
 }

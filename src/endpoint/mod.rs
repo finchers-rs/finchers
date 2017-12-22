@@ -28,7 +28,7 @@ mod with;
 pub use self::apply_fn::{apply_fn, ApplyFn};
 pub use self::body::body;
 pub use self::context::{EndpointContext, Segments};
-pub use self::endpoint::{Endpoint, EndpointError, IntoEndpoint};
+pub use self::endpoint::{Endpoint, IntoEndpoint};
 pub use self::header::{header, header_opt};
 pub use self::method::MatchMethod;
 pub use self::path::{path, paths};

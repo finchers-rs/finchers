@@ -1,68 +1,84 @@
 //! Definition of endpoints to parse request headers
 
+use std::fmt;
+use std::error;
 use std::marker::PhantomData;
 use hyper::header;
 
-use endpoint::{Endpoint, EndpointContext, EndpointError};
-use task::{ok, TaskResult};
+use endpoint::{Endpoint, EndpointContext};
+use task::{err, ok, TaskResult};
 
-#[allow(missing_docs)]
-#[derive(Debug)]
-pub struct Header<H, E>(PhantomData<fn() -> (H, E)>);
 
-impl<H, E> Clone for Header<H, E> {
-    fn clone(&self) -> Self {
-        *self
+#[derive(Debug, Clone)]
+pub struct EmptyHeader(&'static str);
+
+impl fmt::Display for EmptyHeader {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "The header '{}' is not given", self.0)
     }
 }
 
-impl<H, E> Copy for Header<H, E> {}
-
-impl<H: header::Header + Clone, E> Endpoint for Header<H, E> {
-    type Item = H;
-    type Error = E;
-    type Task = TaskResult<Self::Item, Self::Error>;
-
-    fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
-        ctx.request()
-            .header()
-            .cloned()
-            .map(ok)
-            .ok_or(EndpointError::EmptyHeader)
-    }
-}
-
-
-#[allow(missing_docs)]
-#[derive(Debug)]
-pub struct HeaderOpt<H, E>(PhantomData<fn() -> (H, E)>);
-
-impl<H, E> Clone for HeaderOpt<H, E> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl<H, E> Copy for HeaderOpt<H, E> {}
-
-
-impl<H: header::Header + Clone, E> Endpoint for HeaderOpt<H, E> {
-    type Item = Option<H>;
-    type Error = E;
-    type Task = TaskResult<Self::Item, Self::Error>;
-
-    fn apply(&self, ctx: &mut EndpointContext) -> Result<Self::Task, EndpointError> {
-        Ok(ok(ctx.request().header().cloned()))
+impl error::Error for EmptyHeader {
+    fn description(&self) -> &str {
+        "empty header"
     }
 }
 
 
 /// Create an endpoint matches the value of a request header
 pub fn header<H: header::Header + Clone, E>() -> Header<H, E> {
-    Header(PhantomData)
+    Header {
+        _marker: PhantomData,
+    }
 }
+
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct Header<H, E> {
+    _marker: PhantomData<fn() -> (H, E)>,
+}
+
+impl<H, E> Endpoint for Header<H, E>
+where
+    H: header::Header + Clone,
+    E: From<EmptyHeader>,
+{
+    type Item = H;
+    type Error = E;
+    type Task = TaskResult<Self::Item, Self::Error>;
+
+    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
+        match ctx.request().header().cloned() {
+            Some(h) => Some(ok(h)),
+            None => Some(err(EmptyHeader(H::header_name()).into())),
+        }
+    }
+}
+
+
 
 /// Create an endpoint matches the value of a request header, which the value may not exist
 pub fn header_opt<H: header::Header + Clone, E>() -> HeaderOpt<H, E> {
-    HeaderOpt(PhantomData)
+    HeaderOpt {
+        _marker: PhantomData,
+    }
+}
+
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct HeaderOpt<H, E> {
+    _marker: PhantomData<fn() -> (H, E)>,
+}
+
+impl<H, E> Endpoint for HeaderOpt<H, E>
+where
+    H: header::Header + Clone,
+{
+    type Item = Option<H>;
+    type Error = E;
+    type Task = TaskResult<Self::Item, Self::Error>;
+
+    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
+        Some(ok(ctx.request().header().cloned()))
+    }
 }
