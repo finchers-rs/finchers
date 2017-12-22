@@ -1,6 +1,8 @@
 //! Definition of HTTP services for Hyper
 
 use std::borrow::Cow;
+use std::error;
+use std::fmt;
 use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -21,6 +23,18 @@ use service::EndpointService;
 #[allow(missing_docs)]
 #[derive(Debug)]
 pub struct NotFound;
+
+impl fmt::Display for NotFound {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("not found")
+    }
+}
+
+impl error::Error for NotFound {
+    fn description(&self) -> &str {
+        "not found"
+    }
+}
 
 
 /// The factory of HTTP service

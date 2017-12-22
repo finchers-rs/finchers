@@ -2,17 +2,19 @@
 extern crate error_chain;
 extern crate finchers;
 
-use std::string::FromUtf8Error;
-use finchers::{Endpoint, EndpointError};
+use std::string::{FromUtf8Error, ParseError};
+use finchers::Endpoint;
 use finchers::endpoint::method::{get, post};
 use finchers::endpoint::{body, path};
 use finchers::request::BodyError;
 use finchers::response::{Responder, ResponderContext, Response, ResponseBuilder, StatusCode};
 use finchers::ServerBuilder;
+use finchers::server::NotFound;
 
 error_chain! {
     foreign_links {
-        Endpoint(EndpointError);
+        NotFound(NotFound);
+        ParsePath(ParseError);
         BodyRecv(BodyError);
         FromUtf8(FromUtf8Error);
     }
@@ -28,8 +30,7 @@ impl Responder for Error {
 
 fn main() {
     // GET /foo/:id
-    let endpoint1 = get(("foo", path()))
-        .and_then(|(_, name): (_, String)| Ok(format!("Hello, {}", name)));
+    let endpoint1 = get(("foo", path())).and_then(|(_, name): (_, String)| Ok(format!("Hello, {}", name)));
 
     // POST /foo/:id [String] (Content-type: text/plain; charset=utf-8)
     let endpoint2 = post(("foo", path(), body()))
