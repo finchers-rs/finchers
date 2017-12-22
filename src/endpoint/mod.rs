@@ -6,10 +6,8 @@ mod apply_fn;
 mod body;
 mod context;
 mod endpoint;
-mod from_param;
 mod header;
 mod path;
-mod query;
 mod result;
 
 mod and_then;
@@ -29,13 +27,11 @@ mod with;
 // re-exports
 pub use self::apply_fn::{apply_fn, ApplyFn};
 pub use self::body::body;
-pub use self::from_param::FromParam;
-pub use self::context::EndpointContext;
+pub use self::context::{EndpointContext, Segments};
 pub use self::endpoint::{Endpoint, EndpointError, IntoEndpoint};
 pub use self::header::{header, header_opt};
 pub use self::method::MatchMethod;
-pub use self::query::{query, query_opt};
-pub use self::path::{param, params, segment};
+pub use self::path::{path, paths};
 pub use self::result::{err, ok, result, EndpointErr, EndpointOk, EndpointResult};
 
 pub use self::and_then::{and_then, AndThen};

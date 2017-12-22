@@ -5,7 +5,7 @@ extern crate finchers;
 use std::string::FromUtf8Error;
 use finchers::{Endpoint, EndpointError};
 use finchers::endpoint::method::{get, post};
-use finchers::endpoint::{body, param};
+use finchers::endpoint::{body, path};
 use finchers::request::BodyError;
 use finchers::response::{Responder, ResponderContext, Response, ResponseBuilder, StatusCode};
 use finchers::ServerBuilder;
@@ -28,11 +28,11 @@ impl Responder for Error {
 
 fn main() {
     // GET /foo/:id
-    let endpoint1 = get(("foo", param()))
+    let endpoint1 = get(("foo", path()))
         .and_then(|(_, name): (_, String)| Ok(format!("Hello, {}", name)));
 
     // POST /foo/:id [String] (Content-type: text/plain; charset=utf-8)
-    let endpoint2 = post(("foo", param(), body()))
+    let endpoint2 = post(("foo", path(), body()))
         .and_then(|(_, name, body): (_, String, String)| Ok(format!("Hello, {} ({})", name, body)));
 
     let endpoint = endpoint1.or(endpoint2).with_type::<_, Error>();
