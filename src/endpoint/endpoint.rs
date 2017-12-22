@@ -21,7 +21,7 @@ pub trait Endpoint {
 
     /// Combine itself and the other endpoint, and create a combinator which returns a pair of its
     /// `Item`s.
-    fn join<E>(self, e: E) -> Join<Self, E, Self::Error>
+    fn join<E>(self, e: E) -> Join<Self, E>
     where
         Self: Sized,
         E: Endpoint<Error = Self::Error>,
@@ -30,7 +30,7 @@ pub trait Endpoint {
     }
 
     #[allow(missing_docs)]
-    fn join3<E1, E2>(self, e1: E1, e2: E2) -> Join3<Self, E1, E2, Self::Error>
+    fn join3<E1, E2>(self, e1: E1, e2: E2) -> Join3<Self, E1, E2>
     where
         Self: Sized,
         E1: Endpoint<Error = Self::Error>,
@@ -40,7 +40,7 @@ pub trait Endpoint {
     }
 
     #[allow(missing_docs)]
-    fn join4<E1, E2, E3>(self, e1: E1, e2: E2, e3: E3) -> Join4<Self, E1, E2, E3, Self::Error>
+    fn join4<E1, E2, E3>(self, e1: E1, e2: E2, e3: E3) -> Join4<Self, E1, E2, E3>
     where
         Self: Sized,
         E1: Endpoint<Error = Self::Error>,
@@ -51,7 +51,7 @@ pub trait Endpoint {
     }
 
     #[allow(missing_docs)]
-    fn join5<E1, E2, E3, E4>(self, e1: E1, e2: E2, e3: E3, e4: E4) -> Join5<Self, E1, E2, E3, E4, Self::Error>
+    fn join5<E1, E2, E3, E4>(self, e1: E1, e2: E2, e3: E3, e4: E4) -> Join5<Self, E1, E2, E3, E4>
     where
         Self: Sized,
         E1: Endpoint<Error = Self::Error>,
@@ -63,14 +63,7 @@ pub trait Endpoint {
     }
 
     #[allow(missing_docs)]
-    fn join6<E1, E2, E3, E4, E5>(
-        self,
-        e1: E1,
-        e2: E2,
-        e3: E3,
-        e4: E4,
-        e5: E5,
-    ) -> Join6<Self, E1, E2, E3, E4, E5, Self::Error>
+    fn join6<E1, E2, E3, E4, E5>(self, e1: E1, e2: E2, e3: E3, e4: E4, e5: E5) -> Join6<Self, E1, E2, E3, E4, E5>
     where
         Self: Sized,
         E1: Endpoint<Error = Self::Error>,

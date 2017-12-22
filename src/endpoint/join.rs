@@ -1,7 +1,6 @@
 #![allow(missing_docs)]
 #![allow(non_snake_case)]
 
-use std::marker::PhantomData;
 use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
 use task;
 
@@ -10,29 +9,24 @@ macro_rules! generate {
     ($(
         ($new:ident, $Join:ident, <$($T:ident : $A:ident),*>),
     )*) => {$(
-        pub fn $new<$($T,)* $($A,)* E>($( $T: $T ),*) -> $Join <$($T::Endpoint,)* E>
+        pub fn $new<$($T,)* $($A,)* E>($($T: $T),*) -> $Join<$($T::Endpoint),*>
         where $(
             $T: IntoEndpoint<$A, E>,
         )*
         {
             $Join {
                 $($T: $T.into_endpoint(),)*
-                _marker: PhantomData,
             }
         }
 
         #[derive(Debug)]
-        pub struct $Join<$($T,)* E>
-        where $(
-            $T: Endpoint<Error = E>,
-        )* {
+        pub struct $Join<$($T),*> {
             $(
                 $T: $T,
             )*
-            _marker: PhantomData<fn() -> E>,
         }
 
-        impl<$($T,)* E> Endpoint for $Join<$($T,)* E>
+        impl<$($T,)* E> Endpoint for $Join<$($T),*>
         where $(
             $T: Endpoint<Error = E>,
         )*
@@ -53,7 +47,7 @@ macro_rules! generate {
         where $(
             $T: IntoEndpoint<$A, E>,
         )* {
-            type Endpoint = $Join<$($T::Endpoint,)* E>;
+            type Endpoint = $Join<$($T::Endpoint),*>;
 
             fn into_endpoint(self) -> Self::Endpoint {
                 let ($($T),*) = self;
