@@ -2,48 +2,34 @@ use std::sync::Arc;
 
 use super::{IntoTask, Poll, Task, TaskContext};
 use super::chain::Chain;
-use super::oneshot_fn::*;
 
 
-pub fn and_then<T, F, R>(task: T, f: F) -> AndThen<T, F, fn(T::Item) -> R, R>
-where
-    T: Task,
-    F: FnOnce(T::Item) -> R,
-    R: IntoTask<Error = T::Error>,
-{
-    AndThen {
-        inner: Chain::new(task, owned(f)),
-    }
-}
-
-pub fn and_then_shared<T, F, R>(task: T, f: Arc<F>) -> AndThen<T, fn(T::Item) -> R, F, R>
+pub fn and_then<T, F, R>(task: T, f: Arc<F>) -> AndThen<T, F, R>
 where
     T: Task,
     F: Fn(T::Item) -> R,
     R: IntoTask<Error = T::Error>,
 {
     AndThen {
-        inner: Chain::new(task, shared(f)),
+        inner: Chain::new(task, f),
     }
 }
 
 
 #[derive(Debug)]
-pub struct AndThen<T, F1, F2, R>
+pub struct AndThen<T, F, R>
 where
     T: Task,
-    F1: FnOnce(T::Item) -> R,
-    F2: Fn(T::Item) -> R,
+    F: Fn(T::Item) -> R,
     R: IntoTask<Error = T::Error>,
 {
-    inner: Chain<T, R::Task, OneshotFn<F1, F2>>,
+    inner: Chain<T, R::Task, Arc<F>>,
 }
 
-impl<T, F1, F2, R> Task for AndThen<T, F1, F2, R>
+impl<T, F, R> Task for AndThen<T, F, R>
 where
     T: Task,
-    F1: FnOnce(T::Item) -> R,
-    F2: Fn(T::Item) -> R,
+    F: Fn(T::Item) -> R,
     R: IntoTask<Error = T::Error>,
 {
     type Item = R::Item;
@@ -51,7 +37,7 @@ where
 
     fn poll(&mut self, ctx: &mut TaskContext) -> Poll<Self::Item, Self::Error> {
         self.inner.poll(ctx, |result, f| match result {
-            Ok(item) => Ok(Err(f.call(item).into_task())),
+            Ok(item) => Ok(Err((*f)(item).into_task())),
             Err(err) => Err(err),
         })
     }

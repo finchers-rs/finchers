@@ -13,7 +13,6 @@ pub(crate) mod lazy;
 pub(crate) mod map_err;
 pub(crate) mod map;
 pub(crate) mod maybe_done;
-pub(crate) mod oneshot_fn;
 pub(crate) mod or_else;
 pub(crate) mod poll_fn;
 pub(crate) mod result;

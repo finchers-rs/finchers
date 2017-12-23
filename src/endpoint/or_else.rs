@@ -41,10 +41,10 @@ where
 {
     type Item = R::Item;
     type Error = R::Error;
-    type Task = task::OrElse<E::Task, fn(E::Error) -> R, F, R>;
+    type Task = task::OrElse<E::Task, F, R>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
         let task = self.endpoint.apply(ctx)?;
-        Some(task::or_else::or_else_shared(task, self.f.clone()))
+        Some(task::or_else::or_else(task, self.f.clone()))
     }
 }
