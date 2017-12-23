@@ -21,91 +21,102 @@ pub trait Endpoint {
 
     /// Combine itself and the other endpoint, and create a combinator which returns a pair of its
     /// `Item`s.
-    fn join<E>(self, e: E) -> Join<Self, E, Self::Error>
+    fn join<T, E>(self, e: E) -> Join<Self, E::Endpoint>
     where
         Self: Sized,
-        E: Endpoint<Error = Self::Error>,
+        E: IntoEndpoint<T, Self::Error>,
     {
         join(self, e)
     }
 
     #[allow(missing_docs)]
-    fn join3<E1, E2>(self, e1: E1, e2: E2) -> Join3<Self, E1, E2, Self::Error>
+    fn join3<T1, T2, E1, E2>(self, e1: E1, e2: E2) -> Join3<Self, E1::Endpoint, E2::Endpoint>
     where
         Self: Sized,
-        E1: Endpoint<Error = Self::Error>,
-        E2: Endpoint<Error = Self::Error>,
+        E1: IntoEndpoint<T1, Self::Error>,
+        E2: IntoEndpoint<T2, Self::Error>,
     {
         join3(self, e1, e2)
     }
 
     #[allow(missing_docs)]
-    fn join4<E1, E2, E3>(self, e1: E1, e2: E2, e3: E3) -> Join4<Self, E1, E2, E3, Self::Error>
+    fn join4<T1, T2, T3, E1, E2, E3>(
+        self,
+        e1: E1,
+        e2: E2,
+        e3: E3,
+    ) -> Join4<Self, E1::Endpoint, E2::Endpoint, E3::Endpoint>
     where
         Self: Sized,
-        E1: Endpoint<Error = Self::Error>,
-        E2: Endpoint<Error = Self::Error>,
-        E3: Endpoint<Error = Self::Error>,
+        E1: IntoEndpoint<T1, Self::Error>,
+        E2: IntoEndpoint<T2, Self::Error>,
+        E3: IntoEndpoint<T3, Self::Error>,
     {
         join4(self, e1, e2, e3)
     }
 
     #[allow(missing_docs)]
-    fn join5<E1, E2, E3, E4>(self, e1: E1, e2: E2, e3: E3, e4: E4) -> Join5<Self, E1, E2, E3, E4, Self::Error>
+    fn join5<T1, T2, T3, T4, E1, E2, E3, E4>(
+        self,
+        e1: E1,
+        e2: E2,
+        e3: E3,
+        e4: E4,
+    ) -> Join5<Self, E1::Endpoint, E2::Endpoint, E3::Endpoint, E4::Endpoint>
     where
         Self: Sized,
-        E1: Endpoint<Error = Self::Error>,
-        E2: Endpoint<Error = Self::Error>,
-        E3: Endpoint<Error = Self::Error>,
-        E4: Endpoint<Error = Self::Error>,
+        E1: IntoEndpoint<T1, Self::Error>,
+        E2: IntoEndpoint<T2, Self::Error>,
+        E3: IntoEndpoint<T3, Self::Error>,
+        E4: IntoEndpoint<T4, Self::Error>,
     {
         join5(self, e1, e2, e3, e4)
     }
 
     #[allow(missing_docs)]
-    fn join6<E1, E2, E3, E4, E5>(
+    fn join6<T1, T2, T3, T4, T5, E1, E2, E3, E4, E5>(
         self,
         e1: E1,
         e2: E2,
         e3: E3,
         e4: E4,
         e5: E5,
-    ) -> Join6<Self, E1, E2, E3, E4, E5, Self::Error>
+    ) -> Join6<Self, E1::Endpoint, E2::Endpoint, E3::Endpoint, E4::Endpoint, E5::Endpoint>
     where
         Self: Sized,
-        E1: Endpoint<Error = Self::Error>,
-        E2: Endpoint<Error = Self::Error>,
-        E3: Endpoint<Error = Self::Error>,
-        E4: Endpoint<Error = Self::Error>,
-        E5: Endpoint<Error = Self::Error>,
+        E1: IntoEndpoint<T1, Self::Error>,
+        E2: IntoEndpoint<T2, Self::Error>,
+        E3: IntoEndpoint<T3, Self::Error>,
+        E4: IntoEndpoint<T4, Self::Error>,
+        E5: IntoEndpoint<T5, Self::Error>,
     {
         join6(self, e1, e2, e3, e4, e5)
     }
 
     /// Combine itself and the other endpoint, and create a combinator which returns `E::Item`.
-    fn with<E>(self, e: E) -> With<Self, E>
+    fn with<T, E>(self, e: E) -> With<Self, E::Endpoint>
     where
         Self: Sized,
-        E: Endpoint<Error = Self::Error>,
+        E: IntoEndpoint<T, Self::Error>,
     {
         with(self, e)
     }
 
     /// Combine itself and the other endpoint, and create a combinator which returns `Self::Item`.
-    fn skip<E>(self, e: E) -> Skip<Self, E>
+    fn skip<T, E>(self, e: E) -> Skip<Self, E::Endpoint>
     where
         Self: Sized,
-        E: Endpoint<Error = Self::Error>,
+        E: IntoEndpoint<T, Self::Error>,
     {
         skip(self, e)
     }
 
     /// Create an endpoint which attempts to apply `self`.
     /// If `self` failes, then revert the context and retry applying `e`.
-    fn or<E>(self, e: E) -> Or<Self, E>
+    fn or<E>(self, e: E) -> Or<Self, E::Endpoint>
     where
         Self: Sized,
-        E: Endpoint<Item = Self::Item, Error = Self::Error>,
+        E: IntoEndpoint<Self::Item, Self::Error>,
     {
         or(self, e)
     }
