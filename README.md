@@ -8,36 +8,9 @@
 The concept and design of this library is highly inspired by [`finch`](https://github.com/finagle/finch) and [`combine`](https://github.com/Marwes/combine).
 
 ## Features
-* ease of use
-* asynchronous handling based on Futures and Hyper 0.11
 * type-safe routing
-* focuse on stable channel
-
-## Example
-
-```rust
-extern crate finchers;
-
-use finchers::{Endpoint, ServerBuilder};
-use finchers::endpoint::param;
-use finchers::endpoint::method::get;
-
-fn main() {
-    // create an endpoint
-    let endpoint = get(("hello", param()))
-        .map(|(_, name)| name)
-        .and_then(|name: String| -> Result<_, ()> {
-            Ok(format!("Hello, {}", name))
-        });
-
-    // start a HTTP server.
-    ServerBuilder::default()
-        .bind("127.0.0.1:3000")
-        .run_http(endpoint);
-}
-```
-
-More examples are located in [`examples/`](examples/).
+* asynchronous handling based on Futures and Hyper 0.11
+* focuses on stable channel
 
 ## Documentation
 * [released](https://docs.rs/finchers/)

@@ -1,7 +1,7 @@
 use std::string::FromUtf8Error;
 use hyper::mime;
-use util::NoReturn;
 use super::Request;
+
 
 /// A trait represents the conversion from `Body`.
 pub trait FromBody: Sized {
@@ -17,7 +17,7 @@ pub trait FromBody: Sized {
 
 
 impl FromBody for Vec<u8> {
-    type Error = NoReturn;
+    type Error = ();
 
     fn check_request(_req: &Request) -> bool {
         // req.media_type()

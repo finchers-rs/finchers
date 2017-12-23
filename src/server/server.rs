@@ -17,7 +17,7 @@ use tokio_core::reactor::{Core, Handle};
 
 use endpoint::Endpoint;
 use response::IntoResponder;
-use service::EndpointService;
+use super::service::EndpointService;
 
 
 #[allow(missing_docs)]
