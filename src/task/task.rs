@@ -1,4 +1,5 @@
 use super::*;
+use futures::future::FutureResult;
 
 
 pub trait Task {
@@ -29,9 +30,9 @@ impl<T: Task> IntoTask for T {
 impl<T, E> IntoTask for Result<T, E> {
     type Item = T;
     type Error = E;
-    type Task = TaskResult<T, E>;
+    type Task = TaskFuture<FutureResult<T, E>>;
 
     fn into_task(self) -> Self::Task {
-        result(self)
+        from_future(self)
     }
 }
