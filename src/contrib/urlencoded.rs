@@ -1,5 +1,48 @@
 #![allow(missing_docs)]
 
+//! Support for parsing urlencoded queries and message body.
+//!
+//! # Example
+//!
+//! ```ignore
+//! pub struct Foo {
+//!     id: u32,
+//!     name: String,
+//! }
+//!
+//! impl FromForm for Foo {
+//!     type Error = str::FromUtf8Error;
+//!
+//!     fn from_form(iter: FormPairs) -> Result<Self, FormError<Self::Error>> {
+//!         let (mut id, mut name) = (None, None);
+//!         for (key, value) in iter {
+//!             match key.as_str() {
+//!                 "id" => {
+//!                     if id.is_none() {
+//!                         id = Some(value.parse()?);
+//!                     } else {
+//!                         return Err(FormError::duplicated_key("id"));
+//!                     }
+//!                 },
+//!                 "name" => {
+//!                     if name.is_none() {
+//!                         name = Some(value.into_owned());
+//!                     } else {
+//!                         return Err(FormError::duplicated_key("name"));
+//!                     }
+//!                 },
+//!                 key => return Err(FormError::missing_key(key)),
+//!             }
+//!         }
+//!         Ok(Foo {
+//!             id: id.ok_or_else(|| FormError::missing_key("id"))?,
+//!             name: name.ok_or_else(|| FormError::missing_key("name"))?,
+//!         })
+//!     }
+//! }
+//! ```
+
+
 extern crate url;
 
 use std::borrow::Cow;
@@ -7,56 +50,16 @@ use std::{error, fmt};
 use hyper::mime;
 use request::{FromBody, Request};
 
-use self::url::form_urlencoded::{self, Parse};
-
 
 /// A trait for parsing from `urlencoded` message body.
-///
-/// # Example
-///
-/// ```ignore
-/// pub struct Foo {
-///     id: u32,
-///     name: String,
-/// }
-///
-/// impl FromForm for Foo {
-///     type Error = str::FromUtf8Error;
-///
-///     fn from_form(iter: FormPairs) -> Result<Self, FormError<Self::Error>> {
-///         let (mut id, mut name) = (None, None);
-///         for (key, value) in iter {
-///             match key.as_str() {
-///                 "id" => {
-///                     if id.is_none() {
-///                         id = Some(value.parse()?);
-///                     } else {
-///                         return Err(FormError::duplicated_key("id"));
-///                     }
-///                 },
-///                 "name" => {
-///                     if name.is_none() {
-///                         name = Some(value.into_owned());
-///                     } else {
-///                         return Err(FormError::duplicated_key("name"));
-///                     }
-///                 },
-///                 key => return Err(FormError::missing_key(key)),
-///             }
-///         }
-///         Ok(Foo {
-///             id: id.ok_or_else(|| FormError::missing_key("id"))?,
-///             name: name.ok_or_else(|| FormError::missing_key("name"))?,
-///         })
-///     }
-/// }
-/// ```
 pub trait FromForm: Sized {
     /// The error type during `from_form`.
     type Error: error::Error;
 
-    /// Convert the pairs of parsed message body to this type.
-    fn from_form(iter: FormPairs) -> Result<Self, FormError<Self::Error>>;
+    /// Convert from the pairs of keys/values to itself.
+    fn from_form<'a, I>(iter: I) -> Result<Self, FormError<Self::Error>>
+    where
+        I: Iterator<Item = (Cow<'a, str>, Cow<'a, str>)>;
 }
 
 
@@ -73,8 +76,8 @@ impl<F: FromForm> FromBody for Form<F> {
     }
 
     fn from_body(body: Vec<u8>) -> Result<Self, Self::Error> {
-        let iter = form_urlencoded::parse(&body);
-        F::from_form(FormPairs(iter)).map(Form)
+        let iter = self::url::form_urlencoded::parse(&body);
+        F::from_form(iter).map(Form)
     }
 }
 
@@ -131,18 +134,5 @@ impl<E: fmt::Display> fmt::Display for FormError<E> {
 impl<E: fmt::Debug + fmt::Display> error::Error for FormError<E> {
     fn description(&self) -> &str {
         "during parsing the urlencoded body"
-    }
-}
-
-
-/// A parsed message body given as an argument of `FromForm::from_form`.
-#[derive(Debug, Copy, Clone)]
-pub struct FormPairs<'a>(Parse<'a>);
-
-impl<'a> Iterator for FormPairs<'a> {
-    type Item = (Cow<'a, str>, Cow<'a, str>);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next()
     }
 }
