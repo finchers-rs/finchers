@@ -1,10 +1,13 @@
 #![allow(missing_docs)]
 
+extern crate url;
+
 use std::borrow::Cow;
 use std::{error, fmt};
 use hyper::mime;
-use url::form_urlencoded::{self, Parse};
-use super::{FromBody, Request};
+use request::{FromBody, Request};
+
+use self::url::form_urlencoded::{self, Parse};
 
 
 /// A trait for parsing from `urlencoded` message body.
