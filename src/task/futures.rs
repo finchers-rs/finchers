@@ -1,10 +1,12 @@
 #![allow(missing_docs)]
 
-use futures::Future;
+use futures::{Future, IntoFuture};
 use task::{Poll, Task, TaskContext};
 
-pub fn future<F: Future>(f: F) -> TaskFuture<F> {
-    TaskFuture { inner: f }
+pub fn from_future<F: IntoFuture>(f: F) -> TaskFuture<F::Future> {
+    TaskFuture {
+        inner: f.into_future(),
+    }
 }
 
 
@@ -15,7 +17,7 @@ pub struct TaskFuture<F: Future> {
 
 impl<F: Future> From<F> for TaskFuture<F> {
     fn from(f: F) -> Self {
-        future(f)
+        from_future(f)
     }
 }
 

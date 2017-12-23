@@ -2,47 +2,33 @@ use std::sync::Arc;
 
 use super::{IntoTask, Poll, Task, TaskContext};
 use super::chain::Chain;
-use super::oneshot_fn::*;
 
 
-pub fn then<T, F, R>(task: T, f: F) -> Then<T, F, fn(Result<T::Item, T::Error>) -> R, R>
-where
-    T: Task,
-    F: FnOnce(Result<T::Item, T::Error>) -> R,
-    R: IntoTask,
-{
-    Then {
-        inner: Chain::new(task, owned(f)),
-    }
-}
-
-pub fn then_shared<T, F, R>(task: T, f: Arc<F>) -> Then<T, fn(Result<T::Item, T::Error>) -> R, F, R>
+pub fn then<T, F, R>(task: T, f: Arc<F>) -> Then<T, F, R>
 where
     T: Task,
     F: Fn(Result<T::Item, T::Error>) -> R,
     R: IntoTask,
 {
     Then {
-        inner: Chain::new(task, shared(f)),
+        inner: Chain::new(task, f),
     }
 }
 
 #[derive(Debug)]
-pub struct Then<T, F1, F2, R>
+pub struct Then<T, F, R>
 where
     T: Task,
-    F1: FnOnce(Result<T::Item, T::Error>) -> R,
-    F2: Fn(Result<T::Item, T::Error>) -> R,
+    F: Fn(Result<T::Item, T::Error>) -> R,
     R: IntoTask,
 {
-    inner: Chain<T, R::Task, OneshotFn<F1, F2>>,
+    inner: Chain<T, R::Task, Arc<F>>,
 }
 
-impl<T, F1, F2, R> Task for Then<T, F1, F2, R>
+impl<T, F, R> Task for Then<T, F, R>
 where
     T: Task,
-    F1: FnOnce(Result<T::Item, T::Error>) -> R,
-    F2: Fn(Result<T::Item, T::Error>) -> R,
+    F: Fn(Result<T::Item, T::Error>) -> R,
     R: IntoTask,
 {
     type Item = R::Item;
@@ -50,6 +36,6 @@ where
 
     fn poll(&mut self, ctx: &mut TaskContext) -> Poll<Self::Item, Self::Error> {
         self.inner
-            .poll(ctx, |result, f| Ok(Err(f.call(result).into_task())))
+            .poll(ctx, |result, f| Ok(Err((*f)(result).into_task())))
     }
 }
