@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 use std::marker::PhantomData;
 use std::sync::Arc;
 
@@ -5,7 +7,6 @@ use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
 use task::{self, IntoTask};
 
 
-/// Equivalent to `e.then(f)`
 pub fn then<E, F, R, A, B>(endpoint: E, f: F) -> Then<E::Endpoint, F, R>
 where
     E: IntoEndpoint<A, B>,
@@ -20,7 +21,6 @@ where
 }
 
 
-/// The return type of `then()`
 #[derive(Debug)]
 pub struct Then<E, F, R>
 where

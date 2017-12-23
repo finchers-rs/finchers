@@ -30,13 +30,13 @@ impl Responder for Error {
 
 fn main() {
     // GET /foo/:id
-    let endpoint1 = get(("foo", path())).and_then(|(_, name): (_, String)| Ok(format!("Hello, {}", name)));
+    let endpoint1 = get(("foo", path())).and_then(|(_, name): (_, String)| Ok(format!("Hello, {}", name)) as Result<_>);
 
     // POST /foo/:id [String] (Content-type: text/plain; charset=utf-8)
     let endpoint2 = post(("foo", path(), body()))
         .and_then(|(_, name, body): (_, String, String)| Ok(format!("Hello, {} ({})", name, body)));
 
-    let endpoint = endpoint1.or(endpoint2).with_type::<_, Error>();
+    let endpoint = endpoint1.or(endpoint2);
 
     ServerBuilder::default()
         .bind("0.0.0.0:8080")
