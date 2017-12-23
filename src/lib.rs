@@ -11,8 +11,8 @@ extern crate net2;
 extern crate tokio_core;
 extern crate tokio_proto;
 extern crate tokio_service;
-extern crate url;
 
+pub mod contrib;
 pub mod endpoint;
 pub mod request;
 pub mod response;

@@ -14,8 +14,11 @@ futures = "~0.1"
 tokio-core = "~0.1"
 tokio-proto = "~0.1"
 tokio-service = "~0.1"
-url = "~1.5"
 net2 = "~0.2"
+
+url = "~1.5"
+serde = "~1.0"
+serde_json = "~1.0"
 
 [dev-dependencies]
 error-chain = "0.11"
