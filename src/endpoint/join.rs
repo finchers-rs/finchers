@@ -39,7 +39,7 @@ macro_rules! generate {
                 $(
                     let $T = self.$T.apply(ctx)?;
                 )*
-                Some(task::$new($($T),*))
+                Some(task::join::$new($($T),*))
             }
         }
 

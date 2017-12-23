@@ -38,6 +38,6 @@ where
     type Task = task::FromErr<E::Task, T>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
-        self.endpoint.apply(ctx).map(task::from_err)
+        self.endpoint.apply(ctx).map(task::from_err::from_err)
     }
 }

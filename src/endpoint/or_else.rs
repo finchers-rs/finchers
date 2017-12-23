@@ -45,6 +45,6 @@ where
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
         let task = self.endpoint.apply(ctx)?;
-        Some(task::or_else_shared(task, self.f.clone()))
+        Some(task::or_else::or_else_shared(task, self.f.clone()))
     }
 }

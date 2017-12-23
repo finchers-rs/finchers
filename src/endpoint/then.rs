@@ -45,6 +45,6 @@ where
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
         let fut = self.endpoint.apply(ctx)?;
-        Some(task::then_shared(fut, self.f.clone()))
+        Some(task::then::then_shared(fut, self.f.clone()))
     }
 }
