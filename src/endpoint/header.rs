@@ -9,6 +9,7 @@ use endpoint::{Endpoint, EndpointContext};
 use task::{err, ok, TaskResult};
 
 
+#[allow(missing_docs)]
 #[derive(Debug, Clone)]
 pub struct EmptyHeader(&'static str);
 
@@ -26,7 +27,11 @@ impl error::Error for EmptyHeader {
 
 
 /// Create an endpoint matches the value of a request header
-pub fn header<H: header::Header + Clone, E>() -> Header<H, E> {
+pub fn header<H, E>() -> Header<H, E>
+where
+    H: header::Header + Clone,
+    E: From<EmptyHeader>,
+{
     Header {
         _marker: PhantomData,
     }
@@ -58,7 +63,10 @@ where
 
 
 /// Create an endpoint matches the value of a request header, which the value may not exist
-pub fn header_opt<H: header::Header + Clone, E>() -> HeaderOpt<H, E> {
+pub fn header_opt<H, E>() -> HeaderOpt<H, E>
+where
+    H: header::Header + Clone,
+{
     HeaderOpt {
         _marker: PhantomData,
     }

@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 use std::marker::PhantomData;
 use std::sync::Arc;
 
@@ -5,7 +7,6 @@ use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
 use task;
 
 
-/// Equivalent to `e.map_err(f)`
 pub fn map_err<E, F, R, A, B>(endpoint: E, f: F) -> MapErr<E::Endpoint, F, R>
 where
     E: IntoEndpoint<A, B>,
@@ -19,7 +20,6 @@ where
 }
 
 
-/// The return type of `map_err(e, f)`
 #[derive(Debug)]
 pub struct MapErr<E, F, R>
 where

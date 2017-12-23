@@ -26,71 +26,7 @@ pub trait Endpoint {
         Self: Sized,
         E: IntoEndpoint<T, Self::Error>,
     {
-        join(self, e)
-    }
-
-    #[allow(missing_docs)]
-    fn join3<T1, T2, E1, E2>(self, e1: E1, e2: E2) -> Join3<Self, E1::Endpoint, E2::Endpoint>
-    where
-        Self: Sized,
-        E1: IntoEndpoint<T1, Self::Error>,
-        E2: IntoEndpoint<T2, Self::Error>,
-    {
-        join3(self, e1, e2)
-    }
-
-    #[allow(missing_docs)]
-    fn join4<T1, T2, T3, E1, E2, E3>(
-        self,
-        e1: E1,
-        e2: E2,
-        e3: E3,
-    ) -> Join4<Self, E1::Endpoint, E2::Endpoint, E3::Endpoint>
-    where
-        Self: Sized,
-        E1: IntoEndpoint<T1, Self::Error>,
-        E2: IntoEndpoint<T2, Self::Error>,
-        E3: IntoEndpoint<T3, Self::Error>,
-    {
-        join4(self, e1, e2, e3)
-    }
-
-    #[allow(missing_docs)]
-    fn join5<T1, T2, T3, T4, E1, E2, E3, E4>(
-        self,
-        e1: E1,
-        e2: E2,
-        e3: E3,
-        e4: E4,
-    ) -> Join5<Self, E1::Endpoint, E2::Endpoint, E3::Endpoint, E4::Endpoint>
-    where
-        Self: Sized,
-        E1: IntoEndpoint<T1, Self::Error>,
-        E2: IntoEndpoint<T2, Self::Error>,
-        E3: IntoEndpoint<T3, Self::Error>,
-        E4: IntoEndpoint<T4, Self::Error>,
-    {
-        join5(self, e1, e2, e3, e4)
-    }
-
-    #[allow(missing_docs)]
-    fn join6<T1, T2, T3, T4, T5, E1, E2, E3, E4, E5>(
-        self,
-        e1: E1,
-        e2: E2,
-        e3: E3,
-        e4: E4,
-        e5: E5,
-    ) -> Join6<Self, E1::Endpoint, E2::Endpoint, E3::Endpoint, E4::Endpoint, E5::Endpoint>
-    where
-        Self: Sized,
-        E1: IntoEndpoint<T1, Self::Error>,
-        E2: IntoEndpoint<T2, Self::Error>,
-        E3: IntoEndpoint<T3, Self::Error>,
-        E4: IntoEndpoint<T4, Self::Error>,
-        E5: IntoEndpoint<T5, Self::Error>,
-    {
-        join6(self, e1, e2, e3, e4, e5)
+        join::join(self, e)
     }
 
     /// Combine itself and the other endpoint, and create a combinator which returns `E::Item`.
@@ -99,7 +35,7 @@ pub trait Endpoint {
         Self: Sized,
         E: IntoEndpoint<T, Self::Error>,
     {
-        with(self, e)
+        with::with(self, e)
     }
 
     /// Combine itself and the other endpoint, and create a combinator which returns `Self::Item`.
@@ -108,7 +44,7 @@ pub trait Endpoint {
         Self: Sized,
         E: IntoEndpoint<T, Self::Error>,
     {
-        skip(self, e)
+        skip::skip(self, e)
     }
 
     /// Create an endpoint which attempts to apply `self`.
@@ -118,7 +54,7 @@ pub trait Endpoint {
         Self: Sized,
         E: IntoEndpoint<Self::Item, Self::Error>,
     {
-        or(self, e)
+        or::or(self, e)
     }
 
     /// Combine itself and a function to change the return value to another type.
@@ -127,7 +63,7 @@ pub trait Endpoint {
         Self: Sized,
         F: Fn(Self::Item) -> U,
     {
-        map(self, f)
+        map::map(self, f)
     }
 
     /// Combine itself and a function to change the error value to another type.
@@ -136,7 +72,7 @@ pub trait Endpoint {
         Self: Sized,
         F: Fn(Self::Error) -> U,
     {
-        map_err(self, f)
+        map_err::map_err(self, f)
     }
 
     #[allow(missing_docs)]
@@ -146,7 +82,7 @@ pub trait Endpoint {
         F: Fn(Self::Item) -> R,
         R: IntoTask<Error = Self::Error>,
     {
-        and_then(self, f)
+        and_then::and_then(self, f)
     }
 
     #[allow(missing_docs)]
@@ -156,7 +92,7 @@ pub trait Endpoint {
         F: Fn(Self::Error) -> R,
         R: IntoTask<Item = Self::Item>,
     {
-        or_else(self, f)
+        or_else::or_else(self, f)
     }
 
     #[allow(missing_docs)]
@@ -166,7 +102,7 @@ pub trait Endpoint {
         F: Fn(Result<Self::Item, Self::Error>) -> R,
         R: IntoTask,
     {
-        then(self, f)
+        then::then(self, f)
     }
 
     #[allow(missing_docs)]
@@ -175,7 +111,7 @@ pub trait Endpoint {
         Self: Sized,
         T: From<Self::Error>,
     {
-        from_err(self)
+        from_err::from_err(self)
     }
 
     #[allow(missing_docs)]
@@ -184,16 +120,7 @@ pub trait Endpoint {
         Self: Sized,
         F: Fn(&Self::Item),
     {
-        inspect(self, f)
-    }
-
-    #[allow(missing_docs)]
-    #[inline]
-    fn with_type<T, E>(self) -> Self
-    where
-        Self: Sized + Endpoint<Item = T, Error = E>,
-    {
-        self
+        inspect::inspect(self, f)
     }
 }
 

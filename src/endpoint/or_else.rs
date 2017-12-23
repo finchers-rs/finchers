@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 use std::marker::PhantomData;
 use std::sync::Arc;
 
@@ -5,7 +7,6 @@ use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
 use task::{self, IntoTask};
 
 
-/// Equivalent to `e.or_else(f)`
 pub fn or_else<E, F, R, A, B>(endpoint: E, f: F) -> OrElse<E::Endpoint, F, R>
 where
     E: IntoEndpoint<A, B>,
@@ -20,7 +21,6 @@ where
 }
 
 
-/// The return type of `or_else()`
 #[derive(Debug)]
 pub struct OrElse<E, F, R>
 where
