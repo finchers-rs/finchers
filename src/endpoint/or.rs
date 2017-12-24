@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 
 use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
-use task::{Poll, Task, TaskContext};
+use task;
 
 
 pub fn or<E1, E2, A, B>(e1: E1, e2: E2) -> Or<E1::Endpoint, E2::Endpoint>
@@ -29,57 +29,25 @@ where
 {
     type Item = E1::Item;
     type Error = E1::Error;
-    type Task = OrTask<E1::Task, E2::Task>;
+    type Task = task::or::Or<E1::Task, E2::Task>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
         let mut ctx1 = ctx.clone();
         match self.e1.apply(&mut ctx1) {
             Some(fut) => {
                 *ctx = ctx1;
-                return Some(OrTask {
-                    inner: Either::Left(fut),
+                return Some(task::or::Or {
+                    inner: task::or::Left(fut),
                 });
             }
             None => {}
         }
 
         match self.e2.apply(ctx) {
-            Some(fut) => Some(OrTask {
-                inner: Either::Right(fut),
+            Some(fut) => Some(task::or::Or {
+                inner: task::or::Right(fut),
             }),
             None => None,
         }
     }
-}
-
-
-#[derive(Debug)]
-pub struct OrTask<T1, T2>
-where
-    T1: Task,
-    T2: Task<Item = T1::Item, Error = T1::Error>,
-{
-    inner: Either<T1, T2>,
-}
-
-impl<T1, T2> Task for OrTask<T1, T2>
-where
-    T1: Task,
-    T2: Task<Item = T1::Item, Error = T1::Error>,
-{
-    type Item = T1::Item;
-    type Error = T1::Error;
-
-    fn poll(&mut self, ctx: &mut TaskContext) -> Poll<Self::Item, Self::Error> {
-        match self.inner {
-            Either::Left(ref mut e) => e.poll(ctx),
-            Either::Right(ref mut e) => e.poll(ctx),
-        }
-    }
-}
-
-#[derive(Debug)]
-enum Either<A, B> {
-    Left(A),
-    Right(B),
 }

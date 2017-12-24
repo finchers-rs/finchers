@@ -23,13 +23,13 @@ pub struct JoinAll<E: Endpoint> {
 impl<E: Endpoint> Endpoint for JoinAll<E> {
     type Item = Vec<E::Item>;
     type Error = E::Error;
-    type Task = task::JoinAll<E::Task>;
+    type Task = task::join_all::JoinAll<E::Task>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
-        let tasks: Vec<_> = self.inner
+        let inner: Vec<E::Task> = self.inner
             .iter()
             .map(|e| e.apply(ctx))
             .collect::<Option<_>>()?;
-        Some(task::join_all(tasks))
+        Some(task::join_all::JoinAll { inner })
     }
 }

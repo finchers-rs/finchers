@@ -1,38 +1,20 @@
 use super::*;
-use futures::future::FutureResult;
+use futures::{Future, IntoFuture};
 
 
 pub trait Task {
     type Item;
     type Error;
+    type Future: Future<Item = Self::Item, Error = Self::Error>;
 
-    fn poll(&mut self, ctx: &mut TaskContext) -> Poll<Self::Item, Self::Error>;
+    fn launch(self, ctx: &mut TaskContext) -> Self::Future;
 }
 
-
-pub trait IntoTask {
-    type Item;
-    type Error;
-    type Task: Task<Item = Self::Item, Error = Self::Error>;
-
-    fn into_task(self) -> Self::Task;
-}
-
-impl<T: Task> IntoTask for T {
-    type Item = T::Item;
-    type Error = T::Error;
-    type Task = T;
-    fn into_task(self) -> Self::Task {
-        self
-    }
-}
-
-impl<T, E> IntoTask for Result<T, E> {
-    type Item = T;
-    type Error = E;
-    type Task = TaskFuture<FutureResult<T, E>>;
-
-    fn into_task(self) -> Self::Task {
-        from_future(self)
+impl<F: IntoFuture> Task for F {
+    type Item = F::Item;
+    type Error = F::Error;
+    type Future = F::Future;
+    fn launch(self, _: &mut TaskContext) -> Self::Future {
+        self.into_future()
     }
 }

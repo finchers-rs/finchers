@@ -4,10 +4,7 @@ use std::borrow::Cow;
 use std::iter::FromIterator;
 use std::marker::PhantomData;
 use std::str::FromStr;
-use futures::future::{ok, result, FutureResult};
-
 use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
-use task::TaskFuture;
 
 
 #[allow(missing_docs)]
@@ -17,13 +14,13 @@ pub struct MatchPath<'a, E>(Cow<'a, str>, PhantomData<fn() -> E>);
 impl<'a, E> Endpoint for MatchPath<'a, E> {
     type Item = ();
     type Error = E;
-    type Task = TaskFuture<FutureResult<Self::Item, Self::Error>>;
+    type Task = Result<Self::Item, Self::Error>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
         if !ctx.next_segment().map(|s| s == self.0).unwrap_or(false) {
             return None;
         }
-        Some(ok(()).into())
+        Some(Ok(()))
     }
 }
 
@@ -65,11 +62,11 @@ where
 {
     type Item = T;
     type Error = E;
-    type Task = TaskFuture<FutureResult<Self::Item, Self::Error>>;
+    type Task = Result<Self::Item, Self::Error>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
         match ctx.next_segment().map(|s| s.parse()) {
-            Some(res) => Some(result(res.map_err(Into::into)).into()),
+            Some(res) => Some(res.map_err(Into::into)),
             _ => return None,
         }
     }
@@ -98,13 +95,13 @@ where
 {
     type Item = I;
     type Error = E;
-    type Task = TaskFuture<FutureResult<Self::Item, Self::Error>>;
+    type Task = Result<Self::Item, Self::Error>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
         match ctx.take_segments()
             .map(|s| s.map(|s| s.parse()).collect::<Result<_, _>>())
         {
-            Some(res) => Some(result(res.map_err(Into::into)).into()),
+            Some(res) => Some(res.map_err(Into::into)),
             _ => return None,
         }
     }

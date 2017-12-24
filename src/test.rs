@@ -1,6 +1,5 @@
 //! Helper functions for testing
 
-use futures::{Future, Poll};
 use hyper::Method;
 use hyper::header::Header;
 use tokio_core::reactor::Core;
@@ -81,23 +80,6 @@ where
         endpoint.as_ref().apply(&mut ctx)?
     };
 
-    Some(core.run(TestFuture {
-        task,
-        ctx: TaskContext::new(request, body.unwrap_or_default()),
-    }))
-}
-
-#[derive(Debug)]
-struct TestFuture<T: Task> {
-    task: T,
-    ctx: TaskContext,
-}
-
-impl<T: Task> Future for TestFuture<T> {
-    type Item = T::Item;
-    type Error = T::Error;
-
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        self.task.poll(&mut self.ctx)
-    }
+    let mut ctx = TaskContext::new(request, body.unwrap_or_default());
+    Some(core.run(task.launch(&mut ctx)))
 }

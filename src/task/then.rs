@@ -1,41 +1,55 @@
 use std::sync::Arc;
-
-use super::{IntoTask, Poll, Task, TaskContext};
+use futures::{Future, IntoFuture, Poll};
+use super::{Task, TaskContext};
 use super::chain::Chain;
 
 
-pub fn then<T, F, R>(task: T, f: Arc<F>) -> Then<T, F, R>
+#[derive(Debug)]
+pub struct Then<T, F> {
+    pub(crate) task: T,
+    pub(crate) f: Arc<F>,
+}
+
+impl<T, F, R> Task for Then<T, F>
 where
     T: Task,
     F: Fn(Result<T::Item, T::Error>) -> R,
-    R: IntoTask,
+    R: IntoFuture,
 {
-    Then {
-        inner: Chain::new(task, f),
+    type Item = R::Item;
+    type Error = R::Error;
+    type Future = ThenFuture<T::Future, F, R>;
+    fn launch(self, ctx: &mut TaskContext) -> Self::Future {
+        let Then { task, f } = self;
+        let fut = task.launch(ctx);
+        ThenFuture {
+            inner: Chain::new(fut, f),
+        }
     }
 }
 
+
 #[derive(Debug)]
-pub struct Then<T, F, R>
+pub struct ThenFuture<T, F, R>
 where
-    T: Task,
+    T: Future,
     F: Fn(Result<T::Item, T::Error>) -> R,
-    R: IntoTask,
+    R: IntoFuture,
 {
-    inner: Chain<T, R::Task, Arc<F>>,
+    inner: Chain<T, R::Future, Arc<F>>,
 }
 
-impl<T, F, R> Task for Then<T, F, R>
+impl<T, F, R> Future for ThenFuture<T, F, R>
 where
-    T: Task,
+    T: Future,
     F: Fn(Result<T::Item, T::Error>) -> R,
-    R: IntoTask,
+    R: IntoFuture,
 {
     type Item = R::Item;
     type Error = R::Error;
 
-    fn poll(&mut self, ctx: &mut TaskContext) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         self.inner
-            .poll(ctx, |result, f| Ok(Err((*f)(result).into_task())))
+            .poll(|result, f| Ok(Err((*f)(result).into_future())))
     }
 }

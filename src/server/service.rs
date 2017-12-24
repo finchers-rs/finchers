@@ -53,12 +53,15 @@ where
             self.endpoint.apply(&mut ctx)
         };
 
+        let mut ctx = TaskContext::new(request, body);
+        let result = result.map(|t| t.launch(&mut ctx));
+
         EndpointServiceFuture {
             inner: match result {
-                Some(t) => Polling(t),
+                Some(fut) => Polling(fut),
                 None => NotMatched,
             },
-            ctx: Some(TaskContext::new(request, body)),
+            ctx: Some(ctx),
         }
     }
 }
@@ -72,7 +75,7 @@ where
     E::Item: IntoResponder,
     E::Error: IntoResponder + From<NotFound>,
 {
-    inner: Inner<E::Task>,
+    inner: Inner<<E::Task as Task>::Future>,
     ctx: Option<TaskContext>,
 }
 
@@ -92,9 +95,8 @@ where
     E::Error: IntoResponder + From<NotFound>,
 {
     fn poll_task(&mut self) -> Poll<E::Item, E::Error> {
-        let ctx = self.ctx.as_mut().expect("cannot resolve/reject twice");
         match self.inner {
-            Polling(ref mut t) => return t.poll(ctx),
+            Polling(ref mut t) => return t.poll(),
             NotMatched => {}
             Done => panic!(),
         }

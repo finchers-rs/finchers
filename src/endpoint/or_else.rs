@@ -2,16 +2,16 @@
 
 use std::marker::PhantomData;
 use std::sync::Arc;
-
+use futures::IntoFuture;
 use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
-use task::{self, IntoTask};
+use task;
 
 
 pub fn or_else<E, F, R, A, B>(endpoint: E, f: F) -> OrElse<E::Endpoint, F, R>
 where
     E: IntoEndpoint<A, B>,
     F: Fn(B) -> R,
-    R: IntoTask<Item = A>,
+    R: IntoFuture<Item = A>,
 {
     OrElse {
         endpoint: endpoint.into_endpoint(),
@@ -26,7 +26,7 @@ pub struct OrElse<E, F, R>
 where
     E: Endpoint,
     F: Fn(E::Error) -> R,
-    R: IntoTask<Item = E::Item>,
+    R: IntoFuture<Item = E::Item>,
 {
     endpoint: E,
     f: Arc<F>,
@@ -37,14 +37,17 @@ impl<E, F, R> Endpoint for OrElse<E, F, R>
 where
     E: Endpoint,
     F: Fn(E::Error) -> R,
-    R: IntoTask<Item = E::Item>,
+    R: IntoFuture<Item = E::Item>,
 {
     type Item = R::Item;
     type Error = R::Error;
-    type Task = task::OrElse<E::Task, F, R>;
+    type Task = task::or_else::OrElse<E::Task, F>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
         let task = self.endpoint.apply(ctx)?;
-        Some(task::or_else::or_else(task, self.f.clone()))
+        Some(task::or_else::OrElse {
+            task,
+            f: self.f.clone(),
+        })
     }
 }

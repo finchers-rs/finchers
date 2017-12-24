@@ -38,10 +38,13 @@ where
 {
     type Item = R;
     type Error = E::Error;
-    type Task = task::Map<E::Task, F>;
+    type Task = task::map::Map<E::Task, F>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
-        let inner = self.endpoint.apply(ctx)?;
-        Some(task::map::map(inner, self.f.clone()))
+        let task = self.endpoint.apply(ctx)?;
+        Some(task::map::Map {
+            task,
+            f: self.f.clone(),
+        })
     }
 }

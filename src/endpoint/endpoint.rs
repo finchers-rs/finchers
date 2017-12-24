@@ -1,6 +1,7 @@
 use std::rc::Rc;
 use std::sync::Arc;
-use task::{IntoTask, Task};
+use futures::IntoFuture;
+use task::Task;
 use super::*;
 
 
@@ -80,7 +81,7 @@ pub trait Endpoint {
     where
         Self: Sized,
         F: Fn(Self::Item) -> R,
-        R: IntoTask<Error = Self::Error>,
+        R: IntoFuture<Error = Self::Error>,
     {
         and_then::and_then(self, f)
     }
@@ -90,7 +91,7 @@ pub trait Endpoint {
     where
         Self: Sized,
         F: Fn(Self::Error) -> R,
-        R: IntoTask<Item = Self::Item>,
+        R: IntoFuture<Item = Self::Item>,
     {
         or_else::or_else(self, f)
     }
@@ -100,18 +101,9 @@ pub trait Endpoint {
     where
         Self: Sized,
         F: Fn(Result<Self::Item, Self::Error>) -> R,
-        R: IntoTask,
+        R: IntoFuture,
     {
         then::then(self, f)
-    }
-
-    #[allow(missing_docs)]
-    fn from_err<T>(self) -> FromErr<Self, T>
-    where
-        Self: Sized,
-        T: From<Self::Error>,
-    {
-        from_err::from_err(self)
     }
 
     #[allow(missing_docs)]

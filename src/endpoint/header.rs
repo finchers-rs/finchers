@@ -4,10 +4,7 @@ use std::fmt;
 use std::error;
 use std::marker::PhantomData;
 use hyper::header;
-use futures::future::{err, ok, FutureResult};
-
 use endpoint::{Endpoint, EndpointContext};
-use task::TaskFuture;
 
 
 #[allow(missing_docs)]
@@ -51,12 +48,12 @@ where
 {
     type Item = H;
     type Error = E;
-    type Task = TaskFuture<FutureResult<Self::Item, Self::Error>>;
+    type Task = Result<Self::Item, Self::Error>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
         match ctx.request().header().cloned() {
-            Some(h) => Some(ok(h).into()),
-            None => Some(err(EmptyHeader(H::header_name()).into()).into()),
+            Some(h) => Some(Ok(h)),
+            None => Some(Err(EmptyHeader(H::header_name()).into())),
         }
     }
 }
@@ -85,9 +82,9 @@ where
 {
     type Item = Option<H>;
     type Error = E;
-    type Task = TaskFuture<FutureResult<Self::Item, Self::Error>>;
+    type Task = Result<Self::Item, Self::Error>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
-        Some(ok(ctx.request().header().cloned()).into())
+        Some(Ok(ctx.request().header().cloned()))
     }
 }

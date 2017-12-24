@@ -1,43 +1,56 @@
 use std::sync::Arc;
-
-use super::{IntoTask, Poll, Task, TaskContext};
+use futures::{Future, IntoFuture, Poll};
+use super::{Task, TaskContext};
 use super::chain::Chain;
 
 
-pub fn or_else<T, F, R>(task: T, f: Arc<F>) -> OrElse<T, F, R>
+#[derive(Debug)]
+pub struct OrElse<T, F> {
+    pub(crate) task: T,
+    pub(crate) f: Arc<F>,
+}
+
+impl<T, F, R> Task for OrElse<T, F>
 where
     T: Task,
     F: Fn(T::Error) -> R,
-    R: IntoTask<Item = T::Item>,
+    R: IntoFuture<Item = T::Item>,
 {
-    OrElse {
-        inner: Chain::new(task, f),
+    type Item = R::Item;
+    type Error = R::Error;
+    type Future = OrElseFuture<T::Future, F, R>;
+    fn launch(self, ctx: &mut TaskContext) -> Self::Future {
+        let OrElse { task, f } = self;
+        let fut = task.launch(ctx);
+        OrElseFuture {
+            inner: Chain::new(fut, f),
+        }
     }
 }
 
 #[derive(Debug)]
-pub struct OrElse<T, F, R>
+pub struct OrElseFuture<T, F, R>
 where
-    T: Task,
+    T: Future,
     F: Fn(T::Error) -> R,
-    R: IntoTask<Item = T::Item>,
+    R: IntoFuture<Item = T::Item>,
 {
-    inner: Chain<T, R::Task, Arc<F>>,
+    inner: Chain<T, R::Future, Arc<F>>,
 }
 
-impl<T, F, R> Task for OrElse<T, F, R>
+impl<T, F, R> Future for OrElseFuture<T, F, R>
 where
-    T: Task,
+    T: Future,
     F: Fn(T::Error) -> R,
-    R: IntoTask<Item = T::Item>,
+    R: IntoFuture<Item = T::Item>,
 {
     type Item = R::Item;
     type Error = R::Error;
 
-    fn poll(&mut self, ctx: &mut TaskContext) -> Poll<Self::Item, Self::Error> {
-        self.inner.poll(ctx, |result, f| match result {
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        self.inner.poll(|result, f| match result {
             Ok(item) => Ok(Ok(item)),
-            Err(err) => Ok(Err((*f)(err).into_task())),
+            Err(err) => Ok(Err((*f)(err).into_future())),
         })
     }
 }

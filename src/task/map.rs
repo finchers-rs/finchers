@@ -1,21 +1,12 @@
 use std::sync::Arc;
-
-use super::{Poll, Task, TaskContext};
-
-
-pub fn map<T, F, R>(task: T, f: Arc<F>) -> Map<T, F>
-where
-    T: Task,
-    F: FnOnce(T::Item) -> R,
-{
-    Map { task, f: Some(f) }
-}
+use futures::{Future, Poll};
+use super::{Task, TaskContext};
 
 
 #[derive(Debug)]
 pub struct Map<T, F> {
-    task: T,
-    f: Option<Arc<F>>,
+    pub(crate) task: T,
+    pub(crate) f: Arc<F>,
 }
 
 impl<T, F, R> Task for Map<T, F>
@@ -25,9 +16,31 @@ where
 {
     type Item = R;
     type Error = T::Error;
+    type Future = MapFuture<T::Future, F>;
+    fn launch(self, ctx: &mut TaskContext) -> Self::Future {
+        let Map { task, f } = self;
+        let fut = task.launch(ctx);
+        MapFuture { fut, f: Some(f) }
+    }
+}
 
-    fn poll(&mut self, ctx: &mut TaskContext) -> Poll<Self::Item, Self::Error> {
-        let item = try_ready!(self.task.poll(ctx));
+
+#[derive(Debug)]
+pub struct MapFuture<T, F> {
+    fut: T,
+    f: Option<Arc<F>>,
+}
+
+impl<T, F, R> Future for MapFuture<T, F>
+where
+    T: Future,
+    F: Fn(T::Item) -> R,
+{
+    type Item = R;
+    type Error = T::Error;
+
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        let item = try_ready!(self.fut.poll());
         let f = self.f.take().expect("cannot resolve twice");
         Ok((*f)(item).into())
     }
