@@ -9,9 +9,10 @@ pub use self::serde_json::{Error, Value};
 use self::serde::ser::Serialize;
 use self::serde::de::DeserializeOwned;
 
+use hyper::Response;
 use endpoint::body::{body, Body};
 use request::{BodyError, FromBody, Request};
-use response::{header, mime, Responder, ResponderContext, Response, ResponseBuilder};
+use response::{header, mime, Responder, ResponseBuilder};
 
 
 /// Represents a JSON value
@@ -32,7 +33,7 @@ impl<T: DeserializeOwned> FromBody for Json<T> {
 }
 
 impl<T: Serialize> Responder for Json<T> {
-    fn respond_to(&mut self, _: &mut ResponderContext) -> Response {
+    fn respond(self) -> Response {
         let body = serde_json::to_vec(&self.0).expect(concat!(
             "cannot serialize the value of type ",
             stringify!(T)

@@ -1,18 +1,10 @@
-use hyper::{Body, Response as RawResponse};
-use super::{header, IntoResponder, Responder, ResponderContext, StatusCode};
+use hyper::{Body, Response};
+use super::{header, Responder, StatusCode};
 
-#[derive(Debug)]
-pub struct Response(RawResponse);
-
-impl Response {
-    pub(crate) fn into_raw(self) -> RawResponse {
-        self.0
-    }
-}
 
 #[derive(Debug, Default)]
 pub struct ResponseBuilder {
-    inner: RawResponse,
+    inner: Response,
 }
 
 impl ResponseBuilder {
@@ -32,23 +24,12 @@ impl ResponseBuilder {
     }
 
     pub fn finish(self) -> Response {
-        Response(self.inner)
+        self.inner
     }
 }
 
-
-#[derive(Debug)]
-pub struct RawResponder(Option<Response>);
-
-impl Responder for RawResponder {
-    fn respond_to(&mut self, _: &mut ResponderContext) -> Response {
-        self.0.take().expect("cannot respond twice")
-    }
-}
-
-impl IntoResponder for Response {
-    type Responder = RawResponder;
-    fn into_responder(self) -> Self::Responder {
-        RawResponder(Some(self))
+impl Responder for Response {
+    fn respond(self) -> Response {
+        self
     }
 }

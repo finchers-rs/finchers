@@ -28,7 +28,7 @@ pub use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
 pub use request::Request;
 
 #[doc(inline)]
-pub use response::{IntoResponder, Responder, ResponderContext, Response};
+pub use response::Responder;
 
 #[doc(inline)]
 pub use server::ServerBuilder;
