@@ -44,6 +44,15 @@ impl<T: Serialize> IntoBody for Json<T> {
     }
 }
 
+impl IntoBody for Value {
+    fn into_body(self, h: &mut Headers) -> request::Body {
+        let body = self.to_string();
+        h.set(header::ContentType::json());
+        h.set(header::ContentLength(body.len() as u64));
+        request::Body::from_raw(body.into())
+    }
+}
+
 
 /// Create an endpoint with parsing JSON body
 pub fn json_body<T: DeserializeOwned, E>() -> Body<Json<T>, E>
