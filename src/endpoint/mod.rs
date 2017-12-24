@@ -2,7 +2,6 @@
 
 pub mod method;
 
-pub(crate) mod apply_fn;
 pub(crate) mod body;
 pub(crate) mod context;
 pub(crate) mod endpoint;
@@ -24,7 +23,6 @@ pub(crate) mod then;
 pub(crate) mod with;
 
 // re-exports
-pub use self::apply_fn::{apply_fn, ApplyFn};
 pub use self::body::body;
 pub use self::context::{EndpointContext, Segments};
 pub use self::endpoint::{Endpoint, IntoEndpoint};
@@ -36,7 +34,7 @@ pub use self::result::{err, ok, result, EndpointErr, EndpointOk, EndpointResult}
 
 pub use self::and_then::AndThen;
 pub use self::inspect::Inspect;
-pub use self::join::{Join, Join3, Join4, Join5, Join6};
+pub use self::join::{Join, Join3, Join4, Join5};
 pub use self::join_all::{join_all, JoinAll};
 pub use self::map::Map;
 pub use self::map_err::MapErr;

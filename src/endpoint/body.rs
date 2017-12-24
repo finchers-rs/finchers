@@ -40,11 +40,11 @@ where
 {
     type Item = T;
     type Error = E;
-    type Task = task::Body<T, E>;
+    type Task = task::body::Body<T, E>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
         match T::check_request(ctx.request()) {
-            true => Some(task::Body::default()),
+            true => Some(task::body::Body::default()),
             false => None,
         }
     }

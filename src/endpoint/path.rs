@@ -7,7 +7,6 @@ use std::str::FromStr;
 use futures::future::{ok, result, FutureResult};
 
 use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
-use task::TaskFuture;
 
 
 #[allow(missing_docs)]
@@ -17,7 +16,7 @@ pub struct MatchPath<'a, E>(Cow<'a, str>, PhantomData<fn() -> E>);
 impl<'a, E> Endpoint for MatchPath<'a, E> {
     type Item = ();
     type Error = E;
-    type Task = TaskFuture<FutureResult<Self::Item, Self::Error>>;
+    type Task = FutureResult<Self::Item, Self::Error>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
         if !ctx.next_segment().map(|s| s == self.0).unwrap_or(false) {
@@ -65,7 +64,7 @@ where
 {
     type Item = T;
     type Error = E;
-    type Task = TaskFuture<FutureResult<Self::Item, Self::Error>>;
+    type Task = FutureResult<Self::Item, Self::Error>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
         match ctx.next_segment().map(|s| s.parse()) {
@@ -98,7 +97,7 @@ where
 {
     type Item = I;
     type Error = E;
-    type Task = TaskFuture<FutureResult<Self::Item, Self::Error>>;
+    type Task = FutureResult<Self::Item, Self::Error>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
         match ctx.take_segments()

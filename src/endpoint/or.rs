@@ -29,20 +29,24 @@ where
 {
     type Item = E1::Item;
     type Error = E1::Error;
-    type Task = task::Or<E1::Task, E2::Task>;
+    type Task = task::or::Or<E1::Task, E2::Task>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
         let mut ctx1 = ctx.clone();
         match self.e1.apply(&mut ctx1) {
             Some(fut) => {
                 *ctx = ctx1;
-                return Some(task::or::left(fut));
+                return Some(task::or::Or {
+                    inner: task::or::Left(fut),
+                });
             }
             None => {}
         }
 
         match self.e2.apply(ctx) {
-            Some(fut) => Some(task::or::right(fut)),
+            Some(fut) => Some(task::or::Or {
+                inner: task::or::Right(fut),
+            }),
             None => None,
         }
     }

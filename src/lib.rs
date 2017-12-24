@@ -34,4 +34,4 @@ pub use response::{IntoResponder, Responder, ResponderContext, Response};
 pub use server::ServerBuilder;
 
 #[doc(inline)]
-pub use task::{IntoTask, Task, TaskContext};
+pub use task::{Task, TaskContext};

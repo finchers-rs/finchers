@@ -1,7 +1,6 @@
 #![allow(missing_docs)]
 
 use futures::future::{ok, FutureResult};
-use task::TaskFuture;
 use super::super::{Endpoint, EndpointContext, IntoEndpoint};
 
 pub fn skip_all<I, E, A, B>(iter: I) -> SkipAll<E::Endpoint>
@@ -22,7 +21,7 @@ pub struct SkipAll<E: Endpoint> {
 impl<E: Endpoint> Endpoint for SkipAll<E> {
     type Item = ();
     type Error = E::Error;
-    type Task = TaskFuture<FutureResult<(), E::Error>>;
+    type Task = FutureResult<(), E::Error>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
         for endpoint in &self.endpoints {

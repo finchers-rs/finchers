@@ -2,7 +2,6 @@
 
 use std::marker::PhantomData;
 use futures::future::{self, FutureResult};
-use task::TaskFuture;
 use super::{Endpoint, EndpointContext};
 
 
@@ -22,7 +21,7 @@ pub struct EndpointOk<T: Clone, E> {
 impl<T: Clone, E> Endpoint for EndpointOk<T, E> {
     type Item = T;
     type Error = E;
-    type Task = TaskFuture<FutureResult<T, E>>;
+    type Task = FutureResult<T, E>;
 
     fn apply(&self, _: &mut EndpointContext) -> Option<Self::Task> {
         Some(future::ok(self.x.clone()).into())
@@ -46,7 +45,7 @@ pub struct EndpointErr<T, E: Clone> {
 impl<T, E: Clone> Endpoint for EndpointErr<T, E> {
     type Item = T;
     type Error = E;
-    type Task = TaskFuture<FutureResult<T, E>>;
+    type Task = FutureResult<T, E>;
 
     fn apply(&self, _: &mut EndpointContext) -> Option<Self::Task> {
         Some(future::err(self.x.clone()).into())
@@ -67,7 +66,7 @@ pub struct EndpointResult<T: Clone, E: Clone> {
 impl<T: Clone, E: Clone> Endpoint for EndpointResult<T, E> {
     type Item = T;
     type Error = E;
-    type Task = TaskFuture<FutureResult<T, E>>;
+    type Task = FutureResult<T, E>;
 
     fn apply(&self, _: &mut EndpointContext) -> Option<Self::Task> {
         Some(future::result(self.x.clone()).into())

@@ -33,13 +33,13 @@ macro_rules! generate {
         {
             type Item = ($($T::Item),*);
             type Error = E;
-            type Task = task::$Join<$($T::Task,)* E>;
+            type Task = task::join::$Join<$($T::Task),*>;
 
             fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
                 $(
                     let $T = self.$T.apply(ctx)?;
                 )*
-                Some(task::join::$new($($T),*))
+                Some(task::join::$Join { inner: ($($T),*) })
             }
         }
 
@@ -62,5 +62,4 @@ generate! {
     (join3, Join3, <E1:T1, E2:T2, E3:T3>),
     (join4, Join4, <E1:T1, E2:T2, E3:T3, E4:T4>),
     (join5, Join5, <E1:T1, E2:T2, E3:T3, E4:T4, E5:T5>),
-    (join6, Join6, <E1:T1, E2:T2, E3:T3, E4:T4, E5:T5, E6:T6>),
 }

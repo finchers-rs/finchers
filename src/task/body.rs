@@ -1,30 +1,19 @@
 use std::marker::PhantomData;
-use futures::Stream;
+use futures::{Future, Poll, Stream};
 use request::{self, BodyError, FromBody};
-use task::{Poll, Task, TaskContext};
+use task::{Task, TaskContext};
 
-/// The type of a future returned from `Body::into_vec()`
+
 #[derive(Debug)]
 pub struct Body<T, E> {
-    inner: Option<(request::Body, Vec<u8>)>,
     _marker: PhantomData<fn() -> (T, E)>,
 }
 
 impl<T, E> Default for Body<T, E> {
     fn default() -> Self {
         Body {
-            inner: None,
             _marker: PhantomData,
         }
-    }
-}
-
-impl<T, E> Body<T, E> {
-    fn inner_mut(&mut self, ctx: &mut TaskContext) -> &mut (request::Body, Vec<u8>) {
-        self.inner.get_or_insert_with(|| {
-            let body = ctx.take_body().expect("cannot take the request body twice");
-            (body, vec![])
-        })
     }
 }
 
@@ -35,10 +24,34 @@ where
 {
     type Item = T;
     type Error = E;
+    type Future = BodyFuture<T, E>;
+    fn launch(self, ctx: &mut TaskContext) -> Self::Future {
+        let body = ctx.take_body().expect("cannot take the request body twice");
+        BodyFuture {
+            inner: Some((body, vec![])),
+            _marker: PhantomData,
+        }
+    }
+}
 
-    fn poll(&mut self, ctx: &mut TaskContext) -> Poll<Self::Item, Self::Error> {
+
+#[derive(Debug)]
+pub struct BodyFuture<T, E> {
+    inner: Option<(request::Body, Vec<u8>)>,
+    _marker: PhantomData<fn() -> (T, E)>,
+}
+
+impl<T, E> Future for BodyFuture<T, E>
+where
+    T: FromBody,
+    E: From<BodyError> + From<T::Error>,
+{
+    type Item = T;
+    type Error = E;
+
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         loop {
-            let (ref mut body, ref mut buf) = *self.inner_mut(ctx);
+            let (ref mut body, ref mut buf) = *self.inner.as_mut().expect("cannot resolve twice");
             match try_ready!(body.poll()) {
                 Some(item) => buf.extend_from_slice(&item),
                 None => break,
