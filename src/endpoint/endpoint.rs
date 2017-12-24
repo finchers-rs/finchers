@@ -106,15 +106,6 @@ pub trait Endpoint {
     }
 
     #[allow(missing_docs)]
-    fn from_err<T>(self) -> FromErr<Self, T>
-    where
-        Self: Sized,
-        T: From<Self::Error>,
-    {
-        from_err::from_err(self)
-    }
-
-    #[allow(missing_docs)]
     fn inspect<F>(self, f: F) -> Inspect<Self, F>
     where
         Self: Sized,
