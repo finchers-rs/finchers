@@ -1,49 +1,58 @@
-use std::borrow::Cow;
 use hyper::Response;
-use super::{header, ResponseBuilder, StatusCode};
+use super::{IntoBody, StatusCode};
+use super::header::Headers;
 
 
-/// The type to be converted to `hyper::Response`
-pub trait Responder {
-    /// Convert itself to `hyper::Response`
-    fn respond(self) -> Response;
+pub trait Responder: Sized {
+    type Body: IntoBody;
+
+    fn status(&self) -> StatusCode {
+        StatusCode::Ok
+    }
+
+    fn body(&mut self) -> Option<Self::Body> {
+        None
+    }
+
+    fn headers(&self, &mut Headers) {}
 }
+
 
 impl Responder for () {
-    fn respond(self) -> Response {
-        ResponseBuilder::default()
-            .status(StatusCode::NoContent)
-            .header(header::ContentLength(0))
-            .finish()
-    }
-}
-
-impl<'a> Responder for &'a str {
-    fn respond(self) -> Response {
-        ResponseBuilder::default()
-            .header(header::ContentType::plaintext())
-            .header(header::ContentLength(self.len() as u64))
-            .body(self.to_owned())
-            .finish()
+    type Body = ();
+    fn status(&self) -> StatusCode {
+        StatusCode::NoContent
     }
 }
 
 impl Responder for String {
-    fn respond(self) -> Response {
-        ResponseBuilder::default()
-            .header(header::ContentType::plaintext())
-            .header(header::ContentLength(self.len() as u64))
-            .body(self)
-            .finish()
+    type Body = String;
+    fn body(&mut self) -> Option<Self::Body> {
+        Some(::std::mem::replace(self, String::new()))
     }
 }
 
-impl<'a> Responder for Cow<'a, str> {
-    fn respond(self) -> Response {
-        ResponseBuilder::default()
-            .header(header::ContentType::plaintext())
-            .header(header::ContentLength(self.len() as u64))
-            .body(self.into_owned())
-            .finish()
+impl Responder for &'static str {
+    type Body = &'static str;
+    fn body(&mut self) -> Option<Self::Body> {
+        Some(self)
     }
+}
+
+impl Responder for ::std::borrow::Cow<'static, str> {
+    type Body = Self;
+    fn body(&mut self) -> Option<Self> {
+        Some(::std::mem::replace(self, Default::default()))
+    }
+}
+
+
+pub fn respond<R: Responder>(mut res: R) -> Response {
+    let mut response = Response::new();
+    response.set_status(res.status());
+    if let Some(body) = res.body() {
+        body.into_body(response.headers_mut());
+    }
+    res.headers(response.headers_mut());
+    response
 }

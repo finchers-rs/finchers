@@ -8,7 +8,7 @@ use tokio_service::Service;
 use request;
 use endpoint::{Endpoint, EndpointContext};
 use task::{Task, TaskContext};
-use response::Responder;
+use response::{self, Responder};
 use super::server::NotFound;
 
 /// An HTTP service which wraps a `Endpoint`.
@@ -116,9 +116,9 @@ where
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         match self.poll_task() {
-            Ok(Async::Ready(item)) => Ok(Async::Ready(item.respond())),
+            Ok(Async::Ready(item)) => Ok(Async::Ready(response::respond(item))),
             Ok(Async::NotReady) => Ok(Async::NotReady),
-            Err(err) => Ok(Async::Ready(err.respond())),
+            Err(err) => Ok(Async::Ready(response::respond(err))),
         }
     }
 }
