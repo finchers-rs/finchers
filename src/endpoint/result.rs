@@ -1,7 +1,6 @@
 #![allow(missing_docs)]
 
 use std::marker::PhantomData;
-use futures::future::{self, FutureResult};
 use super::{Endpoint, EndpointContext};
 
 
@@ -21,10 +20,10 @@ pub struct EndpointOk<T: Clone, E> {
 impl<T: Clone, E> Endpoint for EndpointOk<T, E> {
     type Item = T;
     type Error = E;
-    type Task = FutureResult<T, E>;
+    type Task = Result<T, E>;
 
     fn apply(&self, _: &mut EndpointContext) -> Option<Self::Task> {
-        Some(future::ok(self.x.clone()).into())
+        Some(Ok(self.x.clone()))
     }
 }
 
@@ -45,10 +44,10 @@ pub struct EndpointErr<T, E: Clone> {
 impl<T, E: Clone> Endpoint for EndpointErr<T, E> {
     type Item = T;
     type Error = E;
-    type Task = FutureResult<T, E>;
+    type Task = Result<T, E>;
 
     fn apply(&self, _: &mut EndpointContext) -> Option<Self::Task> {
-        Some(future::err(self.x.clone()).into())
+        Some(Err(self.x.clone()))
     }
 }
 
@@ -66,9 +65,9 @@ pub struct EndpointResult<T: Clone, E: Clone> {
 impl<T: Clone, E: Clone> Endpoint for EndpointResult<T, E> {
     type Item = T;
     type Error = E;
-    type Task = FutureResult<T, E>;
+    type Task = Result<T, E>;
 
     fn apply(&self, _: &mut EndpointContext) -> Option<Self::Task> {
-        Some(future::result(self.x.clone()).into())
+        Some(self.x.clone())
     }
 }
