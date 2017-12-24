@@ -8,4 +8,4 @@ pub use hyper::mime;
 pub use hyper::StatusCode;
 
 pub use self::into_body::IntoBody;
-pub use self::responder::{respond, Responder};
+pub use self::responder::{respond, IntoResponder, Responder};

@@ -8,7 +8,7 @@ use tokio_service::Service;
 use request;
 use endpoint::{Endpoint, EndpointContext};
 use task::{Task, TaskContext};
-use response::{self, Responder};
+use response::{self, IntoResponder};
 use super::server::NotFound;
 
 /// An HTTP service which wraps a `Endpoint`.
@@ -16,8 +16,8 @@ use super::server::NotFound;
 pub struct EndpointService<E>
 where
     E: Endpoint,
-    E::Item: Responder,
-    E::Error: Responder + From<NotFound>,
+    E::Item: IntoResponder,
+    E::Error: IntoResponder + From<NotFound>,
 {
     endpoint: E,
 }
@@ -25,8 +25,8 @@ where
 impl<E> EndpointService<E>
 where
     E: Endpoint,
-    E::Item: Responder,
-    E::Error: Responder + From<NotFound>,
+    E::Item: IntoResponder,
+    E::Error: IntoResponder + From<NotFound>,
 {
     pub fn new(endpoint: E, _handle: &Handle) -> Self {
         // TODO: clone the instance of Handle and implement it to Context
@@ -37,8 +37,8 @@ where
 impl<E> Service for EndpointService<E>
 where
     E: Endpoint,
-    E::Item: Responder,
-    E::Error: Responder + From<NotFound>,
+    E::Item: IntoResponder,
+    E::Error: IntoResponder + From<NotFound>,
 {
     type Request = hyper::Request;
     type Response = hyper::Response;
@@ -71,8 +71,8 @@ where
 pub struct EndpointServiceFuture<E>
 where
     E: Endpoint,
-    E::Item: Responder,
-    E::Error: Responder + From<NotFound>,
+    E::Item: IntoResponder,
+    E::Error: IntoResponder + From<NotFound>,
 {
     inner: Inner<<E::Task as Task>::Future>,
 }
@@ -89,8 +89,8 @@ use std::mem;
 impl<E> EndpointServiceFuture<E>
 where
     E: Endpoint,
-    E::Item: Responder,
-    E::Error: Responder + From<NotFound>,
+    E::Item: IntoResponder,
+    E::Error: IntoResponder + From<NotFound>,
 {
     fn poll_task(&mut self) -> Poll<E::Item, E::Error> {
         match self.inner {
@@ -108,8 +108,8 @@ where
 impl<E> Future for EndpointServiceFuture<E>
 where
     E: Endpoint,
-    E::Item: Responder,
-    E::Error: Responder + From<NotFound>,
+    E::Item: IntoResponder,
+    E::Error: IntoResponder + From<NotFound>,
 {
     type Item = hyper::Response;
     type Error = hyper::Error;

@@ -16,7 +16,7 @@ use tokio_core::net::TcpListener;
 use tokio_core::reactor::{Core, Handle};
 
 use endpoint::Endpoint;
-use response::Responder;
+use response::IntoResponder;
 use super::service::EndpointService;
 
 
@@ -70,8 +70,8 @@ impl ServerBuilder {
     pub fn run_http<E>(&self, endpoint: E)
     where
         E: Endpoint + Send + Sync + 'static,
-        E::Item: Responder,
-        E::Error: Responder + From<NotFound>,
+        E::Item: IntoResponder,
+        E::Error: IntoResponder + From<NotFound>,
     {
         let endpoint = Arc::new(endpoint);
         let proto = Http::new();
@@ -104,8 +104,8 @@ impl ServerBuilder {
 struct Worker<'a, E>
 where
     E: Endpoint + Clone + 'static,
-    E::Item: Responder,
-    E::Error: Responder + From<NotFound>,
+    E::Item: IntoResponder,
+    E::Error: IntoResponder + From<NotFound>,
 {
     endpoint: E,
     proto: Http<Chunk>,
@@ -116,8 +116,8 @@ where
 impl<'a, E> Worker<'a, E>
 where
     E: Endpoint + Clone + 'static,
-    E::Item: Responder,
-    E::Error: Responder + From<NotFound>,
+    E::Item: IntoResponder,
+    E::Error: IntoResponder + From<NotFound>,
 {
     fn run(&self) -> io::Result<()> {
         let mut core = Core::new()?;
