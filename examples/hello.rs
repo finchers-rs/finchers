@@ -4,17 +4,17 @@ extern crate finchers;
 #[macro_use]
 extern crate serde_json;
 
+use std::sync::Arc;
 use std::string::{FromUtf8Error, ParseError};
 use std::error::Error as StdError;
 use serde_json::Value;
 
-use finchers::Endpoint;
+use finchers::{Endpoint, NotFound};
 use finchers::endpoint::method::{get, post};
 use finchers::endpoint::{body, path};
 use finchers::request::BodyError;
 use finchers::response::{Responder, StatusCode};
-use finchers::ServerBuilder;
-use finchers::server::NotFound;
+use finchers::service::ServerBuilder;
 
 
 error_chain! {
@@ -60,5 +60,5 @@ fn main() {
     ServerBuilder::default()
         .bind("0.0.0.0:8080")
         .num_workers(1)
-        .run_http(endpoint);
+        .serve(Arc::new(endpoint));
 }

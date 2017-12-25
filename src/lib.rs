@@ -16,22 +16,19 @@ pub mod contrib;
 pub mod endpoint;
 pub mod request;
 pub mod response;
-pub mod server;
+pub mod service;
 pub mod task;
 pub mod test;
 
 
 #[doc(inline)]
-pub use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
+pub use endpoint::{Endpoint, EndpointContext, IntoEndpoint, NotFound};
 
 #[doc(inline)]
 pub use request::Request;
 
 #[doc(inline)]
 pub use response::Responder;
-
-#[doc(inline)]
-pub use server::ServerBuilder;
 
 #[doc(inline)]
 pub use task::{Task, TaskContext};

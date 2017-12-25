@@ -6,10 +6,10 @@ use tokio_core::reactor::Handle;
 use tokio_service::Service;
 
 use request;
-use endpoint::{Endpoint, EndpointContext};
+use endpoint::{Endpoint, EndpointContext, NotFound};
 use task::{Task, TaskContext};
 use response::{self, IntoResponder};
-use super::server::NotFound;
+
 
 /// An HTTP service which wraps a `Endpoint`.
 #[derive(Debug, Clone)]
@@ -20,6 +20,7 @@ where
     E::Error: IntoResponder + From<NotFound>,
 {
     endpoint: E,
+    handle: Handle,
 }
 
 impl<E> EndpointService<E>
@@ -28,9 +29,11 @@ where
     E::Item: IntoResponder,
     E::Error: IntoResponder + From<NotFound>,
 {
-    pub fn new(endpoint: E, _handle: &Handle) -> Self {
-        // TODO: clone the instance of Handle and implement it to Context
-        EndpointService { endpoint }
+    pub(crate) fn new(endpoint: E, handle: &Handle) -> Self {
+        EndpointService {
+            endpoint,
+            handle: handle.clone(),
+        }
     }
 }
 
@@ -48,12 +51,10 @@ where
     fn call(&self, req: hyper::Request) -> Self::Future {
         let (request, body) = request::reconstruct(req);
 
-        let result = {
-            let mut ctx = EndpointContext::new(&request);
-            self.endpoint.apply(&mut ctx)
-        };
+        let mut ctx = EndpointContext::new(&request, &self.handle);
+        let result = self.endpoint.apply(&mut ctx);
 
-        let mut ctx = TaskContext::new(request, body);
+        let mut ctx = TaskContext::new(&request, &self.handle, body);
         let result = result.map(|t| t.launch(&mut ctx));
 
         EndpointServiceFuture {
