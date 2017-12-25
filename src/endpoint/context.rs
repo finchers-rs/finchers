@@ -1,17 +1,26 @@
-use std::path::{Component, Components, Path};
 use tokio_core::reactor::Handle;
 use request::Request;
 
 
 #[allow(missing_docs)]
 #[derive(Debug, Clone)]
-pub struct Segments<'a>(Components<'a>);
+pub struct Segments<'a> {
+    path: &'a str,
+    pos: usize,
+}
 
 impl<'a> From<&'a str> for Segments<'a> {
     fn from(path: &'a str) -> Self {
-        let mut components = Path::new(path).components();
-        components.next(); // skip the root ("/")
-        Segments(components)
+        debug_assert!(!path.is_empty());
+        debug_assert_eq!(path.chars().next(), Some('/'));
+        Segments { path, pos: 1 }
+    }
+}
+
+impl<'a> Segments<'a> {
+    /// Returns the remaining path in this segments
+    pub fn as_str(&self) -> &'a str {
+        &self.path[self.pos..]
     }
 }
 
@@ -19,10 +28,43 @@ impl<'a> Iterator for Segments<'a> {
     type Item = &'a str;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(|c| match c {
-            Component::Normal(s) => s.to_str().unwrap(),
-            _ => panic!("relatative path is not supported"),
-        })
+        if self.pos == self.path.len() {
+            return None;
+        }
+        if let Some(offset) = self.path[self.pos..].find('/') {
+            let segment = &self.path[self.pos..self.pos + offset];
+            self.pos += offset + 1;
+            Some(segment)
+        } else {
+            let segment = &self.path[self.pos..];
+            self.pos = self.path.len();
+            Some(segment)
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Segments;
+
+    #[test]
+    fn test_segments() {
+        let mut segments = Segments::from("/foo/bar.txt");
+        assert_eq!(segments.as_str(), "foo/bar.txt");
+        assert_eq!(segments.next(), Some("foo"));
+        assert_eq!(segments.as_str(), "bar.txt");
+        assert_eq!(segments.next(), Some("bar.txt"));
+        assert_eq!(segments.as_str(), "");
+        assert_eq!(segments.next(), None);
+        assert_eq!(segments.as_str(), "");
+        assert_eq!(segments.next(), None);
+    }
+
+    #[test]
+    fn test_root() {
+        let mut segments = Segments::from("/");
+        assert_eq!(segments.as_str(), "");
+        assert_eq!(segments.next(), None);
     }
 }
 
