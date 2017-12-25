@@ -1,4 +1,5 @@
 use std::path::{Component, Components, Path};
+use tokio_core::reactor::Handle;
 use request::Request;
 
 
@@ -30,21 +31,27 @@ impl<'a> Iterator for Segments<'a> {
 #[derive(Debug, Clone)]
 pub struct EndpointContext<'a> {
     request: &'a Request,
+    handle: &'a Handle,
     segments: Option<Segments<'a>>,
 }
 
 impl<'a> EndpointContext<'a> {
-    #[allow(missing_docs)]
-    pub fn new(request: &'a Request) -> Self {
+    pub(crate) fn new(request: &'a Request, handle: &'a Handle) -> Self {
         EndpointContext {
             request,
+            handle,
             segments: Some(Segments::from(request.path())),
         }
     }
 
-    #[allow(missing_docs)]
+    /// Returns the reference of HTTP request
     pub fn request(&self) -> &Request {
         self.request
+    }
+
+    /// Returns the reference of handle of the event loop in the running worker thread
+    pub fn handle(&self) -> &'a Handle {
+        self.handle
     }
 
     /// Pop and return the front element of path segments.

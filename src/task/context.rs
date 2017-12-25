@@ -1,16 +1,19 @@
+use tokio_core::reactor::Handle;
 use request::{Body, Request};
 
 
 #[derive(Debug)]
-pub struct TaskContext {
-    request: Request,
+pub struct TaskContext<'a> {
+    request: &'a Request,
+    handle: &'a Handle,
     body: Option<Body>,
 }
 
-impl TaskContext {
-    pub fn new(request: Request, body: Body) -> Self {
+impl<'a> TaskContext<'a> {
+    pub(crate) fn new(request: &'a Request, handle: &'a Handle, body: Body) -> Self {
         Self {
             request,
+            handle,
             body: Some(body),
         }
     }
@@ -21,5 +24,9 @@ impl TaskContext {
 
     pub fn take_body(&mut self) -> Option<Body> {
         self.body.take()
+    }
+
+    pub fn handle(&self) -> &'a Handle {
+        self.handle
     }
 }

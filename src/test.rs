@@ -72,14 +72,15 @@ where
     E: Endpoint,
 {
     let mut core = Core::new().unwrap();
+    let handle = core.handle();
 
     let TestCase { request, body } = input;
 
-    let task = {
-        let mut ctx = EndpointContext::new(&request);
-        endpoint.as_ref().apply(&mut ctx)?
-    };
+    let mut ctx = EndpointContext::new(&request, &handle);
+    let task = endpoint.as_ref().apply(&mut ctx)?;
 
-    let mut ctx = TaskContext::new(request, body.unwrap_or_default());
-    Some(core.run(task.launch(&mut ctx)))
+    let mut ctx = TaskContext::new(&request, &handle, body.unwrap_or_default());
+    let result = core.run(task.launch(&mut ctx));
+
+    Some(result)
 }
