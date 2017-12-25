@@ -22,8 +22,4 @@ impl TaskContext {
     pub fn take_body(&mut self) -> Option<Body> {
         self.body.take()
     }
-
-    pub(crate) fn deconstruct(self) -> (Request, Option<Body>) {
-        (self.request, self.body)
-    }
 }

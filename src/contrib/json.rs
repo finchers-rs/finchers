@@ -10,8 +10,9 @@ use self::serde::ser::Serialize;
 use self::serde::de::DeserializeOwned;
 
 use endpoint::body::{body, Body};
-use request::{BodyError, FromBody, Request};
-use response::{header, mime, Responder, ResponderContext, Response, ResponseBuilder};
+use request::{self, BodyError, FromBody, Request};
+use response::{header, mime, IntoBody};
+use response::header::Headers;
 
 
 /// Represents a JSON value
@@ -31,20 +32,27 @@ impl<T: DeserializeOwned> FromBody for Json<T> {
     }
 }
 
-impl<T: Serialize> Responder for Json<T> {
-    fn respond_to(&mut self, _: &mut ResponderContext) -> Response {
+impl<T: Serialize> IntoBody for Json<T> {
+    fn into_body(self, h: &mut Headers) -> request::Body {
         let body = serde_json::to_vec(&self.0).expect(concat!(
             "cannot serialize the value of type ",
             stringify!(T)
         ));
-        let len = body.len();
-        ResponseBuilder::default()
-            .header(header::ContentType::json())
-            .header(header::ContentLength(len as u64))
-            .body(body)
-            .finish()
+        h.set(header::ContentType::json());
+        h.set(header::ContentLength(body.len() as u64));
+        request::Body::from_raw(body.into())
     }
 }
+
+impl IntoBody for Value {
+    fn into_body(self, h: &mut Headers) -> request::Body {
+        let body = self.to_string();
+        h.set(header::ContentType::json());
+        h.set(header::ContentLength(body.len() as u64));
+        request::Body::from_raw(body.into())
+    }
+}
+
 
 /// Create an endpoint with parsing JSON body
 pub fn json_body<T: DeserializeOwned, E>() -> Body<Json<T>, E>

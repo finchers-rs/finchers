@@ -1,58 +1,51 @@
-use std::borrow::Cow;
-use super::{header, ResponderContext, Response, ResponseBuilder, StatusCode};
+use hyper::Response;
+use super::{IntoBody, StatusCode};
+use super::header::Headers;
 
 
-/// The type to be converted to `hyper::Response`
-pub trait Responder {
-    /// Convert itself to `hyper::Response`
-    fn respond_to(&mut self, ctx: &mut ResponderContext) -> Response;
+pub trait Responder: Sized {
+    type Body: IntoBody;
+
+    fn status(&self) -> StatusCode {
+        StatusCode::Ok
+    }
+
+    fn body(&mut self) -> Option<Self::Body> {
+        None
+    }
+
+    fn headers(&self, &mut Headers) {}
 }
 
-/// The type to convert to a `Responder`
+impl Responder for () {
+    type Body = ();
+    fn status(&self) -> StatusCode {
+        StatusCode::NoContent
+    }
+}
+
+
 pub trait IntoResponder {
     type Responder: Responder;
     fn into_responder(self) -> Self::Responder;
 }
 
 impl<R: Responder> IntoResponder for R {
-    type Responder = R;
-    fn into_responder(self) -> Self::Responder {
+    type Responder = Self;
+    fn into_responder(self) -> Self {
         self
     }
 }
 
 
-#[derive(Debug)]
-pub struct UnitResponder;
-
-impl Responder for UnitResponder {
-    fn respond_to(&mut self, _: &mut ResponderContext) -> Response {
-        ResponseBuilder::default()
-            .status(StatusCode::NoContent)
-            .header(header::ContentLength(0))
-            .finish()
-    }
-}
-
-impl IntoResponder for () {
-    type Responder = UnitResponder;
-    fn into_responder(self) -> Self::Responder {
-        UnitResponder
-    }
-}
-
 
 #[derive(Debug)]
-pub struct StringResponder(Option<Cow<'static, str>>);
+pub struct StringResponder(Option<::std::borrow::Cow<'static, str>>);
 
 impl Responder for StringResponder {
-    fn respond_to(&mut self, _: &mut ResponderContext) -> Response {
-        let body = self.0.take().expect("cannot respond twice");
-        ResponseBuilder::default()
-            .header(header::ContentType::plaintext())
-            .header(header::ContentLength(body.len() as u64))
-            .body(body)
-            .finish()
+    type Body = ::std::borrow::Cow<'static, str>;
+    fn body(&mut self) -> Option<Self::Body> {
+        self.0.take()
     }
 }
 
@@ -70,9 +63,21 @@ impl IntoResponder for String {
     }
 }
 
-impl IntoResponder for Cow<'static, str> {
+impl IntoResponder for ::std::borrow::Cow<'static, str> {
     type Responder = StringResponder;
     fn into_responder(self) -> Self::Responder {
         StringResponder(Some(self))
     }
+}
+
+
+pub fn respond<R: IntoResponder>(res: R) -> Response {
+    let mut res = res.into_responder();
+    let mut response = Response::new();
+    response.set_status(res.status());
+    if let Some(body) = res.body() {
+        body.into_body(response.headers_mut());
+    }
+    res.headers(response.headers_mut());
+    response
 }

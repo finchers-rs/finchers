@@ -8,7 +8,7 @@ use tokio_service::Service;
 use request;
 use endpoint::{Endpoint, EndpointContext};
 use task::{Task, TaskContext};
-use response::{IntoResponder, Responder, ResponderContext};
+use response::{self, IntoResponder};
 use super::server::NotFound;
 
 /// An HTTP service which wraps a `Endpoint`.
@@ -61,7 +61,6 @@ where
                 Some(fut) => Polling(fut),
                 None => NotMatched,
             },
-            ctx: Some(ctx),
         }
     }
 }
@@ -76,7 +75,6 @@ where
     E::Error: IntoResponder + From<NotFound>,
 {
     inner: Inner<<E::Task as Task>::Future>,
-    ctx: Option<TaskContext>,
 }
 
 #[allow(missing_debug_implementations)]
@@ -105,15 +103,6 @@ where
             _ => panic!(),
         }
     }
-
-    fn respond<T: IntoResponder>(&mut self, t: T) -> hyper::Response {
-        let (request, _) = self.ctx
-            .take()
-            .expect("cannot resolve/reject twice")
-            .deconstruct();
-        let mut ctx = ResponderContext { request: &request };
-        t.into_responder().respond_to(&mut ctx).into_raw()
-    }
 }
 
 impl<E> Future for EndpointServiceFuture<E>
@@ -127,9 +116,9 @@ where
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         match self.poll_task() {
-            Ok(Async::Ready(item)) => Ok(Async::Ready(self.respond(item))),
+            Ok(Async::Ready(item)) => Ok(Async::Ready(response::respond(item))),
             Ok(Async::NotReady) => Ok(Async::NotReady),
-            Err(err) => Ok(Async::Ready(self.respond(err))),
+            Err(err) => Ok(Async::Ready(response::respond(err))),
         }
     }
 }
