@@ -6,10 +6,10 @@ use tokio_core::reactor::Handle;
 use tokio_service::Service;
 
 use request;
-use endpoint::{Endpoint, EndpointContext};
+use endpoint::{Endpoint, EndpointContext, NotFound};
 use task::{Task, TaskContext};
 use response::{self, IntoResponder};
-use super::server::NotFound;
+
 
 /// An HTTP service which wraps a `Endpoint`.
 #[derive(Debug, Clone)]

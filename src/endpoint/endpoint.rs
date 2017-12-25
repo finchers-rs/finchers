@@ -1,8 +1,30 @@
+use std::fmt;
+use std::error;
 use std::rc::Rc;
 use std::sync::Arc;
 use futures::IntoFuture;
+use tokio_core::reactor::Handle;
+use response::IntoResponder;
 use task::Task;
+use service::EndpointService;
 use super::*;
+
+
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct NotFound;
+
+impl fmt::Display for NotFound {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("not found")
+    }
+}
+
+impl error::Error for NotFound {
+    fn description(&self) -> &str {
+        "not found"
+    }
+}
 
 
 /// A HTTP endpoint, which provides the futures from incoming HTTP requests
@@ -19,6 +41,16 @@ pub trait Endpoint {
     /// Apply the incoming HTTP request, and return the future of its response
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task>;
 
+
+    /// Create a new `Service` from this endpoint
+    fn to_service(&self, handle: &Handle) -> EndpointService<Self>
+    where
+        Self: Clone,
+        Self::Item: IntoResponder,
+        Self::Error: IntoResponder + From<NotFound>,
+    {
+        EndpointService::new(self.clone(), handle)
+    }
 
     /// Combine itself and the other endpoint, and create a combinator which returns a pair of its
     /// `Item`s.
