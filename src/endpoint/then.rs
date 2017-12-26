@@ -6,7 +6,6 @@ use futures::IntoFuture;
 use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
 use task;
 
-
 pub fn then<E, F, R, A, B>(endpoint: E, f: F) -> Then<E::Endpoint, F, R>
 where
     E: IntoEndpoint<A, B>,
@@ -19,7 +18,6 @@ where
         _marker: PhantomData,
     }
 }
-
 
 #[derive(Debug)]
 pub struct Then<E, F, R>

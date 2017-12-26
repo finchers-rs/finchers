@@ -1,7 +1,6 @@
 use tokio_core::reactor::Handle;
 use http::{Body, Request};
 
-
 #[derive(Debug)]
 pub struct TaskContext<'a> {
     request: &'a Request,

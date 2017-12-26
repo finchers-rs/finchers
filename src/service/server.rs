@@ -14,7 +14,6 @@ use tokio_core::reactor::{Core, Handle};
 use endpoint::{Endpoint, NotFound};
 use responder::IntoResponder;
 
-
 /// The factory of HTTP service
 #[derive(Debug)]
 pub struct ServerBuilder {
@@ -77,7 +76,6 @@ impl ServerBuilder {
         let _ = worker.run();
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub struct Worker<E>

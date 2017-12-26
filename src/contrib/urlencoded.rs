@@ -42,13 +42,11 @@
 //! }
 //! ```
 
-
 extern crate url;
 
 use std::borrow::Cow;
 use std::{error, fmt};
 use http::{mime, FromBody, Request};
-
 
 /// A trait for parsing from `urlencoded` message body.
 pub trait FromForm: Sized {
@@ -60,7 +58,6 @@ pub trait FromForm: Sized {
     where
         I: Iterator<Item = (Cow<'a, str>, Cow<'a, str>)>;
 }
-
 
 /// A wrapper struct which represents the contained type is parsed from `url-formencoded` body.
 #[derive(Debug)]
@@ -79,7 +76,6 @@ impl<F: FromForm> FromBody for Form<F> {
         F::from_form(iter).map(Form)
     }
 }
-
 
 /// The error type returned from `FromForm::from_form`.
 #[derive(Debug)]

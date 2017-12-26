@@ -1,6 +1,5 @@
 use http::{Headers, IntoBody, Response, StatusCode};
 
-
 pub trait Responder: Sized {
     type Body: IntoBody;
 
@@ -22,7 +21,6 @@ impl Responder for () {
     }
 }
 
-
 pub trait IntoResponder {
     type Responder: Responder;
     fn into_responder(self) -> Self::Responder;
@@ -34,8 +32,6 @@ impl<R: Responder> IntoResponder for R {
         self
     }
 }
-
-
 
 #[derive(Debug)]
 pub struct StringResponder(Option<::std::borrow::Cow<'static, str>>);
@@ -67,7 +63,6 @@ impl IntoResponder for ::std::borrow::Cow<'static, str> {
         StringResponder(Some(self))
     }
 }
-
 
 pub fn respond<R: IntoResponder>(res: R) -> Response {
     let mut res = res.into_responder();

@@ -3,7 +3,6 @@ use futures::{Future, IntoFuture, Poll};
 use super::{Task, TaskContext};
 use super::chain::Chain;
 
-
 #[derive(Debug)]
 pub struct OrElse<T, F> {
     pub(crate) task: T,

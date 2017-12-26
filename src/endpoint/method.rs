@@ -1,9 +1,7 @@
 //! Definition of wrappers with additional check of HTTP method
 
-
 use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
 use http::Method;
-
 
 #[allow(missing_docs)]
 #[derive(Debug, Clone)]

@@ -3,7 +3,6 @@ use std::sync::Arc;
 use futures::{Future, Poll};
 use super::{Task, TaskContext};
 
-
 #[derive(Debug)]
 pub struct MapErr<T, F> {
     pub(crate) task: T,

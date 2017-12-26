@@ -12,7 +12,6 @@ use self::serde::de::DeserializeOwned;
 use endpoint::body::{body, Body};
 use http::{self, header, mime, FromBody, Headers, IntoBody, Request};
 
-
 /// Represents a JSON value
 #[derive(Debug)]
 pub struct Json<T = Value>(pub T);
@@ -50,7 +49,6 @@ impl IntoBody for Value {
         body.into()
     }
 }
-
 
 /// Create an endpoint with parsing JSON body
 pub fn json_body<T: DeserializeOwned, E>() -> Body<Json<T>, E>

@@ -1,14 +1,12 @@
 use futures::{Future, Poll};
 use super::{Task, TaskContext};
 
-
 #[derive(Debug)]
 pub(crate) enum Either<T1, T2> {
     Left(T1),
     Right(T2),
 }
 pub(crate) use self::Either::*;
-
 
 #[derive(Debug)]
 pub struct Or<T1, T2> {
@@ -34,7 +32,6 @@ where
         }
     }
 }
-
 
 #[derive(Debug)]
 pub struct OrFuture<T1, T2> {

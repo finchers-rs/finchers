@@ -6,7 +6,6 @@ use std::sync::Arc;
 use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
 use task;
 
-
 pub fn map_err<E, F, R, A, B>(endpoint: E, f: F) -> MapErr<E::Endpoint, F, R>
 where
     E: IntoEndpoint<A, B>,
@@ -18,7 +17,6 @@ where
         _marker: PhantomData,
     }
 }
-
 
 #[derive(Debug)]
 pub struct MapErr<E, F, R>

@@ -6,7 +6,6 @@ use futures::IntoFuture;
 use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
 use task;
 
-
 pub fn or_else<E, F, R, A, B>(endpoint: E, f: F) -> OrElse<E::Endpoint, F, R>
 where
     E: IntoEndpoint<A, B>,
@@ -19,7 +18,6 @@ where
         _marker: PhantomData,
     }
 }
-
 
 #[derive(Debug)]
 pub struct OrElse<E, F, R>

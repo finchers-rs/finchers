@@ -1,7 +1,6 @@
 use super::*;
 use futures::{Future, IntoFuture};
 
-
 pub trait Task {
     type Item;
     type Error;

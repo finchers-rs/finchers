@@ -20,7 +20,6 @@ pub mod service;
 pub mod task;
 pub mod test;
 
-
 #[doc(inline)]
 pub use endpoint::{Endpoint, IntoEndpoint, NotFound};
 

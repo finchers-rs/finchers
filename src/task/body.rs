@@ -3,7 +3,6 @@ use futures::{Future, Poll, Stream};
 use http::{self, FromBody};
 use task::{Task, TaskContext};
 
-
 #[derive(Debug)]
 pub struct Body<T, E> {
     _marker: PhantomData<fn() -> (T, E)>,
@@ -33,7 +32,6 @@ where
         }
     }
 }
-
 
 #[derive(Debug)]
 pub struct BodyFuture<T, E> {

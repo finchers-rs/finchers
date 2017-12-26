@@ -6,7 +6,6 @@ use endpoint::{Endpoint, EndpointContext};
 use http::{self, FromBody};
 use task;
 
-
 /// Create an endpoint, represents the value of a request body
 pub fn body<T, E>() -> Body<T, E>
 where
@@ -17,7 +16,6 @@ where
         _marker: PhantomData,
     }
 }
-
 
 #[allow(missing_docs)]
 #[derive(Debug)]

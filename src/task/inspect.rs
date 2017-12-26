@@ -4,7 +4,6 @@ use std::sync::Arc;
 use futures::{Future, Poll};
 use super::{Task, TaskContext};
 
-
 #[derive(Debug)]
 pub struct Inspect<T, F> {
     pub(crate) task: T,
@@ -25,7 +24,6 @@ where
         InspectFuture { fut, f: Some(f) }
     }
 }
-
 
 #[derive(Debug)]
 pub struct InspectFuture<T, F> {

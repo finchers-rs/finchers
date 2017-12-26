@@ -1,7 +1,6 @@
 use tokio_core::reactor::Handle;
 use http::Request;
 
-
 #[allow(missing_docs)]
 #[derive(Debug, Clone)]
 pub struct Segments<'a> {
@@ -67,7 +66,6 @@ mod tests {
         assert_eq!(segments.next(), None);
     }
 }
-
 
 /// A set of values, contains the incoming HTTP request and the finchers-specific context.
 #[derive(Debug, Clone)]

@@ -4,7 +4,6 @@ use hyper::mime::Mime;
 use hyper::error::UriError;
 use super::Body;
 
-
 pub(crate) fn reconstruct(req: hyper::Request) -> (Request, Body) {
     let (method, uri, _version, headers, body) = req.deconstruct();
     (

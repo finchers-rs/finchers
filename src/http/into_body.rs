@@ -1,7 +1,6 @@
 use std::borrow::Cow;
 use super::{header, mime, Body, Headers};
 
-
 /// Conversion into the raw HTTP response body
 pub trait IntoBody: Sized {
     /// Add some response headers and then convert itself into `Body`

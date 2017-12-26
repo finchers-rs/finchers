@@ -6,7 +6,6 @@ use std::marker::PhantomData;
 use std::str::FromStr;
 use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
 
-
 #[allow(missing_docs)]
 #[derive(Debug, Clone)]
 pub struct MatchPath<'a, E>(Cow<'a, str>, PhantomData<fn() -> E>);
@@ -45,7 +44,6 @@ impl<'a, E> IntoEndpoint<(), E> for Cow<'a, str> {
     }
 }
 
-
 /// Create an endpoint which represents a path element
 pub fn path<T: FromStr, E>() -> ExtractPath<T, E> {
     ExtractPath(PhantomData)
@@ -71,8 +69,6 @@ where
         }
     }
 }
-
-
 
 /// Create an endpoint which represents a path element
 pub fn paths<I, T, E>() -> ExtractPaths<I, T, E>

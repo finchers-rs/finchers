@@ -2,7 +2,6 @@ use std::sync::Arc;
 use futures::{Future, Poll};
 use super::{Task, TaskContext};
 
-
 #[derive(Debug)]
 pub struct Map<T, F> {
     pub(crate) task: T,
@@ -23,7 +22,6 @@ where
         MapFuture { fut, f: Some(f) }
     }
 }
-
 
 #[derive(Debug)]
 pub struct MapFuture<T, F> {

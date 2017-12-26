@@ -4,7 +4,6 @@ use futures::{Future, IntoFuture, Poll};
 use super::{Task, TaskContext};
 use super::chain::Chain;
 
-
 #[derive(Debug)]
 pub struct AndThen<T, F> {
     pub(crate) task: T,
@@ -38,7 +37,6 @@ where
 {
     inner: Chain<T, R::Future, Arc<F>>,
 }
-
 
 impl<T, F, R> Future for AndThenFuture<T, F, R>
 where

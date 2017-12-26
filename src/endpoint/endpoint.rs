@@ -9,7 +9,6 @@ use task::Task;
 use service::EndpointService;
 use super::*;
 
-
 #[allow(missing_docs)]
 #[derive(Debug)]
 pub struct NotFound;
@@ -26,7 +25,6 @@ impl error::Error for NotFound {
     }
 }
 
-
 /// A HTTP endpoint, which provides the futures from incoming HTTP requests
 pub trait Endpoint {
     /// The type of resolved value, created by this endpoint
@@ -40,7 +38,6 @@ pub trait Endpoint {
 
     /// Apply the incoming HTTP request, and return the future of its response
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task>;
-
 
     /// Create a new `Service` from this endpoint
     fn to_service(&self, handle: &Handle) -> EndpointService<Self>
@@ -177,7 +174,6 @@ impl<E: Endpoint> Endpoint for Arc<E> {
         (**self).apply(ctx)
     }
 }
-
 
 #[allow(missing_docs)]
 pub trait IntoEndpoint<T, E> {

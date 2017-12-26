@@ -3,7 +3,6 @@ use futures::{Future, IntoFuture, Poll};
 use super::{Task, TaskContext};
 use super::chain::Chain;
 
-
 #[derive(Debug)]
 pub struct Then<T, F> {
     pub(crate) task: T,
@@ -27,7 +26,6 @@ where
         }
     }
 }
-
 
 #[derive(Debug)]
 pub struct ThenFuture<T, F, R>

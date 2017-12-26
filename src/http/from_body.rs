@@ -2,7 +2,6 @@ use std::string::FromUtf8Error;
 use hyper::mime;
 use super::Request;
 
-
 /// A trait represents the conversion from `Body`.
 pub trait FromBody: Sized {
     /// The error type returned from `from_body()`
@@ -14,7 +13,6 @@ pub trait FromBody: Sized {
     /// Convert the content of `body` to its type
     fn from_body(body: Vec<u8>) -> Result<Self, Self::Error>;
 }
-
 
 impl FromBody for Vec<u8> {
     type Error = ();

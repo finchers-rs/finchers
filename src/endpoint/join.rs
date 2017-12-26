@@ -4,7 +4,6 @@
 use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
 use task;
 
-
 macro_rules! generate {
     ($(
         ($new:ident, $Join:ident, <$($T:ident : $A:ident),*>),

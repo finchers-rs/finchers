@@ -10,7 +10,6 @@ use endpoint::{Endpoint, EndpointContext, NotFound};
 use task::{Task, TaskContext};
 use responder::{self, IntoResponder};
 
-
 /// An HTTP service which wraps a `Endpoint`.
 #[derive(Debug, Clone)]
 pub struct EndpointService<E>
@@ -65,7 +64,6 @@ where
         }
     }
 }
-
 
 /// A future returned from `EndpointService::call()`
 #[allow(missing_debug_implementations)]

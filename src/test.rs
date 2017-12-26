@@ -6,7 +6,6 @@ use endpoint::{Endpoint, EndpointContext};
 use http::{Body, Header, Method, Request};
 use task::{Task, TaskContext};
 
-
 /// A test case for `run_test()`
 #[derive(Debug)]
 pub struct TestCase {
@@ -61,7 +60,6 @@ impl TestCase {
         self
     }
 }
-
 
 /// Invoke given endpoint and return its result
 pub fn run_test<T, E>(endpoint: T, input: TestCase) -> Option<Result<E::Item, E::Error>>

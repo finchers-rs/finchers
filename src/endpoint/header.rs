@@ -6,7 +6,6 @@ use std::marker::PhantomData;
 use endpoint::{Endpoint, EndpointContext};
 use http::header;
 
-
 #[allow(missing_docs)]
 #[derive(Debug, Clone)]
 pub struct EmptyHeader(&'static str);
@@ -22,7 +21,6 @@ impl error::Error for EmptyHeader {
         "empty header"
     }
 }
-
 
 /// Create an endpoint matches the value of a request header
 pub fn header<H, E>() -> Header<H, E>
@@ -57,8 +55,6 @@ where
         }
     }
 }
-
-
 
 /// Create an endpoint matches the value of a request header, which the value may not exist
 pub fn header_opt<H, E>() -> HeaderOpt<H, E>

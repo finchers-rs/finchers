@@ -5,7 +5,6 @@ use std::sync::Arc;
 use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
 use task;
 
-
 pub fn inspect<E, F, A, B>(endpoint: E, f: F) -> Inspect<E::Endpoint, F>
 where
     E: IntoEndpoint<A, B>,
@@ -16,7 +15,6 @@ where
         f: Arc::new(f),
     }
 }
-
 
 #[derive(Debug)]
 pub struct Inspect<E, F>

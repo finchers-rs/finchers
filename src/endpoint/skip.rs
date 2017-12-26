@@ -2,7 +2,6 @@
 
 use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
 
-
 pub fn skip<E1, E2, A, B, C>(e1: E1, e2: E2) -> Skip<E1::Endpoint, E2::Endpoint>
 where
     E1: IntoEndpoint<A, B>,

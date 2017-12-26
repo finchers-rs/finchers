@@ -3,7 +3,6 @@
 use std::marker::PhantomData;
 use super::{Endpoint, EndpointContext};
 
-
 pub fn ok<T: Clone, E>(x: T) -> EndpointOk<T, E> {
     EndpointOk {
         x,
@@ -27,7 +26,6 @@ impl<T: Clone, E> Endpoint for EndpointOk<T, E> {
     }
 }
 
-
 pub fn err<T, E: Clone>(x: E) -> EndpointErr<T, E> {
     EndpointErr {
         x,
@@ -50,8 +48,6 @@ impl<T, E: Clone> Endpoint for EndpointErr<T, E> {
         Some(Err(self.x.clone()))
     }
 }
-
-
 
 pub fn result<T: Clone, E: Clone>(x: Result<T, E>) -> EndpointResult<T, E> {
     EndpointResult { x }

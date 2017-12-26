@@ -3,7 +3,6 @@
 use task;
 use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
 
-
 pub fn join_all<I, E, A, B>(iter: I) -> JoinAll<E::Endpoint>
 where
     I: IntoIterator<Item = E>,
@@ -13,7 +12,6 @@ where
         inner: iter.into_iter().map(IntoEndpoint::into_endpoint).collect(),
     }
 }
-
 
 #[derive(Debug)]
 pub struct JoinAll<E: Endpoint> {
