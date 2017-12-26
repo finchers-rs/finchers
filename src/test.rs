@@ -5,7 +5,7 @@ use hyper::header::Header;
 use tokio_core::reactor::Core;
 
 use endpoint::{Endpoint, EndpointContext};
-use request::{Body, Request};
+use http::{Body, Request};
 use task::{Task, TaskContext};
 
 

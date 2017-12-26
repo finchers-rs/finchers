@@ -47,8 +47,7 @@ extern crate url;
 
 use std::borrow::Cow;
 use std::{error, fmt};
-use hyper::mime;
-use request::{FromBody, Request};
+use http::{mime, FromBody, Request};
 
 
 /// A trait for parsing from `urlencoded` message body.

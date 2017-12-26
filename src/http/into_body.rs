@@ -1,10 +1,10 @@
 use std::borrow::Cow;
-use request::Body;
-use super::header::{self, Headers};
-use super::mime;
+use super::{header, mime, Body, Headers};
 
 
+/// Conversion into the raw HTTP response body
 pub trait IntoBody: Sized {
+    /// Add some response headers and then convert itself into `Body`
     fn into_body(self, h: &mut Headers) -> Body;
 }
 

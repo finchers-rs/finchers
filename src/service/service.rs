@@ -5,10 +5,10 @@ use hyper;
 use tokio_core::reactor::Handle;
 use tokio_service::Service;
 
-use request;
+use http;
 use endpoint::{Endpoint, EndpointContext, NotFound};
 use task::{Task, TaskContext};
-use response::{self, IntoResponder};
+use responder::{self, IntoResponder};
 
 
 /// An HTTP service which wraps a `Endpoint`.
@@ -49,7 +49,7 @@ where
     type Future = EndpointServiceFuture<E>;
 
     fn call(&self, req: hyper::Request) -> Self::Future {
-        let (request, body) = request::reconstruct(req);
+        let (request, body) = http::request::reconstruct(req);
 
         let mut ctx = EndpointContext::new(&request, &self.handle);
         let result = self.endpoint.apply(&mut ctx);
@@ -117,9 +117,9 @@ where
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         match self.poll_task() {
-            Ok(Async::Ready(item)) => Ok(Async::Ready(response::respond(item))),
+            Ok(Async::Ready(item)) => Ok(Async::Ready(responder::respond(item))),
             Ok(Async::NotReady) => Ok(Async::NotReady),
-            Err(err) => Ok(Async::Ready(response::respond(err))),
+            Err(err) => Ok(Async::Ready(responder::respond(err))),
         }
     }
 }

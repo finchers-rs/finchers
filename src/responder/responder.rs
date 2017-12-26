@@ -1,6 +1,5 @@
 use hyper::Response;
-use super::{IntoBody, StatusCode};
-use super::header::Headers;
+use http::{Headers, IntoBody, StatusCode};
 
 
 pub trait Responder: Sized {

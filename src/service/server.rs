@@ -12,7 +12,7 @@ use tokio_core::net::TcpListener;
 use tokio_core::reactor::{Core, Handle};
 
 use endpoint::{Endpoint, NotFound};
-use response::IntoResponder;
+use responder::IntoResponder;
 
 
 /// The factory of HTTP service

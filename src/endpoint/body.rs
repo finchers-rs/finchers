@@ -3,7 +3,7 @@
 use std::marker::PhantomData;
 
 use endpoint::{Endpoint, EndpointContext};
-use request::{BodyError, FromBody};
+use http::{BodyError, FromBody};
 use task;
 
 

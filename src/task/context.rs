@@ -1,5 +1,5 @@
 use tokio_core::reactor::Handle;
-use request::{Body, Request};
+use http::{Body, Request};
 
 
 #[derive(Debug)]

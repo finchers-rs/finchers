@@ -10,9 +10,7 @@ use self::serde::ser::Serialize;
 use self::serde::de::DeserializeOwned;
 
 use endpoint::body::{body, Body};
-use request::{self, BodyError, FromBody, Request};
-use response::{header, mime, IntoBody};
-use response::header::Headers;
+use http::{self, header, mime, BodyError, FromBody, Headers, IntoBody, Request};
 
 
 /// Represents a JSON value
@@ -33,23 +31,23 @@ impl<T: DeserializeOwned> FromBody for Json<T> {
 }
 
 impl<T: Serialize> IntoBody for Json<T> {
-    fn into_body(self, h: &mut Headers) -> request::Body {
+    fn into_body(self, h: &mut Headers) -> http::Body {
         let body = serde_json::to_vec(&self.0).expect(concat!(
             "cannot serialize the value of type ",
             stringify!(T)
         ));
         h.set(header::ContentType::json());
         h.set(header::ContentLength(body.len() as u64));
-        request::Body::from_raw(body.into())
+        http::Body::from_raw(body.into())
     }
 }
 
 impl IntoBody for Value {
-    fn into_body(self, h: &mut Headers) -> request::Body {
+    fn into_body(self, h: &mut Headers) -> http::Body {
         let body = self.to_string();
         h.set(header::ContentType::json());
         h.set(header::ContentLength(body.len() as u64));
-        request::Body::from_raw(body.into())
+        http::Body::from_raw(body.into())
     }
 }
 

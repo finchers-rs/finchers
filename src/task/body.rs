@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 use futures::{Future, Poll, Stream};
-use request::{self, BodyError, FromBody};
+use http::{self, BodyError, FromBody};
 use task::{Task, TaskContext};
 
 
@@ -37,7 +37,7 @@ where
 
 #[derive(Debug)]
 pub struct BodyFuture<T, E> {
-    inner: Option<(request::Body, Vec<u8>)>,
+    inner: Option<(http::Body, Vec<u8>)>,
     _marker: PhantomData<fn() -> (T, E)>,
 }
 

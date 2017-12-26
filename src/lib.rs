@@ -14,21 +14,21 @@ extern crate tokio_service;
 
 pub mod contrib;
 pub mod endpoint;
-pub mod request;
-pub mod response;
+pub mod http;
+pub mod responder;
 pub mod service;
 pub mod task;
 pub mod test;
 
 
 #[doc(inline)]
-pub use endpoint::{Endpoint, EndpointContext, IntoEndpoint, NotFound};
+pub use endpoint::{Endpoint, IntoEndpoint, NotFound};
 
 #[doc(inline)]
-pub use request::Request;
+pub use http::{Body, Request};
 
 #[doc(inline)]
-pub use response::Responder;
+pub use responder::{IntoResponder, Responder};
 
 #[doc(inline)]
-pub use task::{Task, TaskContext};
+pub use task::Task;
