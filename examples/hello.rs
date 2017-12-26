@@ -1,13 +1,13 @@
+#![cfg_attr(rustfmt, rustfmt_skip)]
+
 #[macro_use]
 extern crate error_chain;
-extern crate finchers;
 #[macro_use]
-extern crate serde_json;
+extern crate finchers;
 
 use std::sync::Arc;
 use std::string::{FromUtf8Error, ParseError};
 use std::error::Error as StdError;
-use serde_json::Value;
 
 use finchers::{Endpoint, NotFound, Responder};
 use finchers::endpoint::method::{get, post};
@@ -17,7 +17,7 @@ use finchers::service::ServerBuilder;
 
 
 error_chain! {
-    types { MyError, MyErrorKind, ResultExt; }
+    types { Error, ErrorKind, ResultExt, Result; }
     foreign_links {
         NotFound(NotFound);
         ParsePath(ParseError);
@@ -26,35 +26,36 @@ error_chain! {
     }
 }
 
-impl Responder for MyError {
-    type Body = Value;
+impl Responder for Error {
+    type Body = String;
 
     fn status(&self) -> StatusCode {
         match *self.kind() {
-            MyErrorKind::NotFound(..) => StatusCode::NotFound,
+            ErrorKind::NotFound(..) => StatusCode::NotFound,
+            ErrorKind::BodyRecv(..) => StatusCode::InternalServerError,
             _ => StatusCode::BadRequest,
         }
     }
 
-    fn body(&mut self) -> Option<Value> {
-        Some(json!({
-            "error_code": self.status().to_string(),
-            "description": self.description(),
-            "message": self.to_string(),
-        }))
+    fn body(&mut self) -> Option<Self::Body> {
+        Some(format!("{}: {}", self.description(), self.to_string()))
     }
 }
 
 fn main() {
-    // GET /foo/:id
-    let endpoint1 =
-        get(("foo", path())).and_then(|(_, name): (_, String)| Ok(format!("Hello, {}", name)) as Result<_, MyError>);
+    // GET /hello/:id
+    let endpoint1 = get(("hello" , path()))
+        .and_then(|(_, name): (_, String)| -> Result<_> {
+            Ok(format!("Hello, {}", name))
+        });
 
-    // POST /foo/:id [String] (Content-type: text/plain; charset=utf-8)
-    let endpoint2 = post(("foo", path(), body()))
-        .and_then(|(_, name, body): (_, String, String)| Ok(format!("Hello, {} ({})", name, body)));
+    // POST /foo [String] (Content-type: text/plain; charset=utf-8)
+    let endpoint2 = post(("hello", body()))
+        .and_then(|(_, body): (_, String)| {
+            Ok(format!("Received: {}", body))
+        });
 
-    let endpoint = endpoint1.or(endpoint2);
+    let endpoint = choice!(endpoint1, endpoint2);
 
     ServerBuilder::default()
         .bind("0.0.0.0:8080")
