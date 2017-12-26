@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 
-use super::super::{Endpoint, EndpointContext, IntoEndpoint};
+use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
 
 pub fn skip_all<I, E, A, B>(iter: I) -> SkipAll<E::Endpoint>
 where

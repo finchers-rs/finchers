@@ -4,7 +4,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 use futures::IntoFuture;
 use tokio_core::reactor::Handle;
-use response::IntoResponder;
+use responder::IntoResponder;
 use task::Task;
 use service::EndpointService;
 use super::*;
@@ -194,6 +194,14 @@ where
 
     fn into_endpoint(self) -> Self::Endpoint {
         self
+    }
+}
+
+impl<E> IntoEndpoint<(), E> for () {
+    type Endpoint = EndpointOk<(), E>;
+
+    fn into_endpoint(self) -> Self::Endpoint {
+        ok(())
     }
 }
 

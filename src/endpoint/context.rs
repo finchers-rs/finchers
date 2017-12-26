@@ -1,5 +1,5 @@
 use tokio_core::reactor::Handle;
-use request::Request;
+use http::Request;
 
 
 #[allow(missing_docs)]

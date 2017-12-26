@@ -1,5 +1,6 @@
 //! Definition of the trait `Endpoint` and its implementors
 
+mod macros;
 pub mod method;
 
 pub(crate) mod body;

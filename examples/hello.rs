@@ -9,11 +9,10 @@ use std::string::{FromUtf8Error, ParseError};
 use std::error::Error as StdError;
 use serde_json::Value;
 
-use finchers::{Endpoint, NotFound};
+use finchers::{Endpoint, NotFound, Responder};
 use finchers::endpoint::method::{get, post};
 use finchers::endpoint::{body, path};
-use finchers::request::BodyError;
-use finchers::response::{Responder, StatusCode};
+use finchers::http::{self, StatusCode};
 use finchers::service::ServerBuilder;
 
 
@@ -22,7 +21,7 @@ error_chain! {
     foreign_links {
         NotFound(NotFound);
         ParsePath(ParseError);
-        BodyRecv(BodyError);
+        BodyRecv(http::Error);
         FromUtf8(FromUtf8Error);
     }
 }

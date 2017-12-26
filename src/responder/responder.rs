@@ -1,6 +1,4 @@
-use hyper::Response;
-use super::{IntoBody, StatusCode};
-use super::header::Headers;
+use http::{Headers, IntoBody, Response, StatusCode};
 
 
 pub trait Responder: Sized {
@@ -76,7 +74,8 @@ pub fn respond<R: IntoResponder>(res: R) -> Response {
     let mut response = Response::new();
     response.set_status(res.status());
     if let Some(body) = res.body() {
-        body.into_body(response.headers_mut());
+        let body = body.into_body(response.headers_mut());
+        response.set_body(body);
     }
     res.headers(response.headers_mut());
     response

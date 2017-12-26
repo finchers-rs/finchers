@@ -3,8 +3,8 @@
 use std::fmt;
 use std::error;
 use std::marker::PhantomData;
-use hyper::header;
 use endpoint::{Endpoint, EndpointContext};
+use http::header;
 
 
 #[allow(missing_docs)]
