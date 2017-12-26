@@ -3,7 +3,7 @@
 use std::marker::PhantomData;
 
 use endpoint::{Endpoint, EndpointContext};
-use http::{BodyError, FromBody};
+use http::{self, FromBody};
 use task;
 
 
@@ -11,7 +11,7 @@ use task;
 pub fn body<T, E>() -> Body<T, E>
 where
     T: FromBody,
-    E: From<BodyError> + From<T::Error>,
+    E: From<http::Error> + From<T::Error>,
 {
     Body {
         _marker: PhantomData,
@@ -36,7 +36,7 @@ impl<T, E> Clone for Body<T, E> {
 impl<T, E> Endpoint for Body<T, E>
 where
     T: FromBody,
-    E: From<BodyError> + From<T::Error>,
+    E: From<http::Error> + From<T::Error>,
 {
     type Item = T;
     type Error = E;

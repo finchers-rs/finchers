@@ -13,7 +13,7 @@ pub(crate) fn reconstruct(req: hyper::Request) -> (Request, Body) {
             uri,
             headers,
         },
-        Body::from_raw(body),
+        body,
     )
 }
 

@@ -10,7 +10,7 @@ use self::serde::ser::Serialize;
 use self::serde::de::DeserializeOwned;
 
 use endpoint::body::{body, Body};
-use http::{self, header, mime, BodyError, FromBody, Headers, IntoBody, Request};
+use http::{self, header, mime, FromBody, Headers, IntoBody, Request};
 
 
 /// Represents a JSON value
@@ -38,7 +38,7 @@ impl<T: Serialize> IntoBody for Json<T> {
         ));
         h.set(header::ContentType::json());
         h.set(header::ContentLength(body.len() as u64));
-        http::Body::from_raw(body.into())
+        body.into()
     }
 }
 
@@ -47,7 +47,7 @@ impl IntoBody for Value {
         let body = self.to_string();
         h.set(header::ContentType::json());
         h.set(header::ContentLength(body.len() as u64));
-        http::Body::from_raw(body.into())
+        body.into()
     }
 }
 
@@ -55,7 +55,7 @@ impl IntoBody for Value {
 /// Create an endpoint with parsing JSON body
 pub fn json_body<T: DeserializeOwned, E>() -> Body<Json<T>, E>
 where
-    E: From<BodyError> + From<serde_json::Error>,
+    E: From<http::Error> + From<serde_json::Error>,
 {
     body::<Json<T>, E>()
 }

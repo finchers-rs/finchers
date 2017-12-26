@@ -25,9 +25,6 @@ pub mod test;
 pub use endpoint::{Endpoint, IntoEndpoint, NotFound};
 
 #[doc(inline)]
-pub use http::{Body, Request};
-
-#[doc(inline)]
 pub use responder::{IntoResponder, Responder};
 
 #[doc(inline)]

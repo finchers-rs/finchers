@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 use futures::{Future, Poll, Stream};
-use http::{self, BodyError, FromBody};
+use http::{self, FromBody};
 use task::{Task, TaskContext};
 
 
@@ -20,7 +20,7 @@ impl<T, E> Default for Body<T, E> {
 impl<T, E> Task for Body<T, E>
 where
     T: FromBody,
-    E: From<BodyError> + From<T::Error>,
+    E: From<http::Error> + From<T::Error>,
 {
     type Item = T;
     type Error = E;
@@ -44,7 +44,7 @@ pub struct BodyFuture<T, E> {
 impl<T, E> Future for BodyFuture<T, E>
 where
     T: FromBody,
-    E: From<BodyError> + From<T::Error>,
+    E: From<http::Error> + From<T::Error>,
 {
     type Item = T;
     type Error = E;
