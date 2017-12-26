@@ -6,13 +6,13 @@ extern crate error_chain;
 extern crate finchers;
 
 use std::sync::Arc;
-use std::string::{FromUtf8Error, ParseError};
+use std::string::ParseError;
 use std::error::Error as StdError;
 
 use finchers::{Endpoint, NotFound, Responder};
 use finchers::endpoint::method::{get, post};
 use finchers::endpoint::{body, path};
-use finchers::http::{self, StatusCode};
+use finchers::http::{self, StatusCode, StringBodyError};
 use finchers::service::ServerBuilder;
 
 
@@ -22,7 +22,7 @@ error_chain! {
         NotFound(NotFound);
         ParsePath(ParseError);
         BodyRecv(http::Error);
-        FromUtf8(FromUtf8Error);
+        StringBody(StringBodyError);
     }
 }
 

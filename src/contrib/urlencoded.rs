@@ -1,5 +1,3 @@
-#![allow(missing_docs)]
-
 //! Support for parsing urlencoded queries and message body.
 //!
 //! # Example
@@ -11,9 +9,7 @@
 //! }
 //!
 //! impl FromForm for Foo {
-//!     type Error = str::FromUtf8Error;
-//!
-//!     fn from_form(iter: FormPairs) -> Result<Self, FormError<Self::Error>> {
+//!     fn from_form(iter: FormPairs) -> Result<Self, FormError> {
 //!         let (mut id, mut name) = (None, None);
 //!         for (key, value) in iter {
 //!             match key.as_str() {
@@ -42,19 +38,20 @@
 //! }
 //! ```
 
+#![allow(missing_docs)]
+
 extern crate url;
 
 use std::borrow::Cow;
-use std::{error, fmt};
-use http::{mime, FromBody, Request};
+use std::fmt;
+use std::error::Error;
+use http::{mime, FromBody, Request, StatusCode};
+use responder::Responder;
 
 /// A trait for parsing from `urlencoded` message body.
 pub trait FromForm: Sized {
-    /// The error type during `from_form`.
-    type Error: error::Error;
-
     /// Convert from the pairs of keys/values to itself.
-    fn from_form<'a, I>(iter: I) -> Result<Self, FormError<Self::Error>>
+    fn from_form<'a, I>(iter: I) -> Result<Self, FormError>
     where
         I: Iterator<Item = (Cow<'a, str>, Cow<'a, str>)>;
 }
@@ -64,11 +61,15 @@ pub trait FromForm: Sized {
 pub struct Form<F: FromForm>(pub F);
 
 impl<F: FromForm> FromBody for Form<F> {
-    type Error = FormError<F::Error>;
+    type Error = FormError;
 
-    fn check_request(req: &Request) -> bool {
-        req.media_type()
+    fn validate(req: &Request) -> Result<(), Self::Error> {
+        if !req.media_type()
             .map_or(true, |m| *m == mime::APPLICATION_WWW_FORM_URLENCODED)
+        {
+            return Err(FormError::BadRequest);
+        }
+        Ok(())
     }
 
     fn from_body(body: Vec<u8>) -> Result<Self, Self::Error> {
@@ -79,7 +80,8 @@ impl<F: FromForm> FromBody for Form<F> {
 
 /// The error type returned from `FromForm::from_form`.
 #[derive(Debug)]
-pub enum FormError<E> {
+pub enum FormError {
+    BadRequest,
     /// The invalid key is exist.
     InvalidKey(Cow<'static, str>),
     /// The missing key is exist.
@@ -87,12 +89,12 @@ pub enum FormError<E> {
     /// The duplicated key is exist.
     DuplicatedKey(Cow<'static, str>),
     /// The other error
-    Other(E),
+    Other(Box<Error + Send>),
 }
 
 pub use self::FormError::*;
 
-impl<E> FormError<E> {
+impl FormError {
     #[allow(missing_docs)]
     pub fn invalid_key<S: Into<Cow<'static, str>>>(key: S) -> Self {
         InvalidKey(key.into())
@@ -107,17 +109,17 @@ impl<E> FormError<E> {
     pub fn duplicated_key<S: Into<Cow<'static, str>>>(key: S) -> Self {
         DuplicatedKey(key.into())
     }
-}
 
-impl<E> From<E> for FormError<E> {
-    fn from(e: E) -> Self {
-        Other(e)
+    #[allow(missing_docs)]
+    pub fn other<E: Error + Send + 'static>(err: E) -> Self {
+        Other(Box::new(err))
     }
 }
 
-impl<E: fmt::Display> fmt::Display for FormError<E> {
+impl fmt::Display for FormError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
+            BadRequest => f.write_str("bad request"),
             InvalidKey(ref key) => write!(f, "invalid key: \"{}\"", key),
             MissingKey(ref key) => write!(f, "missing key: \"{}\"", key),
             DuplicatedKey(ref key) => write!(f, "duplicated key: \"{}\"", key),
@@ -126,8 +128,20 @@ impl<E: fmt::Display> fmt::Display for FormError<E> {
     }
 }
 
-impl<E: fmt::Debug + fmt::Display> error::Error for FormError<E> {
+impl Error for FormError {
     fn description(&self) -> &str {
         "during parsing the urlencoded body"
+    }
+}
+
+impl Responder for FormError {
+    type Body = String;
+
+    fn status(&self) -> StatusCode {
+        StatusCode::BadRequest
+    }
+
+    fn body(&mut self) -> Option<Self::Body> {
+        Some(format!("{}: {}", self.description(), self))
     }
 }
