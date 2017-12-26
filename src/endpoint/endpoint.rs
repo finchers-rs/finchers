@@ -197,6 +197,14 @@ where
     }
 }
 
+impl<E> IntoEndpoint<(), E> for () {
+    type Endpoint = EndpointOk<(), E>;
+
+    fn into_endpoint(self) -> Self::Endpoint {
+        ok(())
+    }
+}
+
 impl<T, A, B> IntoEndpoint<Vec<A>, B> for Vec<T>
 where
     T: IntoEndpoint<A, B>,
