@@ -11,7 +11,7 @@ use net2::TcpBuilder;
 use tokio_core::net::TcpListener;
 use tokio_core::reactor::{Core, Handle};
 
-use endpoint::{Endpoint, NotFound};
+use endpoint::{Endpoint, NoRoute};
 use responder::IntoResponder;
 
 /// The factory of HTTP service
@@ -56,7 +56,7 @@ impl ServerBuilder {
     where
         E: Endpoint + Clone + Send + Sync + 'static,
         E::Item: IntoResponder,
-        E::Error: IntoResponder + From<NotFound>,
+        E::Error: IntoResponder + From<NoRoute>,
     {
         if self.addrs.is_empty() {
             self.addrs.push("0.0.0.0:4000".parse().unwrap());
@@ -82,7 +82,7 @@ pub struct Worker<E>
 where
     E: Endpoint + Clone + 'static,
     E::Item: IntoResponder,
-    E::Error: IntoResponder + From<NotFound>,
+    E::Error: IntoResponder + From<NoRoute>,
 {
     endpoint: E,
     proto: Http<Chunk>,
@@ -95,7 +95,7 @@ impl<E> Worker<E>
 where
     E: Endpoint + Clone + 'static,
     E::Item: IntoResponder,
-    E::Error: IntoResponder + From<NotFound>,
+    E::Error: IntoResponder + From<NoRoute>,
 {
     pub fn new(endpoint: E, proto: Http<Chunk>, addrs: Vec<SocketAddr>) -> Self {
         Worker {

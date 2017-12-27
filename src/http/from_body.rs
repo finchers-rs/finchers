@@ -1,9 +1,9 @@
-use std::error::Error as StdError;
+use std::error::Error;
 use std::fmt;
 use std::string::FromUtf8Error;
 use hyper::mime;
 use super::{Request, StatusCode};
-use responder::Responder;
+use responder::ErrorResponder;
 
 /// The conversion from received request body.
 pub trait FromBody: Sized {
@@ -75,7 +75,7 @@ impl fmt::Display for StringBodyError {
     }
 }
 
-impl StdError for StringBodyError {
+impl Error for StringBodyError {
     fn description(&self) -> &str {
         match *self {
             StringBodyError::BadRequest => "",
@@ -84,14 +84,8 @@ impl StdError for StringBodyError {
     }
 }
 
-impl Responder for StringBodyError {
-    type Body = String;
-
+impl ErrorResponder for StringBodyError {
     fn status(&self) -> StatusCode {
         StatusCode::BadRequest
-    }
-
-    fn body(&mut self) -> Option<Self::Body> {
-        Some(format!("{}: {}", self.description(), self))
     }
 }

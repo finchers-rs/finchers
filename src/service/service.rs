@@ -7,7 +7,7 @@ use tokio_core::reactor::Handle;
 use tokio_service::Service;
 
 use http;
-use endpoint::{Endpoint, EndpointContext, NotFound};
+use endpoint::{Endpoint, EndpointContext, NoRoute};
 use task::{Task, TaskContext};
 use responder::{self, IntoResponder, ResponderContext};
 
@@ -17,7 +17,7 @@ pub struct EndpointService<E>
 where
     E: Endpoint,
     E::Item: IntoResponder,
-    E::Error: IntoResponder + From<NotFound>,
+    E::Error: IntoResponder + From<NoRoute>,
 {
     endpoint: E,
     handle: Handle,
@@ -27,7 +27,7 @@ impl<E> EndpointService<E>
 where
     E: Endpoint,
     E::Item: IntoResponder,
-    E::Error: IntoResponder + From<NotFound>,
+    E::Error: IntoResponder + From<NoRoute>,
 {
     pub(crate) fn new(endpoint: E, handle: &Handle) -> Self {
         EndpointService {
@@ -41,7 +41,7 @@ impl<E> Service for EndpointService<E>
 where
     E: Endpoint,
     E::Item: IntoResponder,
-    E::Error: IntoResponder + From<NotFound>,
+    E::Error: IntoResponder + From<NoRoute>,
 {
     type Request = hyper::Request;
     type Response = hyper::Response;
@@ -64,7 +64,7 @@ where
                     };
                     Inner::Polling(task.launch(&mut ctx))
                 }
-                None => Inner::NotMatched(NotFound),
+                None => Inner::NoRoute(NoRoute),
             }
         };
 
@@ -86,7 +86,7 @@ impl<F> Future for EndpointServiceFuture<F>
 where
     F: Future,
     F::Item: IntoResponder,
-    F::Error: IntoResponder + From<NotFound>,
+    F::Error: IntoResponder + From<NoRoute>,
 {
     type Item = hyper::Response;
     type Error = hyper::Error;
@@ -103,13 +103,13 @@ where
 #[derive(Debug)]
 pub(crate) enum Inner<F> {
     Polling(F),
-    NotMatched(NotFound),
+    NoRoute(NoRoute),
     Done,
 }
 
 impl<F: Future> Future for Inner<F>
 where
-    F::Error: From<NotFound>,
+    F::Error: From<NoRoute>,
 {
     type Item = F::Item;
     type Error = F::Error;
@@ -117,11 +117,11 @@ where
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         match *self {
             Inner::Polling(ref mut t) => return t.poll(),
-            Inner::NotMatched(..) => {}
+            Inner::NoRoute(..) => {}
             Inner::Done => panic!(),
         }
         match mem::replace(self, Inner::Done) {
-            Inner::NotMatched(e) => Err(e.into()),
+            Inner::NoRoute(e) => Err(e.into()),
             _ => panic!(),
         }
     }

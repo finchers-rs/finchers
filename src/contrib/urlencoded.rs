@@ -46,7 +46,7 @@ use std::borrow::Cow;
 use std::fmt;
 use std::error::Error;
 use http::{mime, FromBody, Request, StatusCode};
-use responder::Responder;
+use responder::ErrorResponder;
 
 /// A trait for parsing from `urlencoded` message body.
 pub trait FromForm: Sized {
@@ -134,14 +134,8 @@ impl Error for FormError {
     }
 }
 
-impl Responder for FormError {
-    type Body = String;
-
+impl ErrorResponder for FormError {
     fn status(&self) -> StatusCode {
         StatusCode::BadRequest
-    }
-
-    fn body(&mut self) -> Option<Self::Body> {
-        Some(format!("{}: {}", self.description(), self))
     }
 }

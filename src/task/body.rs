@@ -21,7 +21,7 @@ impl<T, E> Default for Body<T, E> {
 impl<T, E> Task for Body<T, E>
 where
     T: FromBody,
-    E: From<http::Error> + From<T::Error>,
+    E: From<http::HttpError> + From<T::Error>,
 {
     type Item = T;
     type Error = E;
@@ -50,7 +50,7 @@ pub enum BodyFuture<T, E> {
 impl<T, E> Future for BodyFuture<T, E>
 where
     T: FromBody,
-    E: From<http::Error> + From<T::Error>,
+    E: From<http::HttpError> + From<T::Error>,
 {
     type Item = T;
     type Error = E;
