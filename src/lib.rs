@@ -4,6 +4,7 @@
 //! Finchers is a combinator library for building HTTP services, based on
 //! Hyper and Futures.
 
+extern crate cookie;
 #[macro_use]
 extern crate futures;
 extern crate hyper;
