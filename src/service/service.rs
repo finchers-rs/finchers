@@ -62,9 +62,9 @@ where
                         cookies: &mut cookies,
                         body: Some(body),
                     };
-                    Polling(task.launch(&mut ctx))
+                    Inner::Polling(task.launch(&mut ctx))
                 }
-                None => NotMatched,
+                None => Inner::NotMatched(NotFound),
             }
         };
 
@@ -82,37 +82,6 @@ pub struct EndpointServiceFuture<F> {
     context: ResponderContext,
 }
 
-#[derive(Debug)]
-enum Inner<T> {
-    NotMatched,
-    Polling(T),
-    Done,
-}
-use self::Inner::*;
-
-impl<F> EndpointServiceFuture<F>
-where
-    F: Future,
-    F::Item: IntoResponder,
-    F::Error: IntoResponder + From<NotFound>,
-{
-    fn poll_task(&mut self) -> Poll<F::Item, F::Error> {
-        match self.inner {
-            Polling(ref mut t) => return t.poll(),
-            NotMatched => {}
-            Done => panic!(),
-        }
-        match mem::replace(&mut self.inner, Done) {
-            NotMatched => Err(NotFound.into()),
-            _ => panic!(),
-        }
-    }
-
-    fn respond<T: IntoResponder>(&mut self, item: T) -> hyper::Response {
-        responder::respond(item, &mut self.context)
-    }
-}
-
 impl<F> Future for EndpointServiceFuture<F>
 where
     F: Future,
@@ -123,10 +92,37 @@ where
     type Error = hyper::Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        match self.poll_task() {
-            Ok(Async::Ready(item)) => Ok(Async::Ready(self.respond(item))),
+        match self.inner.poll() {
             Ok(Async::NotReady) => Ok(Async::NotReady),
-            Err(err) => Ok(Async::Ready(self.respond(err))),
+            Ok(Async::Ready(item)) => Ok(Async::Ready(responder::respond(item, &mut self.context))),
+            Err(err) => Ok(Async::Ready(responder::respond(err, &mut self.context))),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub(crate) enum Inner<F> {
+    Polling(F),
+    NotMatched(NotFound),
+    Done,
+}
+
+impl<F: Future> Future for Inner<F>
+where
+    F::Error: From<NotFound>,
+{
+    type Item = F::Item;
+    type Error = F::Error;
+
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        match *self {
+            Inner::Polling(ref mut t) => return t.poll(),
+            Inner::NotMatched(..) => {}
+            Inner::Done => panic!(),
+        }
+        match mem::replace(self, Inner::Done) {
+            Inner::NotMatched(e) => Err(e.into()),
+            _ => panic!(),
         }
     }
 }
