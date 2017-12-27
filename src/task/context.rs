@@ -1,24 +1,17 @@
 use tokio_core::reactor::Handle;
-use http::{Body, Request};
+use http::{Body, CookieJar, Request};
 
 #[derive(Debug)]
 pub struct TaskContext<'a> {
-    request: &'a Request,
-    handle: &'a Handle,
-    body: Option<Body>,
+    pub(crate) request: &'a Request,
+    pub(crate) handle: &'a Handle,
+    pub(crate) cookies: &'a mut CookieJar,
+    pub(crate) body: Option<Body>,
 }
 
 impl<'a> TaskContext<'a> {
-    pub(crate) fn new(request: &'a Request, handle: &'a Handle, body: Body) -> Self {
-        Self {
-            request,
-            handle,
-            body: Some(body),
-        }
-    }
-
-    pub fn request(&self) -> &Request {
-        &self.request
+    pub fn request(&self) -> &'a Request {
+        self.request
     }
 
     pub fn take_body(&mut self) -> Option<Body> {
@@ -27,5 +20,9 @@ impl<'a> TaskContext<'a> {
 
     pub fn handle(&self) -> &'a Handle {
         self.handle
+    }
+
+    pub fn cookies(&mut self) -> &mut CookieJar {
+        &mut *self.cookies
     }
 }

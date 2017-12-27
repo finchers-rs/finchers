@@ -1,4 +1,6 @@
-use http::{Headers, IntoBody, Response, StatusCode};
+use http::{CookieJar, Headers, IntoBody, Response, StatusCode};
+use http::header::SetCookie;
+use super::ResponderContext;
 
 pub trait Responder: Sized {
     type Body: IntoBody;
@@ -12,6 +14,8 @@ pub trait Responder: Sized {
     }
 
     fn headers(&self, &mut Headers) {}
+
+    fn cookies(&self, &mut CookieJar) {}
 }
 
 impl Responder for () {
@@ -64,8 +68,9 @@ impl IntoResponder for ::std::borrow::Cow<'static, str> {
     }
 }
 
-pub fn respond<R: IntoResponder>(res: R) -> Response {
+pub fn respond<R: IntoResponder>(res: R, ctx: &mut ResponderContext) -> Response {
     let mut res = res.into_responder();
+
     let mut response = Response::new();
     response.set_status(res.status());
     if let Some(body) = res.body() {
@@ -73,5 +78,12 @@ pub fn respond<R: IntoResponder>(res: R) -> Response {
         response.set_body(body);
     }
     res.headers(response.headers_mut());
+
+    res.cookies(&mut ctx.cookies);
+    let cookies: Vec<_> = ctx.cookies.delta().map(|c| c.to_string()).collect();
+    if cookies.len() > 0 {
+        response.headers_mut().set(SetCookie(cookies));
+    }
+
     response
 }
