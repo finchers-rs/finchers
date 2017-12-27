@@ -3,7 +3,7 @@
 use tokio_core::reactor::Core;
 
 use endpoint::{Endpoint, EndpointContext};
-use http::{Body, Header, Method, Request};
+use http::{self, Body, Header, Method, Request};
 use task::{Task, TaskContext};
 
 /// A test case for `run_test()`
@@ -71,11 +71,17 @@ where
     let handle = core.handle();
 
     let TestCase { request, body } = input;
+    let mut cookies = http::cookie::init_cookie_jar(&request);
 
     let mut ctx = EndpointContext::new(&request, &handle);
     let task = endpoint.as_ref().apply(&mut ctx)?;
 
-    let mut ctx = TaskContext::new(&request, &handle, body.unwrap_or_default());
+    let mut ctx = TaskContext {
+        request: &request,
+        handle: &handle,
+        cookies: &mut cookies,
+        body: Some(body.unwrap_or_default()),
+    };
     let result = core.run(task.launch(&mut ctx));
 
     Some(result)
