@@ -56,7 +56,11 @@ pub trait Endpoint {
         Self::Item: IntoResponder,
         Self::Error: IntoResponder + From<NoRoute>,
     {
-        EndpointService::new(self.clone(), handle)
+        EndpointService {
+            endpoint: self.clone(),
+            handle: handle.clone(),
+            cookie_manager: Default::default(),
+        }
     }
 
     /// Combine itself and the other endpoint, and create a combinator which returns a pair of its

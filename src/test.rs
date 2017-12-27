@@ -72,7 +72,7 @@ where
     let manager = CookieManager::default();
 
     let TestCase { request, body } = input;
-    let mut cookies = manager.new_cookies(&request);
+    let mut cookies = manager.new_cookies(request.header());
 
     let mut ctx = EndpointContext::new(&request, &handle);
     let task = endpoint.as_ref().apply(&mut ctx)?;

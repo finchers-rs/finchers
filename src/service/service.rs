@@ -19,9 +19,9 @@ where
     E::Item: IntoResponder,
     E::Error: IntoResponder + From<NoRoute>,
 {
-    endpoint: E,
-    cookie_manager: CookieManager,
-    handle: Handle,
+    pub(crate) endpoint: E,
+    pub(crate) handle: Handle,
+    pub(crate) cookie_manager: CookieManager,
 }
 
 impl<E> EndpointService<E>
@@ -30,12 +30,8 @@ where
     E::Item: IntoResponder,
     E::Error: IntoResponder + From<NoRoute>,
 {
-    pub(crate) fn new(endpoint: E, handle: &Handle) -> Self {
-        EndpointService {
-            endpoint,
-            cookie_manager: Default::default(),
-            handle: handle.clone(),
-        }
+    pub fn cookie_manager(&mut self) -> &mut CookieManager {
+        &mut self.cookie_manager
     }
 }
 
@@ -52,7 +48,7 @@ where
 
     fn call(&self, req: hyper::Request) -> Self::Future {
         let (request, body) = http::request::reconstruct(req);
-        let mut cookies = self.cookie_manager.new_cookies(&request);
+        let mut cookies = self.cookie_manager.new_cookies(request.header());
 
         let inner = {
             let mut ctx = EndpointContext::new(&request, &self.handle);
