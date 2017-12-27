@@ -15,7 +15,7 @@ use std::fmt;
 use std::error;
 use endpoint::body::{body, Body};
 use http::{self, header, mime, FromBody, Headers, IntoBody, Request, StatusCode};
-use responder::Responder;
+use responder::ErrorResponder;
 
 impl FromBody for Value {
     type Error = JsonError;
@@ -83,7 +83,7 @@ impl<T: Serialize> IntoBody for Json<T> {
 /// Create an endpoint with parsing JSON body
 pub fn json_body<T: DeserializeOwned, E>() -> Body<Json<T>, E>
 where
-    E: From<http::Error> + From<JsonError>,
+    E: From<http::HttpError> + From<JsonError>,
 {
     body::<Json<T>, E>()
 }
@@ -112,14 +112,8 @@ impl error::Error for JsonError {
     }
 }
 
-impl Responder for JsonError {
-    type Body = String;
-
+impl ErrorResponder for JsonError {
     fn status(&self) -> StatusCode {
         StatusCode::BadRequest
-    }
-
-    fn body(&mut self) -> Option<Self::Body> {
-        Some(format!("{}: {}", error::Error::description(self), self))
     }
 }

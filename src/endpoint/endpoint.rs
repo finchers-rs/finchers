@@ -1,27 +1,37 @@
 use std::fmt;
-use std::error;
+use std::error::Error;
 use std::rc::Rc;
 use std::sync::Arc;
 use futures::IntoFuture;
 use tokio_core::reactor::Handle;
-use responder::IntoResponder;
+use http::StatusCode;
+use responder::{ErrorResponder, IntoResponder};
 use task::Task;
 use service::EndpointService;
 use super::*;
 
 #[allow(missing_docs)]
 #[derive(Debug)]
-pub struct NotFound;
+pub struct NoRoute;
 
-impl fmt::Display for NotFound {
+impl fmt::Display for NoRoute {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str("not found")
     }
 }
 
-impl error::Error for NotFound {
+impl Error for NoRoute {
     fn description(&self) -> &str {
         "not found"
+    }
+}
+
+impl ErrorResponder for NoRoute {
+    fn status(&self) -> StatusCode {
+        StatusCode::NotFound
+    }
+    fn message(&self) -> Option<String> {
+        None
     }
 }
 
@@ -44,7 +54,7 @@ pub trait Endpoint {
     where
         Self: Clone,
         Self::Item: IntoResponder,
-        Self::Error: IntoResponder + From<NotFound>,
+        Self::Error: IntoResponder + From<NoRoute>,
     {
         EndpointService::new(self.clone(), handle)
     }

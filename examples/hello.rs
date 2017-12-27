@@ -1,59 +1,22 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
-
 #[macro_use]
 extern crate error_chain;
 #[macro_use]
 extern crate finchers;
 
 use std::sync::Arc;
-use std::string::ParseError;
-use std::error::Error as StdError;
-
-use finchers::{Endpoint, NotFound, Responder};
-use finchers::endpoint::method::{get, post};
+use finchers::Endpoint;
 use finchers::endpoint::{body, path};
-use finchers::http::{self, StatusCode, StringBodyError};
+use finchers::endpoint::method::{get, post};
 use finchers::service::ServerBuilder;
-
-
-error_chain! {
-    types { Error, ErrorKind, ResultExt, Result; }
-    foreign_links {
-        NotFound(NotFound);
-        ParsePath(ParseError);
-        BodyRecv(http::Error);
-        StringBody(StringBodyError);
-    }
-}
-
-impl Responder for Error {
-    type Body = String;
-
-    fn status(&self) -> StatusCode {
-        match *self.kind() {
-            ErrorKind::NotFound(..) => StatusCode::NotFound,
-            ErrorKind::BodyRecv(..) => StatusCode::InternalServerError,
-            _ => StatusCode::BadRequest,
-        }
-    }
-
-    fn body(&mut self) -> Option<Self::Body> {
-        Some(format!("{}: {}", self.description(), self.to_string()))
-    }
-}
+use errors::*;
 
 fn main() {
     // GET /hello/:id
-    let endpoint1 = get(("hello" , path()))
-        .and_then(|(_, name): (_, String)| -> Result<_> {
-            Ok(format!("Hello, {}", name))
-        });
+    let endpoint1 =
+        get(("hello", path())).and_then(|(_, name): (_, String)| -> Result<_> { Ok(format!("Hello, {}", name)) });
 
-    // POST /foo [String] (Content-type: text/plain; charset=utf-8)
-    let endpoint2 = post(("hello", body()))
-        .and_then(|(_, body): (_, String)| {
-            Ok(format!("Received: {}", body))
-        });
+    // POST /hello [String] (Content-type: text/plain; charset=utf-8)
+    let endpoint2 = post(("hello", body())).and_then(|(_, body): (_, String)| Ok(format!("Received: {}", body)));
 
     let endpoint = choice!(endpoint1, endpoint2);
 
@@ -61,4 +24,45 @@ fn main() {
         .bind("0.0.0.0:8080")
         .num_workers(1)
         .serve(Arc::new(endpoint));
+}
+
+// TODO: code generation
+mod errors {
+    use finchers::{ErrorResponder, NoRoute};
+    use finchers::http::{HttpError, StatusCode, StringBodyError};
+    use std::string::ParseError;
+
+    error_chain! {
+        types { Error, ErrorKind, ResultExt, Result; }
+
+        foreign_links {
+            NoRoute(NoRoute);
+            Path(ParseError);
+            Http(HttpError);
+            Body(StringBodyError);
+        }
+    }
+
+    impl ErrorResponder for Error {
+        fn status(&self) -> StatusCode {
+            match *self.kind() {
+                ErrorKind::NoRoute(ref e) => e.status(),
+                ErrorKind::Path(ref e) => e.status(),
+                ErrorKind::Http(ref e) => e.status(),
+                ErrorKind::Body(ref e) => e.status(),
+                _ => StatusCode::InternalServerError,
+            }
+        }
+
+        fn message(&self) -> Option<String> {
+            match *self.kind() {
+                ErrorKind::NoRoute(ref e) => e.message(),
+                ErrorKind::Path(ref e) => e.message(),
+                ErrorKind::Http(ref e) => e.message(),
+                ErrorKind::Body(ref e) => e.message(),
+                ErrorKind::Msg(ref msg) => Some(format!("other error: {}", msg)),
+                _ => Some("Unknown error".to_string()),
+            }
+        }
+    }
 }

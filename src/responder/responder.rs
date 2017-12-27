@@ -1,3 +1,4 @@
+use std::error::Error;
 use http::{CookieJar, Headers, IntoBody, Response, StatusCode};
 use http::header::SetCookie;
 use super::ResponderContext;
@@ -65,6 +66,52 @@ impl IntoResponder for ::std::borrow::Cow<'static, str> {
     type Responder = StringResponder;
     fn into_responder(self) -> Self::Responder {
         StringResponder(Some(self))
+    }
+}
+
+pub trait ErrorResponder: Error {
+    fn status(&self) -> StatusCode {
+        StatusCode::InternalServerError
+    }
+
+    fn message(&self) -> Option<String> {
+        Some(format!(
+            "description: {}\ndetail: {}",
+            Error::description(self),
+            self
+        ))
+    }
+}
+
+mod implementors {
+    use super::*;
+    use std::string::{FromUtf8Error, ParseError};
+    use http::HttpError;
+
+    impl ErrorResponder for FromUtf8Error {
+        fn status(&self) -> StatusCode {
+            StatusCode::BadRequest
+        }
+    }
+
+    impl ErrorResponder for ParseError {
+        fn status(&self) -> StatusCode {
+            StatusCode::BadRequest
+        }
+    }
+
+    impl ErrorResponder for HttpError {}
+}
+
+impl<E: ErrorResponder> Responder for E {
+    type Body = String;
+
+    fn status(&self) -> StatusCode {
+        ErrorResponder::status(self)
+    }
+
+    fn body(&mut self) -> Option<Self::Body> {
+        self.message()
     }
 }
 
