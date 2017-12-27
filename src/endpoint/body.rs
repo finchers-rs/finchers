@@ -41,7 +41,7 @@ where
     type Task = task::body::Body<T, E>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
-        match T::check_request(ctx.request()) {
+        match T::is_match(ctx.request()) {
             true => Some(task::body::Body::default()),
             false => None,
         }
