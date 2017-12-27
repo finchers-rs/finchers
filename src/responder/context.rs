@@ -1,7 +1,7 @@
-use http::{CookieJar, Request};
+use http::{Cookies, Request};
 
 #[derive(Debug)]
 pub struct ResponderContext {
     pub(crate) request: Request,
-    pub(crate) cookies: CookieJar,
+    pub(crate) cookies: Cookies,
 }
