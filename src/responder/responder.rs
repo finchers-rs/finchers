@@ -1,48 +1,69 @@
+use std::borrow::Cow;
 use std::error::Error;
-use http::{Cookies, Headers, IntoBody, Response, StatusCode};
-use http::header::SetCookie;
-use super::ResponderContext;
+use http::{Cookies, Headers, IntoBody, StatusCode};
 
-pub trait Responder: Sized {
+/// Abstrcution of types converted into a raw HTTP response.
+pub trait Responder {
+    /// The type of the value returned from `body`
     type Body: IntoBody;
 
+    /// Returns the status code of the HTTP response
+    ///
+    /// The default value is `200 OK`.
     fn status(&self) -> StatusCode {
         StatusCode::Ok
     }
 
+    /// Returns the instance of response body, if available.
+    ///
+    /// The default value is `None`.
     fn body(&mut self) -> Option<Self::Body> {
         None
     }
 
+    /// Add additional headers to the response.
+    ///
+    /// By default, this method has no affect to the HTTP response.
     fn headers(&self, &mut Headers) {}
 
+    /// Add additional Cookie entries to the response.
+    ///
+    /// By default, this method has no affect to the HTTP response.
     fn cookies(&self, &mut Cookies) {}
 }
 
 impl Responder for () {
     type Body = ();
+
     fn status(&self) -> StatusCode {
         StatusCode::NoContent
     }
 }
 
+/// Abstrcution of types to be convert to a `Responder`.
 pub trait IntoResponder {
+    /// The type of returned value from `into_response`
     type Responder: Responder;
+
+    /// Convert itself into `Self::Responder`
     fn into_responder(self) -> Self::Responder;
 }
 
 impl<R: Responder> IntoResponder for R {
     type Responder = Self;
+
     fn into_responder(self) -> Self {
         self
     }
 }
 
+/// A responder with the body of string.
 #[derive(Debug)]
-pub struct StringResponder(Option<::std::borrow::Cow<'static, str>>);
+pub struct StringResponder(Option<Cow<'static, str>>);
 
 impl Responder for StringResponder {
-    type Body = ::std::borrow::Cow<'static, str>;
+    type Body = Cow<'static, str>;
+
     fn body(&mut self) -> Option<Self::Body> {
         self.0.take()
     }
@@ -50,6 +71,7 @@ impl Responder for StringResponder {
 
 impl IntoResponder for &'static str {
     type Responder = StringResponder;
+
     fn into_responder(self) -> Self::Responder {
         StringResponder(Some(self.into()))
     }
@@ -57,23 +79,35 @@ impl IntoResponder for &'static str {
 
 impl IntoResponder for String {
     type Responder = StringResponder;
+
     fn into_responder(self) -> Self::Responder {
         StringResponder(Some(self.into()))
     }
 }
 
-impl IntoResponder for ::std::borrow::Cow<'static, str> {
+impl IntoResponder for Cow<'static, str> {
     type Responder = StringResponder;
+
     fn into_responder(self) -> Self::Responder {
         StringResponder(Some(self))
     }
 }
 
+/// Abstruction of an "error" response.
+///
+/// This trait is useful for defining the HTTP response of types
+/// which implements the [`Error`][error] trait.
+/// If the own error response (like JSON body) is required, use
+/// `Responder` directly.
+///
+/// [error]: https://doc.rust-lang.org/stable/std/error/trait.Error.html
 pub trait ErrorResponder: Error {
+    /// Returns the status code of the HTTP response.
     fn status(&self) -> StatusCode {
         StatusCode::InternalServerError
     }
 
+    /// Returns the message string of the HTTP response.
     fn message(&self) -> Option<String> {
         Some(format!(
             "description: {}\ndetail: {}",
@@ -113,24 +147,4 @@ impl<E: ErrorResponder> Responder for E {
     fn body(&mut self) -> Option<Self::Body> {
         self.message()
     }
-}
-
-pub fn respond<R: IntoResponder>(res: R, ctx: &mut ResponderContext) -> Response {
-    let mut res = res.into_responder();
-
-    let mut response = Response::new();
-    response.set_status(res.status());
-    if let Some(body) = res.body() {
-        let body = body.into_body(response.headers_mut());
-        response.set_body(body);
-    }
-    res.headers(response.headers_mut());
-
-    res.cookies(&mut ctx.cookies);
-    let cookies = ctx.cookies.collect_changes();
-    if cookies.len() > 0 {
-        response.headers_mut().set(SetCookie(cookies));
-    }
-
-    response
 }

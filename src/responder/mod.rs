@@ -1,7 +1,6 @@
-#![allow(missing_docs)]
+//! `Responder` layer
 
-mod context;
+pub(crate) mod inner;
 mod responder;
 
-pub use self::context::ResponderContext;
-pub use self::responder::{respond, ErrorResponder, IntoResponder, Responder};
+pub use self::responder::{ErrorResponder, IntoResponder, Responder, StringResponder};

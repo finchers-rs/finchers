@@ -9,7 +9,8 @@ use tokio_service::Service;
 use http::{self, CookieManager};
 use endpoint::{Endpoint, EndpointContext, NoRoute};
 use task::{Task, TaskContext};
-use responder::{self, IntoResponder, ResponderContext};
+use responder::IntoResponder;
+use responder::inner::{respond, ResponderContext};
 
 /// An HTTP service which wraps a `Endpoint`.
 #[derive(Debug, Clone)]
@@ -92,8 +93,8 @@ where
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         match self.inner.poll() {
             Ok(Async::NotReady) => Ok(Async::NotReady),
-            Ok(Async::Ready(item)) => Ok(Async::Ready(responder::respond(item, &mut self.context))),
-            Err(err) => Ok(Async::Ready(responder::respond(err, &mut self.context))),
+            Ok(Async::Ready(item)) => Ok(Async::Ready(respond(item, &mut self.context))),
+            Err(err) => Ok(Async::Ready(respond(err, &mut self.context))),
         }
     }
 }
