@@ -42,7 +42,7 @@ where
     type Task = task::and_then::AndThen<E::Task, F>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
-        let task = self.endpoint.apply(ctx)?;
+        let task = try_opt!(self.endpoint.apply(ctx));
         Some(task::and_then::AndThen {
             task,
             f: self.f.clone(),

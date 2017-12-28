@@ -24,10 +24,12 @@ impl<E: Endpoint> Endpoint for JoinAll<E> {
     type Task = task::join_all::JoinAll<E::Task>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
-        let inner: Vec<E::Task> = self.inner
-            .iter()
-            .map(|e| e.apply(ctx))
-            .collect::<Option<_>>()?;
+        let inner: Vec<E::Task> = try_opt!(
+            self.inner
+                .iter()
+                .map(|e| e.apply(ctx))
+                .collect::<Option<_>>()
+        );
         Some(task::join_all::JoinAll { inner })
     }
 }

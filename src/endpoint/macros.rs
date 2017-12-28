@@ -1,5 +1,14 @@
 //! Utility macros.
 
+macro_rules! try_opt {
+    ($e:expr) => {
+        match $e {
+            Some(e) => e,
+            None => return None,
+        }
+    };
+}
+
 /// Convert the expression(s) into an `Endpoint`.
 #[macro_export]
 macro_rules! e {

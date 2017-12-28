@@ -36,7 +36,7 @@ macro_rules! generate {
 
             fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
                 $(
-                    let $T = self.$T.apply(ctx)?;
+                    let $T = try_opt!(self.$T.apply(ctx));
                 )*
                 Some(task::join::$Join { inner: ($($T),*) })
             }

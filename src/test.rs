@@ -75,7 +75,10 @@ where
     let mut cookies = manager.new_cookies(request.header());
 
     let mut ctx = EndpointContext::new(&request, &handle);
-    let task = endpoint.as_ref().apply(&mut ctx)?;
+    let task = match endpoint.as_ref().apply(&mut ctx) {
+        Some(task) => task,
+        None => return None,
+    };
 
     let mut ctx = TaskContext {
         request: &request,

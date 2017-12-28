@@ -33,8 +33,8 @@ where
     type Task = E1::Task;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
-        let f1 = self.e1.apply(ctx)?;
-        let _f2 = self.e2.apply(ctx)?;
+        let f1 = try_opt!(self.e1.apply(ctx));
+        let _f2 = try_opt!(self.e2.apply(ctx));
         Some(f1)
     }
 }
