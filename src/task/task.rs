@@ -1,11 +1,24 @@
 use super::*;
 use futures::{Future, IntoFuture};
 
+/// Abstruction of a `Task`, returned from an `Endpoint`.
+///
+/// This trait is an generalization of `IntoFuture`,
+/// extended to allow access to the instance of context
+/// at construction a `Future`.
 pub trait Task {
+    /// The type *on success*.
     type Item;
+
+    /// The type *on failure*.
     type Error;
+
+    /// The type of value returned from `launch`.
     type Future: Future<Item = Self::Item, Error = Self::Error>;
 
+    /// Launches itself and construct a `Future`, and then return it.
+    ///
+    /// This method will be called *after* the routing is completed.
     fn launch(self, ctx: &mut TaskContext) -> Self::Future;
 }
 

@@ -8,6 +8,7 @@ pub(crate) enum Either<T1, T2> {
 }
 pub(crate) use self::Either::*;
 
+#[allow(missing_docs)]
 #[derive(Debug)]
 pub struct Or<T1, T2> {
     pub(crate) inner: Either<T1, T2>,
