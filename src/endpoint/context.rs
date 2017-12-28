@@ -1,7 +1,7 @@
 use tokio_core::reactor::Handle;
 use http::Request;
 
-#[allow(missing_docs)]
+/// An iterator of remaning path segments.
 #[derive(Debug, Clone)]
 pub struct Segments<'a> {
     path: &'a str,
@@ -67,7 +67,7 @@ mod tests {
     }
 }
 
-/// A set of values, contains the incoming HTTP request and the finchers-specific context.
+/// A context during the routing.
 #[derive(Debug, Clone)]
 pub struct EndpointContext<'a> {
     request: &'a Request,

@@ -1,4 +1,4 @@
-#![allow(missing_docs)]
+//! Components to construct Hyper's service.
 
 mod server;
 mod service;

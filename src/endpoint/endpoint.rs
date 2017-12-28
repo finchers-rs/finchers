@@ -10,7 +10,8 @@ use task::Task;
 use service::EndpointService;
 use super::*;
 
-#[allow(missing_docs)]
+/// An error represents which represents that
+/// the matched route was not found.
 #[derive(Debug)]
 pub struct NoRoute;
 
@@ -30,23 +31,25 @@ impl ErrorResponder for NoRoute {
     fn status(&self) -> StatusCode {
         StatusCode::NotFound
     }
+
     fn message(&self) -> Option<String> {
         None
     }
 }
 
-/// A HTTP endpoint, which provides the futures from incoming HTTP requests
+/// Abstruction of an endpoint.
 pub trait Endpoint {
-    /// The type of resolved value, created by this endpoint
+    /// The type *on success*.
     type Item;
 
-    #[allow(missing_docs)]
+    /// The type *on failure*
     type Error;
 
-    /// The type of future created by this endpoint
+    /// The type of value returned from `apply`.
     type Task: Task<Item = Self::Item, Error = Self::Error>;
 
-    /// Apply the incoming HTTP request, and return the future of its response
+    /// Validates the incoming HTTP request,
+    /// and returns the instance of `Task` if matched.
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task>;
 
     /// Create a new `Service` from this endpoint
@@ -63,8 +66,7 @@ pub trait Endpoint {
         }
     }
 
-    /// Combine itself and the other endpoint, and create a combinator which returns a pair of its
-    /// `Item`s.
+    #[allow(missing_docs)]
     fn join<T, E>(self, e: E) -> Join<Self, E::Endpoint>
     where
         Self: Sized,
@@ -73,7 +75,7 @@ pub trait Endpoint {
         join::join(self, e)
     }
 
-    /// Combine itself and the other endpoint, and create a combinator which returns `E::Item`.
+    #[allow(missing_docs)]
     fn with<T, E>(self, e: E) -> With<Self, E::Endpoint>
     where
         Self: Sized,
@@ -82,7 +84,7 @@ pub trait Endpoint {
         with::with(self, e)
     }
 
-    /// Combine itself and the other endpoint, and create a combinator which returns `Self::Item`.
+    #[allow(missing_docs)]
     fn skip<T, E>(self, e: E) -> Skip<Self, E::Endpoint>
     where
         Self: Sized,
@@ -91,8 +93,7 @@ pub trait Endpoint {
         skip::skip(self, e)
     }
 
-    /// Create an endpoint which attempts to apply `self`.
-    /// If `self` failes, then revert the context and retry applying `e`.
+    #[allow(missing_docs)]
     fn or<E>(self, e: E) -> Or<Self, E::Endpoint>
     where
         Self: Sized,
@@ -101,7 +102,7 @@ pub trait Endpoint {
         or::or(self, e)
     }
 
-    /// Combine itself and a function to change the return value to another type.
+    #[allow(missing_docs)]
     fn map<F, U>(self, f: F) -> Map<Self, F, U>
     where
         Self: Sized,
@@ -110,7 +111,7 @@ pub trait Endpoint {
         map::map(self, f)
     }
 
-    /// Combine itself and a function to change the error value to another type.
+    #[allow(missing_docs)]
     fn map_err<F, U>(self, f: F) -> MapErr<Self, F, U>
     where
         Self: Sized,
@@ -189,10 +190,12 @@ impl<E: Endpoint> Endpoint for Arc<E> {
     }
 }
 
-#[allow(missing_docs)]
+/// Abstruction of types to be convert to an `Endpoint`.
 pub trait IntoEndpoint<T, E> {
+    /// The type of value returned from `into_endpoint`.
     type Endpoint: Endpoint<Item = T, Error = E>;
 
+    /// Convert itself into `Self::Endpoint`.
     fn into_endpoint(self) -> Self::Endpoint;
 }
 

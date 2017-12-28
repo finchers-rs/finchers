@@ -1,4 +1,4 @@
-//! Definitions and reexports of incoming HTTP requests
+//! Low level HTTP definitions from Hyper
 
 pub(crate) mod cookie;
 mod from_body;

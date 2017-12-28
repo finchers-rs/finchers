@@ -1,4 +1,4 @@
-//! Definition of the trait `Endpoint` and its implementors
+//! `Endpoint` layer
 
 mod macros;
 pub mod method;

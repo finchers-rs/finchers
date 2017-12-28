@@ -5,6 +5,7 @@ use http::{self, FromBody};
 use http::header::ContentLength;
 use task::{Task, TaskContext};
 
+#[allow(missing_docs)]
 #[derive(Debug)]
 pub struct Body<T, E> {
     _marker: PhantomData<fn() -> (T, E)>,

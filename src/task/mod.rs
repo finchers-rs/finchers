@@ -1,4 +1,4 @@
-#![allow(missing_docs)]
+//! `Task` layer
 
 pub(crate) mod and_then;
 pub(crate) mod body;
@@ -16,3 +16,14 @@ pub(crate) mod then;
 
 pub use self::context::TaskContext;
 pub use self::task::Task;
+
+pub use self::and_then::AndThen;
+pub use self::body::Body;
+pub use self::inspect::Inspect;
+pub use self::join::{Join, Join3, Join4, Join5};
+pub use self::join_all::JoinAll;
+pub use self::map_err::MapErr;
+pub use self::map::Map;
+pub use self::or::Or;
+pub use self::or_else::OrElse;
+pub use self::then::Then;

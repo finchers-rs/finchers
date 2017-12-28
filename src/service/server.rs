@@ -1,5 +1,3 @@
-//! Definition of HTTP services for Hyper
-
 use std::io;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::thread;
@@ -55,6 +53,7 @@ impl ServerBuilder {
         self
     }
 
+    /// Set the secret key used by `CookieManager`.
     pub fn secret_key<K: Into<Vec<u8>>>(mut self, key: K) -> Self {
         self.secret_key = Some(key.into());
         self
@@ -91,6 +90,7 @@ impl ServerBuilder {
     }
 }
 
+/// The context of worker threads
 #[derive(Debug, Clone)]
 pub struct Worker<E>
 where
@@ -112,6 +112,7 @@ where
     E::Item: IntoResponder,
     E::Error: IntoResponder + From<NoRoute>,
 {
+    #[allow(missing_docs)]
     pub fn new(endpoint: E, cookie_manager: CookieManager, proto: Http<Chunk>, addrs: Vec<SocketAddr>) -> Self {
         Worker {
             endpoint,
@@ -123,14 +124,17 @@ where
         }
     }
 
+    #[allow(missing_docs)]
     pub fn reuse_port(&mut self) {
         self.reuse_port = true;
     }
 
+    #[allow(missing_docs)]
     pub fn capacity(&mut self, capacity: i32) {
         self.capacity = capacity;
     }
 
+    #[allow(missing_docs)]
     pub fn run(&self) -> io::Result<()> {
         let mut core = Core::new()?;
         let handle = core.handle();

@@ -1,8 +1,8 @@
+//! Finchers is a combinator library for building HTTP services.
+
 #![deny(missing_docs)]
 #![deny(missing_debug_implementations)]
-
-//! Finchers is a combinator library for building HTTP services, based on
-//! Hyper and Futures.
+#![deny(warnings)]
 
 extern crate cookie;
 #[macro_use]

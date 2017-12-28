@@ -1,5 +1,3 @@
-//! Definition of endpoints to parse path segments
-
 use std::borrow::Cow;
 use std::iter::FromIterator;
 use std::marker::PhantomData;
@@ -44,7 +42,7 @@ impl<'a, E> IntoEndpoint<(), E> for Cow<'a, str> {
     }
 }
 
-/// Create an endpoint which represents a path element
+#[allow(missing_docs)]
 pub fn path<T: FromStr, E>() -> ExtractPath<T, E> {
     ExtractPath(PhantomData)
 }
@@ -70,7 +68,7 @@ where
     }
 }
 
-/// Create an endpoint which represents a path element
+#[allow(missing_docs)]
 pub fn paths<I, T, E>() -> ExtractPaths<I, T, E>
 where
     I: FromIterator<T>,
