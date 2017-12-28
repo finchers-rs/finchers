@@ -1,10 +1,11 @@
 [package]
 name = "finchers"
-version = "0.10.0" # don't forget to update html_root_url in lib.rs
+version = "0.10.1" # don't forget to update html_root_url in lib.rs
 description = "A combinator library for builidng asynchronous HTTP services"
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 license = "MIT/Apache-2.0"
 readme = "README.md"
+homepage = "https://finchers-rs.github.io/"
 repository = "https://github.com/finchers-rs/finchers.git"
 documentation = "https://docs.rs/finchers"
 keywords = ["finchers", "web", "framework", "server"]

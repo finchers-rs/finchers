@@ -1,6 +1,6 @@
 //! A combinator library for building asynchronous HTTP services.
 
-#![doc(html_root_url = "https://docs.rs/finchers/0.10.0")]
+#![doc(html_root_url = "https://docs.rs/finchers/0.10.1")]
 #![deny(missing_docs)]
 #![deny(missing_debug_implementations)]
 #![deny(warnings)]
