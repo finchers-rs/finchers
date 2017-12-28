@@ -12,7 +12,9 @@ use tokio_core::net::TcpListener;
 use tokio_core::reactor::{Core, Handle};
 
 use endpoint::{Endpoint, NoRoute};
+use http::CookieManager;
 use responder::IntoResponder;
+use super::EndpointService;
 
 /// The factory of HTTP service
 #[derive(Debug)]
@@ -20,6 +22,7 @@ pub struct ServerBuilder {
     addrs: Vec<SocketAddr>,
     num_workers: usize,
     proto: Http<Chunk>,
+    secret_key: Option<Vec<u8>>,
 }
 
 impl Default for ServerBuilder {
@@ -28,6 +31,7 @@ impl Default for ServerBuilder {
             addrs: vec![],
             num_workers: 1,
             proto: Http::new(),
+            secret_key: None,
         }
     }
 }
@@ -51,6 +55,11 @@ impl ServerBuilder {
         self
     }
 
+    pub fn secret_key<K: Into<Vec<u8>>>(mut self, key: K) -> Self {
+        self.secret_key = Some(key.into());
+        self
+    }
+
     /// Start an HTTP server with given endpoint
     pub fn serve<E>(mut self, endpoint: E)
     where
@@ -62,7 +71,12 @@ impl ServerBuilder {
             self.addrs.push("0.0.0.0:4000".parse().unwrap());
         }
 
-        let mut worker = Worker::new(endpoint, self.proto, self.addrs);
+        let cookie_manager = match self.secret_key {
+            Some(key) => CookieManager::new(&key),
+            None => CookieManager::default(),
+        };
+
+        let mut worker = Worker::new(endpoint, cookie_manager, self.proto, self.addrs);
         if self.num_workers > 1 {
             worker.reuse_port();
         }
@@ -85,6 +99,7 @@ where
     E::Error: IntoResponder + From<NoRoute>,
 {
     endpoint: E,
+    cookie_manager: CookieManager,
     proto: Http<Chunk>,
     addrs: Vec<SocketAddr>,
     capacity: i32,
@@ -97,9 +112,10 @@ where
     E::Item: IntoResponder,
     E::Error: IntoResponder + From<NoRoute>,
 {
-    pub fn new(endpoint: E, proto: Http<Chunk>, addrs: Vec<SocketAddr>) -> Self {
+    pub fn new(endpoint: E, cookie_manager: CookieManager, proto: Http<Chunk>, addrs: Vec<SocketAddr>) -> Self {
         Worker {
             endpoint,
+            cookie_manager,
             proto,
             addrs,
             reuse_port: false,
@@ -118,12 +134,17 @@ where
     pub fn run(&self) -> io::Result<()> {
         let mut core = Core::new()?;
         let handle = core.handle();
+        let service = EndpointService {
+            endpoint: self.endpoint.clone(),
+            handle: handle.clone(),
+            cookie_manager: self.cookie_manager.clone(),
+        };
 
         let server = self.build_listener(&handle)?
             .incoming()
             .for_each(|(sock, addr)| {
-                let service = self.endpoint.to_service(&handle);
-                self.proto.bind_connection(&handle, sock, addr, service);
+                self.proto
+                    .bind_connection(&handle, sock, addr, service.clone());
                 Ok(())
             });
 

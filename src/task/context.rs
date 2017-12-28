@@ -1,11 +1,11 @@
 use tokio_core::reactor::Handle;
-use http::{Body, CookieJar, Request};
+use http::{Body, Cookies, Request};
 
 #[derive(Debug)]
 pub struct TaskContext<'a> {
     pub(crate) request: &'a Request,
     pub(crate) handle: &'a Handle,
-    pub(crate) cookies: &'a mut CookieJar,
+    pub(crate) cookies: &'a mut Cookies,
     pub(crate) body: Option<Body>,
 }
 
@@ -22,7 +22,7 @@ impl<'a> TaskContext<'a> {
         self.handle
     }
 
-    pub fn cookies(&mut self) -> &mut CookieJar {
+    pub fn cookies(&mut self) -> &mut Cookies {
         &mut *self.cookies
     }
 }

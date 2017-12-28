@@ -6,7 +6,7 @@ use hyper;
 use tokio_core::reactor::Handle;
 use tokio_service::Service;
 
-use http;
+use http::{self, CookieManager};
 use endpoint::{Endpoint, EndpointContext, NoRoute};
 use task::{Task, TaskContext};
 use responder::{self, IntoResponder, ResponderContext};
@@ -19,8 +19,9 @@ where
     E::Item: IntoResponder,
     E::Error: IntoResponder + From<NoRoute>,
 {
-    endpoint: E,
-    handle: Handle,
+    pub(crate) endpoint: E,
+    pub(crate) handle: Handle,
+    pub(crate) cookie_manager: CookieManager,
 }
 
 impl<E> EndpointService<E>
@@ -29,11 +30,8 @@ where
     E::Item: IntoResponder,
     E::Error: IntoResponder + From<NoRoute>,
 {
-    pub(crate) fn new(endpoint: E, handle: &Handle) -> Self {
-        EndpointService {
-            endpoint,
-            handle: handle.clone(),
-        }
+    pub fn cookie_manager(&mut self) -> &mut CookieManager {
+        &mut self.cookie_manager
     }
 }
 
@@ -50,7 +48,7 @@ where
 
     fn call(&self, req: hyper::Request) -> Self::Future {
         let (request, body) = http::request::reconstruct(req);
-        let mut cookies = http::cookie::init_cookie_jar(&request);
+        let mut cookies = self.cookie_manager.new_cookies(request.header());
 
         let inner = {
             let mut ctx = EndpointContext::new(&request, &self.handle);

@@ -15,7 +15,7 @@ tokio-core = "0.1"
 tokio-proto = "0.1"
 tokio-service = "0.1"
 net2 = "0.2"
-cookie = "0.10"
+cookie = { version = "0.10", features = ["secure", "percent-encode"] }
 
 url = "1.6"
 serde = "1.0"

@@ -1,5 +1,5 @@
 use std::error::Error;
-use http::{CookieJar, Headers, IntoBody, Response, StatusCode};
+use http::{Cookies, Headers, IntoBody, Response, StatusCode};
 use http::header::SetCookie;
 use super::ResponderContext;
 
@@ -16,7 +16,7 @@ pub trait Responder: Sized {
 
     fn headers(&self, &mut Headers) {}
 
-    fn cookies(&self, &mut CookieJar) {}
+    fn cookies(&self, &mut Cookies) {}
 }
 
 impl Responder for () {
@@ -127,7 +127,7 @@ pub fn respond<R: IntoResponder>(res: R, ctx: &mut ResponderContext) -> Response
     res.headers(response.headers_mut());
 
     res.cookies(&mut ctx.cookies);
-    let cookies: Vec<_> = ctx.cookies.delta().map(|c| c.to_string()).collect();
+    let cookies = ctx.cookies.collect_changes();
     if cookies.len() > 0 {
         response.headers_mut().set(SetCookie(cookies));
     }
