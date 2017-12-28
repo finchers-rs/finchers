@@ -1,3 +1,18 @@
+<a name="0.10.0"></a>
+## 0.10.0 (2017-12-28)
+
+**WARNING**
+
+This version contains *many* breaking changes and the backward compatibility with previous version is not (basically) guaranteed.
+The description of these changes are omitted.
+
+The overview of key features from this versions are as follows:
+
+* Add a new trait `IntoEndpoint`, to represent the conversion into an `Endpoint`.
+* Add a new layer `Task`, which represents the creation of a `Future` *after* the routing has done.
+* `Responder` is now only returns the components of HTTP response, instead of building the raw HTTP response directly.
+* Add a built-in support for the Cookie management, based on `cookie-rs`.
+
 <a name="0.6.0"></a>
 ## 0.6.0 (2017-12-11)
 

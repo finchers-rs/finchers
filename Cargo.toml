@@ -1,12 +1,14 @@
 [package]
 name = "finchers"
-version = "0.6.0"
-description = "A combinator library for builidng HTTP services, based on Hyper and Futures"
+version = "0.10.0" # don't forget to update html_root_url in lib.rs
+description = "A combinator library for builidng asynchronous HTTP services"
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 license = "MIT/Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/finchers-rs/finchers.git"
 documentation = "https://docs.rs/finchers"
+keywords = ["finchers", "web", "framework", "server"]
+categories = ["web-programming::http-server"]
 
 [dependencies]
 hyper = "0.11"
