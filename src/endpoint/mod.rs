@@ -1,5 +1,6 @@
 //! `Endpoint` layer
 
+#[macro_use]
 mod macros;
 pub mod method;
 

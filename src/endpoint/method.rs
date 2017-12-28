@@ -12,7 +12,7 @@ impl<E: Endpoint> Endpoint for MatchMethod<E> {
     type Task = E::Task;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
-        let f = self.1.apply(ctx)?;
+        let f = try_opt!(self.1.apply(ctx));
         if ctx.take_segments().map_or(0, |s| s.count()) > 0 {
             return None;
         }

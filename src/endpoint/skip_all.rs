@@ -24,7 +24,7 @@ impl<E: Endpoint> Endpoint for SkipAll<E> {
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
         for endpoint in &self.endpoints {
-            let _ = endpoint.apply(ctx)?;
+            let _ = try_opt!(endpoint.apply(ctx));
         }
         Some(Ok(()))
     }
