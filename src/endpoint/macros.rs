@@ -1,5 +1,6 @@
 //! Utility macros.
 
+/// Convert the expression(s) into an `Endpoint`.
 #[macro_export]
 macro_rules! e {
     ($e:expr) => {
@@ -13,6 +14,7 @@ macro_rules! e {
     };
 }
 
+/// Creates an `Endpoint` from multiple routes.
 #[macro_export]
 macro_rules! choice {
     ($e:expr) => {

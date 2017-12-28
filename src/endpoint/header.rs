@@ -1,5 +1,3 @@
-//! Definition of endpoints to parse request headers
-
 use std::fmt;
 use std::error;
 use std::marker::PhantomData;
@@ -22,7 +20,7 @@ impl error::Error for EmptyHeader {
     }
 }
 
-/// Create an endpoint matches the value of a request header
+#[allow(missing_docs)]
 pub fn header<H, E>() -> Header<H, E>
 where
     H: header::Header + Clone,
@@ -56,7 +54,7 @@ where
     }
 }
 
-/// Create an endpoint matches the value of a request header, which the value may not exist
+#[allow(missing_docs)]
 pub fn header_opt<H, E>() -> HeaderOpt<H, E>
 where
     H: header::Header + Clone,
