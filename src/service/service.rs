@@ -7,10 +7,11 @@ use tokio_core::reactor::Handle;
 use tokio_service::Service;
 
 use http::{self, CookieManager};
-use endpoint::{Endpoint, EndpointContext, NoRoute};
+use endpoint::{Endpoint, EndpointContext};
 use task::{Task, TaskContext};
 use responder::IntoResponder;
 use responder::inner::{respond, ResponderContext};
+use super::NoRoute;
 
 /// An HTTP service which wraps a `Endpoint`.
 #[derive(Debug, Clone)]

@@ -23,7 +23,7 @@ pub mod task;
 pub mod test;
 
 #[doc(inline)]
-pub use endpoint::{Endpoint, IntoEndpoint, NoRoute};
+pub use endpoint::{Endpoint, IntoEndpoint};
 
 #[doc(inline)]
 pub use responder::{ErrorResponder, IntoResponder, Responder};

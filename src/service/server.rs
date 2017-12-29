@@ -9,10 +9,10 @@ use net2::TcpBuilder;
 use tokio_core::net::TcpListener;
 use tokio_core::reactor::{Core, Handle};
 
-use endpoint::{Endpoint, NoRoute};
+use endpoint::Endpoint;
 use http::CookieManager;
 use responder::IntoResponder;
-use super::EndpointService;
+use super::{EndpointService, NoRoute};
 
 /// The factory of HTTP service
 #[derive(Debug)]
