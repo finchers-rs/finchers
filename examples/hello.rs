@@ -22,6 +22,7 @@ fn main() {
 
     ServerBuilder::default()
         .bind("0.0.0.0:8080")
+        .bind("[::0]:8080")
         .num_workers(1)
         .serve(Arc::new(endpoint));
 }
