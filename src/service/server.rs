@@ -21,6 +21,7 @@ pub struct ServerBuilder {
     num_workers: usize,
     proto: Http<Chunk>,
     secret_key: Option<Vec<u8>>,
+    no_route: Option<NoRoute>,
 }
 
 impl Default for ServerBuilder {
@@ -30,6 +31,7 @@ impl Default for ServerBuilder {
             num_workers: 1,
             proto: Http::new(),
             secret_key: None,
+            no_route: None,
         }
     }
 }
@@ -64,7 +66,7 @@ impl ServerBuilder {
     where
         E: Endpoint + Clone + Send + Sync + 'static,
         E::Item: IntoResponder,
-        E::Error: IntoResponder + From<NoRoute>,
+        E::Error: IntoResponder,
     {
         if self.addrs.is_empty() {
             self.addrs.push("0.0.0.0:4000".parse().unwrap());
@@ -75,7 +77,9 @@ impl ServerBuilder {
             None => CookieManager::default(),
         };
 
-        let mut worker = Worker::new(endpoint, cookie_manager, self.proto, self.addrs);
+        let no_route = self.no_route.unwrap_or_default();
+
+        let mut worker = Worker::new(endpoint, cookie_manager, no_route, self.proto, self.addrs);
         if self.num_workers > 1 {
             worker.reuse_port();
         }
@@ -96,10 +100,11 @@ pub struct Worker<E>
 where
     E: Endpoint + Clone + 'static,
     E::Item: IntoResponder,
-    E::Error: IntoResponder + From<NoRoute>,
+    E::Error: IntoResponder,
 {
     endpoint: E,
     cookie_manager: CookieManager,
+    no_route: NoRoute,
     proto: Http<Chunk>,
     addrs: Vec<SocketAddr>,
     capacity: i32,
@@ -110,13 +115,20 @@ impl<E> Worker<E>
 where
     E: Endpoint + Clone + 'static,
     E::Item: IntoResponder,
-    E::Error: IntoResponder + From<NoRoute>,
+    E::Error: IntoResponder,
 {
     #[allow(missing_docs)]
-    pub fn new(endpoint: E, cookie_manager: CookieManager, proto: Http<Chunk>, addrs: Vec<SocketAddr>) -> Self {
+    pub fn new(
+        endpoint: E,
+        cookie_manager: CookieManager,
+        no_route: NoRoute,
+        proto: Http<Chunk>,
+        addrs: Vec<SocketAddr>,
+    ) -> Self {
         Worker {
             endpoint,
             cookie_manager,
+            no_route,
             proto,
             addrs,
             reuse_port: false,
@@ -142,6 +154,7 @@ where
             endpoint: self.endpoint.clone(),
             handle: handle.clone(),
             cookie_manager: self.cookie_manager.clone(),
+            no_route: self.no_route.clone(),
         };
 
         let server = self.build_listener(&handle)?

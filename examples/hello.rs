@@ -28,7 +28,7 @@ fn main() {
 
 // TODO: code generation
 mod errors {
-    use finchers::{ErrorResponder, NoRoute};
+    use finchers::ErrorResponder;
     use finchers::http::{HttpError, StatusCode, StringBodyError};
     use std::string::ParseError;
 
@@ -36,7 +36,6 @@ mod errors {
         types { Error, ErrorKind, ResultExt, Result; }
 
         foreign_links {
-            NoRoute(NoRoute);
             Path(ParseError);
             Http(HttpError);
             Body(StringBodyError);
@@ -46,7 +45,6 @@ mod errors {
     impl ErrorResponder for Error {
         fn status(&self) -> StatusCode {
             match *self.kind() {
-                ErrorKind::NoRoute(ref e) => e.status(),
                 ErrorKind::Path(ref e) => e.status(),
                 ErrorKind::Http(ref e) => e.status(),
                 ErrorKind::Body(ref e) => e.status(),
@@ -56,7 +54,6 @@ mod errors {
 
         fn message(&self) -> Option<String> {
             match *self.kind() {
-                ErrorKind::NoRoute(ref e) => e.message(),
                 ErrorKind::Path(ref e) => e.message(),
                 ErrorKind::Http(ref e) => e.message(),
                 ErrorKind::Body(ref e) => e.message(),

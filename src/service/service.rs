@@ -18,18 +18,19 @@ pub struct EndpointService<E>
 where
     E: Endpoint,
     E::Item: IntoResponder,
-    E::Error: IntoResponder + From<NoRoute>,
+    E::Error: IntoResponder,
 {
     pub(crate) endpoint: E,
     pub(crate) handle: Handle,
     pub(crate) cookie_manager: CookieManager,
+    pub(crate) no_route: NoRoute,
 }
 
 impl<E> EndpointService<E>
 where
     E: Endpoint,
     E::Item: IntoResponder,
-    E::Error: IntoResponder + From<NoRoute>,
+    E::Error: IntoResponder,
 {
     pub fn cookie_manager(&mut self) -> &mut CookieManager {
         &mut self.cookie_manager
@@ -40,7 +41,7 @@ impl<E> Service for EndpointService<E>
 where
     E: Endpoint,
     E::Item: IntoResponder,
-    E::Error: IntoResponder + From<NoRoute>,
+    E::Error: IntoResponder,
 {
     type Request = hyper::Request;
     type Response = hyper::Response;
@@ -85,7 +86,7 @@ impl<F> Future for EndpointServiceFuture<F>
 where
     F: Future,
     F::Item: IntoResponder,
-    F::Error: IntoResponder + From<NoRoute>,
+    F::Error: IntoResponder,
 {
     type Item = hyper::Response;
     type Error = hyper::Error;
@@ -94,7 +95,8 @@ where
         match self.inner.poll() {
             Ok(Async::NotReady) => Ok(Async::NotReady),
             Ok(Async::Ready(item)) => Ok(Async::Ready(respond(item, &mut self.context))),
-            Err(err) => Ok(Async::Ready(respond(err, &mut self.context))),
+            Err(Ok(err)) => Ok(Async::Ready(respond(err, &mut self.context))),
+            Err(Err(no_route)) => Ok(Async::Ready(respond(no_route, &mut self.context))),
         }
     }
 }
@@ -106,21 +108,18 @@ pub(crate) enum Inner<F> {
     Done,
 }
 
-impl<F: Future> Future for Inner<F>
-where
-    F::Error: From<NoRoute>,
-{
+impl<F: Future> Future for Inner<F> {
     type Item = F::Item;
-    type Error = F::Error;
+    type Error = Result<F::Error, NoRoute>;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         match *self {
-            Inner::Polling(ref mut t) => return t.poll(),
+            Inner::Polling(ref mut t) => return t.poll().map_err(Ok),
             Inner::NoRoute(..) => {}
             Inner::Done => panic!(),
         }
         match mem::replace(self, Inner::Done) {
-            Inner::NoRoute(e) => Err(e.into()),
+            Inner::NoRoute(e) => Err(Err(e)),
             _ => panic!(),
         }
     }

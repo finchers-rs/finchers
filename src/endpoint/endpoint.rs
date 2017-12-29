@@ -12,7 +12,7 @@ use super::*;
 
 /// An error represents which represents that
 /// the matched route was not found.
-#[derive(Debug)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct NoRoute;
 
 impl fmt::Display for NoRoute {
@@ -57,12 +57,13 @@ pub trait Endpoint {
     where
         Self: Clone,
         Self::Item: IntoResponder,
-        Self::Error: IntoResponder + From<NoRoute>,
+        Self::Error: IntoResponder,
     {
         EndpointService {
             endpoint: self.clone(),
             handle: handle.clone(),
             cookie_manager: Default::default(),
+            no_route: Default::default(),
         }
     }
 
