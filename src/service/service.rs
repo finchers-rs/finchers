@@ -1,41 +1,63 @@
 #![allow(missing_docs)]
 
+use std::io;
+use std::fmt;
+use std::error::Error;
 use std::mem;
+use std::sync::Arc;
+
 use futures::{Async, Future, Poll};
 use hyper;
 use tokio_core::reactor::Handle;
 use tokio_service::Service;
 
-use http::{self, CookieManager};
+use http::{self, CookieManager, StatusCode};
 use endpoint::{Endpoint, EndpointContext};
 use task::{Task, TaskContext};
-use responder::IntoResponder;
+use responder::{ErrorResponder, IntoResponder};
 use responder::inner::{respond, ResponderContext};
-use super::NoRoute;
+use super::ServiceFactory;
 
-/// An HTTP service which wraps a `Endpoint`.
-#[derive(Debug, Clone)]
-pub struct EndpointService<E>
-where
-    E: Endpoint,
-    E::Item: IntoResponder,
-    E::Error: IntoResponder,
-{
-    pub(crate) endpoint: E,
-    pub(crate) handle: Handle,
-    pub(crate) cookie_manager: CookieManager,
-    pub(crate) no_route: NoRoute,
+/// An error represents which represents that
+/// the matched route was not found.
+#[derive(Debug, Default, Copy, Clone)]
+pub struct NoRoute;
+
+impl fmt::Display for NoRoute {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("not found")
+    }
 }
 
-impl<E> EndpointService<E>
-where
-    E: Endpoint,
-    E::Item: IntoResponder,
-    E::Error: IntoResponder,
-{
-    pub fn cookie_manager(&mut self) -> &mut CookieManager {
-        &mut self.cookie_manager
+impl Error for NoRoute {
+    fn description(&self) -> &str {
+        "not found"
     }
+}
+
+impl ErrorResponder for NoRoute {
+    fn status(&self) -> StatusCode {
+        StatusCode::NotFound
+    }
+
+    fn message(&self) -> Option<String> {
+        None
+    }
+}
+
+/// The inner representation of `EndpointService`.
+#[derive(Debug)]
+struct EndpointServiceContext<E> {
+    endpoint: E,
+    cookie_manager: CookieManager,
+    no_route: NoRoute,
+}
+
+/// An HTTP service which wraps a `Endpoint`.
+#[derive(Debug)]
+pub struct EndpointService<E> {
+    inner: Arc<EndpointServiceContext<E>>,
+    handle: Handle,
 }
 
 impl<E> Service for EndpointService<E>
@@ -51,11 +73,11 @@ where
 
     fn call(&self, req: hyper::Request) -> Self::Future {
         let (request, body) = http::request::reconstruct(req);
-        let mut cookies = self.cookie_manager.new_cookies(request.header());
+        let mut cookies = self.inner.cookie_manager.new_cookies(request.header());
 
         let inner = {
             let mut ctx = EndpointContext::new(&request, &self.handle);
-            match self.endpoint.apply(&mut ctx) {
+            match self.inner.endpoint.apply(&mut ctx) {
                 Some(task) => {
                     let mut ctx = TaskContext {
                         request: &request,
@@ -63,9 +85,9 @@ where
                         cookies: &mut cookies,
                         body: Some(body),
                     };
-                    Inner::Polling(task.launch(&mut ctx))
+                    Respondable::Polling(task.launch(&mut ctx))
                 }
-                None => Inner::NoRoute(NoRoute),
+                None => Respondable::NoRoute(NoRoute),
             }
         };
 
@@ -79,7 +101,7 @@ where
 /// A future returned from `EndpointService::call()`
 #[derive(Debug)]
 pub struct EndpointServiceFuture<F> {
-    inner: Inner<F>,
+    inner: Respondable<F>,
     context: ResponderContext,
 }
 
@@ -103,25 +125,69 @@ where
 }
 
 #[derive(Debug)]
-pub(crate) enum Inner<F> {
+pub(crate) enum Respondable<F> {
     Polling(F),
     NoRoute(NoRoute),
     Done,
 }
 
-impl<F: Future> Future for Inner<F> {
+impl<F: Future> Future for Respondable<F> {
     type Item = F::Item;
     type Error = Result<F::Error, NoRoute>;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        use self::Respondable::*;
         match *self {
-            Inner::Polling(ref mut t) => return t.poll().map_err(Ok),
-            Inner::NoRoute(..) => {}
-            Inner::Done => panic!(),
+            Polling(ref mut t) => return t.poll().map_err(Ok),
+            NoRoute(..) => {}
+            Done => panic!(),
         }
-        match mem::replace(self, Inner::Done) {
-            Inner::NoRoute(e) => Err(Err(e)),
+        match mem::replace(self, Done) {
+            NoRoute(e) => Err(Err(e)),
             _ => panic!(),
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct EndpointServiceFactory<E> {
+    inner: Arc<EndpointServiceContext<E>>,
+}
+
+impl<E> EndpointServiceFactory<E> {
+    pub fn new(endpoint: E) -> Self {
+        EndpointServiceFactory {
+            inner: Arc::new(EndpointServiceContext {
+                endpoint,
+                cookie_manager: CookieManager::default(),
+                no_route: Default::default(),
+            }),
+        }
+    }
+
+    pub fn with_secret_key<K: AsRef<[u8]>>(endpoint: E, key: K) -> Self {
+        EndpointServiceFactory {
+            inner: Arc::new(EndpointServiceContext {
+                endpoint,
+                cookie_manager: CookieManager::new(key),
+                no_route: Default::default(),
+            }),
+        }
+    }
+}
+
+impl<E> ServiceFactory for EndpointServiceFactory<E>
+where
+    E: Endpoint,
+    E::Item: IntoResponder,
+    E::Error: IntoResponder,
+{
+    type Service = EndpointService<E>;
+
+    fn new_service(&self, handle: &Handle) -> io::Result<Self::Service> {
+        Ok(EndpointService {
+            inner: self.inner.clone(),
+            handle: handle.clone(),
+        })
     }
 }

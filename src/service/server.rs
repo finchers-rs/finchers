@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::io;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::thread;
+use std::sync::Arc;
 
 use futures::Stream;
 use futures::stream::FuturesUnordered;
@@ -14,9 +15,8 @@ use tokio_core::net::TcpListener;
 use tokio_core::reactor::{Core, Handle};
 
 use endpoint::Endpoint;
-use http::CookieManager;
 use responder::IntoResponder;
-use super::{EndpointService, NoRoute};
+use super::{EndpointServiceFactory, ServiceFactory};
 
 /// The factory of HTTP service
 #[derive(Debug)]
@@ -25,7 +25,6 @@ pub struct ServerBuilder {
     num_workers: usize,
     proto: Http<Chunk>,
     secret_key: Option<Vec<u8>>,
-    no_route: Option<NoRoute>,
 }
 
 impl Default for ServerBuilder {
@@ -35,7 +34,6 @@ impl Default for ServerBuilder {
             num_workers: 1,
             proto: Http::new(),
             secret_key: None,
-            no_route: None,
         }
     }
 }
@@ -68,31 +66,31 @@ impl ServerBuilder {
     /// Start an HTTP server with given endpoint
     pub fn serve<E>(mut self, endpoint: E)
     where
-        E: Endpoint + Clone + Send + Sync + 'static,
+        E: Endpoint + Send + Sync + 'static,
         E::Item: IntoResponder,
         E::Error: IntoResponder,
     {
-        if self.addrs.is_empty() {
-            self.addrs.push("0.0.0.0:4000".parse().unwrap());
-        }
-        // remove duplicates
-        let set: HashSet<_> = self.addrs.into_iter().collect();
-        let addrs: Vec<_> = set.into_iter().collect();
-
-        let cookie_manager = match self.secret_key {
-            Some(key) => CookieManager::new(&key),
-            None => CookieManager::default(),
+        // create the factory of Hyper's service
+        let factory = match self.secret_key {
+            Some(key) => EndpointServiceFactory::with_secret_key(endpoint, &key),
+            None => EndpointServiceFactory::new(endpoint),
         };
 
-        let no_route = self.no_route.unwrap_or_default();
+        // collect listener addresses and remove duplicated addresses.
+        if self.addrs.is_empty() {
+            self.addrs.push("0.0.0.0:4000".parse().unwrap());
+            self.addrs.push("[::0]:4000".parse().unwrap());
+        }
+        let set: HashSet<_> = self.addrs.into_iter().collect();
+        let addrs: Vec<_> = set.into_iter().collect();
 
         println!("Starting the server with following listener addresses:");
         for addr in &addrs {
             println!("- {}", addr);
         }
 
-        let worker = Worker::new(endpoint, cookie_manager, no_route, self.proto, addrs);
-
+        // Now creates the context of worker threads and spawns them.
+        let worker = Worker::new(factory, self.proto, addrs);
         for _ in 0..(self.num_workers - 1) {
             let worker = worker.clone();
             thread::spawn(move || {
@@ -104,40 +102,35 @@ impl ServerBuilder {
 }
 
 /// The context of worker threads
-#[derive(Debug, Clone)]
-pub struct Worker<E>
-where
-    E: Endpoint + Clone + 'static,
-    E::Item: IntoResponder,
-    E::Error: IntoResponder,
-{
-    endpoint: E,
-    cookie_manager: CookieManager,
-    no_route: NoRoute,
-    proto: Http<Chunk>,
+#[derive(Debug)]
+pub struct Worker<F> {
+    factory: Arc<F>,
+    proto: Arc<Http<Chunk>>,
     addrs: Vec<SocketAddr>,
     capacity: i32,
 }
 
-impl<E> Worker<E>
+impl<F> Clone for Worker<F> {
+    fn clone(&self) -> Self {
+        Worker {
+            factory: self.factory.clone(),
+            proto: self.proto.clone(),
+            addrs: self.addrs.clone(),
+            capacity: self.capacity,
+        }
+    }
+}
+
+impl<F> Worker<F>
 where
-    E: Endpoint + Clone + 'static,
-    E::Item: IntoResponder,
-    E::Error: IntoResponder,
+    F: ServiceFactory,
+    F::Service: 'static,
 {
     #[allow(missing_docs)]
-    pub fn new(
-        endpoint: E,
-        cookie_manager: CookieManager,
-        no_route: NoRoute,
-        proto: Http<Chunk>,
-        addrs: Vec<SocketAddr>,
-    ) -> Self {
+    pub fn new(factory: F, proto: Http<Chunk>, addrs: Vec<SocketAddr>) -> Self {
         Worker {
-            endpoint,
-            cookie_manager,
-            no_route,
-            proto,
+            factory: Arc::new(factory),
+            proto: Arc::new(proto),
             addrs,
             capacity: 1024,
         }
@@ -152,22 +145,14 @@ where
     pub fn run(&self) -> io::Result<()> {
         let mut core = Core::new()?;
         let handle = core.handle();
-        let service = EndpointService {
-            endpoint: self.endpoint.clone(),
-            handle: handle.clone(),
-            cookie_manager: self.cookie_manager.clone(),
-            no_route: self.no_route.clone(),
-        };
 
         let mut servers = FuturesUnordered::new();
         for addr in &self.addrs {
-            let service = service.clone();
-            let handle = handle.clone();
             let server = self.build_listener(addr, &handle)?
                 .incoming()
-                .for_each(move |(sock, addr)| {
-                    self.proto
-                        .bind_connection(&handle, sock, addr, service.clone());
+                .for_each(|(sock, addr)| -> io::Result<()> {
+                    let service = self.factory.new_service(&handle)?;
+                    self.proto.bind_connection(&handle, sock, addr, service);
                     Ok(())
                 });
             servers.push(server);
