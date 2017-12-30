@@ -8,8 +8,8 @@ use std::sync::Arc;
 
 use futures::{Async, Future, Poll};
 use hyper;
+use hyper::server::Service;
 use tokio_core::reactor::Handle;
-use tokio_service::Service;
 
 use http::{self, CookieManager, StatusCode};
 use endpoint::{Endpoint, EndpointContext};

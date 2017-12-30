@@ -11,8 +11,6 @@ extern crate futures;
 extern crate hyper;
 extern crate net2;
 extern crate tokio_core;
-extern crate tokio_proto;
-extern crate tokio_service;
 
 pub mod contrib;
 pub mod endpoint;
