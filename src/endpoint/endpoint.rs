@@ -1,41 +1,8 @@
-use std::fmt;
-use std::error::Error;
 use std::rc::Rc;
 use std::sync::Arc;
 use futures::IntoFuture;
-use tokio_core::reactor::Handle;
-use http::StatusCode;
-use responder::{ErrorResponder, IntoResponder};
 use task::Task;
-use service::EndpointService;
 use super::*;
-
-/// An error represents which represents that
-/// the matched route was not found.
-#[derive(Debug)]
-pub struct NoRoute;
-
-impl fmt::Display for NoRoute {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str("not found")
-    }
-}
-
-impl Error for NoRoute {
-    fn description(&self) -> &str {
-        "not found"
-    }
-}
-
-impl ErrorResponder for NoRoute {
-    fn status(&self) -> StatusCode {
-        StatusCode::NotFound
-    }
-
-    fn message(&self) -> Option<String> {
-        None
-    }
-}
 
 /// Abstruction of an endpoint.
 pub trait Endpoint {
@@ -51,20 +18,6 @@ pub trait Endpoint {
     /// Validates the incoming HTTP request,
     /// and returns the instance of `Task` if matched.
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task>;
-
-    /// Create a new `Service` from this endpoint
-    fn to_service(&self, handle: &Handle) -> EndpointService<Self>
-    where
-        Self: Clone,
-        Self::Item: IntoResponder,
-        Self::Error: IntoResponder + From<NoRoute>,
-    {
-        EndpointService {
-            endpoint: self.clone(),
-            handle: handle.clone(),
-            cookie_manager: Default::default(),
-        }
-    }
 
     #[allow(missing_docs)]
     fn join<T, E>(self, e: E) -> Join<Self, E::Endpoint>

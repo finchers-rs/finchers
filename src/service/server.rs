@@ -1,18 +1,22 @@
+use std::collections::HashSet;
 use std::io;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::thread;
+use std::sync::Arc;
 
 use futures::Stream;
+use futures::stream::FuturesUnordered;
 use hyper::Chunk;
 use hyper::server::Http;
 use net2::TcpBuilder;
+#[cfg(unix)]
+use net2::unix::UnixTcpBuilderExt;
 use tokio_core::net::TcpListener;
 use tokio_core::reactor::{Core, Handle};
 
-use endpoint::{Endpoint, NoRoute};
-use http::CookieManager;
+use endpoint::Endpoint;
 use responder::IntoResponder;
-use super::EndpointService;
+use super::{EndpointServiceFactory, ServiceFactory};
 
 /// The factory of HTTP service
 #[derive(Debug)]
@@ -62,24 +66,31 @@ impl ServerBuilder {
     /// Start an HTTP server with given endpoint
     pub fn serve<E>(mut self, endpoint: E)
     where
-        E: Endpoint + Clone + Send + Sync + 'static,
+        E: Endpoint + Send + Sync + 'static,
         E::Item: IntoResponder,
-        E::Error: IntoResponder + From<NoRoute>,
+        E::Error: IntoResponder,
     {
-        if self.addrs.is_empty() {
-            self.addrs.push("0.0.0.0:4000".parse().unwrap());
-        }
-
-        let cookie_manager = match self.secret_key {
-            Some(key) => CookieManager::new(&key),
-            None => CookieManager::default(),
+        // create the factory of Hyper's service
+        let factory = match self.secret_key {
+            Some(key) => EndpointServiceFactory::with_secret_key(endpoint, &key),
+            None => EndpointServiceFactory::new(endpoint),
         };
 
-        let mut worker = Worker::new(endpoint, cookie_manager, self.proto, self.addrs);
-        if self.num_workers > 1 {
-            worker.reuse_port();
+        // collect listener addresses and remove duplicated addresses.
+        if self.addrs.is_empty() {
+            self.addrs.push("0.0.0.0:4000".parse().unwrap());
+            self.addrs.push("[::0]:4000".parse().unwrap());
+        }
+        let set: HashSet<_> = self.addrs.into_iter().collect();
+        let addrs: Vec<_> = set.into_iter().collect();
+
+        println!("Starting the server with following listener addresses:");
+        for addr in &addrs {
+            println!("- {}", addr);
         }
 
+        // Now creates the context of worker threads and spawns them.
+        let worker = Worker::new(factory, self.proto, addrs);
         for _ in 0..(self.num_workers - 1) {
             let worker = worker.clone();
             thread::spawn(move || {
@@ -91,42 +102,38 @@ impl ServerBuilder {
 }
 
 /// The context of worker threads
-#[derive(Debug, Clone)]
-pub struct Worker<E>
-where
-    E: Endpoint + Clone + 'static,
-    E::Item: IntoResponder,
-    E::Error: IntoResponder + From<NoRoute>,
-{
-    endpoint: E,
-    cookie_manager: CookieManager,
-    proto: Http<Chunk>,
+#[derive(Debug)]
+pub struct Worker<F> {
+    factory: Arc<F>,
+    proto: Arc<Http<Chunk>>,
     addrs: Vec<SocketAddr>,
     capacity: i32,
-    reuse_port: bool,
 }
 
-impl<E> Worker<E>
-where
-    E: Endpoint + Clone + 'static,
-    E::Item: IntoResponder,
-    E::Error: IntoResponder + From<NoRoute>,
-{
-    #[allow(missing_docs)]
-    pub fn new(endpoint: E, cookie_manager: CookieManager, proto: Http<Chunk>, addrs: Vec<SocketAddr>) -> Self {
+impl<F> Clone for Worker<F> {
+    fn clone(&self) -> Self {
         Worker {
-            endpoint,
-            cookie_manager,
-            proto,
-            addrs,
-            reuse_port: false,
-            capacity: 1024,
+            factory: self.factory.clone(),
+            proto: self.proto.clone(),
+            addrs: self.addrs.clone(),
+            capacity: self.capacity,
         }
     }
+}
 
+impl<F> Worker<F>
+where
+    F: ServiceFactory,
+    F::Service: 'static,
+{
     #[allow(missing_docs)]
-    pub fn reuse_port(&mut self) {
-        self.reuse_port = true;
+    pub fn new(factory: F, proto: Http<Chunk>, addrs: Vec<SocketAddr>) -> Self {
+        Worker {
+            factory: Arc::new(factory),
+            proto: Arc::new(proto),
+            addrs,
+            capacity: 1024,
+        }
     }
 
     #[allow(missing_docs)]
@@ -138,51 +145,36 @@ where
     pub fn run(&self) -> io::Result<()> {
         let mut core = Core::new()?;
         let handle = core.handle();
-        let service = EndpointService {
-            endpoint: self.endpoint.clone(),
-            handle: handle.clone(),
-            cookie_manager: self.cookie_manager.clone(),
-        };
 
-        let server = self.build_listener(&handle)?
-            .incoming()
-            .for_each(|(sock, addr)| {
-                self.proto
-                    .bind_connection(&handle, sock, addr, service.clone());
-                Ok(())
-            });
+        let mut servers = FuturesUnordered::new();
+        for addr in &self.addrs {
+            let server = self.build_listener(addr, &handle)?
+                .incoming()
+                .for_each(|(sock, addr)| -> io::Result<()> {
+                    let service = self.factory.new_service(&handle)?;
+                    self.proto.bind_connection(&handle, sock, addr, service);
+                    Ok(())
+                });
+            servers.push(server);
+        }
+        let server = servers.fold((), |(), _| -> io::Result<()> { Ok(()) });
 
         core.run(server)
     }
 
-    fn build_listener(&self, handle: &Handle) -> io::Result<TcpListener> {
-        // TODO: bind to multiple listener addresses.
-        let addr = &self.addrs[0];
-
+    fn build_listener(&self, addr: &SocketAddr, handle: &Handle) -> io::Result<TcpListener> {
         let listener = match *addr {
             SocketAddr::V4(..) => TcpBuilder::new_v4()?,
             SocketAddr::V6(..) => TcpBuilder::new_v6()?,
         };
 
         listener.reuse_address(true)?;
-        if self.reuse_port {
-            reuse_port(&listener)?;
-        }
+        #[cfg(unix)]
+        listener.reuse_port(true)?;
 
         listener.bind(addr)?;
         let l = listener.listen(self.capacity)?;
 
         TcpListener::from_listener(l, addr, handle)
     }
-}
-
-#[cfg(not(windows))]
-fn reuse_port(tcp: &TcpBuilder) -> io::Result<()> {
-    use net2::unix::UnixTcpBuilderExt;
-    tcp.reuse_port(true).map(|_| ())
-}
-
-#[cfg(windows)]
-fn reuse_port(_: &TcpBuilder) -> io::Result<()> {
-    Ok(())
 }
