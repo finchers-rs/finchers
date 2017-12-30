@@ -3,7 +3,6 @@ extern crate error_chain;
 #[macro_use]
 extern crate finchers;
 
-use std::sync::Arc;
 use finchers::Endpoint;
 use finchers::endpoint::{body, path};
 use finchers::endpoint::method::{get, post};
@@ -24,7 +23,7 @@ fn main() {
         .bind("0.0.0.0:8080")
         .bind("[::0]:8080")
         .num_workers(1)
-        .serve(Arc::new(endpoint));
+        .serve(endpoint);
 }
 
 // TODO: code generation
