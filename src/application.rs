@@ -1,78 +1,75 @@
-#![allow(missing_docs)]
-#![allow(missing_debug_implementations)]
-#![warn(warnings)]
+//! A lancher of the HTTP services
 
 use std::io;
-use std::net::SocketAddr;
-use std::net::ToSocketAddrs;
+use std::net::{SocketAddr, ToSocketAddrs};
 use std::sync::Arc;
+use futures::{Future, Stream};
 use hyper::Chunk;
 use tokio_core::reactor::{Core, Handle};
-use service::ServiceFactory;
+
 use endpoint::Endpoint;
-use service::EndpointServiceFactory;
 use responder::IntoResponder;
-use futures::{Future, Stream};
+use service::{EndpointServiceFactory, ServiceFactory};
 
+/// The definitions of TCP backends
 pub mod backend {
+    use std::fmt;
     use std::io;
-    use native_tls::TlsAcceptor;
-    use native_tls::Pkcs12;
-    use futures::Stream;
-    use tokio_io::{AsyncRead, AsyncWrite};
     use std::net::SocketAddr;
+    use futures::{Future, Stream};
+    use tokio_core::net::{TcpListener, TcpStream};
     use tokio_core::reactor::Handle;
-    use tokio_tls::TlsAcceptorExt;
-    use futures::Future;
-
-    pub trait TcpBackend {
-        type Io: AsyncRead + AsyncWrite + 'static;
-        type Incoming: Stream<Item = Self::Io, Error = io::Error> + 'static;
-
-        fn incoming(&self, addr: &SocketAddr, handle: &Handle) -> io::Result<Self::Incoming>;
-    }
+    use tokio_io::{AsyncRead, AsyncWrite};
 
     use net2::TcpBuilder;
     #[cfg(unix)]
     use net2::unix::UnixTcpBuilderExt;
+    use native_tls::TlsAcceptor;
+    use native_tls::Pkcs12;
+    use tokio_tls::{TlsAcceptorExt, TlsStream};
 
-    fn listener(addr: &SocketAddr, handle: &Handle) -> io::Result<::tokio_core::net::TcpListener> {
-        let listener = match *addr {
-            SocketAddr::V4(..) => TcpBuilder::new_v4()?,
-            SocketAddr::V6(..) => TcpBuilder::new_v6()?,
-        };
+    /// A TCP backend.
+    pub trait TcpBackend {
+        /// The type of incoming streams.
+        type Io: AsyncRead + AsyncWrite + 'static;
 
-        listener.reuse_address(true)?;
-        #[cfg(unix)]
-        listener.reuse_port(true)?;
+        /// A `Stream` returned from `incoming`
+        type Incoming: Stream<Item = Self::Io, Error = io::Error> + 'static;
 
-        listener.bind(addr)?;
-        let l = listener.listen(128)?;
-
-        ::tokio_core::net::TcpListener::from_listener(l, addr, handle)
+        /// Create a TCP listener and return a `Stream` of `Io`s.
+        fn incoming(&self, addr: &SocketAddr, handle: &Handle) -> io::Result<Self::Incoming>;
     }
 
+    /// The default backend
     #[derive(Default, Debug)]
     pub struct DefaultBackend {}
 
     impl TcpBackend for DefaultBackend {
         type Io = ::tokio_core::net::TcpStream;
-        type Incoming = ::futures::stream::Map<
-            ::tokio_core::net::Incoming,
-            fn((::tokio_core::net::TcpStream, SocketAddr)) -> ::tokio_core::net::TcpStream,
-        >;
+        type Incoming = ::futures::stream::Map<::tokio_core::net::Incoming, fn((TcpStream, SocketAddr)) -> TcpStream>;
+
         fn incoming(&self, addr: &SocketAddr, handle: &Handle) -> io::Result<Self::Incoming> {
-            Ok(listener(addr, handle)?.incoming().map(
-                (|(sock, _)| sock) as fn((::tokio_core::net::TcpStream, SocketAddr)) -> ::tokio_core::net::TcpStream,
-            ))
+            Ok(listener(addr, handle)?
+                .incoming()
+                .map((|(sock, _)| sock) as fn((TcpStream, SocketAddr)) -> TcpStream))
         }
     }
 
+    /// The TCP backend with TLS support.
     pub struct TlsBackend {
         acceptor: TlsAcceptor,
     }
 
+    impl fmt::Debug for TlsBackend {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            f.debug_struct("TlsBackend")
+                .field("acceptor", &"[secret]")
+                .finish()
+        }
+    }
+
     impl TlsBackend {
+        /// Create a new instance of `TlsBackend` from given identity.
         pub fn from_pkcs12(pkcs12: Pkcs12) -> Result<Self, ::native_tls::Error> {
             let acceptor = TlsAcceptor::builder(pkcs12)?.build()?;
             Ok(TlsBackend { acceptor })
@@ -86,8 +83,9 @@ pub mod backend {
     }
 
     impl TcpBackend for TlsBackend {
-        type Io = ::tokio_tls::TlsStream<::tokio_core::net::TcpStream>;
+        type Io = TlsStream<TcpStream>;
         type Incoming = Box<Stream<Item = Self::Io, Error = io::Error>>;
+
         fn incoming(&self, addr: &SocketAddr, handle: &Handle) -> io::Result<Self::Incoming> {
             let acceptor = self.acceptor.clone();
             Ok(Box::new(listener(addr, handle)?.incoming().and_then(
@@ -99,9 +97,26 @@ pub mod backend {
             )))
         }
     }
+
+    fn listener(addr: &SocketAddr, handle: &Handle) -> io::Result<TcpListener> {
+        let listener = match *addr {
+            SocketAddr::V4(..) => TcpBuilder::new_v4()?,
+            SocketAddr::V6(..) => TcpBuilder::new_v6()?,
+        };
+
+        listener.reuse_address(true)?;
+        #[cfg(unix)]
+        listener.reuse_port(true)?;
+
+        listener.bind(addr)?;
+        let l = listener.listen(128)?;
+
+        TcpListener::from_listener(l, addr, handle)
+    }
 }
 pub use self::backend::TcpBackend;
 
+/// HTTP-level configuration
 #[derive(Debug)]
 pub struct Http(::hyper::server::Http<Chunk>);
 
@@ -110,19 +125,22 @@ impl Default for Http {
         Http(::hyper::server::Http::new())
     }
 }
+
 impl Http {
+    /// Enable or disable `Keep-alive` option
     pub fn keep_alive(&mut self, enabled: bool) -> &mut Self {
         self.0.keep_alive(enabled);
         self
     }
 
+    /// Enable pipeline mode
     pub fn pipeline(&mut self, enabled: bool) -> &mut Self {
         self.0.pipeline(enabled);
         self
     }
 }
 
-///
+/// TCP level configuration
 #[derive(Debug)]
 pub struct Tcp<B = backend::DefaultBackend> {
     addrs: Vec<SocketAddr>,
@@ -139,6 +157,7 @@ impl Default for Tcp<backend::DefaultBackend> {
 }
 
 impl<B> Tcp<B> {
+    /// Create a new instance of `Tcp` with given backend
     pub fn new(backend: B) -> Self {
         Tcp {
             backend,
@@ -146,6 +165,7 @@ impl<B> Tcp<B> {
         }
     }
 
+    /// Set the listener addresses.
     pub fn set_addrs<S>(&mut self, addrs: S) -> io::Result<()>
     where
         S: ToSocketAddrs,
@@ -154,11 +174,13 @@ impl<B> Tcp<B> {
         Ok(())
     }
 
+    /// Returns the mutable reference of the inner backend
     pub fn backend(&mut self) -> &mut B {
         &mut self.backend
     }
 }
 
+/// Worker level configuration
 #[derive(Debug, Default)]
 pub struct Worker {
     /// The number of worker threads
@@ -243,6 +265,7 @@ where
 }
 
 impl<S: ServiceFactory> Application<S, backend::DefaultBackend> {
+    /// Create a new instance of Application from given service
     pub fn from_service(service: S) -> Self {
         Self::new(service, Default::default())
     }
@@ -271,6 +294,7 @@ where
     S: ServiceFactory + Send + Sync + 'static,
     B: TcpBackend + Send + Sync + 'static,
 {
+    /// Start the HTTP server with given configurations
     pub fn run(mut self) {
         if self.tcp.addrs.is_empty() {
             println!("[info] Use default listener addresses.");
@@ -321,6 +345,7 @@ where
             inner: self.service.clone(),
             handle: handle.clone(),
         };
+
         for addr in &self.tcp.addrs {
             let incoming = self.tcp.backend.incoming(addr, &handle)?;
             let serve = self.http
@@ -339,6 +364,7 @@ struct NewService<S: ServiceFactory> {
     inner: Arc<S>,
     handle: Handle,
 }
+
 impl<S: ServiceFactory> Clone for NewService<S> {
     fn clone(&self) -> Self {
         NewService {

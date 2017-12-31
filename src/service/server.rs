@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use std::collections::HashSet;
 use std::io;
 use std::net::{SocketAddr, ToSocketAddrs};
@@ -18,6 +20,7 @@ use responder::IntoResponder;
 use super::{EndpointServiceFactory, ServiceFactory};
 
 /// The factory of HTTP service
+#[deprecated(since = "0.11.0", note = "use Application instead")]
 #[derive(Debug)]
 pub struct ServerBuilder {
     addrs: Vec<SocketAddr>,
@@ -101,8 +104,9 @@ impl ServerBuilder {
 }
 
 /// The context of worker threads
+#[deprecated(since = "0.11.0", note = "use Application instead")]
 #[derive(Debug)]
-struct Worker<F> {
+pub struct Worker<F> {
     factory: Arc<F>,
     proto: Arc<Http<Chunk>>,
     addrs: Vec<SocketAddr>,
