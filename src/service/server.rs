@@ -102,7 +102,7 @@ impl ServerBuilder {
 
 /// The context of worker threads
 #[derive(Debug)]
-pub struct Worker<F> {
+struct Worker<F> {
     factory: Arc<F>,
     proto: Arc<Http<Chunk>>,
     addrs: Vec<SocketAddr>,
@@ -133,11 +133,6 @@ where
             addrs,
             capacity: 1024,
         }
-    }
-
-    #[allow(missing_docs)]
-    pub fn capacity(&mut self, capacity: i32) {
-        self.capacity = capacity;
     }
 
     #[allow(missing_docs)]
