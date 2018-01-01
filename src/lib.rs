@@ -9,11 +9,13 @@ extern crate cookie;
 #[macro_use]
 extern crate futures;
 extern crate hyper;
+extern crate native_tls;
 extern crate net2;
 extern crate tokio_core;
-extern crate tokio_proto;
-extern crate tokio_service;
+extern crate tokio_io;
+extern crate tokio_tls;
 
+pub mod application;
 pub mod contrib;
 pub mod endpoint;
 pub mod http;

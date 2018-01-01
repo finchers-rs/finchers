@@ -1,11 +1,12 @@
+#![allow(deprecated)]
+
 use std::collections::HashSet;
 use std::io;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::thread;
 use std::sync::Arc;
 
-use futures::Stream;
-use futures::stream::FuturesUnordered;
+use futures::{Future, Stream};
 use hyper::Chunk;
 use hyper::server::Http;
 use net2::TcpBuilder;
@@ -19,6 +20,7 @@ use responder::IntoResponder;
 use super::{EndpointServiceFactory, ServiceFactory};
 
 /// The factory of HTTP service
+#[deprecated(since = "0.11.0", note = "use Application instead")]
 #[derive(Debug)]
 pub struct ServerBuilder {
     addrs: Vec<SocketAddr>,
@@ -102,6 +104,7 @@ impl ServerBuilder {
 }
 
 /// The context of worker threads
+#[deprecated(since = "0.11.0", note = "use Application instead")]
 #[derive(Debug)]
 pub struct Worker<F> {
     factory: Arc<F>,
@@ -123,7 +126,7 @@ impl<F> Clone for Worker<F> {
 
 impl<F> Worker<F>
 where
-    F: ServiceFactory,
+    F: ServiceFactory + 'static,
     F::Service: 'static,
 {
     #[allow(missing_docs)]
@@ -137,29 +140,27 @@ where
     }
 
     #[allow(missing_docs)]
-    pub fn capacity(&mut self, capacity: i32) {
-        self.capacity = capacity;
-    }
-
-    #[allow(missing_docs)]
-    pub fn run(&self) -> io::Result<()> {
+    pub fn run(&self) -> Result<(), ::hyper::Error> {
         let mut core = Core::new()?;
         let handle = core.handle();
 
-        let mut servers = FuturesUnordered::new();
         for addr in &self.addrs {
-            let server = self.build_listener(addr, &handle)?
+            let incoming = self.build_listener(addr, &handle)?
                 .incoming()
-                .for_each(|(sock, addr)| -> io::Result<()> {
-                    let service = self.factory.new_service(&handle)?;
-                    self.proto.bind_connection(&handle, sock, addr, service);
-                    Ok(())
-                });
-            servers.push(server);
+                .map(|(sock, _addr)| sock);
+            let new_service = {
+                let factory = self.factory.clone();
+                let handle = handle.clone();
+                move || factory.new_service(&handle)
+            };
+            let serve = self.proto
+                .serve_incoming(incoming, new_service)
+                .for_each(|_| Ok(()))
+                .map_err(|_| ());
+            handle.spawn(serve);
         }
-        let server = servers.fold((), |(), _| -> io::Result<()> { Ok(()) });
 
-        core.run(server)
+        core.run(::futures::future::empty())
     }
 
     fn build_listener(&self, addr: &SocketAddr, handle: &Handle) -> io::Result<TcpListener> {

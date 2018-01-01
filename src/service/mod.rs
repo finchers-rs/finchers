@@ -1,4 +1,4 @@
-//! Components to construct Hyper's service.
+//! Components of lower-level HTTP services
 
 mod factory;
 mod server;

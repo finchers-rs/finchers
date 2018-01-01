@@ -8,8 +8,8 @@ use std::sync::Arc;
 
 use futures::{Async, Future, Poll};
 use hyper;
+use hyper::server::Service;
 use tokio_core::reactor::Handle;
-use tokio_service::Service;
 
 use http::{self, CookieManager, StatusCode};
 use endpoint::{Endpoint, EndpointContext};
@@ -150,11 +150,11 @@ impl<F: Future> Future for Respondable<F> {
 }
 
 #[derive(Debug)]
-pub struct EndpointServiceFactory<E> {
+pub struct EndpointServiceFactory<E: Endpoint> {
     inner: Arc<EndpointServiceContext<E>>,
 }
 
-impl<E> EndpointServiceFactory<E> {
+impl<E: Endpoint> EndpointServiceFactory<E> {
     pub fn new(endpoint: E) -> Self {
         EndpointServiceFactory {
             inner: Arc::new(EndpointServiceContext {

@@ -1,9 +1,9 @@
 #![allow(missing_docs)]
 
 use std::io;
-use tokio_core::reactor::Handle;
-use tokio_service::{NewService, Service};
 use hyper;
+use hyper::server::{NewService, Service};
+use tokio_core::reactor::Handle;
 
 /// A factory of Hyper's `Service`.
 pub trait ServiceFactory {
