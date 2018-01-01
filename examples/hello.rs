@@ -4,9 +4,9 @@ extern crate error_chain;
 extern crate finchers;
 
 use finchers::Endpoint;
+use finchers::Application;
 use finchers::endpoint::{body, path};
 use finchers::endpoint::method::{get, post};
-use finchers::service::ServerBuilder;
 use errors::*;
 
 fn main() {
@@ -19,11 +19,7 @@ fn main() {
 
     let endpoint = choice!(endpoint1, endpoint2);
 
-    ServerBuilder::default()
-        .bind("0.0.0.0:8080")
-        .bind("[::0]:8080")
-        .num_workers(1)
-        .serve(endpoint);
+    Application::from_endpoint(endpoint).run();
 }
 
 // TODO: code generation

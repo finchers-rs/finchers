@@ -25,6 +25,9 @@ pub mod task;
 pub mod test;
 
 #[doc(inline)]
+pub use application::Application;
+
+#[doc(inline)]
 pub use endpoint::{Endpoint, IntoEndpoint};
 
 #[doc(inline)]

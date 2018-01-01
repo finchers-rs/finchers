@@ -1,12 +1,11 @@
 extern crate finchers;
 
 use std::fmt;
-use finchers::{Endpoint, Responder};
+use finchers::{Application, Endpoint, Responder};
 use finchers::endpoint::header_opt;
 use finchers::endpoint::method::get;
 use finchers::http::{Headers, StatusCode};
 use finchers::http::header::{Authorization, Basic};
-use finchers::service::ServerBuilder;
 
 #[derive(Debug)]
 struct Unauthorized(String);
@@ -49,5 +48,5 @@ fn main() {
         user.to_string()
     });
 
-    ServerBuilder::default().serve(endpoint);
+    Application::from_endpoint(endpoint).run();
 }

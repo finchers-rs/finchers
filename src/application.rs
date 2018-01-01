@@ -181,10 +181,16 @@ impl<B> Tcp<B> {
 }
 
 /// Worker level configuration
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Worker {
     /// The number of worker threads
     pub num_workers: usize,
+}
+
+impl Default for Worker {
+    fn default() -> Self {
+        Worker { num_workers: 1 }
+    }
 }
 
 /// The launcher of HTTP application.
@@ -322,6 +328,10 @@ where
                 },
             ));
         }
+
+        for handle in handles {
+            let _ = handle.join();
+        }
     }
 }
 
@@ -351,7 +361,7 @@ where
             let serve = self.http
                 .0
                 .serve_incoming(incoming, new_service.clone())
-                .for_each(|_| Ok(()))
+                .for_each(|conn| conn.map(|_| ()))
                 .map_err(|_| ());
             handle.spawn(serve);
         }

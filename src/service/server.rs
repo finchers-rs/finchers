@@ -155,7 +155,7 @@ where
             };
             let serve = self.proto
                 .serve_incoming(incoming, new_service)
-                .for_each(|_| Ok(()))
+                .for_each(|conn| conn.map(|_| ()))
                 .map_err(|_| ());
             handle.spawn(serve);
         }
