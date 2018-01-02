@@ -11,7 +11,7 @@ use hyper;
 use hyper::server::Service;
 use tokio_core::reactor::Handle;
 
-use http::{self, CookieManager, StatusCode};
+use http::{self, Cookies, SecretKey, StatusCode};
 use endpoint::{Endpoint, EndpointContext};
 use task::{Task, TaskContext};
 use responder::{ErrorResponder, IntoResponder};
@@ -49,13 +49,18 @@ impl ErrorResponder for NoRoute {
 #[derive(Debug)]
 struct EndpointServiceContext<E> {
     endpoint: E,
-    cookie_manager: CookieManager,
+    secret_key: SecretKey,
     no_route: NoRoute,
 }
 
 /// An HTTP service which wraps a `Endpoint`.
 #[derive(Debug)]
-pub struct EndpointService<E> {
+pub struct EndpointService<E>
+where
+    E: Endpoint,
+    E::Item: IntoResponder,
+    E::Error: IntoResponder,
+{
     inner: Arc<EndpointServiceContext<E>>,
     handle: Handle,
 }
@@ -73,7 +78,7 @@ where
 
     fn call(&self, req: hyper::Request) -> Self::Future {
         let (request, body) = http::request::reconstruct(req);
-        let mut cookies = self.inner.cookie_manager.new_cookies(request.header());
+        let mut cookies = Cookies::from_original(request.header(), self.inner.secret_key.clone());
 
         let inner = {
             let mut ctx = EndpointContext::new(&request, &self.handle);
@@ -150,29 +155,39 @@ impl<F: Future> Future for Respondable<F> {
 }
 
 #[derive(Debug)]
-pub struct EndpointServiceFactory<E: Endpoint> {
+pub struct EndpointServiceFactory<E>
+where
+    E: Endpoint,
+    E::Item: IntoResponder,
+    E::Error: IntoResponder,
+{
     inner: Arc<EndpointServiceContext<E>>,
 }
 
-impl<E: Endpoint> EndpointServiceFactory<E> {
+impl<E> EndpointServiceFactory<E>
+where
+    E: Endpoint,
+    E::Item: IntoResponder,
+    E::Error: IntoResponder,
+{
     pub fn new(endpoint: E) -> Self {
+        Self::with_secret_key(endpoint, SecretKey::generated())
+    }
+
+    pub fn with_secret_key(endpoint: E, secret_key: SecretKey) -> Self {
         EndpointServiceFactory {
             inner: Arc::new(EndpointServiceContext {
                 endpoint,
-                cookie_manager: CookieManager::default(),
+                secret_key,
                 no_route: Default::default(),
             }),
         }
     }
 
-    pub fn with_secret_key<K: AsRef<[u8]>>(endpoint: E, key: K) -> Self {
-        EndpointServiceFactory {
-            inner: Arc::new(EndpointServiceContext {
-                endpoint,
-                cookie_manager: CookieManager::new(key),
-                no_route: Default::default(),
-            }),
-        }
+    pub fn set_secret_key(&mut self, key: SecretKey) {
+        let inner = Arc::get_mut(&mut self.inner)
+            .expect("cannot get a mutable reference of inner context of EndpointServiceFactory");
+        inner.secret_key = key;
     }
 }
 

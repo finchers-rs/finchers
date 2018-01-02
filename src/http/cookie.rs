@@ -3,13 +3,13 @@
 pub use cookie::Cookie;
 
 use std::fmt;
-use std::sync::Arc;
+use std::ops::Deref;
 use cookie::{CookieJar, Key};
 use super::header;
 
 pub struct Cookies {
     inner: CookieJar,
-    key: Arc<Key>,
+    key: SecretKey,
 }
 
 impl fmt::Debug for Cookies {
@@ -22,12 +22,22 @@ impl fmt::Debug for Cookies {
 }
 
 impl Cookies {
+    pub fn from_original(cookies: Option<&header::Cookie>, key: SecretKey) -> Self {
+        let mut inner = CookieJar::new();
+        if let Some(cookies) = cookies {
+            for (name, value) in cookies.iter() {
+                inner.add_original(Cookie::new(name.to_owned(), value.to_owned()));
+            }
+        }
+        Cookies { inner, key }
+    }
+
     pub fn get(&self, name: &str) -> Option<&Cookie<'static>> {
         self.inner.get(name)
     }
 
     pub fn get_private(&mut self, name: &str) -> Option<Cookie<'static>> {
-        self.inner.private(&*self.key).get(name)
+        self.inner.private(&self.key).get(name)
     }
 
     pub fn add(&mut self, cookie: Cookie<'static>) {
@@ -35,7 +45,7 @@ impl Cookies {
     }
 
     pub fn add_private(&mut self, cookie: Cookie<'static>) {
-        self.inner.private(&*self.key).add(cookie)
+        self.inner.private(&self.key).add(cookie)
     }
 
     pub fn remove(&mut self, cookie: Cookie<'static>) {
@@ -43,7 +53,7 @@ impl Cookies {
     }
 
     pub fn remove_private(&mut self, cookie: Cookie<'static>) {
-        self.inner.private(&*self.key).remove(cookie)
+        self.inner.private(&self.key).remove(cookie)
     }
 
     pub fn collect_changes(&self) -> Vec<String> {
@@ -55,52 +65,37 @@ impl Cookies {
 }
 
 #[derive(Clone)]
-pub struct CookieManager {
-    secret_key: Arc<Key>,
+pub enum SecretKey {
+    Generated(Key),
+    Provided(Key),
 }
 
-impl fmt::Debug for CookieManager {
+impl fmt::Debug for SecretKey {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("CookieManager")
-            .field("key", &"[secret]")
-            .finish()
+        let name = match *self {
+            SecretKey::Generated(..) => "Generated",
+            SecretKey::Provided(..) => "Provided",
+        };
+        f.debug_tuple(name).field(&"[secret]").finish()
     }
 }
 
-impl Default for CookieManager {
-    fn default() -> Self {
-        CookieManager {
-            secret_key: Arc::new(Key::generate()),
+impl Deref for SecretKey {
+    type Target = Key;
+
+    fn deref(&self) -> &Self::Target {
+        match *self {
+            SecretKey::Generated(ref key) | SecretKey::Provided(ref key) => key,
         }
     }
 }
 
-impl CookieManager {
-    pub fn new<K: AsRef<[u8]>>(key: K) -> Self {
-        CookieManager {
-            secret_key: Arc::new(Key::from_master(key.as_ref())),
-        }
+impl SecretKey {
+    pub fn generated() -> Self {
+        SecretKey::Generated(Key::generate())
     }
 
-    pub fn set_secret_key<K: AsRef<[u8]>>(&mut self, key: K) {
-        let key = Key::from_master(key.as_ref());
-        self.secret_key = Arc::new(key);
-    }
-
-    pub fn generate_secret_key(&mut self) {
-        self.secret_key = Arc::new(Key::generate());
-    }
-
-    pub fn new_cookies(&self, cookies: Option<&header::Cookie>) -> Cookies {
-        let mut inner = CookieJar::new();
-        if let Some(cookies) = cookies {
-            for (name, value) in cookies.iter() {
-                inner.add_original(Cookie::new(name.to_owned(), value.to_owned()));
-            }
-        }
-        Cookies {
-            inner,
-            key: self.secret_key.clone(),
-        }
+    pub fn provided<K: AsRef<[u8]>>(key: K) -> Self {
+        SecretKey::Provided(Key::from_master(key.as_ref()))
     }
 }
