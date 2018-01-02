@@ -80,20 +80,22 @@ where
         let (request, body) = http::request::reconstruct(req);
         let mut cookies = Cookies::from_original(request.header(), self.inner.secret_key.clone());
 
-        let inner = {
-            let mut ctx = EndpointContext::new(&request);
-            match self.inner.endpoint.apply(&mut ctx) {
-                Some(task) => {
-                    let mut ctx = TaskContext {
-                        request: &request,
-                        handle: &self.handle,
-                        cookies: &mut cookies,
-                        body: Some(body),
-                    };
-                    Respondable::Polling(task.launch(&mut ctx))
-                }
-                None => Respondable::NoRoute(NoRoute),
+        let task = {
+            let mut ctx = EndpointContext::new(&request, &cookies);
+            self.inner.endpoint.apply(&mut ctx)
+        };
+
+        let inner = match task {
+            Some(task) => {
+                let mut ctx = TaskContext {
+                    request: &request,
+                    handle: &self.handle,
+                    cookies: &mut cookies,
+                    body: Some(body),
+                };
+                Respondable::Polling(task.launch(&mut ctx))
             }
+            None => Respondable::NoRoute(NoRoute),
         };
 
         EndpointServiceFuture {

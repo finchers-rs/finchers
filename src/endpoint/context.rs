@@ -1,4 +1,4 @@
-use http::Request;
+use http::{Cookies, Request};
 
 /// An iterator of remaning path segments.
 #[derive(Debug, Clone)]
@@ -70,13 +70,15 @@ mod tests {
 #[derive(Debug, Clone)]
 pub struct EndpointContext<'a> {
     request: &'a Request,
+    cookies: &'a Cookies,
     segments: Option<Segments<'a>>,
 }
 
 impl<'a> EndpointContext<'a> {
-    pub(crate) fn new(request: &'a Request) -> Self {
+    pub(crate) fn new(request: &'a Request, cookies: &'a Cookies) -> Self {
         EndpointContext {
             request,
+            cookies,
             segments: Some(Segments::from(request.path())),
         }
     }
@@ -84,6 +86,11 @@ impl<'a> EndpointContext<'a> {
     /// Returns the reference of HTTP request
     pub fn request(&self) -> &Request {
         self.request
+    }
+
+    /// Returns the reference of Cookies
+    pub fn cookies(&self) -> &Cookies {
+        self.cookies
     }
 
     /// Pop and return the front element of path segments.

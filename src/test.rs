@@ -74,10 +74,12 @@ where
     let TestCase { request, body } = input;
     let mut cookies = Cookies::from_original(request.header(), key);
 
-    let mut ctx = EndpointContext::new(&request);
-    let task = match endpoint.as_ref().apply(&mut ctx) {
-        Some(task) => task,
-        None => return None,
+    let task = {
+        let mut ctx = EndpointContext::new(&request, &cookies);
+        match endpoint.as_ref().apply(&mut ctx) {
+            Some(task) => task,
+            None => return None,
+        }
     };
 
     let mut ctx = TaskContext {
