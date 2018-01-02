@@ -81,7 +81,7 @@ where
         let mut cookies = Cookies::from_original(request.header(), self.inner.secret_key.clone());
 
         let inner = {
-            let mut ctx = EndpointContext::new(&request, &self.handle);
+            let mut ctx = EndpointContext::new(&request);
             match self.inner.endpoint.apply(&mut ctx) {
                 Some(task) => {
                     let mut ctx = TaskContext {

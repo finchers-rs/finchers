@@ -1,4 +1,3 @@
-use tokio_core::reactor::Handle;
 use http::Request;
 
 /// An iterator of remaning path segments.
@@ -71,15 +70,13 @@ mod tests {
 #[derive(Debug, Clone)]
 pub struct EndpointContext<'a> {
     request: &'a Request,
-    handle: &'a Handle,
     segments: Option<Segments<'a>>,
 }
 
 impl<'a> EndpointContext<'a> {
-    pub(crate) fn new(request: &'a Request, handle: &'a Handle) -> Self {
+    pub(crate) fn new(request: &'a Request) -> Self {
         EndpointContext {
             request,
-            handle,
             segments: Some(Segments::from(request.path())),
         }
     }
@@ -87,11 +84,6 @@ impl<'a> EndpointContext<'a> {
     /// Returns the reference of HTTP request
     pub fn request(&self) -> &Request {
         self.request
-    }
-
-    /// Returns the reference of handle of the event loop in the running worker thread
-    pub fn handle(&self) -> &'a Handle {
-        self.handle
     }
 
     /// Pop and return the front element of path segments.
