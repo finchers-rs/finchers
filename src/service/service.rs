@@ -11,7 +11,7 @@ use hyper;
 use hyper::server::Service;
 use tokio_core::reactor::Handle;
 
-use http::{self, CookieManager, StatusCode};
+use http::{self, Cookies, SecretKey, StatusCode};
 use endpoint::{Endpoint, EndpointContext};
 use task::{Task, TaskContext};
 use responder::{ErrorResponder, IntoResponder};
@@ -49,7 +49,7 @@ impl ErrorResponder for NoRoute {
 #[derive(Debug)]
 struct EndpointServiceContext<E> {
     endpoint: E,
-    cookie_manager: CookieManager,
+    secret_key: SecretKey,
     no_route: NoRoute,
 }
 
@@ -73,7 +73,7 @@ where
 
     fn call(&self, req: hyper::Request) -> Self::Future {
         let (request, body) = http::request::reconstruct(req);
-        let mut cookies = self.inner.cookie_manager.new_cookies(request.header());
+        let mut cookies = Cookies::from_original(request.header(), self.inner.secret_key.clone());
 
         let inner = {
             let mut ctx = EndpointContext::new(&request, &self.handle);
@@ -159,7 +159,7 @@ impl<E: Endpoint> EndpointServiceFactory<E> {
         EndpointServiceFactory {
             inner: Arc::new(EndpointServiceContext {
                 endpoint,
-                cookie_manager: CookieManager::default(),
+                secret_key: SecretKey::generated(),
                 no_route: Default::default(),
             }),
         }
@@ -169,7 +169,7 @@ impl<E: Endpoint> EndpointServiceFactory<E> {
         EndpointServiceFactory {
             inner: Arc::new(EndpointServiceContext {
                 endpoint,
-                cookie_manager: CookieManager::new(key),
+                secret_key: SecretKey::provided(key),
                 no_route: Default::default(),
             }),
         }
