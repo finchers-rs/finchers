@@ -55,7 +55,12 @@ struct EndpointServiceContext<E> {
 
 /// An HTTP service which wraps a `Endpoint`.
 #[derive(Debug)]
-pub struct EndpointService<E> {
+pub struct EndpointService<E>
+where
+    E: Endpoint,
+    E::Item: IntoResponder,
+    E::Error: IntoResponder,
+{
     inner: Arc<EndpointServiceContext<E>>,
     handle: Handle,
 }
@@ -150,29 +155,39 @@ impl<F: Future> Future for Respondable<F> {
 }
 
 #[derive(Debug)]
-pub struct EndpointServiceFactory<E: Endpoint> {
+pub struct EndpointServiceFactory<E>
+where
+    E: Endpoint,
+    E::Item: IntoResponder,
+    E::Error: IntoResponder,
+{
     inner: Arc<EndpointServiceContext<E>>,
 }
 
-impl<E: Endpoint> EndpointServiceFactory<E> {
+impl<E> EndpointServiceFactory<E>
+where
+    E: Endpoint,
+    E::Item: IntoResponder,
+    E::Error: IntoResponder,
+{
     pub fn new(endpoint: E) -> Self {
+        Self::with_secret_key(endpoint, SecretKey::generated())
+    }
+
+    pub fn with_secret_key(endpoint: E, secret_key: SecretKey) -> Self {
         EndpointServiceFactory {
             inner: Arc::new(EndpointServiceContext {
                 endpoint,
-                secret_key: SecretKey::generated(),
+                secret_key,
                 no_route: Default::default(),
             }),
         }
     }
 
-    pub fn with_secret_key<K: AsRef<[u8]>>(endpoint: E, key: K) -> Self {
-        EndpointServiceFactory {
-            inner: Arc::new(EndpointServiceContext {
-                endpoint,
-                secret_key: SecretKey::provided(key),
-                no_route: Default::default(),
-            }),
-        }
+    pub fn set_secret_key(&mut self, key: SecretKey) {
+        let inner = Arc::get_mut(&mut self.inner)
+            .expect("cannot get a mutable reference of inner context of EndpointServiceFactory");
+        inner.secret_key = key;
     }
 }
 
