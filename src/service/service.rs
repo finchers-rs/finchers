@@ -6,7 +6,7 @@ use std::error::Error;
 use std::mem;
 use std::sync::Arc;
 
-use futures::{Async, Future, Poll};
+use futures::{Async, Future, IntoFuture, Poll};
 use hyper;
 use hyper::server::Service;
 use tokio_core::reactor::Handle;
@@ -77,23 +77,25 @@ where
     type Future = EndpointServiceFuture<<E::Task as Task>::Future>;
 
     fn call(&self, req: hyper::Request) -> Self::Future {
-        let (request, body) = http::request::reconstruct(req);
+        let (mut request, body) = http::request::reconstruct(req);
         let mut cookies = Cookies::from_original(request.header(), self.inner.secret_key.clone());
 
-        let inner = {
-            let mut ctx = EndpointContext::new(&request, &self.handle);
-            match self.inner.endpoint.apply(&mut ctx) {
-                Some(task) => {
-                    let mut ctx = TaskContext {
-                        request: &request,
-                        handle: &self.handle,
-                        cookies: &mut cookies,
-                        body: Some(body),
-                    };
-                    Respondable::Polling(task.launch(&mut ctx))
-                }
-                None => Respondable::NoRoute(NoRoute),
+        let task = {
+            let mut ctx = EndpointContext::new(&request, &cookies);
+            self.inner.endpoint.apply(&mut ctx)
+        };
+
+        let inner = match task {
+            Some(task) => {
+                let mut ctx = TaskContext {
+                    request: &mut request,
+                    handle: &self.handle,
+                    cookies: &mut cookies,
+                    body: Some(body),
+                };
+                Respondable::Polling(task.launch(&mut ctx).into_future())
             }
+            None => Respondable::NoRoute(NoRoute),
         };
 
         EndpointServiceFuture {

@@ -1,5 +1,4 @@
-use tokio_core::reactor::Handle;
-use http::Request;
+use http::{Cookies, Request};
 
 /// An iterator of remaning path segments.
 #[derive(Debug, Clone)]
@@ -71,15 +70,15 @@ mod tests {
 #[derive(Debug, Clone)]
 pub struct EndpointContext<'a> {
     request: &'a Request,
-    handle: &'a Handle,
+    cookies: &'a Cookies,
     segments: Option<Segments<'a>>,
 }
 
 impl<'a> EndpointContext<'a> {
-    pub(crate) fn new(request: &'a Request, handle: &'a Handle) -> Self {
+    pub(crate) fn new(request: &'a Request, cookies: &'a Cookies) -> Self {
         EndpointContext {
             request,
-            handle,
+            cookies,
             segments: Some(Segments::from(request.path())),
         }
     }
@@ -89,9 +88,9 @@ impl<'a> EndpointContext<'a> {
         self.request
     }
 
-    /// Returns the reference of handle of the event loop in the running worker thread
-    pub fn handle(&self) -> &'a Handle {
-        self.handle
+    /// Returns the reference of Cookies
+    pub fn cookies(&self) -> &Cookies {
+        self.cookies
     }
 
     /// Pop and return the front element of path segments.

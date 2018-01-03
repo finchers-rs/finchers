@@ -71,17 +71,19 @@ where
     let handle = core.handle();
     let key = SecretKey::generated();
 
-    let TestCase { request, body } = input;
+    let TestCase { mut request, body } = input;
     let mut cookies = Cookies::from_original(request.header(), key);
 
-    let mut ctx = EndpointContext::new(&request, &handle);
-    let task = match endpoint.as_ref().apply(&mut ctx) {
-        Some(task) => task,
-        None => return None,
+    let task = {
+        let mut ctx = EndpointContext::new(&request, &cookies);
+        match endpoint.as_ref().apply(&mut ctx) {
+            Some(task) => task,
+            None => return None,
+        }
     };
 
     let mut ctx = TaskContext {
-        request: &request,
+        request: &mut request,
         handle: &handle,
         cookies: &mut cookies,
         body: Some(body.unwrap_or_default()),

@@ -1,24 +1,7 @@
-use std::fmt;
-use std::error;
 use std::marker::PhantomData;
 use endpoint::{Endpoint, EndpointContext};
-use http::header;
-
-#[allow(missing_docs)]
-#[derive(Debug, Clone)]
-pub struct EmptyHeader(&'static str);
-
-impl fmt::Display for EmptyHeader {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "The header '{}' is not given", self.0)
-    }
-}
-
-impl error::Error for EmptyHeader {
-    fn description(&self) -> &str {
-        "empty header"
-    }
-}
+use http::{header, EmptyHeader};
+use task;
 
 #[allow(missing_docs)]
 pub fn header<H, E>() -> Header<H, E>
@@ -44,13 +27,12 @@ where
 {
     type Item = H;
     type Error = E;
-    type Task = Result<Self::Item, Self::Error>;
+    type Task = task::Header<H, E>;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
-        match ctx.request().header().cloned() {
-            Some(h) => Some(Ok(h)),
-            None => Some(Err(EmptyHeader(H::header_name()).into())),
-        }
+    fn apply(&self, _: &mut EndpointContext) -> Option<Self::Task> {
+        Some(task::Header {
+            _marker: PhantomData,
+        })
     }
 }
 
@@ -76,9 +58,11 @@ where
 {
     type Item = Option<H>;
     type Error = E;
-    type Task = Result<Self::Item, Self::Error>;
+    type Task = task::HeaderOpt<H, E>;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
-        Some(Ok(ctx.request().header().cloned()))
+    fn apply(&self, _: &mut EndpointContext) -> Option<Self::Task> {
+        Some(task::HeaderOpt {
+            _marker: PhantomData,
+        })
     }
 }
