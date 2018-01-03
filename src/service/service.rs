@@ -77,7 +77,7 @@ where
     type Future = EndpointServiceFuture<<E::Task as Task>::Future>;
 
     fn call(&self, req: hyper::Request) -> Self::Future {
-        let (request, body) = http::request::reconstruct(req);
+        let (mut request, body) = http::request::reconstruct(req);
         let mut cookies = Cookies::from_original(request.header(), self.inner.secret_key.clone());
 
         let task = {
@@ -88,7 +88,7 @@ where
         let inner = match task {
             Some(task) => {
                 let mut ctx = TaskContext {
-                    request: &request,
+                    request: &mut request,
                     handle: &self.handle,
                     cookies: &mut cookies,
                     body: Some(body),

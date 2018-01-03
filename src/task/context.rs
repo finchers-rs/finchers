@@ -4,7 +4,7 @@ use http::{Body, Cookies, Request};
 /// The context during `Task::launch`.
 #[derive(Debug)]
 pub struct TaskContext<'a> {
-    pub(crate) request: &'a Request,
+    pub(crate) request: &'a mut Request,
     pub(crate) handle: &'a Handle,
     pub(crate) cookies: &'a mut Cookies,
     pub(crate) body: Option<Body>,
@@ -12,8 +12,8 @@ pub struct TaskContext<'a> {
 
 impl<'a> TaskContext<'a> {
     /// Returns the reference of `Request`.
-    pub fn request(&self) -> &'a Request {
-        self.request
+    pub fn request(&mut self) -> &mut Request {
+        &mut *self.request
     }
 
     /// Takes the instance of `Body` from this context, if available.
@@ -22,8 +22,8 @@ impl<'a> TaskContext<'a> {
     }
 
     /// Returns the reference of the handle of event loop.
-    pub fn handle(&self) -> &'a Handle {
-        self.handle
+    pub fn handle(&self) -> &Handle {
+        &*self.handle
     }
 
     /// Returns the reference of Cookie jar.

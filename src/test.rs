@@ -71,7 +71,7 @@ where
     let handle = core.handle();
     let key = SecretKey::generated();
 
-    let TestCase { request, body } = input;
+    let TestCase { mut request, body } = input;
     let mut cookies = Cookies::from_original(request.header(), key);
 
     let task = {
@@ -83,7 +83,7 @@ where
     };
 
     let mut ctx = TaskContext {
-        request: &request,
+        request: &mut request,
         handle: &handle,
         cookies: &mut cookies,
         body: Some(body.unwrap_or_default()),
