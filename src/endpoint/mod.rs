@@ -28,7 +28,7 @@ pub(crate) mod with;
 pub use self::body::body;
 pub use self::context::{EndpointContext, Segments};
 pub use self::endpoint::{Endpoint, IntoEndpoint};
-pub use self::header::{header, header_opt, EmptyHeader};
+pub use self::header::{header, header_opt};
 #[doc(inline)]
 pub use self::method::MatchMethod;
 pub use self::path::{path, paths};

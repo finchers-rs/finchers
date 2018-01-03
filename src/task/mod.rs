@@ -4,6 +4,7 @@ pub(crate) mod and_then;
 pub(crate) mod body;
 pub(crate) mod chain;
 pub(crate) mod context;
+pub(crate) mod header;
 pub(crate) mod inspect;
 pub(crate) mod join;
 pub(crate) mod join_all;
@@ -19,6 +20,7 @@ pub use self::task::Task;
 
 pub use self::and_then::AndThen;
 pub use self::body::Body;
+pub use self::header::{Header, HeaderOpt};
 pub use self::inspect::Inspect;
 pub use self::join::{Join, Join3, Join4, Join5};
 pub use self::join_all::JoinAll;

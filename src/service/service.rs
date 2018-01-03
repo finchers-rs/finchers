@@ -6,7 +6,7 @@ use std::error::Error;
 use std::mem;
 use std::sync::Arc;
 
-use futures::{Async, Future, Poll};
+use futures::{Async, Future, IntoFuture, Poll};
 use hyper;
 use hyper::server::Service;
 use tokio_core::reactor::Handle;
@@ -93,7 +93,7 @@ where
                     cookies: &mut cookies,
                     body: Some(body),
                 };
-                Respondable::Polling(task.launch(&mut ctx))
+                Respondable::Polling(task.launch(&mut ctx).into_future())
             }
             None => Respondable::NoRoute(NoRoute),
         };
