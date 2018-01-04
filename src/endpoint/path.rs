@@ -28,7 +28,7 @@ impl<E> Endpoint for MatchPath<E> {
             Segments(ref segments) => {
                 let mut matched = true;
                 for segment in segments {
-                    matched = matched && try_opt!(ctx.next_segment()) == segment;
+                    matched = matched && *try_opt!(ctx.segments().next()) == *segment;
                 }
                 if matched {
                     Some(Ok(()))
@@ -37,7 +37,7 @@ impl<E> Endpoint for MatchPath<E> {
                 }
             }
             AllSegments => {
-                let _ = ctx.take_segments();
+                let _ = ctx.segments().count();
                 Some(Ok(()))
             }
         }
@@ -153,10 +153,7 @@ where
     type Task = Result<Self::Item, Self::Error>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
-        match ctx.next_segment().map(|s| s.parse()) {
-            Some(res) => Some(res.map_err(Into::into)),
-            _ => return None,
-        }
+        ctx.segments().next().map(|s| s.parse().map_err(Into::into))
     }
 }
 
@@ -184,11 +181,10 @@ where
     type Task = Result<Self::Item, Self::Error>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
-        match ctx.take_segments()
-            .map(|s| s.map(|s| s.parse()).collect::<Result<_, _>>())
-        {
-            Some(res) => Some(res.map_err(Into::into)),
-            _ => return None,
-        }
+        Some(
+            ctx.segments()
+                .map(|s| s.parse().map_err(Into::into))
+                .collect::<Result<_, _>>(),
+        )
     }
 }
