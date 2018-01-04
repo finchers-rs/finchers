@@ -6,39 +6,131 @@ use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
 
 #[allow(missing_docs)]
 #[derive(Debug, Clone)]
-pub struct MatchPath<'a, E>(Cow<'a, str>, PhantomData<fn() -> E>);
+pub struct MatchPath<E> {
+    kind: MatchPathKind,
+    _marker: PhantomData<fn() -> E>,
+}
 
-impl<'a, E> Endpoint for MatchPath<'a, E> {
+#[derive(Debug, Clone, PartialEq)]
+enum MatchPathKind {
+    Segments(Vec<String>),
+    AllSegments,
+}
+use self::MatchPathKind::*;
+
+impl<E> Endpoint for MatchPath<E> {
     type Item = ();
     type Error = E;
     type Task = Result<Self::Item, Self::Error>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
-        if !ctx.next_segment().map(|s| s == self.0).unwrap_or(false) {
-            return None;
+        match self.kind {
+            Segments(ref segments) => {
+                let mut matched = true;
+                for segment in segments {
+                    matched = matched && try_opt!(ctx.next_segment()) == segment;
+                }
+                if matched {
+                    Some(Ok(()))
+                } else {
+                    None
+                }
+            }
+            AllSegments => {
+                let _ = ctx.take_segments();
+                Some(Ok(()))
+            }
         }
-        Some(Ok(()))
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum ParseMatchError {
+    EmptyString,
+}
+
+#[allow(missing_docs)]
+pub fn match_<E>(s: &str) -> Result<MatchPath<E>, ParseMatchError> {
+    let s = s.trim().trim_left_matches("/").trim_right_matches("/");
+    let kind = if s == "*" {
+        AllSegments
+    } else {
+        let mut segments = Vec::new();
+        for segment in s.split("/").map(|s| s.trim()) {
+            if segment.is_empty() {
+                return Err(ParseMatchError::EmptyString);
+            }
+            segments.push(segment.into());
+        }
+        Segments(segments)
+    };
+
+    Ok(MatchPath {
+        kind,
+        _marker: PhantomData,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_match_single_segment() {
+        assert_eq!(
+            match_::<()>("foo").map(|m| m.kind),
+            Ok(Segments(vec!["foo".to_owned()]))
+        );
+    }
+
+    #[test]
+    fn test_match_multi_segments() {
+        assert_eq!(
+            match_::<()>("foo/bar").map(|m| m.kind),
+            Ok(Segments(vec!["foo".to_owned(), "bar".to_owned()]))
+        );
+    }
+
+    #[test]
+    fn test_match_all_segments() {
+        assert_eq!(match_::<()>("*").map(|m| m.kind), Ok(AllSegments));
+    }
+
+    #[test]
+    fn test_match_failure_empty() {
+        assert_eq!(
+            match_::<()>("").map(|m| m.kind),
+            Err(ParseMatchError::EmptyString)
+        );
+    }
+
+    #[test]
+    fn test_match_failure_empty_2() {
+        assert_eq!(
+            match_::<()>("foo//bar").map(|m| m.kind),
+            Err(ParseMatchError::EmptyString)
+        );
     }
 }
 
 impl<'a, E> IntoEndpoint<(), E> for &'a str {
-    type Endpoint = MatchPath<'a, E>;
+    type Endpoint = MatchPath<E>;
     fn into_endpoint(self) -> Self::Endpoint {
-        MatchPath(self.into(), PhantomData)
+        match_(self).unwrap()
     }
 }
 
 impl<E> IntoEndpoint<(), E> for String {
-    type Endpoint = MatchPath<'static, E>;
+    type Endpoint = MatchPath<E>;
     fn into_endpoint(self) -> Self::Endpoint {
-        MatchPath(self.into(), PhantomData)
+        match_(&self).unwrap()
     }
 }
 
 impl<'a, E> IntoEndpoint<(), E> for Cow<'a, str> {
-    type Endpoint = MatchPath<'a, E>;
+    type Endpoint = MatchPath<E>;
     fn into_endpoint(self) -> Self::Endpoint {
-        MatchPath(self.into(), PhantomData)
+        match_(&*self).unwrap()
     }
 }
 
