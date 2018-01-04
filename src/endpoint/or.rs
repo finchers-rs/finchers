@@ -29,23 +29,32 @@ where
     type Error = E1::Error;
     type Task = task::or::Or<E1::Task, E2::Task>;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
-        let mut ctx1 = ctx.clone();
-        match self.e1.apply(&mut ctx1) {
-            Some(fut) => {
-                *ctx = ctx1;
-                return Some(task::or::Or {
-                    inner: task::or::Left(fut),
-                });
+    fn apply(&self, ctx2: &mut EndpointContext) -> Option<Self::Task> {
+        let mut ctx1 = ctx2.clone();
+        let t1 = self.e1.apply(&mut ctx1);
+        let t2 = self.e2.apply(ctx2);
+        match (t1, t2) {
+            (Some(t1), Some(t2)) => {
+                // If both endpoints are matched, the one with the larger number of
+                // (consumed) path segments is choosen.
+                let inner = if ctx1.segments().popped() > ctx2.segments().popped() {
+                    *ctx2 = ctx1;
+                    task::or::Left(t1)
+                } else {
+                    task::or::Right(t2)
+                };
+                Some(task::or::Or { inner })
             }
-            None => {}
-        }
-
-        match self.e2.apply(ctx) {
-            Some(fut) => Some(task::or::Or {
-                inner: task::or::Right(fut),
+            (Some(t1), None) => {
+                *ctx2 = ctx1;
+                Some(task::or::Or {
+                    inner: task::or::Left(t1),
+                })
+            }
+            (None, Some(t2)) => Some(task::or::Or {
+                inner: task::or::Right(t2),
             }),
-            None => None,
+            (None, None) => None,
         }
     }
 }

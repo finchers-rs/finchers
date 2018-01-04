@@ -12,14 +12,11 @@ impl<E: Endpoint> Endpoint for MatchMethod<E> {
     type Task = E::Task;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
-        let f = try_opt!(self.1.apply(ctx));
-        if ctx.segments().count() > 0 {
-            return None;
+        if *ctx.request().method() == self.0 {
+            self.1.apply(ctx)
+        } else {
+            None
         }
-        if *ctx.request().method() != self.0 {
-            return None;
-        }
-        Some(f)
     }
 }
 
