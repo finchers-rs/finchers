@@ -1,6 +1,8 @@
+#![allow(missing_docs)]
+
 use http::{Cookies, IntoBody, Request, Response};
 use http::header::SetCookie;
-use super::{IntoResponder, Responder};
+use super::Responder;
 
 #[derive(Debug)]
 pub struct ResponderContext {
@@ -8,9 +10,17 @@ pub struct ResponderContext {
     pub(crate) cookies: Cookies,
 }
 
-pub fn respond<R: IntoResponder>(res: R, ctx: &mut ResponderContext) -> Response {
-    let mut res = res.into_responder();
+impl ResponderContext {
+    pub fn request(&self) -> &Request {
+        &self.request
+    }
 
+    pub fn cookies(&mut self) -> &mut Cookies {
+        &mut self.cookies
+    }
+}
+
+pub fn respond<R: Responder + ?Sized>(res: &mut R, ctx: &mut ResponderContext) -> Response {
     let mut response = Response::new();
     response.set_status(res.status());
     if let Some(body) = res.body() {

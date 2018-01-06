@@ -7,6 +7,13 @@ pub trait IntoBody: Sized {
     fn into_body(self, h: &mut Headers) -> Body;
 }
 
+impl IntoBody for Body {
+    #[inline(always)]
+    fn into_body(self, _: &mut Headers) -> Body {
+        self
+    }
+}
+
 impl IntoBody for () {
     fn into_body(self, h: &mut Headers) -> Body {
         h.set(header::ContentLength(0));
