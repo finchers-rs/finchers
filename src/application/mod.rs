@@ -11,7 +11,7 @@ use tokio_core::reactor::{Core, Handle};
 
 use endpoint::Endpoint;
 use responder::IntoResponder;
-use service::{EndpointServiceFactory, ServiceFactory};
+use service::{EndpointServiceFactory, NoRoute, ServiceFactory};
 
 pub use self::backend::TcpBackend;
 
@@ -176,21 +176,15 @@ impl<S: ServiceFactory> Application<S, backend::DefaultBackend> {
     }
 }
 
-impl<E> Application<EndpointServiceFactory<E>, backend::DefaultBackend>
+impl<E> Application<EndpointServiceFactory<E, NoRoute>, backend::DefaultBackend>
 where
     E: Endpoint,
     E::Item: IntoResponder,
     E::Error: IntoResponder,
 {
     /// Create a lancher from given `Endpoint`.
-    ///
-    /// ```ignore
-    /// let mut application = Application::from_endpoint(endpoint);
-    /// application.service().set_secret_key("xxx");
-    /// application.run();
-    /// ```
     pub fn from_endpoint(endpoint: E) -> Self {
-        Self::from_service(EndpointServiceFactory::new(endpoint))
+        Self::from_service(EndpointServiceFactory::new(endpoint, Default::default()))
     }
 }
 

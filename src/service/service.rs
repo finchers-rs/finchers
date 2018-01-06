@@ -47,34 +47,36 @@ impl ErrorResponder for NoRoute {
 
 /// The inner representation of `EndpointService`.
 #[derive(Debug)]
-struct EndpointServiceContext<E> {
+struct EndpointServiceContext<E, N> {
     endpoint: E,
     secret_key: SecretKey,
-    no_route: NoRoute,
+    no_route: N,
 }
 
 /// An HTTP service which wraps a `Endpoint`.
 #[derive(Debug)]
-pub struct EndpointService<E>
+pub struct EndpointService<E, N>
 where
     E: Endpoint,
     E::Item: IntoResponder,
     E::Error: IntoResponder,
+    N: IntoResponder + Clone,
 {
-    inner: Arc<EndpointServiceContext<E>>,
+    inner: Arc<EndpointServiceContext<E, N>>,
     handle: Handle,
 }
 
-impl<E> Service for EndpointService<E>
+impl<E, N> Service for EndpointService<E, N>
 where
     E: Endpoint,
     E::Item: IntoResponder,
     E::Error: IntoResponder,
+    N: IntoResponder + Clone,
 {
     type Request = hyper::Request;
     type Response = hyper::Response;
     type Error = hyper::Error;
-    type Future = EndpointServiceFuture<<E::Task as Task>::Future>;
+    type Future = EndpointServiceFuture<<E::Task as Task>::Future, N>;
 
     fn call(&self, req: hyper::Request) -> Self::Future {
         let (mut request, body) = http::request::reconstruct(req);
@@ -95,7 +97,7 @@ where
                 };
                 Respondable::Polling(task.launch(&mut ctx).into_future())
             }
-            None => Respondable::NoRoute(NoRoute),
+            None => Respondable::NoRoute(self.inner.no_route.clone()),
         };
 
         EndpointServiceFuture {
@@ -107,16 +109,17 @@ where
 
 /// A future returned from `EndpointService::call()`
 #[derive(Debug)]
-pub struct EndpointServiceFuture<F> {
-    inner: Respondable<F>,
+pub struct EndpointServiceFuture<F, N> {
+    inner: Respondable<F, N>,
     context: ResponderContext,
 }
 
-impl<F> Future for EndpointServiceFuture<F>
+impl<F, N> Future for EndpointServiceFuture<F, N>
 where
     F: Future,
     F::Item: IntoResponder,
     F::Error: IntoResponder,
+    N: IntoResponder,
 {
     type Item = hyper::Response;
     type Error = hyper::Error;
@@ -138,15 +141,15 @@ where
 }
 
 #[derive(Debug)]
-pub(crate) enum Respondable<F> {
+pub(crate) enum Respondable<F, N> {
     Polling(F),
-    NoRoute(NoRoute),
+    NoRoute(N),
     Done,
 }
 
-impl<F: Future> Future for Respondable<F> {
+impl<F: Future, N> Future for Respondable<F, N> {
     type Item = F::Item;
-    type Error = Result<F::Error, NoRoute>;
+    type Error = Result<F::Error, N>;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         use self::Respondable::*;
@@ -163,31 +166,33 @@ impl<F: Future> Future for Respondable<F> {
 }
 
 #[derive(Debug)]
-pub struct EndpointServiceFactory<E>
+pub struct EndpointServiceFactory<E, N>
 where
     E: Endpoint,
     E::Item: IntoResponder,
     E::Error: IntoResponder,
+    N: IntoResponder + Clone,
 {
-    inner: Arc<EndpointServiceContext<E>>,
+    inner: Arc<EndpointServiceContext<E, N>>,
 }
 
-impl<E> EndpointServiceFactory<E>
+impl<E, N> EndpointServiceFactory<E, N>
 where
     E: Endpoint,
     E::Item: IntoResponder,
     E::Error: IntoResponder,
+    N: IntoResponder + Clone,
 {
-    pub fn new(endpoint: E) -> Self {
-        Self::with_secret_key(endpoint, SecretKey::generated())
+    pub fn new(endpoint: E, no_route: N) -> Self {
+        Self::with_secret_key(endpoint, no_route, SecretKey::generated())
     }
 
-    pub fn with_secret_key(endpoint: E, secret_key: SecretKey) -> Self {
+    pub fn with_secret_key(endpoint: E, no_route: N, secret_key: SecretKey) -> Self {
         EndpointServiceFactory {
             inner: Arc::new(EndpointServiceContext {
                 endpoint,
                 secret_key,
-                no_route: Default::default(),
+                no_route,
             }),
         }
     }
@@ -199,13 +204,14 @@ where
     }
 }
 
-impl<E> ServiceFactory for EndpointServiceFactory<E>
+impl<E, N> ServiceFactory for EndpointServiceFactory<E, N>
 where
     E: Endpoint,
     E::Item: IntoResponder,
     E::Error: IntoResponder,
+    N: IntoResponder + Clone,
 {
-    type Service = EndpointService<E>;
+    type Service = EndpointService<E, N>;
 
     fn new_service(&self, handle: &Handle) -> io::Result<Self::Service> {
         Ok(EndpointService {

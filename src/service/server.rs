@@ -17,7 +17,7 @@ use tokio_core::reactor::{Core, Handle};
 
 use endpoint::Endpoint;
 use responder::IntoResponder;
-use super::{EndpointServiceFactory, ServiceFactory};
+use super::{EndpointServiceFactory, NoRoute, ServiceFactory};
 use http::SecretKey;
 
 /// The factory of HTTP service
@@ -75,8 +75,10 @@ impl ServerBuilder {
     {
         // create the factory of Hyper's service
         let factory = match self.secret_key {
-            Some(key) => EndpointServiceFactory::with_secret_key(endpoint, SecretKey::provided(&key)),
-            None => EndpointServiceFactory::new(endpoint),
+            Some(key) => {
+                EndpointServiceFactory::with_secret_key(endpoint, NoRoute::default(), SecretKey::provided(&key))
+            }
+            None => EndpointServiceFactory::new(endpoint, NoRoute::default()),
         };
 
         // collect listener addresses and remove duplicated addresses.
