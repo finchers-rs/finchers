@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 use std::mem;
 use futures::{Async, Future, Poll, Stream};
+use futures::future::{self, FutureResult};
 use http::{self, FromBody};
 use http::header::ContentLength;
 use task::{Task, TaskContext};
@@ -80,5 +81,30 @@ where
             },
             BodyFuture::Done(..) => panic!("cannot resolve twice"),
         }
+    }
+}
+
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct BodyStream<E> {
+    _marker: PhantomData<fn() -> E>,
+}
+
+impl<E> Default for BodyStream<E> {
+    fn default() -> BodyStream<E> {
+        BodyStream {
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<E> Task for BodyStream<E> {
+    type Item = http::Body;
+    type Error = E;
+    type Future = FutureResult<Self::Item, Self::Error>;
+
+    fn launch(self, ctx: &mut TaskContext) -> Self::Future {
+        let body = ctx.take_body().expect("cannot take a body twice");
+        future::ok(body)
     }
 }

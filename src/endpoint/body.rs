@@ -37,3 +37,26 @@ where
         }
     }
 }
+
+#[allow(missing_docs)]
+pub fn body_stream<E>() -> BodyStream<E> {
+    BodyStream {
+        _marker: PhantomData,
+    }
+}
+
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct BodyStream<E> {
+    _marker: PhantomData<fn() -> E>,
+}
+
+impl<E> Endpoint for BodyStream<E> {
+    type Item = http::Body;
+    type Error = E;
+    type Task = task::body::BodyStream<E>;
+
+    fn apply(&self, _: &mut EndpointContext) -> Option<Self::Task> {
+        Some(task::body::BodyStream::default())
+    }
+}
