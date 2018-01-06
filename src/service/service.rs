@@ -14,8 +14,8 @@ use tokio_core::reactor::Handle;
 use http::{self, Cookies, SecretKey, StatusCode};
 use endpoint::{Endpoint, EndpointContext};
 use task::{Task, TaskContext};
-use responder::{ErrorResponder, IntoResponder};
-use responder::inner::{respond, ResponderContext};
+use responder::{ErrorResponder, IntoResponder, Responder};
+use responder::ResponderContext;
 use super::ServiceFactory;
 
 /// An error represents which represents that
@@ -124,9 +124,15 @@ where
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         match self.inner.poll() {
             Ok(Async::NotReady) => Ok(Async::NotReady),
-            Ok(Async::Ready(item)) => Ok(Async::Ready(respond(item, &mut self.context))),
-            Err(Ok(err)) => Ok(Async::Ready(respond(err, &mut self.context))),
-            Err(Err(no_route)) => Ok(Async::Ready(respond(no_route, &mut self.context))),
+            Ok(Async::Ready(item)) => Ok(Async::Ready(
+                item.into_responder().respond(&mut self.context),
+            )),
+            Err(Ok(err)) => Ok(Async::Ready(
+                err.into_responder().respond(&mut self.context),
+            )),
+            Err(Err(no_route)) => Ok(Async::Ready(
+                no_route.into_responder().respond(&mut self.context),
+            )),
         }
     }
 }

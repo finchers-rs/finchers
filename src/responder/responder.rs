@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::error::Error;
-use http::{Cookies, Headers, IntoBody, StatusCode};
+use http::{Cookies, Headers, IntoBody, Response, StatusCode};
+use super::ResponderContext;
 
 /// Abstrcution of types converted into a raw HTTP response.
 pub trait Responder {
@@ -30,6 +31,11 @@ pub trait Responder {
     ///
     /// By default, this method has no affect to the HTTP response.
     fn cookies(&self, &mut Cookies) {}
+
+    #[allow(missing_docs)]
+    fn respond(&mut self, ctx: &mut ResponderContext) -> Response {
+        super::respond(self, ctx)
+    }
 }
 
 impl Responder for () {

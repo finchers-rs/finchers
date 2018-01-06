@@ -25,7 +25,7 @@ pub(crate) mod then;
 pub(crate) mod with;
 
 // re-exports
-pub use self::body::body;
+pub use self::body::{body, body_stream, Body, BodyStream};
 pub use self::context::{EndpointContext, Segment, Segments};
 pub use self::endpoint::{Endpoint, IntoEndpoint};
 pub use self::header::{header, header_opt};
