@@ -67,3 +67,37 @@ impl<T: Clone, E: Clone> Endpoint for EndpointResult<T, E> {
         Some(self.x.clone())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use test::TestRunner;
+    use hyper::{Method, Request};
+
+    #[test]
+    fn test_ok() {
+        let endpoint = ok("Alice");
+        let mut runner = TestRunner::new(endpoint).unwrap();
+        let request = Request::new(Method::Get, "/".parse().unwrap());
+        let result: Option<Result<&str, ()>> = runner.run(request);
+        assert_eq!(result, Some(Ok("Alice")));
+    }
+
+    #[test]
+    fn test_err() {
+        let endpoint = err("Alice");
+        let mut runner = TestRunner::new(endpoint).unwrap();
+        let request = Request::new(Method::Get, "/".parse().unwrap());
+        let result: Option<Result<(), &str>> = runner.run(request);
+        assert_eq!(result, Some(Err("Alice")));
+    }
+
+    #[test]
+    fn test_result() {
+        let endpoint = result(Ok("Alice"));
+        let mut runner = TestRunner::new(endpoint).unwrap();
+        let request = Request::new(Method::Get, "/".parse().unwrap());
+        let result: Option<Result<&str, ()>> = runner.run(request);
+        assert_eq!(result, Some(Ok("Alice")));
+    }
+}

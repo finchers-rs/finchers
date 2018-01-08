@@ -71,48 +71,6 @@ pub fn match_<E>(s: &str) -> Result<MatchPath<E>, ParseMatchError> {
     })
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_match_single_segment() {
-        assert_eq!(
-            match_::<()>("foo").map(|m| m.kind),
-            Ok(Segments(vec!["foo".to_owned()]))
-        );
-    }
-
-    #[test]
-    fn test_match_multi_segments() {
-        assert_eq!(
-            match_::<()>("foo/bar").map(|m| m.kind),
-            Ok(Segments(vec!["foo".to_owned(), "bar".to_owned()]))
-        );
-    }
-
-    #[test]
-    fn test_match_all_segments() {
-        assert_eq!(match_::<()>("*").map(|m| m.kind), Ok(AllSegments));
-    }
-
-    #[test]
-    fn test_match_failure_empty() {
-        assert_eq!(
-            match_::<()>("").map(|m| m.kind),
-            Err(ParseMatchError::EmptyString)
-        );
-    }
-
-    #[test]
-    fn test_match_failure_empty_2() {
-        assert_eq!(
-            match_::<()>("foo//bar").map(|m| m.kind),
-            Err(ParseMatchError::EmptyString)
-        );
-    }
-}
-
 impl<'a, E> IntoEndpoint<(), E> for &'a str {
     type Endpoint = MatchPath<E>;
     fn into_endpoint(self) -> Self::Endpoint {
@@ -186,5 +144,132 @@ where
                 .map(|s| s.parse().map_err(Into::into))
                 .collect::<Result<_, _>>(),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::num::ParseIntError;
+    use std::string::ParseError;
+    use hyper::{Method, Request};
+    use test::TestRunner;
+
+    #[test]
+    fn test_match_single_segment() {
+        assert_eq!(
+            match_::<()>("foo").map(|m| m.kind),
+            Ok(Segments(vec!["foo".to_owned()]))
+        );
+    }
+
+    #[test]
+    fn test_match_multi_segments() {
+        assert_eq!(
+            match_::<()>("foo/bar").map(|m| m.kind),
+            Ok(Segments(vec!["foo".to_owned(), "bar".to_owned()]))
+        );
+    }
+
+    #[test]
+    fn test_match_all_segments() {
+        assert_eq!(match_::<()>("*").map(|m| m.kind), Ok(AllSegments));
+    }
+
+    #[test]
+    fn test_match_failure_empty() {
+        assert_eq!(
+            match_::<()>("").map(|m| m.kind),
+            Err(ParseMatchError::EmptyString)
+        );
+    }
+
+    #[test]
+    fn test_match_failure_empty_2() {
+        assert_eq!(
+            match_::<()>("foo//bar").map(|m| m.kind),
+            Err(ParseMatchError::EmptyString)
+        );
+    }
+
+    #[test]
+    fn test_endpoint_match_path() {
+        let endpoint = IntoEndpoint::<(), ()>::into_endpoint("foo");
+        let mut runner = TestRunner::new(endpoint).unwrap();
+
+        let request = Request::new(Method::Get, "/foo".parse().unwrap());
+        assert_eq!(runner.run(request), Some(Ok(())));
+    }
+
+    #[test]
+    fn test_endpoint_reject_path() {
+        let endpoint = IntoEndpoint::<(), ()>::into_endpoint("bar");
+        let mut runner = TestRunner::new(endpoint).unwrap();
+
+        let request = Request::new(Method::Get, "/foo".parse().unwrap());
+        assert_eq!(runner.run(request), None);
+    }
+
+    #[test]
+    fn test_endpoint_match_multi_segments() {
+        let endpoint = IntoEndpoint::<(), ()>::into_endpoint("/foo/bar");
+        let mut runner = TestRunner::new(endpoint).unwrap();
+
+        let request = Request::new(Method::Get, "/foo/bar".parse().unwrap());
+        assert_eq!(runner.run(request), Some(Ok(())));
+    }
+
+    #[test]
+    fn test_endpoint_reject_multi_segments() {
+        let endpoint = IntoEndpoint::<(), ()>::into_endpoint("/foo/bar");
+        let mut runner = TestRunner::new(endpoint).unwrap();
+
+        let request = Request::new(Method::Get, "/foo/baz".parse().unwrap());
+        assert_eq!(runner.run(request), None);
+    }
+
+    #[test]
+    fn test_endpoint_reject_short_path() {
+        let endpoint = IntoEndpoint::<(), ()>::into_endpoint("/foo/bar/baz");
+        let mut runner = TestRunner::new(endpoint).unwrap();
+
+        let request = Request::new(Method::Get, "/foo/bar".parse().unwrap());
+        assert_eq!(runner.run(request), None);
+    }
+
+    #[test]
+    fn test_endpoint_match_all_path() {
+        let endpoint = IntoEndpoint::<(), ()>::into_endpoint("*");
+        let mut runner = TestRunner::new(endpoint).unwrap();
+
+        let request = Request::new(Method::Get, "/foo".parse().unwrap());
+        assert_eq!(runner.run(request), Some(Ok(())));
+    }
+
+    #[test]
+    fn test_endpoint_extract_integer() {
+        let endpoint = path::<i32, ParseIntError>();
+        let mut runner = TestRunner::new(endpoint).unwrap();
+        let request = Request::new(Method::Get, "/42".parse().unwrap());
+        assert_eq!(runner.run(request), Some(Ok(42)));
+    }
+
+    #[test]
+    fn test_endpoint_extract_wrong_integer() {
+        let endpoint = path::<i32, ParseIntError>();
+        let mut runner = TestRunner::new(endpoint).unwrap();
+        let request = Request::new(Method::Get, "/foo".parse().unwrap());
+        assert_eq!(runner.run(request).map(|r| r.is_err()), Some(true));
+    }
+
+    #[test]
+    fn test_endpoint_extract_strings() {
+        let endpoint = paths::<Vec<String>, String, ParseError>();
+        let mut runner = TestRunner::new(endpoint).unwrap();
+        let request = Request::new(Method::Get, "/foo/bar".parse().unwrap());
+        assert_eq!(
+            runner.run(request),
+            Some(Ok(vec!["foo".to_string(), "bar".to_string()]))
+        );
     }
 }

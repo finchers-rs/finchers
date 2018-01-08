@@ -58,3 +58,39 @@ where
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hyper::{Method, Request};
+    use endpoint::result::ok;
+    use test::TestRunner;
+
+    #[test]
+    fn test_or_1() {
+        let endpoint = e!("foo")
+            .with(ok::<_, ()>("foo"))
+            .or(e!("bar").with(ok("bar")));
+        let mut runner = TestRunner::new(endpoint).unwrap();
+
+        let request = Request::new(Method::Get, "/foo".parse().unwrap());
+        assert_eq!(runner.run(request), Some(Ok("foo")));
+
+        let request = Request::new(Method::Get, "/bar".parse().unwrap());
+        assert_eq!(runner.run(request), Some(Ok("bar")));
+    }
+
+    #[test]
+    fn test_or_choose_longer_segments() {
+        let e1 = e!("foo").with(ok("foo"));
+        let e2 = e!("foo/bar").with(ok::<_, ()>("foobar"));
+        let endpoint = e1.or(e2);
+        let mut runner = TestRunner::new(endpoint).unwrap();
+
+        let request = Request::new(Method::Get, "/foo".parse().unwrap());
+        assert_eq!(runner.run(request), Some(Ok("foo")));
+
+        let request = Request::new(Method::Get, "/foo/bar".parse().unwrap());
+        assert_eq!(runner.run(request), Some(Ok("foobar")));
+    }
+}
