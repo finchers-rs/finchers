@@ -17,6 +17,9 @@ extern crate tokio_io;
 #[cfg(feature = "tls")]
 extern crate tokio_tls;
 
+#[macro_use]
+mod macros;
+
 pub mod application;
 pub mod contrib;
 pub mod endpoint;

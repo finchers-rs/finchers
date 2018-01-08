@@ -113,6 +113,16 @@ pub trait Endpoint {
     }
 }
 
+impl<'a, E: Endpoint> Endpoint for &'a E {
+    type Item = E::Item;
+    type Error = E::Error;
+    type Task = E::Task;
+
+    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
+        (*self).apply(ctx)
+    }
+}
+
 impl<E: Endpoint> Endpoint for Box<E> {
     type Item = E::Item;
     type Error = E::Error;

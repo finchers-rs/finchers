@@ -1,7 +1,5 @@
 //! `Endpoint` layer
 
-#[macro_use]
-mod macros;
 pub mod method;
 
 pub(crate) mod body;

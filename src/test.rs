@@ -1,94 +1,49 @@
 //! Helper functions for testing
 
+#![allow(missing_docs)]
+
+use std::io;
+use hyper::Request;
 use tokio_core::reactor::Core;
 
 use endpoint::{Endpoint, EndpointContext};
-use http::{Body, Cookies, Header, Method, Request, SecretKey};
+use http::{self, Cookies, SecretKey};
 use task::{Task, TaskContext};
 
-/// A test case for `run_test()`
 #[derive(Debug)]
-pub struct TestCase {
-    request: Request,
-    body: Option<Body>,
+pub struct TestRunner<E: Endpoint> {
+    endpoint: E,
+    core: Core,
 }
 
-impl TestCase {
-    /// Construct a `TestCase` from given HTTP method and URI
-    pub fn new(method: Method, uri: &str) -> Self {
-        let request = Request::new(method, uri).expect("invalid URI");
-        Self {
-            request,
-            body: None,
-        }
+impl<E: Endpoint> TestRunner<E> {
+    pub fn new(endpoint: E) -> io::Result<Self> {
+        Ok(TestRunner {
+            endpoint,
+            core: Core::new()?,
+        })
     }
 
-    /// Equivalent to `TestCase::new(Method::Get, uri)`
-    pub fn get(uri: &str) -> Self {
-        Self::new(Method::Get, uri)
+    pub fn run(&mut self, request: Request) -> Option<Result<E::Item, E::Error>> {
+        let (mut request, body) = http::request::reconstruct(request);
+        let mut cookies = Cookies::from_original(request.header(), SecretKey::generated());
+
+        let task = {
+            let mut ctx = EndpointContext::new(&request, &cookies);
+            try_opt!(self.endpoint.apply(&mut ctx))
+        };
+
+        let fut = {
+            let handle = self.core.handle();
+            let mut ctx = TaskContext {
+                request: &mut request,
+                handle: &handle,
+                cookies: &mut cookies,
+                body: Some(body),
+            };
+            task.launch(&mut ctx)
+        };
+
+        Some(self.core.run(fut))
     }
-
-    /// Equivalent to `TestCase::new(Method::Post, uri)`
-    pub fn post(uri: &str) -> Self {
-        Self::new(Method::Post, uri)
-    }
-
-    /// Equivalent to `TestCase::new(Method::Put, uri)`
-    pub fn put(uri: &str) -> Self {
-        Self::new(Method::Put, uri)
-    }
-
-    /// Equivalent to `TestCase::new(Method::Delete, uri)`
-    pub fn delete(uri: &str) -> Self {
-        Self::new(Method::Delete, uri)
-    }
-
-    /// Equivalent to `TestCase::new(Method::Patch, uri)`
-    pub fn patch(uri: &str) -> Self {
-        Self::new(Method::Patch, uri)
-    }
-
-    /// Set the HTTP header of this test case
-    pub fn with_header<H: Header>(mut self, header: H) -> Self {
-        self.request.headers.set(header);
-        self
-    }
-
-    /// Set the request body of this test case
-    pub fn with_body<B: Into<Body>>(mut self, body: B) -> Self {
-        self.body = Some(body.into());
-        self
-    }
-}
-
-/// Invoke given endpoint and return its result
-pub fn run_test<T, E>(endpoint: T, input: TestCase) -> Option<Result<E::Item, E::Error>>
-where
-    T: AsRef<E>,
-    E: Endpoint,
-{
-    let mut core = Core::new().unwrap();
-    let handle = core.handle();
-    let key = SecretKey::generated();
-
-    let TestCase { mut request, body } = input;
-    let mut cookies = Cookies::from_original(request.header(), key);
-
-    let task = {
-        let mut ctx = EndpointContext::new(&request, &cookies);
-        match endpoint.as_ref().apply(&mut ctx) {
-            Some(task) => task,
-            None => return None,
-        }
-    };
-
-    let mut ctx = TaskContext {
-        request: &mut request,
-        handle: &handle,
-        cookies: &mut cookies,
-        body: Some(body.unwrap_or_default()),
-    };
-    let result = core.run(task.launch(&mut ctx));
-
-    Some(result)
 }
