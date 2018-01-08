@@ -99,3 +99,22 @@ impl SecretKey {
         SecretKey::Provided(Key::from_master(key.as_ref()))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_cookies_from_original() {
+        let mut original = header::Cookie::new();
+        original.set("SID", "31d4d96e407aad42");
+        original.set("lang", "en-US");
+
+        let cookies = Cookies::from_original(Some(original).as_ref(), SecretKey::generated());
+        assert_eq!(
+            cookies.get("SID"),
+            Some(&Cookie::new("SID", "31d4d96e407aad42"))
+        );
+        assert_eq!(cookies.get("lang"), Some(&Cookie::new("lang", "en-US")));
+    }
+}

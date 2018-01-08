@@ -131,39 +131,21 @@ where
     }
 
     /// Returns a mutable reference of the service.
-    ///
-    /// ```ignore
-    /// application.service().set_secret_key(b"xxxx");
-    /// ```
     pub fn service(&mut self) -> &mut S {
         &mut self.service
     }
 
     /// Returns a mutable reference of the HTTP configuration
-    ///
-    /// ```ignore
-    /// application.http().keep_alive(true);
-    /// application.http().pipeline(true);
-    /// ```
     pub fn http(&mut self) -> &mut Http {
         &mut self.proto
     }
 
     /// Returns a mutable reference of the TCP configuration
-    ///
-    /// ```ignore
-    /// application.tcp().append_addr("0.0.0.0:4000");
-    /// application.tcp().reuse_port(true);
-    /// application.tcp().backend().set_identity_path("identity.p12");
-    /// ```
     pub fn tcp(&mut self) -> &mut Tcp<B> {
         &mut self.tcp
     }
 
     /// Returns a mutable reference of the worker configuration
-    ///
-    /// ```ignore
-    /// application.worker().num_workers = 1;
     pub fn worker(&mut self) -> &mut Worker {
         &mut self.worker
     }
