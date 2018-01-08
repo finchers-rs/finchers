@@ -1,8 +1,6 @@
 #![allow(missing_docs)]
 
 use std::io;
-use std::fmt;
-use std::error::Error;
 use std::mem;
 use std::sync::Arc;
 
@@ -14,69 +12,40 @@ use tokio_core::reactor::Handle;
 use http::{self, Cookies, SecretKey, StatusCode};
 use endpoint::{Endpoint, EndpointContext};
 use task::{Task, TaskContext};
-use responder::{ErrorResponder, IntoResponder, Responder};
+use responder::{IntoResponder, Responder};
 use responder::ResponderContext;
 use super::ServiceFactory;
 
-/// An error represents which represents that
-/// the matched route was not found.
-#[derive(Debug, Default, Copy, Clone)]
-pub struct NoRoute;
-
-impl fmt::Display for NoRoute {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str("not found")
-    }
-}
-
-impl Error for NoRoute {
-    fn description(&self) -> &str {
-        "not found"
-    }
-}
-
-impl ErrorResponder for NoRoute {
-    fn status(&self) -> StatusCode {
-        StatusCode::NotFound
-    }
-
-    fn message(&self) -> Option<String> {
-        None
-    }
-}
-
 /// The inner representation of `EndpointService`.
 #[derive(Debug)]
-struct EndpointServiceContext<E, N> {
+struct EndpointServiceContext<E> {
     endpoint: E,
     secret_key: SecretKey,
-    no_route: N,
+    no_route: fn() -> hyper::Response,
 }
 
 /// An HTTP service which wraps a `Endpoint`.
 #[derive(Debug)]
-pub struct EndpointService<E, N>
+pub struct EndpointService<E>
 where
     E: Endpoint,
     E::Item: IntoResponder,
     E::Error: IntoResponder,
-    N: IntoResponder + Clone,
 {
-    inner: Arc<EndpointServiceContext<E, N>>,
+    inner: Arc<EndpointServiceContext<E>>,
     handle: Handle,
 }
 
-impl<E, N> Service for EndpointService<E, N>
+impl<E> Service for EndpointService<E>
 where
     E: Endpoint,
     E::Item: IntoResponder,
     E::Error: IntoResponder,
-    N: IntoResponder + Clone,
 {
     type Request = hyper::Request;
     type Response = hyper::Response;
     type Error = hyper::Error;
-    type Future = EndpointServiceFuture<<E::Task as Task>::Future, N>;
+    type Future = EndpointServiceFuture<<E::Task as Task>::Future>;
 
     fn call(&self, req: hyper::Request) -> Self::Future {
         let (mut request, body) = http::request::reconstruct(req);
@@ -97,29 +66,30 @@ where
                 };
                 Respondable::Polling(task.launch(&mut ctx).into_future())
             }
-            None => Respondable::NoRoute(self.inner.no_route.clone()),
+            None => Respondable::NoRoute,
         };
 
         EndpointServiceFuture {
             inner,
             context: ResponderContext { request, cookies },
+            no_route: self.inner.no_route,
         }
     }
 }
 
 /// A future returned from `EndpointService::call()`
 #[derive(Debug)]
-pub struct EndpointServiceFuture<F, N> {
-    inner: Respondable<F, N>,
+pub struct EndpointServiceFuture<F> {
+    inner: Respondable<F>,
     context: ResponderContext,
+    no_route: fn() -> hyper::Response,
 }
 
-impl<F, N> Future for EndpointServiceFuture<F, N>
+impl<F> Future for EndpointServiceFuture<F>
 where
     F: Future,
     F::Item: IntoResponder,
     F::Error: IntoResponder,
-    N: IntoResponder,
 {
     type Item = hyper::Response;
     type Error = hyper::Error;
@@ -127,72 +97,68 @@ where
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         match self.inner.poll() {
             Ok(Async::NotReady) => Ok(Async::NotReady),
-            Ok(Async::Ready(item)) => Ok(Async::Ready(
+            Ok(Async::Ready(Some(item))) => Ok(Async::Ready(
                 item.into_responder().respond(&mut self.context),
             )),
-            Err(Ok(err)) => Ok(Async::Ready(
+            Ok(Async::Ready(None)) => Ok(Async::Ready((self.no_route)())),
+            Err(err) => Ok(Async::Ready(
                 err.into_responder().respond(&mut self.context),
-            )),
-            Err(Err(no_route)) => Ok(Async::Ready(
-                no_route.into_responder().respond(&mut self.context),
             )),
         }
     }
 }
 
 #[derive(Debug)]
-pub(crate) enum Respondable<F, N> {
+pub(crate) enum Respondable<F> {
     Polling(F),
-    NoRoute(N),
+    NoRoute,
     Done,
 }
 
-impl<F: Future, N> Future for Respondable<F, N> {
-    type Item = F::Item;
-    type Error = Result<F::Error, N>;
+impl<F: Future> Future for Respondable<F> {
+    type Item = Option<F::Item>;
+    type Error = F::Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         use self::Respondable::*;
         match *self {
-            Polling(ref mut t) => return t.poll().map_err(Ok),
-            NoRoute(..) => {}
+            Polling(ref mut t) => return t.poll().map(|s| s.map(Some)),
+            NoRoute => {}
             Done => panic!(),
         }
         match mem::replace(self, Done) {
-            NoRoute(e) => Err(Err(e)),
+            NoRoute => Ok(Async::Ready(None)),
             _ => panic!(),
         }
     }
 }
 
 #[derive(Debug)]
-pub struct EndpointServiceFactory<E, N>
+pub struct EndpointServiceFactory<E>
 where
     E: Endpoint,
     E::Item: IntoResponder,
     E::Error: IntoResponder,
-    N: IntoResponder + Clone,
 {
-    inner: Arc<EndpointServiceContext<E, N>>,
+    inner: Arc<EndpointServiceContext<E>>,
 }
 
-impl<E, N> EndpointServiceFactory<E, N>
+impl<E> EndpointServiceFactory<E>
 where
     E: Endpoint,
     E::Item: IntoResponder,
     E::Error: IntoResponder,
-    N: IntoResponder + Clone,
 {
-    pub fn new(endpoint: E, no_route: N) -> Self {
-        Self::with_secret_key(endpoint, no_route, SecretKey::generated())
+    pub fn new(endpoint: E) -> Self {
+        Self::with_secret_key(endpoint, SecretKey::generated())
     }
 
-    pub fn with_secret_key(endpoint: E, no_route: N, secret_key: SecretKey) -> Self {
+    pub fn with_secret_key(endpoint: E, secret_key: SecretKey) -> Self {
         EndpointServiceFactory {
             inner: Arc::new(EndpointServiceContext {
                 endpoint,
                 secret_key,
-                no_route,
+                no_route: no_route,
             }),
         }
     }
@@ -202,16 +168,21 @@ where
             .expect("cannot get a mutable reference of inner context of EndpointServiceFactory");
         inner.secret_key = key;
     }
+
+    pub fn set_no_route(&mut self, no_route: fn() -> hyper::Response) {
+        let inner = Arc::get_mut(&mut self.inner)
+            .expect("cannot get a mutable reference of inner context of EndpointServiceFactory");
+        inner.no_route = no_route;
+    }
 }
 
-impl<E, N> ServiceFactory for EndpointServiceFactory<E, N>
+impl<E> ServiceFactory for EndpointServiceFactory<E>
 where
     E: Endpoint,
     E::Item: IntoResponder,
     E::Error: IntoResponder,
-    N: IntoResponder + Clone,
 {
-    type Service = EndpointService<E, N>;
+    type Service = EndpointService<E>;
 
     fn new_service(&self, handle: &Handle) -> io::Result<Self::Service> {
         Ok(EndpointService {
@@ -219,4 +190,8 @@ where
             handle: handle.clone(),
         })
     }
+}
+
+pub fn no_route() -> hyper::Response {
+    hyper::Response::new().with_status(StatusCode::NotFound)
 }
