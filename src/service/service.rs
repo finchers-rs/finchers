@@ -150,29 +150,26 @@ where
     E::Error: IntoResponder,
 {
     pub fn new(endpoint: E) -> Self {
-        Self::with_secret_key(endpoint, SecretKey::generated())
-    }
-
-    pub fn with_secret_key(endpoint: E, secret_key: SecretKey) -> Self {
         EndpointServiceFactory {
             inner: Arc::new(EndpointServiceContext {
                 endpoint,
-                secret_key,
+                secret_key: SecretKey::generated(),
                 no_route: no_route,
             }),
         }
     }
 
     pub fn set_secret_key(&mut self, key: SecretKey) {
-        let inner = Arc::get_mut(&mut self.inner)
-            .expect("cannot get a mutable reference of inner context of EndpointServiceFactory");
-        inner.secret_key = key;
+        self.inner_mut().secret_key = key;
     }
 
     pub fn set_no_route(&mut self, no_route: fn() -> hyper::Response) {
-        let inner = Arc::get_mut(&mut self.inner)
-            .expect("cannot get a mutable reference of inner context of EndpointServiceFactory");
-        inner.no_route = no_route;
+        self.inner_mut().no_route = no_route;
+    }
+
+    fn inner_mut(&mut self) -> &mut EndpointServiceContext<E> {
+        Arc::get_mut(&mut self.inner)
+            .expect("cannot get a mutable reference of inner context of EndpointServiceFactory")
     }
 }
 
