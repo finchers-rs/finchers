@@ -1,6 +1,5 @@
 sudo: false
 language: rust
-dist: trusty
 
 branches:
   only:
@@ -10,18 +9,30 @@ rust:
   - stable
   - nightly
 
+addons:
+  apt:
+    packages:
+      - libcurl4-openssl-dev
+      - libelf-dev
+      - libdw-dev
+      - binutils-dev
+      - cmake
+    sources:
+      - kalakris-cmake
+
 matrix:
   allow_failures:
     - rust: nightly
 
 before_script:
   - pip install --user ghp-import
+  - cargo install -f -q cargo-travis
   - export PATH=$HOME/.local/bin:$PATH
-  - mkdir -p $HOME/.local/bin
 
 script:
   - cargo build --all --all-features
   - cargo test --all --all-features
 
 after_success:
+  - cargo coveralls
   - bash .ci/deploy_doc.sh "${GH_TOKEN}" "${TRAVIS_BRANCH}" "${TRAVIS_RUST_VERSION}" "${TRAVIS_REPO_SLUG}" "${TRAVIS_PULL_REQUEST}"
