@@ -14,7 +14,7 @@ where
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct Or<E1, E2> {
     e1: E1,
     e2: E2,

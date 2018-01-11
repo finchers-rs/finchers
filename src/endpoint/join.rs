@@ -1,6 +1,7 @@
 #![allow(missing_docs)]
 #![allow(non_snake_case)]
 
+use std::fmt;
 use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
 use task;
 
@@ -18,11 +19,39 @@ macro_rules! generate {
             }
         }
 
-        #[derive(Debug)]
         pub struct $Join<$($T),*> {
             $(
                 $T: $T,
             )*
+        }
+
+        impl<$($T),*> Copy for $Join<$($T),*>
+        where $(
+            $T: Copy,
+        )* {}
+
+        impl<$($T),*> Clone for $Join<$($T),*>
+        where $(
+            $T: Clone,
+        )* {
+            fn clone(&self) -> Self {
+                $Join {
+                    $(
+                        $T: self.$T.clone(),
+                    )*
+                }
+            }
+        }
+
+        impl<$($T),*> fmt::Debug for $Join<$($T),*>
+        where $(
+            $T: fmt::Debug,
+        )* {
+            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                f.debug_tuple(stringify!($Join))
+                $( .field(&self.$T) )*
+                .finish()
+            }
         }
 
         impl<$($T,)* E> Endpoint for $Join<$($T),*>

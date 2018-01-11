@@ -1,14 +1,24 @@
+#![allow(missing_docs)]
+
 use std::borrow::Cow;
+use std::fmt;
 use std::iter::FromIterator;
 use std::marker::PhantomData;
 use std::str::FromStr;
 use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
 
-#[allow(missing_docs)]
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct MatchPath<E> {
     kind: MatchPathKind,
     _marker: PhantomData<fn() -> E>,
+}
+
+impl<E> fmt::Debug for MatchPath<E> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("MatchPath")
+            .field("kind", &self.kind)
+            .finish()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -49,7 +59,6 @@ pub enum ParseMatchError {
     EmptyString,
 }
 
-#[allow(missing_docs)]
 pub fn match_<E>(s: &str) -> Result<MatchPath<E>, ParseMatchError> {
     let s = s.trim().trim_left_matches("/").trim_right_matches("/");
     let kind = if s == "*" {
@@ -92,14 +101,21 @@ impl<'a, E> IntoEndpoint<(), E> for Cow<'a, str> {
     }
 }
 
-#[allow(missing_docs)]
 pub fn path<T: FromStr, E>() -> ExtractPath<T, E> {
-    ExtractPath(PhantomData)
+    ExtractPath {
+        _marker: PhantomData,
+    }
 }
 
-#[allow(missing_docs)]
-#[derive(Debug)]
-pub struct ExtractPath<T, E>(PhantomData<fn() -> (T, E)>);
+pub struct ExtractPath<T, E> {
+    _marker: PhantomData<fn() -> (T, E)>,
+}
+
+impl<T, E> fmt::Debug for ExtractPath<T, E> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("ExtractPath").finish()
+    }
+}
 
 impl<T, E> Endpoint for ExtractPath<T, E>
 where
@@ -115,18 +131,25 @@ where
     }
 }
 
-#[allow(missing_docs)]
 pub fn paths<I, T, E>() -> ExtractPaths<I, T, E>
 where
     I: FromIterator<T>,
     T: FromStr,
 {
-    ExtractPaths(PhantomData)
+    ExtractPaths {
+        _marker: PhantomData,
+    }
 }
 
-#[allow(missing_docs)]
-#[derive(Debug)]
-pub struct ExtractPaths<I, T, E>(PhantomData<fn() -> (I, T, E)>);
+pub struct ExtractPaths<I, T, E> {
+    _marker: PhantomData<fn() -> (I, T, E)>,
+}
+
+impl<I, T, E> fmt::Debug for ExtractPaths<I, T, E> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("ExtractPaths").finish()
+    }
+}
 
 impl<I, T, E> Endpoint for ExtractPaths<I, T, E>
 where

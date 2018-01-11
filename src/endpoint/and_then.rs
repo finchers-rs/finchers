@@ -1,5 +1,6 @@
 #![allow(missing_docs)]
 
+use std::fmt;
 use std::marker::PhantomData;
 use std::sync::Arc;
 use futures::IntoFuture;
@@ -19,7 +20,6 @@ where
     }
 }
 
-#[derive(Debug)]
 pub struct AndThen<E, F, R>
 where
     E: Endpoint,
@@ -29,6 +29,35 @@ where
     endpoint: E,
     f: Arc<F>,
     _marker: PhantomData<fn() -> R>,
+}
+
+impl<E, F, R> Clone for AndThen<E, F, R>
+where
+    E: Endpoint + Clone,
+    F: Fn(E::Item) -> R,
+    R: IntoFuture<Error = E::Error>,
+{
+    fn clone(&self) -> Self {
+        AndThen {
+            endpoint: self.endpoint.clone(),
+            f: self.f.clone(),
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<E, F, R> fmt::Debug for AndThen<E, F, R>
+where
+    E: Endpoint + fmt::Debug,
+    F: Fn(E::Item) -> R + fmt::Debug,
+    R: IntoFuture<Error = E::Error>,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("AndThen")
+            .field("endpoint", &self.endpoint)
+            .field("f", &self.f)
+            .finish()
+    }
 }
 
 impl<E, F, R> Endpoint for AndThen<E, F, R>

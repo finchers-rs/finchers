@@ -13,7 +13,7 @@ where
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct Skip<E1, E2>
 where
     E1: Endpoint,

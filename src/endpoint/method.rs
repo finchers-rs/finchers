@@ -4,7 +4,10 @@ use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
 use http::Method;
 
 #[derive(Debug, Clone)]
-pub struct MatchMethod<E: Endpoint>(Method, E);
+pub struct MatchMethod<E: Endpoint> {
+    method: Method,
+    endpoint: E,
+}
 
 impl<E: Endpoint> Endpoint for MatchMethod<E> {
     type Item = E::Item;
@@ -12,49 +15,92 @@ impl<E: Endpoint> Endpoint for MatchMethod<E> {
     type Task = E::Task;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
-        if *ctx.request().method() == self.0 {
-            self.1.apply(ctx)
+        if *ctx.request().method() == self.method {
+            self.endpoint.apply(ctx)
         } else {
             None
         }
     }
 }
 
+pub fn method<E, A, B>(method: Method, endpoint: E) -> MatchMethod<E::Endpoint>
+where
+    E: IntoEndpoint<A, B>,
+{
+    MatchMethod {
+        method,
+        endpoint: endpoint.into_endpoint(),
+    }
+}
+
+#[inline]
 pub fn get<E, A, B>(endpoint: E) -> MatchMethod<E::Endpoint>
 where
     E: IntoEndpoint<A, B>,
 {
-    MatchMethod(Method::Get, endpoint.into_endpoint())
+    method(Method::Get, endpoint)
 }
 
+#[inline]
 pub fn post<E, A, B>(endpoint: E) -> MatchMethod<E::Endpoint>
 where
     E: IntoEndpoint<A, B>,
 {
-    MatchMethod(Method::Post, endpoint.into_endpoint())
+    method(Method::Post, endpoint)
 }
 
+#[inline]
 pub fn put<E, A, B>(endpoint: E) -> MatchMethod<E::Endpoint>
 where
     E: IntoEndpoint<A, B>,
 {
-    MatchMethod(Method::Put, endpoint.into_endpoint())
+    method(Method::Put, endpoint)
 }
 
+#[inline]
 pub fn delete<E, A, B>(endpoint: E) -> MatchMethod<E::Endpoint>
 where
     E: IntoEndpoint<A, B>,
 {
-    MatchMethod(Method::Delete, endpoint.into_endpoint())
+    method(Method::Delete, endpoint)
 }
 
+#[inline]
 pub fn head<E, A, B>(endpoint: E) -> MatchMethod<E::Endpoint>
 where
     E: IntoEndpoint<A, B>,
 {
-    MatchMethod(Method::Head, endpoint.into_endpoint())
+    method(Method::Head, endpoint)
 }
 
-pub fn patch<E: Endpoint>(endpoint: E) -> MatchMethod<E> {
-    MatchMethod(Method::Patch, endpoint.into_endpoint())
+#[inline]
+pub fn patch<E, A, B>(endpoint: E) -> MatchMethod<E::Endpoint>
+where
+    E: IntoEndpoint<A, B>,
+{
+    method(Method::Patch, endpoint)
+}
+
+#[inline]
+pub fn trace<E, A, B>(endpoint: E) -> MatchMethod<E::Endpoint>
+where
+    E: IntoEndpoint<A, B>,
+{
+    method(Method::Trace, endpoint)
+}
+
+#[inline]
+pub fn connect<E, A, B>(endpoint: E) -> MatchMethod<E::Endpoint>
+where
+    E: IntoEndpoint<A, B>,
+{
+    method(Method::Connect, endpoint)
+}
+
+#[inline]
+pub fn options<E, A, B>(endpoint: E) -> MatchMethod<E::Endpoint>
+where
+    E: IntoEndpoint<A, B>,
+{
+    method(Method::Options, endpoint)
 }
