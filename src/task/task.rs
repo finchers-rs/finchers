@@ -1,5 +1,6 @@
 use super::*;
-use futures::{Future, IntoFuture};
+use futures::{future, Future, IntoFuture};
+use http::HttpError;
 
 /// Abstruction of a `Task`, returned from an `Endpoint`.
 ///
@@ -14,7 +15,7 @@ pub trait Task {
     type Error;
 
     /// The type of value returned from `launch`.
-    type Future: Future<Item = Self::Item, Error = Self::Error>;
+    type Future: Future<Item = Self::Item, Error = Result<Self::Error, HttpError>>;
 
     /// Launches itself and construct a `Future`, and then return it.
     ///
@@ -25,8 +26,9 @@ pub trait Task {
 impl<F: IntoFuture> Task for F {
     type Item = F::Item;
     type Error = F::Error;
-    type Future = F::Future;
+    type Future = future::MapErr<F::Future, fn(F::Error) -> Result<F::Error, HttpError>>;
+
     fn launch(self, _: &mut TaskContext) -> Self::Future {
-        self.into_future()
+        self.into_future().map_err(Ok)
     }
 }

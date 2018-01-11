@@ -43,7 +43,6 @@ error_chain! {
     foreign_links {
         ParseInt(::std::num::ParseIntError);
         ParseJson(::finchers::contrib::json::JsonError);
-        Http(::finchers::http::HttpError);
         Service(::service::Error);
     }
 }

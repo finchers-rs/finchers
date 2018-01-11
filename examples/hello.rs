@@ -25,7 +25,7 @@ fn main() {
 // TODO: code generation
 mod errors {
     use finchers::ErrorResponder;
-    use finchers::http::{HttpError, StatusCode, StringBodyError};
+    use finchers::http::{StatusCode, StringBodyError};
     use std::string::ParseError;
 
     error_chain! {
@@ -33,7 +33,6 @@ mod errors {
 
         foreign_links {
             Path(ParseError);
-            Http(HttpError);
             Body(StringBodyError);
         }
     }
@@ -42,7 +41,6 @@ mod errors {
         fn status(&self) -> StatusCode {
             match *self.kind() {
                 ErrorKind::Path(ref e) => e.status(),
-                ErrorKind::Http(ref e) => e.status(),
                 ErrorKind::Body(ref e) => e.status(),
                 _ => StatusCode::InternalServerError,
             }
@@ -51,7 +49,6 @@ mod errors {
         fn message(&self) -> Option<String> {
             match *self.kind() {
                 ErrorKind::Path(ref e) => e.message(),
-                ErrorKind::Http(ref e) => e.message(),
                 ErrorKind::Body(ref e) => e.message(),
                 ErrorKind::Msg(ref msg) => Some(format!("other error: {}", msg)),
                 _ => Some("Unknown error".to_string()),
