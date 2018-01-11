@@ -198,7 +198,10 @@ mod tests {
         let mut runner = TestRunner::new(endpoint).unwrap();
 
         let request = Request::new(Method::Get, "/foo".parse().unwrap());
-        assert_eq!(runner.run(request), Some(Ok(())));
+        match runner.run(request) {
+            Some(Ok(())) => (),
+            _ => panic!("does not match"),
+        }
     }
 
     #[test]
@@ -207,7 +210,7 @@ mod tests {
         let mut runner = TestRunner::new(endpoint).unwrap();
 
         let request = Request::new(Method::Get, "/foo".parse().unwrap());
-        assert_eq!(runner.run(request), None);
+        assert!(runner.run(request).is_none());
     }
 
     #[test]
@@ -216,7 +219,10 @@ mod tests {
         let mut runner = TestRunner::new(endpoint).unwrap();
 
         let request = Request::new(Method::Get, "/foo/bar".parse().unwrap());
-        assert_eq!(runner.run(request), Some(Ok(())));
+        match runner.run(request) {
+            Some(Ok(())) => (),
+            _ => panic!("does not match"),
+        }
     }
 
     #[test]
@@ -225,7 +231,7 @@ mod tests {
         let mut runner = TestRunner::new(endpoint).unwrap();
 
         let request = Request::new(Method::Get, "/foo/baz".parse().unwrap());
-        assert_eq!(runner.run(request), None);
+        assert!(runner.run(request).is_none());
     }
 
     #[test]
@@ -234,7 +240,7 @@ mod tests {
         let mut runner = TestRunner::new(endpoint).unwrap();
 
         let request = Request::new(Method::Get, "/foo/bar".parse().unwrap());
-        assert_eq!(runner.run(request), None);
+        assert!(runner.run(request).is_none());
     }
 
     #[test]
@@ -243,7 +249,10 @@ mod tests {
         let mut runner = TestRunner::new(endpoint).unwrap();
 
         let request = Request::new(Method::Get, "/foo".parse().unwrap());
-        assert_eq!(runner.run(request), Some(Ok(())));
+        match runner.run(request) {
+            Some(Ok(())) => (),
+            _ => panic!("does not match"),
+        }
     }
 
     #[test]
@@ -251,7 +260,10 @@ mod tests {
         let endpoint = path::<i32, ParseIntError>();
         let mut runner = TestRunner::new(endpoint).unwrap();
         let request = Request::new(Method::Get, "/42".parse().unwrap());
-        assert_eq!(runner.run(request), Some(Ok(42)));
+        match runner.run(request) {
+            Some(Ok(42)) => (),
+            _ => panic!("does not match"),
+        }
     }
 
     #[test]
@@ -259,7 +271,10 @@ mod tests {
         let endpoint = path::<i32, ParseIntError>();
         let mut runner = TestRunner::new(endpoint).unwrap();
         let request = Request::new(Method::Get, "/foo".parse().unwrap());
-        assert_eq!(runner.run(request).map(|r| r.is_err()), Some(true));
+        match runner.run(request) {
+            Some(Err(..)) => (),
+            _ => panic!("does not match"),
+        }
     }
 
     #[test]
@@ -267,9 +282,11 @@ mod tests {
         let endpoint = paths::<Vec<String>, String, ParseError>();
         let mut runner = TestRunner::new(endpoint).unwrap();
         let request = Request::new(Method::Get, "/foo/bar".parse().unwrap());
-        assert_eq!(
-            runner.run(request),
-            Some(Ok(vec!["foo".to_string(), "bar".to_string()]))
-        );
+        match runner.run(request) {
+            Some(Ok(paths)) => {
+                assert_eq!(paths, vec!["foo".to_string(), "bar".to_string()]);
+            }
+            _ => panic!("does not match"),
+        }
     }
 }

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use futures::{Future, IntoFuture, Poll};
-
+use http::HttpError;
 use super::{Task, TaskContext};
 use super::chain::Chain;
 
@@ -19,7 +19,8 @@ where
 {
     type Item = R::Item;
     type Error = R::Error;
-    type Future = AndThenFuture<T::Future, F, R>;
+    type Future = AndThenFuture<T::Future, F, T::Error, R>;
+
     fn launch(self, ctx: &mut TaskContext) -> Self::Future {
         let AndThen { task, f } = self;
         let fut = task.launch(ctx);
@@ -30,23 +31,23 @@ where
 }
 
 #[derive(Debug)]
-pub struct AndThenFuture<T, F, R>
+pub struct AndThenFuture<T, F, E, R>
 where
-    T: Future,
+    T: Future<Error = Result<E, HttpError>>,
     F: Fn(T::Item) -> R,
-    R: IntoFuture<Error = T::Error>,
+    R: IntoFuture<Error = E>,
 {
     inner: Chain<T, R::Future, Arc<F>>,
 }
 
-impl<T, F, R> Future for AndThenFuture<T, F, R>
+impl<T, F, E, R> Future for AndThenFuture<T, F, E, R>
 where
-    T: Future,
+    T: Future<Error = Result<E, HttpError>>,
     F: Fn(T::Item) -> R,
-    R: IntoFuture<Error = T::Error>,
+    R: IntoFuture<Error = E>,
 {
     type Item = R::Item;
-    type Error = R::Error;
+    type Error = Result<R::Error, HttpError>;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         self.inner.poll(|result, f| match result {

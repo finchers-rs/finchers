@@ -2,6 +2,7 @@
 
 use std::mem;
 use futures::{Async, Future, Poll};
+use http::HttpError;
 
 #[derive(Debug)]
 pub enum Chain<A, B, C> {
@@ -12,22 +13,27 @@ pub enum Chain<A, B, C> {
 
 use self::Chain::*;
 
-impl<A: Future, B: Future, C> Chain<A, B, C> {
+impl<A, B, C, D> Chain<A, B, C>
+where
+    A: Future<Error = Result<D, HttpError>>,
+    B: Future,
+{
     pub fn new(a: A, c: C) -> Self {
         Chain::First(a, c)
     }
 
-    pub fn poll<F>(&mut self, f: F) -> Poll<B::Item, B::Error>
+    pub fn poll<F>(&mut self, f: F) -> Poll<B::Item, Result<B::Error, HttpError>>
     where
-        F: FnOnce(Result<A::Item, A::Error>, C) -> Result<Result<B::Item, B>, B::Error>,
+        F: FnOnce(Result<A::Item, D>, C) -> Result<Result<B::Item, B>, B::Error>,
     {
         let a_result = match *self {
             First(ref mut a, ..) => match a.poll() {
                 Ok(Async::Ready(item)) => Ok(item),
                 Ok(Async::NotReady) => return Ok(Async::NotReady),
-                Err(err) => Err(err),
+                Err(Ok(err)) => Err(err),
+                Err(Err(err)) => return Err(Err(err)),
             },
-            Second(ref mut b) => return b.poll(),
+            Second(ref mut b) => return b.poll().map_err(Ok),
             Done => panic!("cannot poll twice"),
         };
 
@@ -36,10 +42,10 @@ impl<A: Future, B: Future, C> Chain<A, B, C> {
             _ => panic!(),
         };
 
-        match f(a_result, data)? {
+        match f(a_result, data).map_err(Ok)? {
             Ok(item) => Ok(Async::Ready(item)),
             Err(mut b) => {
-                let result = b.poll();
+                let result = b.poll().map_err(Ok);
                 *self = Second(b);
                 result
             }

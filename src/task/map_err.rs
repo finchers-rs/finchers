@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use futures::{Future, Poll};
+use http::HttpError;
 use super::{Task, TaskContext};
 
 #[allow(missing_docs)]
@@ -18,6 +19,7 @@ where
     type Item = T::Item;
     type Error = R;
     type Future = MapErrFuture<T::Future, F>;
+
     fn launch(self, ctx: &mut TaskContext) -> Self::Future {
         let MapErr { task, f } = self;
         let fut = task.launch(ctx);
@@ -31,20 +33,20 @@ pub struct MapErrFuture<T, F> {
     f: Option<Arc<F>>,
 }
 
-impl<T, F, R> Future for MapErrFuture<T, F>
+impl<T, F, E, R> Future for MapErrFuture<T, F>
 where
-    T: Future,
-    F: Fn(T::Error) -> R,
+    T: Future<Error = Result<E, HttpError>>,
+    F: Fn(E) -> R,
 {
     type Item = T::Item;
-    type Error = R;
+    type Error = Result<R, HttpError>;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         match self.fut.poll() {
             Ok(async) => Ok(async),
             Err(e) => {
                 let f = self.f.take().expect("cannot reject twice");
-                Err((*f)(e))
+                Err(e.map(|e| (*f)(e)))
             }
         }
     }

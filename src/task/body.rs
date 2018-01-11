@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 use std::mem;
 use futures::{Async, Future, Poll, Stream};
 use futures::future::{self, FutureResult};
-use http::{self, FromBody};
+use http::{self, FromBody, HttpError};
 use http::header::ContentLength;
 use task::{Task, TaskContext};
 
@@ -23,7 +23,7 @@ impl<T, E> Default for Body<T, E> {
 impl<T, E> Task for Body<T, E>
 where
     T: FromBody,
-    E: From<http::HttpError> + From<T::Error>,
+    E: From<T::Error>,
 {
     type Item = T;
     type Error = E;
@@ -52,30 +52,27 @@ pub enum BodyFuture<T, E> {
 impl<T, E> Future for BodyFuture<T, E>
 where
     T: FromBody,
-    E: From<http::HttpError> + From<T::Error>,
+    E: From<T::Error>,
 {
     type Item = T;
-    type Error = E;
+    type Error = Result<E, HttpError>;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         match mem::replace(self, BodyFuture::Done(PhantomData)) {
-            BodyFuture::BadRequest(err) => Err(err),
+            BodyFuture::BadRequest(err) => Err(Ok(err)),
             BodyFuture::Receiving(mut body, mut buf) => loop {
-                match body.poll() {
-                    Ok(Async::Ready(Some(item))) => {
+                match body.poll().map_err(Err)? {
+                    Async::Ready(Some(item)) => {
                         buf.extend_from_slice(&item);
                         continue;
                     }
-                    Ok(Async::Ready(None)) => {
-                        let body = T::from_body(buf)?;
+                    Async::Ready(None) => {
+                        let body = T::from_body(buf).map_err(Into::into).map_err(Ok)?;
                         break Ok(body.into());
                     }
-                    Ok(Async::NotReady) => {
+                    Async::NotReady => {
                         *self = BodyFuture::Receiving(body, buf);
                         break Ok(Async::NotReady);
-                    }
-                    Err(err) => {
-                        break Err(err.into());
                     }
                 }
             },
@@ -101,7 +98,7 @@ impl<E> Default for BodyStream<E> {
 impl<E> Task for BodyStream<E> {
     type Item = http::Body;
     type Error = E;
-    type Future = FutureResult<Self::Item, Self::Error>;
+    type Future = FutureResult<Self::Item, Result<Self::Error, HttpError>>;
 
     fn launch(self, ctx: &mut TaskContext) -> Self::Future {
         let body = ctx.take_body().expect("cannot take a body twice");

@@ -8,7 +8,7 @@ use task;
 pub fn body<T, E>() -> Body<T, E>
 where
     T: FromBody,
-    E: From<http::HttpError> + From<T::Error>,
+    E: From<T::Error>,
 {
     Body {
         _marker: PhantomData,
@@ -24,7 +24,7 @@ pub struct Body<T, E> {
 impl<T, E> Endpoint for Body<T, E>
 where
     T: FromBody,
-    E: From<http::HttpError> + From<T::Error>,
+    E: From<T::Error>,
 {
     type Item = T;
     type Error = E;

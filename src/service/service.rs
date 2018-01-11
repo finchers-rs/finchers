@@ -85,11 +85,11 @@ pub struct EndpointServiceFuture<F> {
     no_route: fn() -> hyper::Response,
 }
 
-impl<F> Future for EndpointServiceFuture<F>
+impl<F, E> Future for EndpointServiceFuture<F>
 where
-    F: Future,
+    F: Future<Error = Result<E, hyper::Error>>,
     F::Item: IntoResponder,
-    F::Error: IntoResponder,
+    E: IntoResponder,
 {
     type Item = hyper::Response;
     type Error = hyper::Error;
@@ -101,9 +101,10 @@ where
                 item.into_responder().respond(&mut self.context),
             )),
             Ok(Async::Ready(None)) => Ok(Async::Ready((self.no_route)())),
-            Err(err) => Ok(Async::Ready(
+            Err(Ok(err)) => Ok(Async::Ready(
                 err.into_responder().respond(&mut self.context),
             )),
+            Err(Err(err)) => Err(err),
         }
     }
 }
