@@ -10,28 +10,18 @@ extern crate serde_json;
 pub use self::serde_json::{Error, Value};
 use self::serde::ser::Serialize;
 use self::serde::de::DeserializeOwned;
-
-use std::fmt;
-use std::error;
-use endpoint::body::{body, Body};
-use http::{self, header, mime, FromBody, Headers, IntoBody, Request, StatusCode};
-use responder::ErrorResponder;
+use http::{self, header, mime, FromBody, Headers, IntoBody, Request};
 
 impl FromBody for Value {
-    type Error = JsonError;
+    type Error = Error;
 
-    fn validate(req: &Request) -> Result<(), Self::Error> {
-        if req.media_type()
+    fn validate(req: &Request) -> bool {
+        req.media_type()
             .map_or(true, |m| *m == mime::APPLICATION_JSON)
-        {
-            Ok(())
-        } else {
-            Err(JsonError::BadRequest)
-        }
     }
 
     fn from_body(body: Vec<u8>) -> Result<Self, Self::Error> {
-        serde_json::from_slice(&body).map_err(JsonError::Parsing)
+        serde_json::from_slice(&body)
     }
 }
 
@@ -49,22 +39,15 @@ impl IntoBody for Value {
 pub struct Json<T = Value>(pub T);
 
 impl<T: DeserializeOwned> FromBody for Json<T> {
-    type Error = JsonError;
+    type Error = Error;
 
-    fn validate(req: &Request) -> Result<(), Self::Error> {
-        if req.media_type()
+    fn validate(req: &Request) -> bool {
+        req.media_type()
             .map_or(true, |m| *m == mime::APPLICATION_JSON)
-        {
-            Ok(())
-        } else {
-            Err(JsonError::BadRequest)
-        }
     }
 
     fn from_body(body: Vec<u8>) -> Result<Self, Self::Error> {
-        serde_json::from_slice(&body)
-            .map(Json)
-            .map_err(JsonError::Parsing)
+        serde_json::from_slice(&body).map(Json)
     }
 }
 
@@ -77,43 +60,5 @@ impl<T: Serialize> IntoBody for Json<T> {
         h.set(header::ContentType::json());
         h.set(header::ContentLength(body.len() as u64));
         body.into()
-    }
-}
-
-/// Create an endpoint with parsing JSON body
-pub fn json_body<T: DeserializeOwned, E>() -> Body<Json<T>, E>
-where
-    E: From<http::HttpError> + From<JsonError>,
-{
-    body::<Json<T>, E>()
-}
-
-#[derive(Debug)]
-pub enum JsonError {
-    BadRequest,
-    Parsing(Error),
-}
-
-impl fmt::Display for JsonError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            JsonError::BadRequest => f.write_str("bad request"),
-            JsonError::Parsing(ref e) => e.fmt(f),
-        }
-    }
-}
-
-impl error::Error for JsonError {
-    fn description(&self) -> &str {
-        match *self {
-            JsonError::BadRequest => "bad request",
-            JsonError::Parsing(ref e) => error::Error::description(e),
-        }
-    }
-}
-
-impl ErrorResponder for JsonError {
-    fn status(&self) -> StatusCode {
-        StatusCode::BadRequest
     }
 }

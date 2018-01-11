@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 use std::mem;
 use futures::{Async, Future, Poll, Stream};
 use futures::future::{self, FutureResult};
-use http::{self, FromBody, HttpError};
+use http::{self, FromBody, FromBodyError, HttpError};
 use http::header::ContentLength;
 use task::{Task, TaskContext};
 
@@ -15,15 +15,15 @@ pub struct Body<T, E> {
 impl<T, E> Task for Body<T, E>
 where
     T: FromBody,
-    E: From<T::Error>,
+    E: From<FromBodyError<T::Error>>,
 {
     type Item = T;
     type Error = E;
     type Future = BodyFuture<T, E>;
 
     fn launch(self, ctx: &mut TaskContext) -> Self::Future {
-        if let Err(e) = T::validate(ctx.request()) {
-            return BodyFuture::BadRequest(e.into());
+        if !T::validate(ctx.request()) {
+            return BodyFuture::BadRequest;
         }
 
         let body = ctx.take_body().expect("cannot take the request body twice");
@@ -36,7 +36,7 @@ where
 
 #[derive(Debug)]
 pub enum BodyFuture<T, E> {
-    BadRequest(E),
+    BadRequest,
     Receiving(http::Body, Vec<u8>),
     Done(PhantomData<fn() -> (T, E)>),
 }
@@ -44,14 +44,14 @@ pub enum BodyFuture<T, E> {
 impl<T, E> Future for BodyFuture<T, E>
 where
     T: FromBody,
-    E: From<T::Error>,
+    E: From<FromBodyError<T::Error>>,
 {
     type Item = T;
     type Error = Result<E, HttpError>;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         match mem::replace(self, BodyFuture::Done(PhantomData)) {
-            BodyFuture::BadRequest(err) => Err(Ok(err)),
+            BodyFuture::BadRequest => Err(Ok(FromBodyError::BadRequest.into())),
             BodyFuture::Receiving(mut body, mut buf) => loop {
                 match body.poll().map_err(Err)? {
                     Async::Ready(Some(item)) => {
@@ -59,7 +59,7 @@ where
                         continue;
                     }
                     Async::Ready(None) => {
-                        let body = T::from_body(buf).map_err(Into::into).map_err(Ok)?;
+                        let body = T::from_body(buf).map_err(|e| Ok(FromBodyError::FromBody(e).into()))?;
                         break Ok(body.into());
                     }
                     Async::NotReady => {

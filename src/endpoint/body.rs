@@ -2,14 +2,14 @@ use std::fmt;
 use std::marker::PhantomData;
 
 use endpoint::{Endpoint, EndpointContext};
-use http::{self, FromBody};
+use http::{self, FromBody, FromBodyError};
 use task;
 
 #[allow(missing_docs)]
 pub fn body<T, E>() -> Body<T, E>
 where
     T: FromBody,
-    E: From<T::Error>,
+    E: From<FromBodyError<T::Error>>,
 {
     Body {
         _marker: PhantomData,
@@ -39,7 +39,7 @@ impl<T, E> fmt::Debug for Body<T, E> {
 impl<T, E> Endpoint for Body<T, E>
 where
     T: FromBody,
-    E: From<T::Error>,
+    E: From<FromBodyError<T::Error>>,
 {
     type Item = T;
     type Error = E;

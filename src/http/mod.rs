@@ -11,6 +11,6 @@ pub use hyper::header::{Header, Headers};
 
 pub use self::cookie::{Cookie, Cookies, SecretKey};
 pub use self::errors::*;
-pub use self::from_body::{FromBody, StringBodyError};
+pub use self::from_body::{FromBody, FromBodyError};
 pub use self::into_body::IntoBody;
 pub use self::request::Request;

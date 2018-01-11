@@ -46,13 +46,9 @@ pub struct Form<F: FromUrlEncoded>(pub F);
 impl<F: FromUrlEncoded> FromBody for Form<F> {
     type Error = UrlDecodeError;
 
-    fn validate(req: &Request) -> Result<(), Self::Error> {
-        if !req.media_type()
+    fn validate(req: &Request) -> bool {
+        req.media_type()
             .map_or(true, |m| *m == mime::APPLICATION_WWW_FORM_URLENCODED)
-        {
-            return Err(UrlDecodeError::InvalidMediaType);
-        }
-        Ok(())
     }
 
     fn from_body(body: Vec<u8>) -> Result<Self, Self::Error> {
@@ -94,8 +90,6 @@ impl<T: FromUrlEncoded> Endpoint for Queries<T> {
 pub enum UrlDecodeError {
     /// The query string is empty.
     EmptyQuery,
-    /// The value of `Content-type` is not `application/www-x-form-urlencoded`.
-    InvalidMediaType,
     /// The invalid key is exist.
     InvalidKey(Cow<'static, str>),
     /// The missing key is exist.
@@ -134,7 +128,6 @@ impl fmt::Display for UrlDecodeError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             EmptyQuery => f.write_str("empty query"),
-            InvalidMediaType => f.write_str("The media type is invalid"),
             InvalidKey(ref key) => write!(f, "invalid key: \"{}\"", key),
             MissingKey(ref key) => write!(f, "missing key: \"{}\"", key),
             DuplicatedKey(ref key) => write!(f, "duplicated key: \"{}\"", key),
