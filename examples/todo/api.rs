@@ -1,5 +1,6 @@
 use finchers::{ErrorResponder, Responder};
-use finchers::http::StatusCode;
+use finchers::contrib::json::Json;
+use finchers::http::{FromBody, FromBodyError, StatusCode};
 use serde_json;
 use service::Todo;
 
@@ -42,7 +43,7 @@ error_chain! {
     }
     foreign_links {
         ParseInt(::std::num::ParseIntError);
-        ParseJson(::finchers::contrib::json::JsonError);
+        ParseJson(FromBodyError<<Json as FromBody>::Error>);
         Service(::service::Error);
     }
 }

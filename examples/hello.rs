@@ -25,7 +25,7 @@ fn main() {
 // TODO: code generation
 mod errors {
     use finchers::ErrorResponder;
-    use finchers::http::{StatusCode, StringBodyError};
+    use finchers::http::{FromBody, FromBodyError, StatusCode};
     use std::string::ParseError;
 
     error_chain! {
@@ -33,7 +33,7 @@ mod errors {
 
         foreign_links {
             Path(ParseError);
-            Body(StringBodyError);
+            Body(FromBodyError<<String as FromBody>::Error>);
         }
     }
 
