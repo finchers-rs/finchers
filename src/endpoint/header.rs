@@ -1,3 +1,4 @@
+use std::fmt;
 use std::marker::PhantomData;
 use endpoint::{Endpoint, EndpointContext};
 use http::{header, EmptyHeader};
@@ -15,9 +16,23 @@ where
 }
 
 #[allow(missing_docs)]
-#[derive(Debug)]
 pub struct Header<H, E> {
     _marker: PhantomData<fn() -> (H, E)>,
+}
+
+impl<H, E> Copy for Header<H, E> {}
+
+impl<H, E> Clone for Header<H, E> {
+    #[inline]
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<H, E> fmt::Debug for Header<H, E> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Header").finish()
+    }
 }
 
 impl<H, E> Endpoint for Header<H, E>
@@ -47,9 +62,23 @@ where
 }
 
 #[allow(missing_docs)]
-#[derive(Debug)]
 pub struct HeaderOpt<H, E> {
     _marker: PhantomData<fn() -> (H, E)>,
+}
+
+impl<H, E> Copy for HeaderOpt<H, E> {}
+
+impl<H, E> Clone for HeaderOpt<H, E> {
+    #[inline]
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<H, E> fmt::Debug for HeaderOpt<H, E> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("HeaderOpt").finish()
+    }
 }
 
 impl<H, E> Endpoint for HeaderOpt<H, E>

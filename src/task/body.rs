@@ -9,15 +9,7 @@ use task::{Task, TaskContext};
 #[allow(missing_docs)]
 #[derive(Debug)]
 pub struct Body<T, E> {
-    _marker: PhantomData<fn() -> (T, E)>,
-}
-
-impl<T, E> Default for Body<T, E> {
-    fn default() -> Self {
-        Body {
-            _marker: PhantomData,
-        }
-    }
+    pub(crate) _marker: PhantomData<fn() -> (T, E)>,
 }
 
 impl<T, E> Task for Body<T, E>
@@ -84,15 +76,7 @@ where
 #[allow(missing_docs)]
 #[derive(Debug)]
 pub struct BodyStream<E> {
-    _marker: PhantomData<fn() -> E>,
-}
-
-impl<E> Default for BodyStream<E> {
-    fn default() -> BodyStream<E> {
-        BodyStream {
-            _marker: PhantomData,
-        }
-    }
+    pub(crate) _marker: PhantomData<fn() -> E>,
 }
 
 impl<E> Task for BodyStream<E> {

@@ -12,7 +12,7 @@ where
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SkipAll<E: Endpoint> {
     endpoints: Vec<E>,
 }

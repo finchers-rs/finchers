@@ -1,5 +1,6 @@
 #![allow(missing_docs)]
 
+use std::fmt;
 use std::marker::PhantomData;
 use super::{Endpoint, EndpointContext};
 
@@ -10,10 +11,24 @@ pub fn ok<T: Clone, E>(x: T) -> EndpointOk<T, E> {
     }
 }
 
-#[derive(Debug)]
-pub struct EndpointOk<T: Clone, E> {
+pub struct EndpointOk<T, E> {
     x: T,
     _marker: PhantomData<fn() -> E>,
+}
+
+impl<T: Clone, E> Clone for EndpointOk<T, E> {
+    fn clone(&self) -> Self {
+        EndpointOk {
+            x: self.x.clone(),
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<T: fmt::Debug, E> fmt::Debug for EndpointOk<T, E> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_tuple("EndpointOk").field(&self.x).finish()
+    }
 }
 
 impl<T: Clone, E> Endpoint for EndpointOk<T, E> {
@@ -33,10 +48,24 @@ pub fn err<T, E: Clone>(x: E) -> EndpointErr<T, E> {
     }
 }
 
-#[derive(Debug)]
-pub struct EndpointErr<T, E: Clone> {
+pub struct EndpointErr<T, E> {
     x: E,
     _marker: PhantomData<fn() -> T>,
+}
+
+impl<T, E: Clone> Clone for EndpointErr<T, E> {
+    fn clone(&self) -> Self {
+        EndpointErr {
+            x: self.x.clone(),
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<T, E: fmt::Debug> fmt::Debug for EndpointErr<T, E> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_tuple("EndpointErr").field(&self.x).finish()
+    }
 }
 
 impl<T, E: Clone> Endpoint for EndpointErr<T, E> {
@@ -53,9 +82,15 @@ pub fn result<T: Clone, E: Clone>(x: Result<T, E>) -> EndpointResult<T, E> {
     EndpointResult { x }
 }
 
-#[derive(Debug)]
-pub struct EndpointResult<T: Clone, E: Clone> {
+#[derive(Clone)]
+pub struct EndpointResult<T, E> {
     x: Result<T, E>,
+}
+
+impl<T: fmt::Debug, E: fmt::Debug> fmt::Debug for EndpointResult<T, E> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_tuple("EndpointResult").field(&self.x).finish()
+    }
 }
 
 impl<T: Clone, E: Clone> Endpoint for EndpointResult<T, E> {

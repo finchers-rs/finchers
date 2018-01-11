@@ -1,5 +1,6 @@
 #![allow(missing_docs)]
 
+use std::fmt;
 use std::sync::Arc;
 
 use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
@@ -16,7 +17,6 @@ where
     }
 }
 
-#[derive(Debug)]
 pub struct Inspect<E, F>
 where
     E: Endpoint,
@@ -24,6 +24,32 @@ where
 {
     endpoint: E,
     f: Arc<F>,
+}
+
+impl<E, F> Clone for Inspect<E, F>
+where
+    E: Endpoint + Clone,
+    F: Fn(&E::Item),
+{
+    fn clone(&self) -> Self {
+        Inspect {
+            endpoint: self.endpoint.clone(),
+            f: self.f.clone(),
+        }
+    }
+}
+
+impl<E, F> fmt::Debug for Inspect<E, F>
+where
+    E: Endpoint + fmt::Debug,
+    F: Fn(&E::Item) + fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Inspect")
+            .field("endpoint", &self.endpoint)
+            .field("f", &self.f)
+            .finish()
+    }
 }
 
 impl<E, F> Endpoint for Inspect<E, F>

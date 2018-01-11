@@ -2,7 +2,7 @@ use std::ops::Deref;
 use http::{Cookies, Request};
 
 /// An iterator of remaning path segments.
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct Segments<'a> {
     path: &'a str,
     pos: usize,
@@ -71,7 +71,7 @@ impl<'a> Iterator for Segments<'a> {
 }
 
 /// The type of returned value of `Segments::next()`
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct Segment<'a> {
     s: &'a str,
     start: usize,
