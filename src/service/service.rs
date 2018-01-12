@@ -6,8 +6,7 @@ use std::sync::Arc;
 
 use futures::{Async, Future, Poll};
 use hyper;
-use hyper::server::Service;
-use tokio_core::reactor::Handle;
+use hyper::server::{NewService, Service};
 
 use http::{self, Cookies, SecretKey};
 use endpoint::{Endpoint, EndpointContext};
@@ -15,7 +14,6 @@ use task::{Task, TaskContext};
 use process::Process;
 use responder::{IntoResponder, Responder};
 use responder::ResponderContext;
-use super::ServiceFactory;
 
 /// The inner representation of `EndpointService`.
 #[derive(Debug)]
@@ -35,7 +33,6 @@ where
     P::OutErr: IntoResponder,
 {
     inner: Arc<EndpointServiceContext<E, P>>,
-    handle: Handle,
 }
 
 impl<E, P> Service for EndpointService<E, P>
@@ -62,7 +59,6 @@ where
         let inner = task.map(|task| {
             let mut ctx = TaskContext {
                 request: &mut request,
-                handle: &self.handle,
                 cookies: &mut cookies,
                 body: Some(body),
             };
@@ -202,19 +198,21 @@ where
     }
 }
 
-impl<E, P> ServiceFactory for EndpointServiceFactory<E, P>
+impl<E, P> NewService for EndpointServiceFactory<E, P>
 where
     E: Endpoint,
     P: Process<In = E::Item, InErr = E::Error>,
     P::Out: IntoResponder,
     P::OutErr: IntoResponder,
 {
-    type Service = EndpointService<E, P>;
+    type Request = hyper::Request;
+    type Response = hyper::Response;
+    type Error = hyper::Error;
+    type Instance = EndpointService<E, P>;
 
-    fn new_service(&self, handle: &Handle) -> io::Result<Self::Service> {
+    fn new_service(&self) -> io::Result<Self::Instance> {
         Ok(EndpointService {
             inner: self.inner.clone(),
-            handle: handle.clone(),
         })
     }
 }

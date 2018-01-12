@@ -34,10 +34,8 @@ impl<E: Endpoint> TestRunner<E> {
         };
 
         let fut = {
-            let handle = self.core.handle();
             let mut ctx = TaskContext {
                 request: &mut request,
-                handle: &handle,
                 cookies: &mut cookies,
                 body: Some(body),
             };
