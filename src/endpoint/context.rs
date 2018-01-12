@@ -1,5 +1,5 @@
 use std::ops::Deref;
-use http::{Cookies, Request};
+use http::Request;
 
 /// An iterator of remaning path segments.
 #[derive(Debug, Copy, Clone)]
@@ -143,15 +143,13 @@ mod tests {
 #[derive(Debug, Clone)]
 pub struct EndpointContext<'a> {
     request: &'a Request,
-    cookies: &'a Cookies,
     segments: Segments<'a>,
 }
 
 impl<'a> EndpointContext<'a> {
-    pub(crate) fn new(request: &'a Request, cookies: &'a Cookies) -> Self {
+    pub(crate) fn new(request: &'a Request) -> Self {
         EndpointContext {
             request,
-            cookies,
             segments: Segments::from(request.path()),
         }
     }
@@ -159,11 +157,6 @@ impl<'a> EndpointContext<'a> {
     /// Returns the reference of HTTP request
     pub fn request(&self) -> &Request {
         self.request
-    }
-
-    /// Returns the reference of Cookies
-    pub fn cookies(&self) -> &Cookies {
-        self.cookies
     }
 
     /// Returns the reference of remaining path segments

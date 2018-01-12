@@ -6,12 +6,14 @@ use std::io;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::sync::Arc;
 use futures::{Future, Stream};
-use hyper::Chunk;
+use hyper::{self, Chunk};
+use hyper::server::NewService;
 use tokio_core::reactor::{Core, Handle};
 
 use endpoint::Endpoint;
+use process::Process;
 use responder::IntoResponder;
-use service::{EndpointServiceFactory, ServiceFactory};
+use service::EndpointServiceFactory;
 
 pub use self::backend::TcpBackend;
 
@@ -96,11 +98,11 @@ impl Default for Worker {
 #[derive(Debug)]
 pub struct Application<S, B>
 where
-    S: ServiceFactory,
+    S: NewService<Request = hyper::Request, Response = hyper::Response, Error = hyper::Error>,
     B: TcpBackend,
 {
-    /// The instance of `ServiceFactory`
-    service: S,
+    /// The instance of `NewService`
+    new_service: S,
 
     /// HTTP-level configuration
     proto: Http,
@@ -114,13 +116,13 @@ where
 
 impl<S, B> Application<S, B>
 where
-    S: ServiceFactory,
+    S: NewService<Request = hyper::Request, Response = hyper::Response, Error = hyper::Error>,
     B: TcpBackend,
 {
     /// Create a new launcher from given service and TCP backend.
-    pub fn new(service: S, backend: B) -> Self {
+    pub fn from_service(new_service: S, backend: B) -> Self {
         Application {
-            service,
+            new_service,
             proto: Http::default(),
             worker: Worker::default(),
             tcp: Tcp {
@@ -131,8 +133,8 @@ where
     }
 
     /// Returns a mutable reference of the service.
-    pub fn service(&mut self) -> &mut S {
-        &mut self.service
+    pub fn new_service(&mut self) -> &mut S {
+        &mut self.new_service
     }
 
     /// Returns a mutable reference of the HTTP configuration
@@ -151,28 +153,25 @@ where
     }
 }
 
-impl<S: ServiceFactory> Application<S, backend::DefaultBackend> {
-    /// Create a new instance of Application from given service
-    pub fn from_service(service: S) -> Self {
-        Self::new(service, Default::default())
-    }
-}
-
-impl<E> Application<EndpointServiceFactory<E>, backend::DefaultBackend>
+impl<E, P> Application<EndpointServiceFactory<E, P>, backend::DefaultBackend>
 where
     E: Endpoint,
-    E::Item: IntoResponder,
-    E::Error: IntoResponder,
+    P: Process<In = E::Item, InErr = E::Error>,
+    P::Out: IntoResponder,
+    P::OutErr: IntoResponder,
 {
-    /// Create a lancher from given `Endpoint`.
-    pub fn from_endpoint(endpoint: E) -> Self {
-        Self::from_service(EndpointServiceFactory::new(endpoint))
+    #[allow(missing_docs)]
+    pub fn new(endpoint: E, process: P) -> Self {
+        Self::from_service(
+            EndpointServiceFactory::new(endpoint, process),
+            Default::default(),
+        )
     }
 }
 
 impl<S, B> Application<S, B>
 where
-    S: ServiceFactory + Send + Sync + 'static,
+    S: NewService<Request = hyper::Request, Response = hyper::Response, Error = hyper::Error> + Send + Sync + 'static,
     B: TcpBackend + Send + Sync + 'static,
 {
     /// Start the HTTP server with given configurations
@@ -187,7 +186,7 @@ where
         }
 
         let ctx = Arc::new(WorkerContext {
-            service: Arc::new(self.service),
+            new_service: Arc::new(self.new_service),
             http: self.proto,
             tcp: self.tcp,
         });
@@ -212,60 +211,30 @@ where
 
 struct WorkerContext<S, B>
 where
-    S: ServiceFactory + 'static,
+    S: NewService<Request = hyper::Request, Response = hyper::Response, Error = hyper::Error> + 'static,
     B: TcpBackend,
 {
-    service: Arc<S>,
+    new_service: Arc<S>,
     http: Http,
     tcp: Tcp<B>,
 }
 
 impl<S, B> WorkerContext<S, B>
 where
-    S: ServiceFactory + 'static,
+    S: NewService<Request = hyper::Request, Response = hyper::Response, Error = hyper::Error> + 'static,
     B: TcpBackend,
 {
     fn spawn(&self, handle: &Handle) -> Result<(), ::hyper::Error> {
-        let new_service = NewService {
-            inner: self.service.clone(),
-            handle: handle.clone(),
-        };
-
         for addr in &self.tcp.addrs {
             let incoming = self.tcp.backend.incoming(addr, &handle)?;
             let serve = self.http
                 .0
-                .serve_incoming(incoming, new_service.clone())
+                .serve_incoming(incoming, self.new_service.clone())
                 .for_each(|conn| conn.map(|_| ()))
                 .map_err(|_| ());
             handle.spawn(serve);
         }
 
         Ok(())
-    }
-}
-
-struct NewService<S: ServiceFactory> {
-    inner: Arc<S>,
-    handle: Handle,
-}
-
-impl<S: ServiceFactory> Clone for NewService<S> {
-    fn clone(&self) -> Self {
-        NewService {
-            inner: self.inner.clone(),
-            handle: self.handle.clone(),
-        }
-    }
-}
-
-impl<S: ServiceFactory> ::hyper::server::NewService for NewService<S> {
-    type Request = ::hyper::Request;
-    type Response = ::hyper::Response;
-    type Error = ::hyper::Error;
-    type Instance = S::Service;
-
-    fn new_service(&self) -> io::Result<Self::Instance> {
-        self.inner.new_service(&self.handle)
     }
 }
