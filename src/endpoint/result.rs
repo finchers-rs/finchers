@@ -114,11 +114,8 @@ mod tests {
         let endpoint = ok("Alice");
         let mut runner = TestRunner::new(endpoint).unwrap();
         let request = Request::new(Method::Get, "/".parse().unwrap());
-        let result: Option<Result<&str, Result<(), _>>> = runner.run(request);
-        match result {
-            Some(Ok("Alice")) => (),
-            _ => panic!("does not match"),
-        }
+        let result: Option<Result<&str, ()>> = runner.run(request);
+        assert_eq!(result, Some(Ok("Alice")));
     }
 
     #[test]
@@ -126,11 +123,8 @@ mod tests {
         let endpoint = err("Alice");
         let mut runner = TestRunner::new(endpoint).unwrap();
         let request = Request::new(Method::Get, "/".parse().unwrap());
-        let result: Option<Result<(), Result<&str, _>>> = runner.run(request);
-        match result {
-            Some(Err(Ok("Alice"))) => (),
-            _ => panic!("does not match"),
-        }
+        let result: Option<Result<(), &str>> = runner.run(request);
+        assert_eq!(result, Some(Err("Alice")));
     }
 
     #[test]
@@ -138,10 +132,7 @@ mod tests {
         let endpoint = result(Ok("Alice"));
         let mut runner = TestRunner::new(endpoint).unwrap();
         let request = Request::new(Method::Get, "/".parse().unwrap());
-        let result: Option<Result<&str, Result<(), _>>> = runner.run(request);
-        match result {
-            Some(Ok("Alice")) => (),
-            _ => panic!("does not match"),
-        }
+        let result: Option<Result<&str, ()>> = runner.run(request);
+        assert_eq!(result, Some(Ok("Alice")));
     }
 }

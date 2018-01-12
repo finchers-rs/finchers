@@ -46,20 +46,7 @@ where
     type Future = EndpointServiceFuture<<E::Task as Task>::Future, P>;
 
     fn call(&self, req: hyper::Request) -> Self::Future {
-        let (mut request, body) = http::request::reconstruct(req);
-        let task = {
-            let mut ctx = EndpointContext::new(&request);
-            self.inner.endpoint.apply(&mut ctx)
-        };
-
-        let inner = task.map(|task| {
-            let mut ctx = TaskContext {
-                request: &mut request,
-                body: Some(body),
-            };
-            task.launch(&mut ctx)
-        });
-
+        let inner = self.inner.endpoint.apply_request(req);
         EndpointServiceFuture {
             inner: Inner::PollingTask(inner, self.inner.process.clone()),
         }
@@ -192,4 +179,32 @@ where
             inner: self.inner.clone(),
         })
     }
+}
+
+pub trait EndpointExt: Endpoint + sealed::Sealed {
+    fn apply_request(&self, request: hyper::Request) -> Option<<Self::Task as Task>::Future> {
+        let (mut request, body) = http::request::reconstruct(request);
+
+        let task = {
+            let mut ctx = EndpointContext::new(&request);
+            try_opt!(self.apply(&mut ctx))
+        };
+
+        let mut ctx = TaskContext {
+            request: &mut request,
+            body: Some(body),
+        };
+
+        Some(task.launch(&mut ctx))
+    }
+}
+
+impl<E: Endpoint> EndpointExt for E {}
+
+mod sealed {
+    use endpoint::Endpoint;
+
+    pub trait Sealed {}
+
+    impl<E: Endpoint> Sealed for E {}
 }
