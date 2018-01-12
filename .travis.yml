@@ -29,8 +29,10 @@ before_script:
 
 script:
   - travis-cargo build
+  - travis-cargo build --only stable --features secure,tls
   - travis-cargo test
-  - travis-cargo --only stable doc
+  - travis-cargo test --only stable --features secure,tls
+  - travis-cargo doc --only stable --features secure,tls
 
 after_success:
   - travis-cargo coveralls

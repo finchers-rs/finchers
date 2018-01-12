@@ -4,12 +4,20 @@ pub use cookie::Cookie;
 
 use std::fmt;
 use std::ops::Deref;
-use cookie::{CookieJar, Key};
+use cookie::CookieJar;
 use super::header;
+
+#[cfg(feature = "secure")]
+use cookie::Key;
+#[cfg(not(feature = "secure"))]
+#[derive(Debug, Clone)]
+pub struct Key {
+    _priv: (),
+}
 
 pub struct Cookies {
     inner: CookieJar,
-    key: SecretKey,
+    #[cfg_attr(not(feature = "secure"), allow(dead_code))] key: SecretKey,
 }
 
 impl fmt::Debug for Cookies {
@@ -36,6 +44,7 @@ impl Cookies {
         self.inner.get(name)
     }
 
+    #[cfg(feature = "secure")]
     pub fn get_private(&mut self, name: &str) -> Option<Cookie<'static>> {
         self.inner.private(&self.key).get(name)
     }
@@ -44,6 +53,7 @@ impl Cookies {
         self.inner.add(cookie)
     }
 
+    #[cfg(feature = "secure")]
     pub fn add_private(&mut self, cookie: Cookie<'static>) {
         self.inner.private(&self.key).add(cookie)
     }
@@ -52,6 +62,7 @@ impl Cookies {
         self.inner.remove(cookie)
     }
 
+    #[cfg(feature = "secure")]
     pub fn remove_private(&mut self, cookie: Cookie<'static>) {
         self.inner.private(&self.key).remove(cookie)
     }
@@ -91,12 +102,24 @@ impl Deref for SecretKey {
 }
 
 impl SecretKey {
+    #[cfg(feature = "secure")]
     pub fn generated() -> Self {
         SecretKey::Generated(Key::generate())
     }
 
+    #[cfg(not(feature = "secure"))]
+    pub fn generated() -> Self {
+        SecretKey::Generated(Key { _priv: () })
+    }
+
+    #[cfg(feature = "secure")]
     pub fn provided<K: AsRef<[u8]>>(key: K) -> Self {
         SecretKey::Provided(Key::from_master(key.as_ref()))
+    }
+
+    #[cfg(not(feature = "secure"))]
+    pub fn provided<K: AsRef<[u8]>>(_key: K) -> Self {
+        SecretKey::Provided(Key { _priv: () })
     }
 }
 

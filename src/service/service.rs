@@ -160,6 +160,7 @@ where
         }
     }
 
+    #[cfg(feature = "secure")]
     pub fn set_secret_key(&mut self, key: SecretKey) {
         self.inner_mut().secret_key = key;
     }
