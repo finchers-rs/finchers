@@ -8,18 +8,14 @@ use task::{Task, TaskContext};
 
 #[allow(missing_docs)]
 #[derive(Debug)]
-pub struct Body<T, E> {
-    pub(crate) _marker: PhantomData<fn() -> (T, E)>,
+pub struct Body<T> {
+    pub(crate) _marker: PhantomData<fn() -> T>,
 }
 
-impl<T, E> Task for Body<T, E>
-where
-    T: FromBody,
-    E: From<FromBodyError<T::Error>>,
-{
+impl<T: FromBody> Task for Body<T> {
     type Item = T;
-    type Error = E;
-    type Future = BodyFuture<T, E>;
+    type Error = FromBodyError<T::Error>;
+    type Future = BodyFuture<T>;
 
     fn launch(self, ctx: &mut TaskContext) -> Self::Future {
         if !T::validate(ctx.request()) {
@@ -35,40 +31,37 @@ where
 }
 
 #[derive(Debug)]
-pub enum BodyFuture<T, E> {
+pub enum BodyFuture<T> {
     BadRequest,
     Receiving(http::Body, Vec<u8>),
-    Done(PhantomData<fn() -> (T, E)>),
+    Done(PhantomData<fn() -> T>),
 }
 
-impl<T, E> Future for BodyFuture<T, E>
-where
-    T: FromBody,
-    E: From<FromBodyError<T::Error>>,
-{
+impl<T: FromBody> Future for BodyFuture<T> {
     type Item = T;
-    type Error = Result<E, HttpError>;
+    type Error = Result<FromBodyError<T::Error>, HttpError>;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        use self::BodyFuture::*;
         match mem::replace(self, BodyFuture::Done(PhantomData)) {
-            BodyFuture::BadRequest => Err(Ok(FromBodyError::BadRequest.into())),
-            BodyFuture::Receiving(mut body, mut buf) => loop {
+            BadRequest => Err(Ok(FromBodyError::BadRequest)),
+            Receiving(mut body, mut buf) => loop {
                 match body.poll().map_err(Err)? {
                     Async::Ready(Some(item)) => {
                         buf.extend_from_slice(&item);
                         continue;
                     }
                     Async::Ready(None) => {
-                        let body = T::from_body(buf).map_err(|e| Ok(FromBodyError::FromBody(e).into()))?;
-                        break Ok(body.into());
+                        let body = T::from_body(buf).map_err(|e| Ok(FromBodyError::FromBody(e)))?;
+                        break Ok(Async::Ready(body));
                     }
                     Async::NotReady => {
-                        *self = BodyFuture::Receiving(body, buf);
+                        *self = Receiving(body, buf);
                         break Ok(Async::NotReady);
                     }
                 }
             },
-            BodyFuture::Done(..) => panic!("cannot resolve twice"),
+            Done(..) => panic!("cannot resolve twice"),
         }
     }
 }

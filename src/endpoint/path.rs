@@ -101,37 +101,33 @@ impl<'a, E> IntoEndpoint<(), E> for Cow<'a, str> {
     }
 }
 
-pub fn path<T: FromStr, E>() -> ExtractPath<T, E> {
+pub fn path<T: FromStr>() -> ExtractPath<T> {
     ExtractPath {
         _marker: PhantomData,
     }
 }
 
-pub struct ExtractPath<T, E> {
-    _marker: PhantomData<fn() -> (T, E)>,
+pub struct ExtractPath<T> {
+    _marker: PhantomData<fn() -> T>,
 }
 
-impl<T, E> fmt::Debug for ExtractPath<T, E> {
+impl<T> fmt::Debug for ExtractPath<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("ExtractPath").finish()
     }
 }
 
-impl<T, E> Endpoint for ExtractPath<T, E>
-where
-    T: FromStr,
-    E: From<T::Err>,
-{
+impl<T: FromStr> Endpoint for ExtractPath<T> {
     type Item = T;
-    type Error = E;
+    type Error = T::Err;
     type Task = Result<Self::Item, Self::Error>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
-        ctx.segments().next().map(|s| s.parse().map_err(Into::into))
+        ctx.segments().next().map(|s| s.parse())
     }
 }
 
-pub fn paths<I, T, E>() -> ExtractPaths<I, T, E>
+pub fn paths<I, T>() -> ExtractPaths<I, T>
 where
     I: FromIterator<T>,
     T: FromStr,
@@ -141,24 +137,23 @@ where
     }
 }
 
-pub struct ExtractPaths<I, T, E> {
-    _marker: PhantomData<fn() -> (I, T, E)>,
+pub struct ExtractPaths<I, T> {
+    _marker: PhantomData<fn() -> (I, T)>,
 }
 
-impl<I, T, E> fmt::Debug for ExtractPaths<I, T, E> {
+impl<I, T> fmt::Debug for ExtractPaths<I, T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("ExtractPaths").finish()
     }
 }
 
-impl<I, T, E> Endpoint for ExtractPaths<I, T, E>
+impl<I, T> Endpoint for ExtractPaths<I, T>
 where
     I: FromIterator<T>,
     T: FromStr,
-    E: From<T::Err>,
 {
     type Item = I;
-    type Error = E;
+    type Error = T::Err;
     type Task = Result<Self::Item, Self::Error>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
@@ -173,8 +168,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::num::ParseIntError;
-    use std::string::ParseError;
     use hyper::{Method, Request};
     use test::TestRunner;
 
@@ -280,7 +273,7 @@ mod tests {
 
     #[test]
     fn test_endpoint_extract_integer() {
-        let endpoint = path::<i32, ParseIntError>();
+        let endpoint = path::<i32>();
         let mut runner = TestRunner::new(endpoint).unwrap();
         let request = Request::new(Method::Get, "/42".parse().unwrap());
         match runner.run(request) {
@@ -291,7 +284,7 @@ mod tests {
 
     #[test]
     fn test_endpoint_extract_wrong_integer() {
-        let endpoint = path::<i32, ParseIntError>();
+        let endpoint = path::<i32>();
         let mut runner = TestRunner::new(endpoint).unwrap();
         let request = Request::new(Method::Get, "/foo".parse().unwrap());
         match runner.run(request) {
@@ -302,7 +295,7 @@ mod tests {
 
     #[test]
     fn test_endpoint_extract_strings() {
-        let endpoint = paths::<Vec<String>, String, ParseError>();
+        let endpoint = paths::<Vec<String>, String>();
         let mut runner = TestRunner::new(endpoint).unwrap();
         let request = Request::new(Method::Get, "/foo/bar".parse().unwrap());
         match runner.run(request) {

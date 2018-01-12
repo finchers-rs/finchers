@@ -11,11 +11,12 @@ use errors::*;
 
 fn main() {
     // GET /hello/:id
-    let endpoint1 =
-        get(("hello", path())).and_then(|(_, name): (_, String)| -> Result<_> { Ok(format!("Hello, {}", name)) });
+    let endpoint1 = get(("hello", path().map_err(Into::into)))
+        .and_then(|(_, name): (_, String)| -> Result<_> { Ok(format!("Hello, {}", name)) });
 
     // POST /hello [String] (Content-type: text/plain; charset=utf-8)
-    let endpoint2 = post(("hello", body())).and_then(|(_, body): (_, String)| Ok(format!("Received: {}", body)));
+    let endpoint2 = post(("hello", body().map_err(Into::into)))
+        .and_then(|(_, body): (_, String)| Ok(format!("Received: {}", body)));
 
     let endpoint = choice!(endpoint1, endpoint2);
 
