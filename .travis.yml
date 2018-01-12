@@ -30,9 +30,7 @@ before_script:
 script:
   - travis-cargo build
   - travis-cargo test
-  - travis-cargo --only stable build -- --features secure,tls
-  - travis-cargo --only stable test -- --features secure,tls
-  - travis-cargo --only stable doc -- --no-deps --features secure,tls
+  - travis-cargo --only stable doc -- --no-deps
 
 after_success:
   - travis-cargo --only stable coveralls --no-sudo
