@@ -7,7 +7,7 @@ use hyper::Request;
 use tokio_core::reactor::Core;
 
 use endpoint::{Endpoint, EndpointContext};
-use http::{self, Cookies, HttpError, SecretKey};
+use http::{self, HttpError};
 use task::{Task, TaskContext};
 
 #[derive(Debug)]
@@ -26,17 +26,15 @@ impl<E: Endpoint> TestRunner<E> {
 
     pub fn run(&mut self, request: Request) -> Option<Result<E::Item, Result<E::Error, HttpError>>> {
         let (mut request, body) = http::request::reconstruct(request);
-        let mut cookies = Cookies::from_original(request.header(), SecretKey::generated());
 
         let task = {
-            let mut ctx = EndpointContext::new(&request, &cookies);
+            let mut ctx = EndpointContext::new(&request);
             try_opt!(self.endpoint.apply(&mut ctx))
         };
 
         let fut = {
             let mut ctx = TaskContext {
                 request: &mut request,
-                cookies: &mut cookies,
                 body: Some(body),
             };
             task.launch(&mut ctx)

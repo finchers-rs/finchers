@@ -8,19 +8,17 @@ use futures::{Async, Future, Poll};
 use hyper;
 use hyper::server::{NewService, Service};
 
-use http::{self, Cookies, SecretKey};
+use http;
 use endpoint::{Endpoint, EndpointContext};
 use task::{Task, TaskContext};
 use process::Process;
 use responder::{IntoResponder, Responder};
-use responder::ResponderContext;
 
 /// The inner representation of `EndpointService`.
 #[derive(Debug)]
 struct EndpointServiceContext<E, P> {
     endpoint: E,
     process: Arc<P>,
-    secret_key: SecretKey,
 }
 
 /// An HTTP service which wraps a `Endpoint`.
@@ -49,17 +47,14 @@ where
 
     fn call(&self, req: hyper::Request) -> Self::Future {
         let (mut request, body) = http::request::reconstruct(req);
-        let mut cookies = Cookies::from_original(request.header(), self.inner.secret_key.clone());
-
         let task = {
-            let mut ctx = EndpointContext::new(&request, &cookies);
+            let mut ctx = EndpointContext::new(&request);
             self.inner.endpoint.apply(&mut ctx)
         };
 
         let inner = task.map(|task| {
             let mut ctx = TaskContext {
                 request: &mut request,
-                cookies: &mut cookies,
                 body: Some(body),
             };
             task.launch(&mut ctx)
@@ -67,7 +62,6 @@ where
 
         EndpointServiceFuture {
             inner: Inner::PollingTask(inner, self.inner.process.clone()),
-            context: ResponderContext { request, cookies },
         }
     }
 }
@@ -76,7 +70,6 @@ where
 #[allow(missing_debug_implementations)]
 pub struct EndpointServiceFuture<F, P: Process> {
     inner: Inner<F, P>,
-    context: ResponderContext,
 }
 
 impl<F, E, P> Future for EndpointServiceFuture<F, P>
@@ -92,12 +85,8 @@ where
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         match self.inner.poll() {
             Ok(Async::NotReady) => Ok(Async::NotReady),
-            Ok(Async::Ready(item)) => Ok(Async::Ready(
-                item.into_responder().respond(&mut self.context),
-            )),
-            Err(Ok(err)) => Ok(Async::Ready(
-                err.into_responder().respond(&mut self.context),
-            )),
+            Ok(Async::Ready(item)) => Ok(Async::Ready(item.into_responder().respond())),
+            Err(Ok(err)) => Ok(Async::Ready(err.into_responder().respond())),
             Err(Err(err)) => Err(err),
         }
     }
@@ -181,20 +170,8 @@ where
             inner: Arc::new(EndpointServiceContext {
                 endpoint,
                 process: Arc::new(process),
-                secret_key: SecretKey::generated(),
             }),
         }
-    }
-
-    #[cfg(feature = "secure")]
-    pub fn set_secret_key(&mut self, key: SecretKey) {
-        self.inner_mut().secret_key = key;
-    }
-
-    #[allow(dead_code)]
-    fn inner_mut(&mut self) -> &mut EndpointServiceContext<E, P> {
-        Arc::get_mut(&mut self.inner)
-            .expect("cannot get a mutable reference of inner context of EndpointServiceFactory")
     }
 }
 

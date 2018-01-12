@@ -5,7 +5,6 @@
 #![deny(missing_debug_implementations)]
 #![deny(warnings)]
 
-extern crate cookie;
 #[macro_use]
 extern crate futures;
 extern crate hyper;
