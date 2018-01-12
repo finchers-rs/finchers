@@ -6,22 +6,20 @@ use super::{Task, TaskContext};
 
 #[allow(missing_docs)]
 #[derive(Debug)]
-pub struct Header<H, E>
+pub struct Header<H>
 where
     H: header::Header + Clone,
-    E: From<EmptyHeader>,
 {
-    pub(crate) _marker: PhantomData<fn() -> (H, E)>,
+    pub(crate) _marker: PhantomData<fn() -> H>,
 }
 
-impl<H, E> Task for Header<H, E>
+impl<H> Task for Header<H>
 where
     H: header::Header + Clone,
-    E: From<EmptyHeader>,
 {
     type Item = H;
-    type Error = E;
-    type Future = FutureResult<H, Result<E, HttpError>>;
+    type Error = EmptyHeader;
+    type Future = FutureResult<H, Result<EmptyHeader, HttpError>>;
 
     fn launch(self, ctx: &mut TaskContext) -> Self::Future {
         match ctx.request().header().cloned() {

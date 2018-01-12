@@ -72,21 +72,21 @@ macro_rules! build_endpoint {
                 let entries = service::get_todos()?;
                 Ok(Todos(entries))
             }),
-            post(body()).and_then(|Json(entry)| -> ApiResult<_> {
+            post(body().map_err(Into::into)).and_then(|Json(entry)| -> ApiResult<_> {
                 let entry = service::add_new_todo(entry)?;
                 Ok(NewTodo(entry))
             }),
-            get(path()).and_then(|id| -> ApiResult<_> {
+            get(path().map_err(Into::into)).and_then(|id| -> ApiResult<_> {
                 let entry = service::find_todo(id)?.ok_or_else(|| ApiErrorKind::NotFound)?;
                 Ok(TheTodo(entry))
             }),
-            patch(path())
-                .join(body())
+            patch(path().map_err(Into::into))
+                .join(body().map_err(Into::into))
                 .and_then(|(id, Json(patch))| -> ApiResult<_> {
                     let entry = service::update_todo(id, patch)?.ok_or_else(|| ApiErrorKind::NotFound)?;
                     Ok(TheTodo(entry))
                 }),
-            delete(path()).and_then(|id| -> ApiResult<_> {
+            delete(path().map_err(Into::into)).and_then(|id| -> ApiResult<_> {
                 service::remove_todo(id)?;
                 Ok(Deleted)
             }),

@@ -6,44 +6,36 @@ use http::{self, FromBody, FromBodyError};
 use task;
 
 #[allow(missing_docs)]
-pub fn body<T, E>() -> Body<T, E>
-where
-    T: FromBody,
-    E: From<FromBodyError<T::Error>>,
-{
+pub fn body<T: FromBody>() -> Body<T> {
     Body {
         _marker: PhantomData,
     }
 }
 
 #[allow(missing_docs)]
-pub struct Body<T, E> {
-    _marker: PhantomData<fn() -> (T, E)>,
+pub struct Body<T> {
+    _marker: PhantomData<fn() -> T>,
 }
 
-impl<T, E> Copy for Body<T, E> {}
+impl<T> Copy for Body<T> {}
 
-impl<T, E> Clone for Body<T, E> {
+impl<T> Clone for Body<T> {
     #[inline]
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<T, E> fmt::Debug for Body<T, E> {
+impl<T> fmt::Debug for Body<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("Body").finish()
     }
 }
 
-impl<T, E> Endpoint for Body<T, E>
-where
-    T: FromBody,
-    E: From<FromBodyError<T::Error>>,
-{
+impl<T: FromBody> Endpoint for Body<T> {
     type Item = T;
-    type Error = E;
-    type Task = task::body::Body<T, E>;
+    type Error = FromBodyError<T::Error>;
+    type Task = task::body::Body<T>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
         match T::is_match(ctx.request()) {

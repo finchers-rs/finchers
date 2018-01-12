@@ -5,10 +5,9 @@ use http::{header, EmptyHeader};
 use task;
 
 #[allow(missing_docs)]
-pub fn header<H, E>() -> Header<H, E>
+pub fn header<H>() -> Header<H>
 where
     H: header::Header + Clone,
-    E: From<EmptyHeader>,
 {
     Header {
         _marker: PhantomData,
@@ -16,33 +15,32 @@ where
 }
 
 #[allow(missing_docs)]
-pub struct Header<H, E> {
-    _marker: PhantomData<fn() -> (H, E)>,
+pub struct Header<H> {
+    _marker: PhantomData<fn() -> H>,
 }
 
-impl<H, E> Copy for Header<H, E> {}
+impl<H> Copy for Header<H> {}
 
-impl<H, E> Clone for Header<H, E> {
+impl<H> Clone for Header<H> {
     #[inline]
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<H, E> fmt::Debug for Header<H, E> {
+impl<H> fmt::Debug for Header<H> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("Header").finish()
     }
 }
 
-impl<H, E> Endpoint for Header<H, E>
+impl<H> Endpoint for Header<H>
 where
     H: header::Header + Clone,
-    E: From<EmptyHeader>,
 {
     type Item = H;
-    type Error = E;
-    type Task = task::Header<H, E>;
+    type Error = EmptyHeader;
+    type Task = task::Header<H>;
 
     fn apply(&self, _: &mut EndpointContext) -> Option<Self::Task> {
         Some(task::Header {
