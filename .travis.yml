@@ -34,4 +34,5 @@ script:
 
 after_success:
   - travis-cargo --only stable coveralls --no-sudo
+  - mkdir -p ./target/doc && touch ./target/doc/index.html
   - travis-cargo --only stable doc-upload
