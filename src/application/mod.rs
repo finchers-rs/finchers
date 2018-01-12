@@ -10,6 +10,7 @@ use hyper::Chunk;
 use tokio_core::reactor::{Core, Handle};
 
 use endpoint::Endpoint;
+use process::Process;
 use responder::IntoResponder;
 use service::{EndpointServiceFactory, ServiceFactory};
 
@@ -118,7 +119,7 @@ where
     B: TcpBackend,
 {
     /// Create a new launcher from given service and TCP backend.
-    pub fn new(service: S, backend: B) -> Self {
+    pub fn from_service(service: S, backend: B) -> Self {
         Application {
             service,
             proto: Http::default(),
@@ -151,22 +152,19 @@ where
     }
 }
 
-impl<S: ServiceFactory> Application<S, backend::DefaultBackend> {
-    /// Create a new instance of Application from given service
-    pub fn from_service(service: S) -> Self {
-        Self::new(service, Default::default())
-    }
-}
-
-impl<E> Application<EndpointServiceFactory<E>, backend::DefaultBackend>
+impl<E, P> Application<EndpointServiceFactory<E, P>, backend::DefaultBackend>
 where
     E: Endpoint,
-    E::Item: IntoResponder,
-    E::Error: IntoResponder,
+    P: Process<In = E::Item, InErr = E::Error>,
+    P::Out: IntoResponder,
+    P::OutErr: IntoResponder,
 {
-    /// Create a lancher from given `Endpoint`.
-    pub fn from_endpoint(endpoint: E) -> Self {
-        Self::from_service(EndpointServiceFactory::new(endpoint))
+    #[allow(missing_docs)]
+    pub fn new(endpoint: E, process: P) -> Self {
+        Self::from_service(
+            EndpointServiceFactory::new(endpoint, process),
+            Default::default(),
+        )
     }
 }
 

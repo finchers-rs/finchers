@@ -24,6 +24,7 @@ pub mod application;
 pub mod contrib;
 pub mod endpoint;
 pub mod http;
+pub mod process;
 pub mod responder;
 pub mod service;
 pub mod task;
@@ -34,6 +35,9 @@ pub use application::Application;
 
 #[doc(inline)]
 pub use endpoint::{Endpoint, IntoEndpoint};
+
+#[doc(inline)]
+pub use process::Process;
 
 #[doc(inline)]
 pub use responder::{ErrorResponder, IntoResponder, Responder};

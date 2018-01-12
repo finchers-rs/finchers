@@ -4,48 +4,51 @@ use std::io;
 use std::mem;
 use std::sync::Arc;
 
-use futures::{Async, Future, IntoFuture, Poll};
+use futures::{Async, Future, Poll};
 use hyper;
 use hyper::server::Service;
 use tokio_core::reactor::Handle;
 
-use http::{self, Cookies, SecretKey, StatusCode};
+use http::{self, Cookies, SecretKey};
 use endpoint::{Endpoint, EndpointContext};
 use task::{Task, TaskContext};
+use process::Process;
 use responder::{IntoResponder, Responder};
 use responder::ResponderContext;
 use super::ServiceFactory;
 
 /// The inner representation of `EndpointService`.
 #[derive(Debug)]
-struct EndpointServiceContext<E> {
+struct EndpointServiceContext<E, P> {
     endpoint: E,
+    process: Arc<P>,
     secret_key: SecretKey,
-    no_route: fn() -> hyper::Response,
 }
 
 /// An HTTP service which wraps a `Endpoint`.
 #[derive(Debug)]
-pub struct EndpointService<E>
+pub struct EndpointService<E, P>
 where
     E: Endpoint,
-    E::Item: IntoResponder,
-    E::Error: IntoResponder,
+    P: Process<In = E::Item, InErr = E::Error>,
+    P::Out: IntoResponder,
+    P::OutErr: IntoResponder,
 {
-    inner: Arc<EndpointServiceContext<E>>,
+    inner: Arc<EndpointServiceContext<E, P>>,
     handle: Handle,
 }
 
-impl<E> Service for EndpointService<E>
+impl<E, P> Service for EndpointService<E, P>
 where
     E: Endpoint,
-    E::Item: IntoResponder,
-    E::Error: IntoResponder,
+    P: Process<In = E::Item, InErr = E::Error>,
+    P::Out: IntoResponder,
+    P::OutErr: IntoResponder,
 {
     type Request = hyper::Request;
     type Response = hyper::Response;
     type Error = hyper::Error;
-    type Future = EndpointServiceFuture<<E::Task as Task>::Future>;
+    type Future = EndpointServiceFuture<<E::Task as Task>::Future, P>;
 
     fn call(&self, req: hyper::Request) -> Self::Future {
         let (mut request, body) = http::request::reconstruct(req);
@@ -56,40 +59,36 @@ where
             self.inner.endpoint.apply(&mut ctx)
         };
 
-        let inner = match task {
-            Some(task) => {
-                let mut ctx = TaskContext {
-                    request: &mut request,
-                    handle: &self.handle,
-                    cookies: &mut cookies,
-                    body: Some(body),
-                };
-                Respondable::Polling(task.launch(&mut ctx).into_future())
-            }
-            None => Respondable::NoRoute,
-        };
+        let inner = task.map(|task| {
+            let mut ctx = TaskContext {
+                request: &mut request,
+                handle: &self.handle,
+                cookies: &mut cookies,
+                body: Some(body),
+            };
+            task.launch(&mut ctx)
+        });
 
         EndpointServiceFuture {
-            inner,
+            inner: Inner::PollingTask(inner, self.inner.process.clone()),
             context: ResponderContext { request, cookies },
-            no_route: self.inner.no_route,
         }
     }
 }
 
 /// A future returned from `EndpointService::call()`
-#[derive(Debug)]
-pub struct EndpointServiceFuture<F> {
-    inner: Respondable<F>,
+#[allow(missing_debug_implementations)]
+pub struct EndpointServiceFuture<F, P: Process> {
+    inner: Inner<F, P>,
     context: ResponderContext,
-    no_route: fn() -> hyper::Response,
 }
 
-impl<F, E> Future for EndpointServiceFuture<F>
+impl<F, E, P> Future for EndpointServiceFuture<F, P>
 where
     F: Future<Error = Result<E, hyper::Error>>,
-    F::Item: IntoResponder,
-    E: IntoResponder,
+    P: Process<In = F::Item, InErr = E>,
+    P::Out: IntoResponder,
+    P::OutErr: IntoResponder,
 {
     type Item = hyper::Response;
     type Error = hyper::Error;
@@ -97,10 +96,9 @@ where
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         match self.inner.poll() {
             Ok(Async::NotReady) => Ok(Async::NotReady),
-            Ok(Async::Ready(Some(item))) => Ok(Async::Ready(
+            Ok(Async::Ready(item)) => Ok(Async::Ready(
                 item.into_responder().respond(&mut self.context),
             )),
-            Ok(Async::Ready(None)) => Ok(Async::Ready((self.no_route)())),
             Err(Ok(err)) => Ok(Async::Ready(
                 err.into_responder().respond(&mut self.context),
             )),
@@ -110,52 +108,84 @@ where
 }
 
 #[derive(Debug)]
-pub(crate) enum Respondable<F> {
-    Polling(F),
-    NoRoute,
+pub(crate) enum Inner<F, P: Process> {
+    PollingTask(Option<F>, Arc<P>),
+    PollingResult(P::Future),
     Done,
 }
 
-impl<F: Future> Future for Respondable<F> {
-    type Item = Option<F::Item>;
-    type Error = F::Error;
+impl<F, P, E> Future for Inner<F, P>
+where
+    F: Future<Error = Result<E, hyper::Error>>,
+    P: Process<In = F::Item, InErr = E>,
+{
+    type Item = <P::Future as Future>::Item;
+    type Error = Result<<P::Future as Future>::Error, hyper::Error>;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        use self::Respondable::*;
-        match *self {
-            Polling(ref mut t) => return t.poll().map(|s| s.map(Some)),
-            NoRoute => {}
-            Done => panic!(),
-        }
-        match mem::replace(self, Done) {
-            NoRoute => Ok(Async::Ready(None)),
-            _ => panic!(),
+        use self::Inner::*;
+        loop {
+            match mem::replace(self, Done) {
+                PollingTask(t, p) => {
+                    let input = match t {
+                        Some(mut t) => {
+                            let polled = t.poll();
+                            match polled {
+                                Ok(Async::Ready(item)) => Some(Ok(item)),
+                                Ok(Async::NotReady) => {
+                                    *self = PollingTask(Some(t), p);
+                                    return Ok(Async::NotReady);
+                                }
+                                Err(Ok(err)) => Some(Err(err)),
+                                Err(Err(err)) => return Err(Err(err)),
+                            }
+                        }
+                        None => None,
+                    };
+                    *self = PollingResult(p.call(input));
+                    continue;
+                }
+                PollingResult(mut p) => {
+                    let polled = p.poll();
+                    match polled {
+                        Ok(Async::Ready(item)) => break Ok(Async::Ready(item)),
+                        Ok(Async::NotReady) => {
+                            *self = PollingResult(p);
+                            return Ok(Async::NotReady);
+                        }
+                        Err(err) => break Err(Ok(err)),
+                    }
+                }
+                Done => panic!(),
+            }
         }
     }
 }
 
 #[derive(Debug)]
-pub struct EndpointServiceFactory<E>
+pub struct EndpointServiceFactory<E, P>
 where
     E: Endpoint,
-    E::Item: IntoResponder,
-    E::Error: IntoResponder,
+    P: Process<In = E::Item, InErr = E::Error>,
+    P::Out: IntoResponder,
+    P::OutErr: IntoResponder,
 {
-    inner: Arc<EndpointServiceContext<E>>,
+    inner: Arc<EndpointServiceContext<E, P>>,
 }
 
-impl<E> EndpointServiceFactory<E>
+impl<E, P> EndpointServiceFactory<E, P>
 where
     E: Endpoint,
-    E::Item: IntoResponder,
-    E::Error: IntoResponder,
+    P: Process<In = E::Item, InErr = E::Error>,
+    P::Out: IntoResponder,
+    P::OutErr: IntoResponder,
 {
-    pub fn new(endpoint: E) -> Self {
+    pub fn new(endpoint: E, process: P) -> Self {
         EndpointServiceFactory {
             inner: Arc::new(EndpointServiceContext {
                 endpoint,
+                process: Arc::new(process),
                 secret_key: SecretKey::generated(),
-                no_route: no_route,
             }),
         }
     }
@@ -165,23 +195,21 @@ where
         self.inner_mut().secret_key = key;
     }
 
-    pub fn set_no_route(&mut self, no_route: fn() -> hyper::Response) {
-        self.inner_mut().no_route = no_route;
-    }
-
-    fn inner_mut(&mut self) -> &mut EndpointServiceContext<E> {
+    #[allow(dead_code)]
+    fn inner_mut(&mut self) -> &mut EndpointServiceContext<E, P> {
         Arc::get_mut(&mut self.inner)
             .expect("cannot get a mutable reference of inner context of EndpointServiceFactory")
     }
 }
 
-impl<E> ServiceFactory for EndpointServiceFactory<E>
+impl<E, P> ServiceFactory for EndpointServiceFactory<E, P>
 where
     E: Endpoint,
-    E::Item: IntoResponder,
-    E::Error: IntoResponder,
+    P: Process<In = E::Item, InErr = E::Error>,
+    P::Out: IntoResponder,
+    P::OutErr: IntoResponder,
 {
-    type Service = EndpointService<E>;
+    type Service = EndpointService<E, P>;
 
     fn new_service(&self, handle: &Handle) -> io::Result<Self::Service> {
         Ok(EndpointService {
@@ -189,8 +217,4 @@ where
             handle: handle.clone(),
         })
     }
-}
-
-pub fn no_route() -> hyper::Response {
-    hyper::Response::new().with_status(StatusCode::NotFound)
 }
