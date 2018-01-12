@@ -1,8 +1,10 @@
-use finchers::{ErrorResponder, Responder};
+use finchers::{Endpoint, ErrorResponder, Responder};
 use finchers::contrib::json::Json;
+use finchers::endpoint::{body, path};
+use finchers::endpoint::method::{delete, get, patch, post};
 use finchers::http::{FromBody, FromBodyError, StatusCode};
 use serde_json;
-use service::Todo;
+use super::service::{self, Todo};
 
 pub enum ApiResponse {
     TheTodo(Todo),
@@ -44,7 +46,7 @@ error_chain! {
     foreign_links {
         ParseInt(::std::num::ParseIntError);
         ParseJson(FromBodyError<<Json as FromBody>::Error>);
-        Service(::service::Error);
+        Service(service::Error);
     }
 }
 
@@ -57,39 +59,29 @@ impl ErrorResponder for ApiError {
     }
 }
 
-// TODO: use impl Trait
-#[macro_export]
-macro_rules! build_endpoint {
-    () => {{
-        use finchers::Endpoint;
-        use finchers::contrib::json::Json;
-        use finchers::endpoint::{body, path};
-        use finchers::endpoint::method::{delete, get, patch, post};
-        use api::*;
-
-        e!("todos").with(choice![
-            get(()).and_then(|_| -> ApiResult<_> {
-                let entries = service::get_todos()?;
-                Ok(Todos(entries))
-            }),
-            post(body().map_err(Into::into)).and_then(|Json(entry)| -> ApiResult<_> {
-                let entry = service::add_new_todo(entry)?;
-                Ok(NewTodo(entry))
-            }),
-            get(path().map_err(Into::into)).and_then(|id| -> ApiResult<_> {
-                let entry = service::find_todo(id)?.ok_or_else(|| ApiErrorKind::NotFound)?;
+pub fn build_endpoint() -> impl Endpoint<Item = ApiResponse, Error = ApiError> + 'static {
+    e!("todos").with(choice![
+        get(()).and_then(|_| -> ApiResult<_> {
+            let entries = service::get_todos()?;
+            Ok(Todos(entries))
+        }),
+        post(body().map_err(Into::into)).and_then(|Json(entry)| -> ApiResult<_> {
+            let entry = service::add_new_todo(entry)?;
+            Ok(NewTodo(entry))
+        }),
+        get(path().map_err(Into::into)).and_then(|id| -> ApiResult<_> {
+            let entry = service::find_todo(id)?.ok_or_else(|| ApiErrorKind::NotFound)?;
+            Ok(TheTodo(entry))
+        }),
+        patch(path().map_err(Into::into))
+            .join(body().map_err(Into::into))
+            .and_then(|(id, Json(patch))| -> ApiResult<_> {
+                let entry = service::update_todo(id, patch)?.ok_or_else(|| ApiErrorKind::NotFound)?;
                 Ok(TheTodo(entry))
             }),
-            patch(path().map_err(Into::into))
-                .join(body().map_err(Into::into))
-                .and_then(|(id, Json(patch))| -> ApiResult<_> {
-                    let entry = service::update_todo(id, patch)?.ok_or_else(|| ApiErrorKind::NotFound)?;
-                    Ok(TheTodo(entry))
-                }),
-            delete(path().map_err(Into::into)).and_then(|id| -> ApiResult<_> {
-                service::remove_todo(id)?;
-                Ok(Deleted)
-            }),
-        ])
-    }};
+        delete(path().map_err(Into::into)).and_then(|id| -> ApiResult<_> {
+            service::remove_todo(id)?;
+            Ok(Deleted)
+        }),
+    ])
 }

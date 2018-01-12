@@ -1,20 +1,30 @@
+#![cfg_attr(feature = "unstable", feature(conservative_impl_trait))]
+
+#[cfg(feature = "unstable")]
 #[macro_use]
 extern crate error_chain;
+#[cfg(feature = "unstable")]
 #[macro_use]
 extern crate finchers;
+#[cfg(feature = "unstable")]
 #[macro_use]
 extern crate lazy_static;
+#[cfg(feature = "unstable")]
 #[macro_use]
 extern crate serde_derive;
+#[cfg(feature = "unstable")]
 extern crate serde_json;
 
-mod service;
-#[macro_use]
-mod api;
+#[cfg(feature = "unstable")]
+mod imp;
 
-use finchers::Application;
+#[cfg(not(feature = "unstable"))]
+mod imp {
+    pub fn main() {
+        println!("This example is available only on nightly Rust compiler with 'unstable' option.");
+    }
+}
 
 fn main() {
-    let endpoint = build_endpoint!();
-    Application::from_endpoint(endpoint).run();
+    imp::main()
 }
