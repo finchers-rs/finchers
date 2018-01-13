@@ -15,8 +15,6 @@ where
     E: Endpoint,
     E::Error: IntoResponder,
     P: Process<E::Item> + Clone,
-    P::Out: IntoResponder,
-    P::Err: IntoResponder,
 {
     endpoint: E,
     process: P,
@@ -27,8 +25,6 @@ where
     E: Endpoint,
     E::Error: IntoResponder,
     P: Process<E::Item> + Clone,
-    P::Out: IntoResponder,
-    P::Err: IntoResponder,
 {
     pub fn new(endpoint: E, process: P) -> Self {
         EndpointService { endpoint, process }
@@ -40,8 +36,6 @@ where
     E: Endpoint,
     E::Error: IntoResponder,
     P: Process<E::Item> + Clone,
-    P::Out: IntoResponder,
-    P::Err: IntoResponder,
 {
     type Request = hyper::Request;
     type Response = hyper::Response;
@@ -124,8 +118,6 @@ where
     E: IntoResponder,
     P: Process<F::Item, Future = R>,
     R: Future<Item = P::Out, Error = P::Err>,
-    P::Out: IntoResponder,
-    P::Err: IntoResponder,
 {
     type Item = hyper::Response;
     type Error = hyper::Error;

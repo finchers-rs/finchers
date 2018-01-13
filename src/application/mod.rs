@@ -171,8 +171,6 @@ where
     E: Endpoint,
     P: Process<E::Item>,
     E::Error: IntoResponder,
-    P::Out: IntoResponder,
-    P::Err: IntoResponder,
 {
     #[allow(missing_docs)]
     pub fn new(endpoint: E, process: P) -> Self {
