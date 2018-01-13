@@ -8,8 +8,7 @@ use futures::{Async, Future, Poll};
 use hyper;
 use hyper::server::{NewService, Service};
 
-use endpoint::Endpoint;
-use task::Task;
+use endpoint::{Endpoint, Task};
 use process::Process;
 use responder::{IntoResponder, Responder};
 

@@ -1,7 +1,8 @@
 #![allow(missing_docs)]
 
 use futures::future;
-use super::{Task, TaskContext};
+use http::Request;
+use super::Task;
 
 #[derive(Debug)]
 pub struct JoinAll<T> {
@@ -16,7 +17,7 @@ where
     type Error = T::Error;
     type Future = future::JoinAll<Vec<T::Future>>;
 
-    fn launch(self, ctx: &mut TaskContext) -> Self::Future {
-        future::join_all(self.inner.into_iter().map(|t| t.launch(ctx)).collect())
+    fn launch(self, request: &mut Request) -> Self::Future {
+        future::join_all(self.inner.into_iter().map(|t| t.launch(request)).collect())
     }
 }

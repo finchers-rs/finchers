@@ -1,6 +1,7 @@
 //! `Endpoint` layer
 
 pub mod method;
+pub mod task;
 
 pub(crate) mod body;
 pub(crate) mod context;
@@ -28,6 +29,7 @@ pub use self::header::{header, header_opt};
 pub use self::method::MatchMethod;
 pub use self::path::{match_, path, paths, ExtractPath, ExtractPaths, MatchPath};
 pub use self::result::{err, ok, result, EndpointErr, EndpointOk, EndpointResult};
+pub use self::task::Task;
 
 pub use self::and_then::AndThen;
 pub use self::join::{Join, Join3, Join4, Join5};

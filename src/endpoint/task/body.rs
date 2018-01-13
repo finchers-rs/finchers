@@ -2,9 +2,9 @@ use std::marker::PhantomData;
 use std::mem;
 use futures::{Async, Future, Poll, Stream};
 use futures::future::{self, FutureResult};
-use http::{self, FromBody, FromBodyError, HttpError};
+use http::{self, FromBody, FromBodyError, HttpError, Request};
 use http::header::ContentLength;
-use task::{Task, TaskContext};
+use super::Task;
 
 #[allow(missing_docs)]
 #[derive(Debug)]
@@ -17,13 +17,13 @@ impl<T: FromBody> Task for Body<T> {
     type Error = FromBodyError<T::Error>;
     type Future = BodyFuture<T>;
 
-    fn launch(self, ctx: &mut TaskContext) -> Self::Future {
-        if !T::validate(ctx.request()) {
+    fn launch(self, request: &mut Request) -> Self::Future {
+        if !T::validate(request) {
             return BodyFuture::BadRequest;
         }
 
-        let body = ctx.take_body().expect("cannot take the request body twice");
-        let len = ctx.request()
+        let body = request.body().expect("cannot take the request body twice");
+        let len = request
             .header::<ContentLength>()
             .map_or(0, |&ContentLength(len)| len as usize);
         BodyFuture::Receiving(body, Vec::with_capacity(len))
@@ -77,8 +77,8 @@ impl<E> Task for BodyStream<E> {
     type Error = E;
     type Future = FutureResult<Self::Item, Result<Self::Error, HttpError>>;
 
-    fn launch(self, ctx: &mut TaskContext) -> Self::Future {
-        let body = ctx.take_body().expect("cannot take a body twice");
+    fn launch(self, request: &mut Request) -> Self::Future {
+        let body = request.body().expect("cannot take a body twice");
         future::ok(body)
     }
 }

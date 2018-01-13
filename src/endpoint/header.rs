@@ -2,7 +2,7 @@ use std::fmt;
 use std::marker::PhantomData;
 use endpoint::{Endpoint, EndpointContext};
 use http::{header, EmptyHeader};
-use task;
+use super::task;
 
 #[allow(missing_docs)]
 pub fn header<H>() -> Header<H>

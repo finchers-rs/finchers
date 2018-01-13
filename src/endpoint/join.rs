@@ -2,8 +2,8 @@
 #![allow(non_snake_case)]
 
 use std::fmt;
-use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
-use task;
+use super::{Endpoint, EndpointContext, IntoEndpoint};
+use super::task;
 
 macro_rules! generate {
     ($(

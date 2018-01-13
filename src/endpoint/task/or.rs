@@ -1,5 +1,6 @@
 use futures::{Future, Poll};
-use super::{Task, TaskContext};
+use http::Request;
+use super::Task;
 
 #[derive(Debug)]
 pub(crate) enum Either<T1, T2> {
@@ -22,13 +23,14 @@ where
     type Item = T1::Item;
     type Error = T1::Error;
     type Future = OrFuture<T1::Future, T2::Future>;
-    fn launch(self, ctx: &mut TaskContext) -> Self::Future {
+
+    fn launch(self, request: &mut Request) -> Self::Future {
         match self.inner {
             Left(t) => OrFuture {
-                inner: Left(t.launch(ctx)),
+                inner: Left(t.launch(request)),
             },
             Right(t) => OrFuture {
-                inner: Right(t.launch(ctx)),
+                inner: Right(t.launch(request)),
             },
         }
     }

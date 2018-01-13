@@ -1,8 +1,8 @@
 #![allow(missing_docs)]
 
 use std::fmt;
-use task;
-use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
+use super::{Endpoint, EndpointContext, IntoEndpoint};
+use super::task;
 
 pub fn join_all<I, E, A, B>(iter: I) -> JoinAll<E::Endpoint>
 where

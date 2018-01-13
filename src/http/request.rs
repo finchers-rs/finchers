@@ -1,39 +1,32 @@
-use hyper::{self, Headers, Method, Uri};
+use hyper::{self, Headers, HttpVersion, Method, Uri};
 use hyper::header::{self, Header};
 use hyper::mime::Mime;
-use hyper::error::UriError;
 use super::Body;
-
-pub(crate) fn reconstruct(req: hyper::Request) -> (Request, Body) {
-    let (method, uri, _version, headers, body) = req.deconstruct();
-    (
-        Request {
-            method,
-            uri,
-            headers,
-        },
-        body,
-    )
-}
 
 /// The value of incoming HTTP request
 #[derive(Debug)]
 pub struct Request {
-    pub(crate) method: Method,
-    pub(crate) uri: Uri,
-    pub(crate) headers: Headers,
+    method: Method,
+    uri: Uri,
+    version: HttpVersion,
+    headers: Headers,
+    body: Option<Body>,
+}
+
+impl From<hyper::Request> for Request {
+    fn from(request: hyper::Request) -> Self {
+        let (method, uri, version, headers, body) = request.deconstruct();
+        Request {
+            method,
+            uri,
+            version,
+            headers,
+            body: Some(body),
+        }
+    }
 }
 
 impl Request {
-    /// Create a new instance of `Request` from given HTTP method and URI
-    pub fn new(method: Method, uri: &str) -> Result<Request, UriError> {
-        Ok(Request {
-            method,
-            uri: uri.parse()?,
-            headers: Default::default(),
-        })
-    }
-
     /// Return the reference of HTTP method
     pub fn method(&self) -> &Method {
         &self.method
@@ -52,6 +45,11 @@ impl Request {
     /// Return the reference of the header of HTTP request
     pub fn header<H: Header>(&self) -> Option<&H> {
         self.headers.get::<H>()
+    }
+
+    #[allow(missing_docs)]
+    pub fn body(&mut self) -> Option<Body> {
+        self.body.take()
     }
 
     #[allow(missing_docs)]

@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 
 use endpoint::{Endpoint, EndpointContext};
 use http::{self, FromBody, FromBodyError};
-use task;
+use super::task;
 
 #[allow(missing_docs)]
 pub fn body<T: FromBody>() -> Body<T> {

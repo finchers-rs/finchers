@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use futures::{Future, IntoFuture, Poll};
-use http::HttpError;
-use super::{Task, TaskContext};
+use http::{HttpError, Request};
+use super::Task;
 use super::chain::Chain;
 
 #[allow(missing_docs)]
@@ -21,9 +21,9 @@ where
     type Error = R::Error;
     type Future = AndThenFuture<T::Future, F, T::Error, R>;
 
-    fn launch(self, ctx: &mut TaskContext) -> Self::Future {
+    fn launch(self, request: &mut Request) -> Self::Future {
         let AndThen { task, f } = self;
-        let fut = task.launch(ctx);
+        let fut = task.launch(request);
         AndThenFuture {
             inner: Chain::new(fut, f),
         }

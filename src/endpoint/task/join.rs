@@ -2,7 +2,8 @@
 #![allow(non_snake_case)]
 
 use futures::{future, IntoFuture};
-use super::{Task, TaskContext};
+use http::Request;
+use super::Task;
 
 macro_rules! generate {
     ($(
@@ -23,10 +24,10 @@ macro_rules! generate {
                 type Error = E;
                 type Future = future::$Join<$($T::Future),*>;
 
-                fn launch(self, ctx: &mut TaskContext) -> Self::Future {
+                fn launch(self, request: &mut Request) -> Self::Future {
                     let ($($T),*) = self.inner;
                     $(
-                        let $T = $T.launch(ctx);
+                        let $T = $T.launch(request);
                     )*
                     ($($T),*).into_future()
                 }

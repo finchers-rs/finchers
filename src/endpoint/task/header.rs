@@ -1,8 +1,8 @@
 use std::marker::PhantomData;
 use futures::IntoFuture;
 use futures::future::FutureResult;
-use http::{header, EmptyHeader, HttpError};
-use super::{Task, TaskContext};
+use http::{header, EmptyHeader, HttpError, Request};
+use super::Task;
 
 #[allow(missing_docs)]
 #[derive(Debug)]
@@ -21,8 +21,8 @@ where
     type Error = EmptyHeader;
     type Future = FutureResult<H, Result<EmptyHeader, HttpError>>;
 
-    fn launch(self, ctx: &mut TaskContext) -> Self::Future {
-        match ctx.request().header().cloned() {
+    fn launch(self, request: &mut Request) -> Self::Future {
+        match request.header().cloned() {
             Some(h) => Ok(h).into_future(),
             None => Err(Ok(EmptyHeader(H::header_name()).into())).into_future(),
         }
@@ -43,7 +43,7 @@ where
     type Error = E;
     type Future = FutureResult<Option<H>, Result<E, HttpError>>;
 
-    fn launch(self, ctx: &mut TaskContext) -> Self::Future {
-        Ok(ctx.request().header().cloned()).into_future()
+    fn launch(self, request: &mut Request) -> Self::Future {
+        Ok(request.header().cloned()).into_future()
     }
 }

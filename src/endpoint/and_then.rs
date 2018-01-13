@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 use futures::IntoFuture;
 use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
-use task;
+use super::task;
 
 pub fn and_then<E, F, R, A, B>(endpoint: E, f: F) -> AndThen<E::Endpoint, F, R>
 where

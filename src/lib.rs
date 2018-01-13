@@ -26,20 +26,16 @@ pub mod http;
 pub mod process;
 pub mod responder;
 pub mod service;
-pub mod task;
 pub mod test;
 
 #[doc(inline)]
 pub use application::Application;
 
 #[doc(inline)]
-pub use endpoint::{Endpoint, IntoEndpoint};
+pub use endpoint::{Endpoint, IntoEndpoint, Task};
 
 #[doc(inline)]
 pub use process::Process;
 
 #[doc(inline)]
 pub use responder::{ErrorResponder, IntoResponder, Responder};
-
-#[doc(inline)]
-pub use task::Task;

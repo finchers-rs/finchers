@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 
-use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
-use task;
+use super::{Endpoint, EndpointContext, IntoEndpoint};
+use super::task;
 
 pub fn or<E1, E2, A, B>(e1: E1, e2: E2) -> Or<E1::Endpoint, E2::Endpoint>
 where

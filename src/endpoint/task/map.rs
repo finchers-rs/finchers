@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use futures::{Future, Poll};
-use super::{Task, TaskContext};
+use http::Request;
+use super::Task;
 
 #[allow(missing_docs)]
 #[derive(Debug)]
@@ -17,9 +18,9 @@ where
     type Item = R;
     type Error = T::Error;
     type Future = MapFuture<T::Future, F>;
-    fn launch(self, ctx: &mut TaskContext) -> Self::Future {
+    fn launch(self, request: &mut Request) -> Self::Future {
         let Map { task, f } = self;
-        let fut = task.launch(ctx);
+        let fut = task.launch(request);
         MapFuture { fut, f: Some(f) }
     }
 }

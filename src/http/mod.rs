@@ -5,7 +5,7 @@ mod from_body;
 mod into_body;
 pub(crate) mod request;
 
-pub use hyper::{header, mime, Body, Chunk, Error as HttpError, Method, Response, StatusCode};
+pub use hyper::{header, mime, Body, Chunk, Error as HttpError, Method, Request as RawRequest, Response, StatusCode};
 pub use hyper::header::{Header, Headers};
 
 pub use self::errors::*;

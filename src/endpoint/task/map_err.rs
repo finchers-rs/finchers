@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use futures::{Future, Poll};
-use http::HttpError;
-use super::{Task, TaskContext};
+use http::{HttpError, Request};
+use super::Task;
 
 #[allow(missing_docs)]
 #[derive(Debug)]
@@ -20,9 +20,9 @@ where
     type Error = R;
     type Future = MapErrFuture<T::Future, F>;
 
-    fn launch(self, ctx: &mut TaskContext) -> Self::Future {
+    fn launch(self, request: &mut Request) -> Self::Future {
         let MapErr { task, f } = self;
-        let fut = task.launch(ctx);
+        let fut = task.launch(request);
         MapErrFuture { fut, f: Some(f) }
     }
 }

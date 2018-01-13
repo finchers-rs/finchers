@@ -1,9 +1,7 @@
 use std::rc::Rc;
 use std::sync::Arc;
 use futures::IntoFuture;
-use hyper;
 use http;
-use task::{Task, TaskContext};
 use super::*;
 
 /// Abstruction of an endpoint.
@@ -22,20 +20,10 @@ pub trait Endpoint {
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task>;
 
     #[allow(missing_docs)]
-    fn apply_request(&self, request: hyper::Request) -> Option<<Self::Task as Task>::Future> {
-        let (mut request, body) = http::request::reconstruct(request);
-
-        let task = {
-            let mut ctx = EndpointContext::new(&request);
-            try_opt!(self.apply(&mut ctx))
-        };
-
-        let mut ctx = TaskContext {
-            request: &mut request,
-            body: Some(body),
-        };
-
-        Some(task.launch(&mut ctx))
+    fn apply_request(&self, request: http::RawRequest) -> Option<<Self::Task as Task>::Future> {
+        let mut request = http::Request::from(request);
+        let task = try_opt!(self.apply(&mut EndpointContext::new(&request)));
+        Some(task.launch(&mut request))
     }
 
     #[allow(missing_docs)]

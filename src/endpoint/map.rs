@@ -4,8 +4,8 @@ use std::fmt;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
-use task;
+use super::{Endpoint, EndpointContext, IntoEndpoint};
+use super::task;
 
 pub fn map<E, F, R, A, B>(endpoint: E, f: F) -> Map<E::Endpoint, F, R>
 where
