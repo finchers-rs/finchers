@@ -156,9 +156,9 @@ where
 impl<E, P> Application<EndpointServiceFactory<E, P>, backend::DefaultBackend>
 where
     E: Endpoint,
-    P: Process<In = E::Item, InErr = E::Error>,
+    P: Process<E::Item, E::Error>,
     P::Out: IntoResponder,
-    P::OutErr: IntoResponder,
+    P::Err: IntoResponder,
 {
     #[allow(missing_docs)]
     pub fn new(endpoint: E, process: P) -> Self {

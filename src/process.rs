@@ -1,79 +1,58 @@
 #![allow(missing_docs)]
 
-use std::marker::PhantomData;
 use std::rc::Rc;
 use std::sync::Arc;
 use futures::{Future, IntoFuture};
 
-pub trait Process {
-    type In;
-    type InErr;
+/// A trait implemented by *server-side* processes
+///
+/// Roughly speaking, this trait is an abstruction of functions
+/// like following signature:
+///
+/// ```txt
+/// fn(Option<Result<In, InErr>>) -> impl Future
+/// ```
+pub trait Process<In, InErr> {
+    /// The type of values *on success*
     type Out;
-    type OutErr;
-    type Future: Future<Item = Self::Out, Error = Self::OutErr>;
+    /// The type of values *on failure*
+    type Err;
+    /// The type of value returned from `call`
+    type Future: Future<Item = Self::Out, Error = Self::Err>;
 
-    fn call(&self, input: Option<Result<Self::In, Self::InErr>>) -> Self::Future;
+    fn call(&self, input: Option<Result<In, InErr>>) -> Self::Future;
 }
 
-impl<P: Process> Process for Rc<P> {
-    type In = P::In;
-    type InErr = P::InErr;
-    type Out = P::Out;
-    type OutErr = P::OutErr;
-    type Future = P::Future;
-
-    fn call(&self, input: Option<Result<Self::In, Self::InErr>>) -> Self::Future {
-        (**self).call(input)
-    }
-}
-
-impl<P: Process> Process for Arc<P> {
-    type In = P::In;
-    type InErr = P::InErr;
-    type Out = P::Out;
-    type OutErr = P::OutErr;
-    type Future = P::Future;
-
-    fn call(&self, input: Option<Result<Self::In, Self::InErr>>) -> Self::Future {
-        (**self).call(input)
-    }
-}
-
-#[allow(missing_docs)]
-pub fn process_fn<F, A, B, R>(f: F) -> ProcessFn<F, A, B, R>
+impl<F, In, InErr, R> Process<In, InErr> for F
 where
-    F: Fn(Option<Result<A, B>>) -> R,
+    F: Fn(Option<Result<In, InErr>>) -> R,
     R: IntoFuture,
 {
-    ProcessFn {
-        f,
-        _marker: PhantomData,
-    }
-}
-
-#[allow(missing_docs)]
-#[derive(Debug)]
-pub struct ProcessFn<F, A, B, R>
-where
-    F: Fn(Option<Result<A, B>>) -> R,
-    R: IntoFuture,
-{
-    f: F,
-    _marker: PhantomData<fn((A, B)) -> R>,
-}
-
-impl<F, A, B, R> Process for ProcessFn<F, A, B, R>
-where
-    F: Fn(Option<Result<A, B>>) -> R,
-    R: IntoFuture,
-{
-    type In = A;
-    type InErr = B;
     type Out = R::Item;
-    type OutErr = R::Error;
+    type Err = R::Error;
     type Future = R::Future;
 
-    fn call(&self, input: Option<Result<Self::In, Self::InErr>>) -> Self::Future {
-        (self.f)(input).into_future()
+    fn call(&self, input: Option<Result<In, InErr>>) -> Self::Future {
+        (*self)(input).into_future()
+    }
+}
+
+impl<P: Process<In, InErr>, In, InErr> Process<In, InErr> for Rc<P> {
+    type Out = P::Out;
+    type Err = P::Err;
+    type Future = P::Future;
+
+    fn call(&self, input: Option<Result<In, InErr>>) -> Self::Future {
+        (**self).call(input)
+    }
+}
+
+impl<P: Process<In, InErr>, In, InErr> Process<In, InErr> for Arc<P> {
+    type Out = P::Out;
+    type Err = P::Err;
+    type Future = P::Future;
+
+    fn call(&self, input: Option<Result<In, InErr>>) -> Self::Future {
+        (**self).call(input)
     }
 }

@@ -26,9 +26,9 @@ struct EndpointServiceContext<E, P> {
 pub struct EndpointService<E, P>
 where
     E: Endpoint,
-    P: Process<In = E::Item, InErr = E::Error>,
+    P: Process<E::Item, E::Error>,
     P::Out: IntoResponder,
-    P::OutErr: IntoResponder,
+    P::Err: IntoResponder,
 {
     inner: Arc<EndpointServiceContext<E, P>>,
 }
@@ -36,14 +36,14 @@ where
 impl<E, P> Service for EndpointService<E, P>
 where
     E: Endpoint,
-    P: Process<In = E::Item, InErr = E::Error>,
+    P: Process<E::Item, E::Error>,
     P::Out: IntoResponder,
-    P::OutErr: IntoResponder,
+    P::Err: IntoResponder,
 {
     type Request = hyper::Request;
     type Response = hyper::Response;
     type Error = hyper::Error;
-    type Future = EndpointServiceFuture<<E::Task as Task>::Future, P>;
+    type Future = EndpointServiceFuture<<E::Task as Task>::Future, P, P::Future>;
 
     fn call(&self, req: hyper::Request) -> Self::Future {
         let inner = self.inner.endpoint.apply_request(req);
@@ -55,16 +55,17 @@ where
 
 /// A future returned from `EndpointService::call()`
 #[allow(missing_debug_implementations)]
-pub struct EndpointServiceFuture<F, P: Process> {
-    inner: Inner<F, P>,
+pub struct EndpointServiceFuture<F, P, R> {
+    inner: Inner<F, P, R>,
 }
 
-impl<F, E, P> Future for EndpointServiceFuture<F, P>
+impl<F, P, R, E> Future for EndpointServiceFuture<F, P, R>
 where
     F: Future<Error = Result<E, hyper::Error>>,
-    P: Process<In = F::Item, InErr = E>,
+    P: Process<F::Item, E, Future = R>,
+    R: Future<Item = P::Out, Error = P::Err>,
     P::Out: IntoResponder,
-    P::OutErr: IntoResponder,
+    P::Err: IntoResponder,
 {
     type Item = hyper::Response;
     type Error = hyper::Error;
@@ -80,19 +81,20 @@ where
 }
 
 #[derive(Debug)]
-pub(crate) enum Inner<F, P: Process> {
+pub(crate) enum Inner<F, P, R> {
     PollingTask(Option<F>, Arc<P>),
-    PollingResult(P::Future),
+    PollingResult(R),
     Done,
 }
 
-impl<F, P, E> Future for Inner<F, P>
+impl<F, P, R, E> Future for Inner<F, P, R>
 where
     F: Future<Error = Result<E, hyper::Error>>,
-    P: Process<In = F::Item, InErr = E>,
+    P: Process<F::Item, E, Future = R>,
+    R: Future<Item = P::Out, Error = P::Err>,
 {
-    type Item = <P::Future as Future>::Item;
-    type Error = Result<<P::Future as Future>::Error, hyper::Error>;
+    type Item = P::Out;
+    type Error = Result<P::Err, hyper::Error>;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         use self::Inner::*;
@@ -106,10 +108,10 @@ where
                                 Ok(Async::Ready(item)) => Some(Ok(item)),
                                 Ok(Async::NotReady) => {
                                     *self = PollingTask(Some(t), p);
-                                    return Ok(Async::NotReady);
+                                    break Ok(Async::NotReady);
                                 }
                                 Err(Ok(err)) => Some(Err(err)),
-                                Err(Err(err)) => return Err(Err(err)),
+                                Err(Err(err)) => break Err(Err(err)),
                             }
                         }
                         None => None,
@@ -123,7 +125,7 @@ where
                         Ok(Async::Ready(item)) => break Ok(Async::Ready(item)),
                         Ok(Async::NotReady) => {
                             *self = PollingResult(p);
-                            return Ok(Async::NotReady);
+                            break Ok(Async::NotReady);
                         }
                         Err(err) => break Err(Ok(err)),
                     }
@@ -138,9 +140,9 @@ where
 pub struct EndpointServiceFactory<E, P>
 where
     E: Endpoint,
-    P: Process<In = E::Item, InErr = E::Error>,
+    P: Process<E::Item, E::Error>,
     P::Out: IntoResponder,
-    P::OutErr: IntoResponder,
+    P::Err: IntoResponder,
 {
     inner: Arc<EndpointServiceContext<E, P>>,
 }
@@ -148,9 +150,9 @@ where
 impl<E, P> EndpointServiceFactory<E, P>
 where
     E: Endpoint,
-    P: Process<In = E::Item, InErr = E::Error>,
+    P: Process<E::Item, E::Error>,
     P::Out: IntoResponder,
-    P::OutErr: IntoResponder,
+    P::Err: IntoResponder,
 {
     pub fn new(endpoint: E, process: P) -> Self {
         EndpointServiceFactory {
@@ -165,9 +167,9 @@ where
 impl<E, P> NewService for EndpointServiceFactory<E, P>
 where
     E: Endpoint,
-    P: Process<In = E::Item, InErr = E::Error>,
+    P: Process<E::Item, E::Error>,
     P::Out: IntoResponder,
-    P::OutErr: IntoResponder,
+    P::Err: IntoResponder,
 {
     type Request = hyper::Request;
     type Response = hyper::Response;
