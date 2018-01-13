@@ -156,7 +156,8 @@ where
 impl<E, P> Application<EndpointServiceFactory<E, P>, backend::DefaultBackend>
 where
     E: Endpoint,
-    P: Process<E::Item, E::Error>,
+    P: Process<E::Item>,
+    E::Error: IntoResponder,
     P::Out: IntoResponder,
     P::Err: IntoResponder,
 {

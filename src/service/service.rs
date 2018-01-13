@@ -24,7 +24,8 @@ struct EndpointServiceContext<E, P> {
 pub struct EndpointService<E, P>
 where
     E: Endpoint,
-    P: Process<E::Item, E::Error>,
+    E::Error: IntoResponder,
+    P: Process<E::Item>,
     P::Out: IntoResponder,
     P::Err: IntoResponder,
 {
@@ -34,7 +35,8 @@ where
 impl<E, P> Service for EndpointService<E, P>
 where
     E: Endpoint,
-    P: Process<E::Item, E::Error>,
+    E::Error: IntoResponder,
+    P: Process<E::Item>,
     P::Out: IntoResponder,
     P::Err: IntoResponder,
 {
@@ -44,9 +46,11 @@ where
     type Future = EndpointServiceFuture<<E::Result as EndpointResult>::Future, P, P::Future>;
 
     fn call(&self, req: hyper::Request) -> Self::Future {
-        let inner = self.inner.endpoint.apply_request(req);
         EndpointServiceFuture {
-            inner: Inner::PollingTask(inner, self.inner.process.clone()),
+            inner: match self.inner.endpoint.apply_request(req) {
+                Some(input) => Inner::PollingInput(input, self.inner.process.clone()),
+                None => Inner::PollingOutput(self.inner.process.call(None)),
+            },
         }
     }
 }
@@ -60,7 +64,8 @@ pub struct EndpointServiceFuture<F, P, R> {
 impl<F, P, R, E> Future for EndpointServiceFuture<F, P, R>
 where
     F: Future<Error = Result<E, hyper::Error>>,
-    P: Process<F::Item, E, Future = R>,
+    E: IntoResponder,
+    P: Process<F::Item, Future = R>,
     R: Future<Item = P::Out, Error = P::Err>,
     P::Out: IntoResponder,
     P::Err: IntoResponder,
@@ -72,62 +77,61 @@ where
         match self.inner.poll() {
             Ok(Async::NotReady) => Ok(Async::NotReady),
             Ok(Async::Ready(item)) => Ok(Async::Ready(item.into_responder().respond())),
-            Err(Ok(err)) => Ok(Async::Ready(err.into_responder().respond())),
-            Err(Err(err)) => Err(err),
+            Err(InnerError::Endpoint(err)) => Ok(Async::Ready(err.into_responder().respond())),
+            Err(InnerError::Process(err)) => Ok(Async::Ready(err.into_responder().respond())),
+            Err(InnerError::Hyper(err)) => Err(err),
         }
     }
 }
 
 #[derive(Debug)]
 pub(crate) enum Inner<F, P, R> {
-    PollingTask(Option<F>, Arc<P>),
-    PollingResult(R),
+    PollingInput(F, Arc<P>),
+    PollingOutput(R),
     Done,
+}
+
+#[allow(missing_debug_implementations)]
+pub enum InnerError<E, P> {
+    Endpoint(E),
+    Process(P),
+    Hyper(hyper::Error),
 }
 
 impl<F, P, R, E> Future for Inner<F, P, R>
 where
     F: Future<Error = Result<E, hyper::Error>>,
-    P: Process<F::Item, E, Future = R>,
+    P: Process<F::Item, Future = R>,
     R: Future<Item = P::Out, Error = P::Err>,
 {
     type Item = P::Out;
-    type Error = Result<P::Err, hyper::Error>;
+    type Error = InnerError<E, P::Err>;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         use self::Inner::*;
         loop {
             match mem::replace(self, Done) {
-                PollingTask(t, p) => {
-                    let input = match t {
-                        Some(mut t) => {
-                            let polled = t.poll();
-                            match polled {
-                                Ok(Async::Ready(item)) => Some(Ok(item)),
-                                Ok(Async::NotReady) => {
-                                    *self = PollingTask(Some(t), p);
-                                    break Ok(Async::NotReady);
-                                }
-                                Err(Ok(err)) => Some(Err(err)),
-                                Err(Err(err)) => break Err(Err(err)),
-                            }
-                        }
-                        None => None,
-                    };
-                    *self = PollingResult(p.call(input));
-                    continue;
-                }
-                PollingResult(mut p) => {
-                    let polled = p.poll();
-                    match polled {
-                        Ok(Async::Ready(item)) => break Ok(Async::Ready(item)),
+                PollingInput(mut t, p) => {
+                    let input = match t.poll() {
+                        Ok(Async::Ready(item)) => Some(item),
                         Ok(Async::NotReady) => {
-                            *self = PollingResult(p);
+                            *self = PollingInput(t, p);
                             break Ok(Async::NotReady);
                         }
-                        Err(err) => break Err(Ok(err)),
-                    }
+                        Err(Ok(err)) => break Err(InnerError::Endpoint(err)),
+                        Err(Err(err)) => break Err(InnerError::Hyper(err)),
+                    };
+                    *self = PollingOutput(p.call(input));
+                    continue;
                 }
+                PollingOutput(mut p) => match p.poll() {
+                    Ok(Async::Ready(item)) => break Ok(Async::Ready(item)),
+                    Ok(Async::NotReady) => {
+                        *self = PollingOutput(p);
+                        break Ok(Async::NotReady);
+                    }
+                    Err(err) => break Err(InnerError::Process(err)),
+                },
                 Done => panic!(),
             }
         }
@@ -138,7 +142,8 @@ where
 pub struct EndpointServiceFactory<E, P>
 where
     E: Endpoint,
-    P: Process<E::Item, E::Error>,
+    E::Error: IntoResponder,
+    P: Process<E::Item>,
     P::Out: IntoResponder,
     P::Err: IntoResponder,
 {
@@ -148,7 +153,8 @@ where
 impl<E, P> EndpointServiceFactory<E, P>
 where
     E: Endpoint,
-    P: Process<E::Item, E::Error>,
+    E::Error: IntoResponder,
+    P: Process<E::Item>,
     P::Out: IntoResponder,
     P::Err: IntoResponder,
 {
@@ -165,7 +171,8 @@ where
 impl<E, P> NewService for EndpointServiceFactory<E, P>
 where
     E: Endpoint,
-    P: Process<E::Item, E::Error>,
+    E::Error: IntoResponder,
+    P: Process<E::Item>,
     P::Out: IntoResponder,
     P::Err: IntoResponder,
 {
