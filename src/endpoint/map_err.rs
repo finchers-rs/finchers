@@ -3,9 +3,9 @@
 use std::fmt;
 use std::marker::PhantomData;
 use std::sync::Arc;
-
-use super::{Endpoint, EndpointContext, IntoEndpoint};
-use super::task;
+use futures::{Future, Poll};
+use http::{HttpError, Request};
+use super::{Endpoint, EndpointContext, EndpointResult, IntoEndpoint};
 
 pub fn map_err<E, F, R, A, B>(endpoint: E, f: F) -> MapErr<E::Endpoint, F, R>
 where
@@ -63,13 +63,62 @@ where
 {
     type Item = E::Item;
     type Error = R;
-    type Task = task::map_err::MapErr<E::Task, F>;
+    type Result = MapErrResult<E::Result, F>;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
-        let task = try_opt!(self.endpoint.apply(ctx));
-        Some(task::map_err::MapErr {
-            task,
+    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
+        let result = try_opt!(self.endpoint.apply(ctx));
+        Some(MapErrResult {
+            result,
             f: self.f.clone(),
         })
+    }
+}
+
+#[derive(Debug)]
+pub struct MapErrResult<T, F> {
+    result: T,
+    f: Arc<F>,
+}
+
+impl<T, F, R> EndpointResult for MapErrResult<T, F>
+where
+    T: EndpointResult,
+    F: Fn(T::Error) -> R,
+{
+    type Item = T::Item;
+    type Error = R;
+    type Future = MapErrFuture<T::Future, F>;
+
+    fn into_future(self, request: &mut Request) -> Self::Future {
+        let fut = self.result.into_future(request);
+        MapErrFuture {
+            fut,
+            f: Some(self.f),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct MapErrFuture<T, F> {
+    fut: T,
+    f: Option<Arc<F>>,
+}
+
+impl<T, F, E, R> Future for MapErrFuture<T, F>
+where
+    T: Future<Error = Result<E, HttpError>>,
+    F: Fn(E) -> R,
+{
+    type Item = T::Item;
+    type Error = Result<R, HttpError>;
+
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        match self.fut.poll() {
+            Ok(async) => Ok(async),
+            Err(e) => {
+                let f = self.f.take().expect("cannot reject twice");
+                Err(e.map(|e| (*f)(e)))
+            }
+        }
     }
 }

@@ -12,18 +12,18 @@ pub trait Endpoint {
     /// The type *on failure*
     type Error;
 
-    /// The type of value returned from `apply`.
-    type Task: Task<Item = Self::Item, Error = Self::Error>;
+    /// The type of returned value from `apply`.
+    type Result: EndpointResult<Item = Self::Item, Error = Self::Error>;
 
     /// Validates the incoming HTTP request,
     /// and returns the instance of `Task` if matched.
-    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task>;
+    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result>;
 
     #[allow(missing_docs)]
-    fn apply_request(&self, request: http::RawRequest) -> Option<<Self::Task as Task>::Future> {
+    fn apply_request(&self, request: http::RawRequest) -> Option<<Self::Result as EndpointResult>::Future> {
         let mut request = http::Request::from(request);
         let task = try_opt!(self.apply(&mut EndpointContext::new(&request)));
-        Some(task.launch(&mut request))
+        Some(task.into_future(&mut request))
     }
 
     #[allow(missing_docs)]
@@ -94,9 +94,9 @@ pub trait Endpoint {
 impl<'a, E: Endpoint> Endpoint for &'a E {
     type Item = E::Item;
     type Error = E::Error;
-    type Task = E::Task;
+    type Result = E::Result;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
+    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
         (*self).apply(ctx)
     }
 }
@@ -104,9 +104,9 @@ impl<'a, E: Endpoint> Endpoint for &'a E {
 impl<E: Endpoint> Endpoint for Box<E> {
     type Item = E::Item;
     type Error = E::Error;
-    type Task = E::Task;
+    type Result = E::Result;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
+    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
         (**self).apply(ctx)
     }
 }
@@ -114,9 +114,9 @@ impl<E: Endpoint> Endpoint for Box<E> {
 impl<E: Endpoint> Endpoint for Rc<E> {
     type Item = E::Item;
     type Error = E::Error;
-    type Task = E::Task;
+    type Result = E::Result;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
+    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
         (**self).apply(ctx)
     }
 }
@@ -124,9 +124,9 @@ impl<E: Endpoint> Endpoint for Rc<E> {
 impl<E: Endpoint> Endpoint for Arc<E> {
     type Item = E::Item;
     type Error = E::Error;
-    type Task = E::Task;
+    type Result = E::Result;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
+    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
         (**self).apply(ctx)
     }
 }

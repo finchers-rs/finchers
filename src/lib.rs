@@ -32,7 +32,7 @@ pub mod test;
 pub use application::Application;
 
 #[doc(inline)]
-pub use endpoint::{Endpoint, IntoEndpoint, Task};
+pub use endpoint::{Endpoint, EndpointResult, IntoEndpoint};
 
 #[doc(inline)]
 pub use process::Process;

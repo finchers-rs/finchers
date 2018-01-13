@@ -8,7 +8,7 @@ use futures::{Async, Future, Poll};
 use hyper;
 use hyper::server::{NewService, Service};
 
-use endpoint::{Endpoint, Task};
+use endpoint::{Endpoint, EndpointResult};
 use process::Process;
 use responder::{IntoResponder, Responder};
 
@@ -41,7 +41,7 @@ where
     type Request = hyper::Request;
     type Response = hyper::Response;
     type Error = hyper::Error;
-    type Future = EndpointServiceFuture<<E::Task as Task>::Future, P, P::Future>;
+    type Future = EndpointServiceFuture<<E::Result as EndpointResult>::Future, P, P::Future>;
 
     fn call(&self, req: hyper::Request) -> Self::Future {
         let inner = self.inner.endpoint.apply_request(req);

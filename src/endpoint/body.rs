@@ -1,18 +1,19 @@
+#![allow(missing_docs)]
+
 use std::fmt;
+use std::mem;
 use std::marker::PhantomData;
+use futures::{Async, Future, Poll, Stream};
+use endpoint::{Endpoint, EndpointContext, EndpointResult};
+use http::{self, FromBody, FromBodyError, HttpError, Request};
+use http::header::ContentLength;
 
-use endpoint::{Endpoint, EndpointContext};
-use http::{self, FromBody, FromBodyError};
-use super::task;
-
-#[allow(missing_docs)]
 pub fn body<T: FromBody>() -> Body<T> {
     Body {
         _marker: PhantomData,
     }
 }
 
-#[allow(missing_docs)]
 pub struct Body<T> {
     _marker: PhantomData<fn() -> T>,
 }
@@ -35,11 +36,11 @@ impl<T> fmt::Debug for Body<T> {
 impl<T: FromBody> Endpoint for Body<T> {
     type Item = T;
     type Error = FromBodyError<T::Error>;
-    type Task = task::body::Body<T>;
+    type Result = BodyResult<T>;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
+    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
         match T::is_match(ctx.request()) {
-            true => Some(task::body::Body {
+            true => Some(BodyResult {
                 _marker: PhantomData,
             }),
             false => None,
@@ -47,41 +48,61 @@ impl<T: FromBody> Endpoint for Body<T> {
     }
 }
 
-#[allow(missing_docs)]
-pub fn body_stream<E>() -> BodyStream<E> {
-    BodyStream {
-        _marker: PhantomData,
+#[derive(Debug)]
+pub struct BodyResult<T> {
+    _marker: PhantomData<fn() -> T>,
+}
+
+impl<T: FromBody> EndpointResult for BodyResult<T> {
+    type Item = T;
+    type Error = FromBodyError<T::Error>;
+    type Future = BodyFuture<T>;
+
+    fn into_future(self, request: &mut Request) -> Self::Future {
+        if !T::validate(request) {
+            return BodyFuture::BadRequest;
+        }
+
+        let body = request.body().expect("cannot take the request body twice");
+        let len = request
+            .header::<ContentLength>()
+            .map_or(0, |&ContentLength(len)| len as usize);
+        BodyFuture::Receiving(body, Vec::with_capacity(len))
     }
 }
 
-#[allow(missing_docs)]
-pub struct BodyStream<E> {
-    _marker: PhantomData<fn() -> E>,
+#[derive(Debug)]
+pub enum BodyFuture<T> {
+    BadRequest,
+    Receiving(http::Body, Vec<u8>),
+    Done(PhantomData<fn() -> T>),
 }
 
-impl<E> Copy for BodyStream<E> {}
+impl<T: FromBody> Future for BodyFuture<T> {
+    type Item = T;
+    type Error = Result<FromBodyError<T::Error>, HttpError>;
 
-impl<E> Clone for BodyStream<E> {
-    #[inline]
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl<E> fmt::Debug for BodyStream<E> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("BodyStream").finish()
-    }
-}
-
-impl<E> Endpoint for BodyStream<E> {
-    type Item = http::Body;
-    type Error = E;
-    type Task = task::body::BodyStream<E>;
-
-    fn apply(&self, _: &mut EndpointContext) -> Option<Self::Task> {
-        Some(task::body::BodyStream {
-            _marker: PhantomData,
-        })
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        use self::BodyFuture::*;
+        match mem::replace(self, BodyFuture::Done(PhantomData)) {
+            BadRequest => Err(Ok(FromBodyError::BadRequest)),
+            Receiving(mut body, mut buf) => loop {
+                match body.poll().map_err(Err)? {
+                    Async::Ready(Some(item)) => {
+                        buf.extend_from_slice(&item);
+                        continue;
+                    }
+                    Async::Ready(None) => {
+                        let body = T::from_body(buf).map_err(|e| Ok(FromBodyError::FromBody(e)))?;
+                        break Ok(Async::Ready(body));
+                    }
+                    Async::NotReady => {
+                        *self = Receiving(body, buf);
+                        break Ok(Async::NotReady);
+                    }
+                }
+            },
+            Done(..) => panic!("cannot resolve twice"),
+        }
     }
 }

@@ -73,9 +73,9 @@ pub struct Queries<T> {
 impl<T: FromUrlEncoded> Endpoint for Queries<T> {
     type Item = T;
     type Error = UrlDecodeError;
-    type Task = Result<Self::Item, Self::Error>;
+    type Result = Result<Self::Item, Self::Error>;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
+    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
         let query_str = match ctx.request().query() {
             Some(s) => s,
             None => return Some(Err(UrlDecodeError::EmptyQuery)),

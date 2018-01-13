@@ -1,7 +1,8 @@
 #![allow(missing_docs)]
 
-use super::{Endpoint, EndpointContext, IntoEndpoint};
-use super::task;
+use futures::{Future, Poll};
+use http::Request;
+use super::{Endpoint, EndpointContext, EndpointResult, IntoEndpoint};
 
 pub fn or<E1, E2, A, B>(e1: E1, e2: E2) -> Or<E1::Endpoint, E2::Endpoint>
 where
@@ -27,9 +28,9 @@ where
 {
     type Item = E1::Item;
     type Error = E1::Error;
-    type Task = task::or::Or<E1::Task, E2::Task>;
+    type Result = OrResult<E1::Result, E2::Result>;
 
-    fn apply(&self, ctx2: &mut EndpointContext) -> Option<Self::Task> {
+    fn apply(&self, ctx2: &mut EndpointContext) -> Option<Self::Result> {
         let mut ctx1 = ctx2.clone();
         let t1 = self.e1.apply(&mut ctx1);
         let t2 = self.e2.apply(ctx2);
@@ -39,22 +40,75 @@ where
                 // (consumed) path segments is choosen.
                 let inner = if ctx1.segments().popped() > ctx2.segments().popped() {
                     *ctx2 = ctx1;
-                    task::or::Left(t1)
+                    Either::Left(t1)
                 } else {
-                    task::or::Right(t2)
+                    Either::Right(t2)
                 };
-                Some(task::or::Or { inner })
+                Some(OrResult { inner })
             }
             (Some(t1), None) => {
                 *ctx2 = ctx1;
-                Some(task::or::Or {
-                    inner: task::or::Left(t1),
+                Some(OrResult {
+                    inner: Either::Left(t1),
                 })
             }
-            (None, Some(t2)) => Some(task::or::Or {
-                inner: task::or::Right(t2),
+            (None, Some(t2)) => Some(OrResult {
+                inner: Either::Right(t2),
             }),
             (None, None) => None,
+        }
+    }
+}
+
+#[derive(Debug)]
+enum Either<T1, T2> {
+    Left(T1),
+    Right(T2),
+}
+
+#[derive(Debug)]
+pub struct OrResult<T1, T2> {
+    inner: Either<T1, T2>,
+}
+
+impl<T1, T2> EndpointResult for OrResult<T1, T2>
+where
+    T1: EndpointResult,
+    T2: EndpointResult<Item = T1::Item, Error = T1::Error>,
+{
+    type Item = T1::Item;
+    type Error = T1::Error;
+    type Future = OrFuture<T1::Future, T2::Future>;
+
+    fn into_future(self, request: &mut Request) -> Self::Future {
+        match self.inner {
+            Either::Left(t) => OrFuture {
+                inner: Either::Left(t.into_future(request)),
+            },
+            Either::Right(t) => OrFuture {
+                inner: Either::Right(t.into_future(request)),
+            },
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct OrFuture<T1, T2> {
+    inner: Either<T1, T2>,
+}
+
+impl<T1, T2> Future for OrFuture<T1, T2>
+where
+    T1: Future,
+    T2: Future<Item = T1::Item, Error = T1::Error>,
+{
+    type Item = T1::Item;
+    type Error = T1::Error;
+
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        match self.inner {
+            Either::Left(ref mut e) => e.poll(),
+            Either::Right(ref mut e) => e.poll(),
         }
     }
 }
@@ -63,7 +117,7 @@ where
 mod tests {
     use super::*;
     use hyper::{Method, Request};
-    use endpoint::result::ok;
+    use endpoint::ok;
     use test::TestRunner;
 
     #[test]

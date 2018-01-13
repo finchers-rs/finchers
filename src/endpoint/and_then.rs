@@ -3,18 +3,19 @@
 use std::fmt;
 use std::marker::PhantomData;
 use std::sync::Arc;
-use futures::IntoFuture;
-use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
-use super::task;
+use futures::{Future, IntoFuture, Poll};
+use endpoint::{Endpoint, EndpointContext, EndpointResult};
+use http::{HttpError, Request};
+use super::chain::Chain;
 
-pub fn and_then<E, F, R, A, B>(endpoint: E, f: F) -> AndThen<E::Endpoint, F, R>
+pub fn and_then<E, F, R>(endpoint: E, f: F) -> AndThen<E, F, R>
 where
-    E: IntoEndpoint<A, B>,
-    F: Fn(A) -> R,
-    R: IntoFuture<Error = B>,
+    E: Endpoint,
+    F: Fn(E::Item) -> R,
+    R: IntoFuture<Error = E::Error>,
 {
     AndThen {
-        endpoint: endpoint.into_endpoint(),
+        endpoint,
         f: Arc::new(f),
         _marker: PhantomData,
     }
@@ -68,13 +69,64 @@ where
 {
     type Item = R::Item;
     type Error = R::Error;
-    type Task = task::and_then::AndThen<E::Task, F>;
+    type Result = AndThenResult<E::Result, F>;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
-        let task = try_opt!(self.endpoint.apply(ctx));
-        Some(task::and_then::AndThen {
-            task,
+    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
+        let result = try_opt!(self.endpoint.apply(ctx));
+        Some(AndThenResult {
+            result,
             f: self.f.clone(),
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct AndThenResult<T, F> {
+    result: T,
+    f: Arc<F>,
+}
+
+impl<T, F, R> EndpointResult for AndThenResult<T, F>
+where
+    T: EndpointResult,
+    F: Fn(T::Item) -> R,
+    R: IntoFuture<Error = T::Error>,
+{
+    type Item = R::Item;
+    type Error = R::Error;
+    type Future = AndThenFuture<T::Future, F, T::Error, R>;
+
+    fn into_future(self, request: &mut Request) -> Self::Future {
+        let future = self.result.into_future(request);
+        AndThenFuture {
+            inner: Chain::new(future, self.f),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct AndThenFuture<T, F, E, R>
+where
+    T: Future<Error = Result<E, HttpError>>,
+    F: Fn(T::Item) -> R,
+    R: IntoFuture<Error = E>,
+{
+    inner: Chain<T, R::Future, Arc<F>>,
+}
+
+impl<T, F, E, R> Future for AndThenFuture<T, F, E, R>
+where
+    T: Future<Error = Result<E, HttpError>>,
+    F: Fn(T::Item) -> R,
+    R: IntoFuture<Error = E>,
+{
+    type Item = R::Item;
+    type Error = Result<R::Error, HttpError>;
+
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        self.inner.poll(|result, f| match result {
+            Ok(item) => Ok(Err((*f)(item).into_future())),
+            Err(err) => Err(err),
         })
     }
 }

@@ -1,8 +1,9 @@
 #![allow(missing_docs)]
 
 use std::fmt;
-use super::{Endpoint, EndpointContext, IntoEndpoint};
-use super::task;
+use futures::future;
+use http::Request;
+use super::{Endpoint, EndpointContext, EndpointResult, IntoEndpoint};
 
 pub fn join_all<I, E, A, B>(iter: I) -> JoinAll<E::Endpoint>
 where
@@ -35,15 +36,35 @@ impl<E: Endpoint + fmt::Debug> fmt::Debug for JoinAll<E> {
 impl<E: Endpoint> Endpoint for JoinAll<E> {
     type Item = Vec<E::Item>;
     type Error = E::Error;
-    type Task = task::join_all::JoinAll<E::Task>;
+    type Result = JoinAllResult<E::Result>;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
-        let inner: Vec<E::Task> = try_opt!(
+    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
+        let inner = try_opt!(
             self.inner
                 .iter()
                 .map(|e| e.apply(ctx))
                 .collect::<Option<_>>()
         );
-        Some(task::join_all::JoinAll { inner })
+        Some(JoinAllResult { inner })
+    }
+}
+
+#[derive(Debug)]
+pub struct JoinAllResult<T> {
+    inner: Vec<T>,
+}
+
+impl<T: EndpointResult> EndpointResult for JoinAllResult<T> {
+    type Item = Vec<T::Item>;
+    type Error = T::Error;
+    type Future = future::JoinAll<Vec<T::Future>>;
+
+    fn into_future(self, request: &mut Request) -> Self::Future {
+        future::join_all(
+            self.inner
+                .into_iter()
+                .map(|t| t.into_future(request))
+                .collect(),
+        )
     }
 }

@@ -12,9 +12,9 @@ pub struct MatchMethod<E: Endpoint> {
 impl<E: Endpoint> Endpoint for MatchMethod<E> {
     type Item = E::Item;
     type Error = E::Error;
-    type Task = E::Task;
+    type Result = E::Result;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
+    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
         if *ctx.request().method() == self.method {
             self.endpoint.apply(ctx)
         } else {

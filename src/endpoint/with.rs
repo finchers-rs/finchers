@@ -30,9 +30,9 @@ where
 {
     type Item = E2::Item;
     type Error = E2::Error;
-    type Task = E2::Task;
+    type Result = E2::Result;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
+    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
         let _f1 = try_opt!(self.e1.apply(ctx));
         let f2 = try_opt!(self.e2.apply(ctx));
         Some(f2)

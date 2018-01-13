@@ -31,9 +31,9 @@ use self::MatchPathKind::*;
 impl<E> Endpoint for MatchPath<E> {
     type Item = ();
     type Error = E;
-    type Task = Result<Self::Item, Self::Error>;
+    type Result = Result<Self::Item, Self::Error>;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
+    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
         match self.kind {
             Segments(ref segments) => {
                 let mut matched = true;
@@ -120,9 +120,9 @@ impl<T> fmt::Debug for ExtractPath<T> {
 impl<T: FromStr> Endpoint for ExtractPath<T> {
     type Item = T;
     type Error = T::Err;
-    type Task = Result<Self::Item, Self::Error>;
+    type Result = Result<Self::Item, Self::Error>;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
+    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
         ctx.segments().next().map(|s| s.parse())
     }
 }
@@ -154,9 +154,9 @@ where
 {
     type Item = I;
     type Error = T::Err;
-    type Task = Result<Self::Item, Self::Error>;
+    type Result = Result<Self::Item, Self::Error>;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
+    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
         Some(
             ctx.segments()
                 .map(|s| s.parse().map_err(Into::into))

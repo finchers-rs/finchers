@@ -20,9 +20,9 @@ pub struct SkipAll<E: Endpoint> {
 impl<E: Endpoint> Endpoint for SkipAll<E> {
     type Item = ();
     type Error = E::Error;
-    type Task = Result<(), E::Error>;
+    type Result = Result<(), E::Error>;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
+    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
         for endpoint in &self.endpoints {
             let _ = try_opt!(endpoint.apply(ctx));
         }

@@ -3,9 +3,9 @@
 use std::fmt;
 use std::marker::PhantomData;
 use std::sync::Arc;
-
-use super::{Endpoint, EndpointContext, IntoEndpoint};
-use super::task;
+use futures::{Future, Poll};
+use http::Request;
+use super::{Endpoint, EndpointContext, EndpointResult, IntoEndpoint};
 
 pub fn map<E, F, R, A, B>(endpoint: E, f: F) -> Map<E::Endpoint, F, R>
 where
@@ -63,13 +63,58 @@ where
 {
     type Item = R;
     type Error = E::Error;
-    type Task = task::map::Map<E::Task, F>;
+    type Result = MapResult<E::Result, F>;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
-        let task = try_opt!(self.endpoint.apply(ctx));
-        Some(task::map::Map {
-            task,
+    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
+        let result = try_opt!(self.endpoint.apply(ctx));
+        Some(MapResult {
+            result,
             f: self.f.clone(),
         })
+    }
+}
+
+#[derive(Debug)]
+pub struct MapResult<T, F> {
+    result: T,
+    f: Arc<F>,
+}
+
+impl<T, F, R> EndpointResult for MapResult<T, F>
+where
+    T: EndpointResult,
+    F: Fn(T::Item) -> R,
+{
+    type Item = R;
+    type Error = T::Error;
+    type Future = MapFuture<T::Future, F>;
+
+    fn into_future(self, request: &mut Request) -> Self::Future {
+        let fut = self.result.into_future(request);
+        MapFuture {
+            fut,
+            f: Some(self.f),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct MapFuture<T, F> {
+    fut: T,
+    f: Option<Arc<F>>,
+}
+
+impl<T, F, R> Future for MapFuture<T, F>
+where
+    T: Future,
+    F: Fn(T::Item) -> R,
+{
+    type Item = R;
+    type Error = T::Error;
+
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        let item = try_ready!(self.fut.poll());
+        let f = self.f.take().expect("cannot resolve twice");
+        Ok((*f)(item).into())
     }
 }
