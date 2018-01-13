@@ -1,5 +1,4 @@
 use std::borrow::Cow;
-use std::error::Error;
 use http::{Headers, IntoBody, Response, StatusCode};
 
 /// Abstrcution of types converted into a raw HTTP response.
@@ -180,58 +179,5 @@ impl<T: IntoResponder, E: IntoResponder<Body = T::Body>> IntoResponder for Resul
             self.map(IntoResponder::into_responder)
                 .map_err(IntoResponder::into_responder),
         )
-    }
-}
-
-/// Abstruction of an "error" response.
-///
-/// This trait is useful for defining the HTTP response of types
-/// which implements the [`Error`][error] trait.
-/// If the own error response (like JSON body) is required, use
-/// `Responder` directly.
-///
-/// [error]: https://doc.rust-lang.org/stable/std/error/trait.Error.html
-pub trait ErrorResponder: Error {
-    /// Returns the status code of the HTTP response.
-    fn status(&self) -> StatusCode {
-        StatusCode::InternalServerError
-    }
-
-    /// Returns the message string of the HTTP response.
-    fn message(&self) -> Option<String> {
-        Some(format!(
-            "description: {}\ndetail: {}",
-            Error::description(self),
-            self
-        ))
-    }
-}
-
-mod implementors {
-    use super::*;
-    use std::string::{FromUtf8Error, ParseError};
-
-    impl ErrorResponder for FromUtf8Error {
-        fn status(&self) -> StatusCode {
-            StatusCode::BadRequest
-        }
-    }
-
-    impl ErrorResponder for ParseError {
-        fn status(&self) -> StatusCode {
-            StatusCode::BadRequest
-        }
-    }
-}
-
-impl<E: ErrorResponder> Responder for E {
-    type Body = String;
-
-    fn status(&self) -> StatusCode {
-        ErrorResponder::status(self)
-    }
-
-    fn body(&mut self) -> Option<Self::Body> {
-        self.message()
     }
 }

@@ -2,10 +2,51 @@
 
 use std::borrow::Cow;
 use std::fmt;
-use std::iter::FromIterator;
+use std::error::Error;
 use std::marker::PhantomData;
 use std::str::FromStr;
-use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
+use endpoint::{Endpoint, EndpointContext, IntoEndpoint, Segments};
+use errors::ErrorResponder;
+
+pub trait FromSegments: Sized {
+    type Err;
+
+    fn from_segments(segments: &mut Segments) -> Result<Self, Self::Err>;
+}
+
+mod implementors {
+    use std::path::PathBuf;
+    use errors::NeverReturn;
+    use super::*;
+
+    impl<T: FromStr> FromSegments for Vec<T> {
+        type Err = T::Err;
+
+        fn from_segments(segments: &mut Segments) -> Result<Self, Self::Err> {
+            segments.into_iter().map(|s| s.parse()).collect()
+        }
+    }
+
+    impl FromSegments for String {
+        type Err = NeverReturn;
+
+        fn from_segments(segments: &mut Segments) -> Result<Self, Self::Err> {
+            let s = segments.remaining_path().to_owned();
+            let _ = segments.last();
+            Ok(s)
+        }
+    }
+
+    impl FromSegments for PathBuf {
+        type Err = NeverReturn;
+
+        fn from_segments(segments: &mut Segments) -> Result<Self, Self::Err> {
+            let s = PathBuf::from(segments.remaining_path());
+            let _ = segments.last();
+            Ok(s)
+        }
+    }
+}
 
 #[derive(Clone)]
 pub struct MatchPath<E> {
@@ -119,49 +160,127 @@ impl<T> fmt::Debug for ExtractPath<T> {
 
 impl<T: FromStr> Endpoint for ExtractPath<T> {
     type Item = T;
-    type Error = T::Err;
+    type Error = ExtractPathError<T>;
     type Result = Result<Self::Item, Self::Error>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
-        ctx.segments().next().map(|s| s.parse())
+        ctx.segments()
+            .next()
+            .map(|s| s.parse().map_err(ExtractPathError))
     }
 }
 
-pub fn paths<I, T>() -> ExtractPaths<I, T>
+pub struct ExtractPathError<T: FromStr = ()>(pub T::Err);
+
+impl<T: FromStr> fmt::Debug for ExtractPathError<T>
 where
-    I: FromIterator<T>,
-    T: FromStr,
+    T::Err: fmt::Debug,
 {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_tuple("PathError").field(&self.0).finish()
+    }
+}
+
+impl<T: FromStr> fmt::Display for ExtractPathError<T>
+where
+    T::Err: fmt::Display,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl<T: FromStr> Error for ExtractPathError<T>
+where
+    T::Err: Error,
+{
+    fn description(&self) -> &str {
+        self.0.description()
+    }
+}
+
+impl<T: FromStr> ErrorResponder for ExtractPathError<T>
+where
+    T::Err: Error,
+{
+}
+
+impl<T: FromStr> PartialEq for ExtractPathError<T>
+where
+    T::Err: PartialEq,
+{
+    fn eq(&self, rhs: &Self) -> bool {
+        self.0.eq(&rhs.0)
+    }
+}
+
+pub fn paths<T: FromSegments>() -> ExtractPaths<T> {
     ExtractPaths {
         _marker: PhantomData,
     }
 }
 
-pub struct ExtractPaths<I, T> {
-    _marker: PhantomData<fn() -> (I, T)>,
+pub struct ExtractPaths<T> {
+    _marker: PhantomData<fn() -> T>,
 }
 
-impl<I, T> fmt::Debug for ExtractPaths<I, T> {
+impl<T> fmt::Debug for ExtractPaths<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("ExtractPaths").finish()
     }
 }
 
-impl<I, T> Endpoint for ExtractPaths<I, T>
-where
-    I: FromIterator<T>,
-    T: FromStr,
-{
-    type Item = I;
-    type Error = T::Err;
+impl<T: FromSegments> Endpoint for ExtractPaths<T> {
+    type Item = T;
+    type Error = ExtractPathsError<T>;
     type Result = Result<Self::Item, Self::Error>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
-        Some(
-            ctx.segments()
-                .map(|s| s.parse().map_err(Into::into))
-                .collect::<Result<_, _>>(),
-        )
+        Some(T::from_segments(ctx.segments()).map_err(ExtractPathsError))
+    }
+}
+
+pub struct ExtractPathsError<T: FromSegments = ()>(pub T::Err);
+
+impl<T: FromSegments> fmt::Debug for ExtractPathsError<T>
+where
+    T::Err: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_tuple("PathError").field(&self.0).finish()
+    }
+}
+
+impl<T: FromSegments> fmt::Display for ExtractPathsError<T>
+where
+    T::Err: fmt::Display,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl<T: FromSegments> Error for ExtractPathsError<T>
+where
+    T::Err: Error,
+{
+    fn description(&self) -> &str {
+        self.0.description()
+    }
+}
+
+impl<T: FromSegments> ErrorResponder for ExtractPathsError<T>
+where
+    T::Err: Error,
+{
+}
+
+impl<T: FromSegments> PartialEq for ExtractPathsError<T>
+where
+    T::Err: PartialEq,
+{
+    fn eq(&self, rhs: &Self) -> bool {
+        self.0.eq(&rhs.0)
     }
 }
 
@@ -211,13 +330,13 @@ mod tests {
     #[test]
     fn test_endpoint_match_path() {
         let request = HttpRequest::get("/foo").body(Default::default()).unwrap();
-        assert_eq!(e!("foo" => <_, ()>).run(request), Some(Ok(())),);
+        assert_eq!(endpoint!("foo" => <_, ()>).run(request), Some(Ok(())),);
     }
 
     #[test]
     fn test_endpoint_reject_path() {
         let request = HttpRequest::get("/foo").body(Default::default()).unwrap();
-        assert!(e!("bar" => <_, ()>).run(request).is_none());
+        assert!(endpoint!("bar" => <_, ()>).run(request).is_none());
     }
 
     #[test]
@@ -225,7 +344,7 @@ mod tests {
         let request = HttpRequest::get("/foo/bar")
             .body(Default::default())
             .unwrap();
-        assert_eq!(e!("/foo/bar" => <_, ()>).run(request), Some(Ok(())));
+        assert_eq!(endpoint!("/foo/bar" => <_, ()>).run(request), Some(Ok(())));
     }
 
     #[test]
@@ -233,7 +352,7 @@ mod tests {
         let request = HttpRequest::get("/foo/baz")
             .body(Default::default())
             .unwrap();
-        assert!(e!("/foo/bar" => <_, ()>).run(request).is_none());
+        assert!(endpoint!("/foo/bar" => <_, ()>).run(request).is_none());
     }
 
     #[test]
@@ -241,13 +360,13 @@ mod tests {
         let request = HttpRequest::get("/foo/bar")
             .body(Default::default())
             .unwrap();
-        assert!(e!("/foo/bar/baz" => <_, ()>).run(request).is_none());
+        assert!(endpoint!("/foo/bar/baz" => <_, ()>).run(request).is_none());
     }
 
     #[test]
     fn test_endpoint_match_all_path() {
         let request = HttpRequest::get("/foo").body(Default::default()).unwrap();
-        assert_eq!(e!("*" => <_, ()>).run(request), Some(Ok(())));
+        assert_eq!(endpoint!("*" => <_, ()>).run(request), Some(Ok(())));
     }
 
     #[test]
@@ -268,7 +387,7 @@ mod tests {
             .body(Default::default())
             .unwrap();
         assert_eq!(
-            paths::<Vec<String>, String>().run(request),
+            paths::<Vec<String>>().run(request),
             Some(Ok(vec!["foo".to_string(), "bar".to_string()]))
         );
     }

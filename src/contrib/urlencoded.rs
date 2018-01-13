@@ -16,7 +16,7 @@ use std::marker::PhantomData;
 
 use endpoint::{Endpoint, EndpointContext};
 use http::{mime, FromBody, Request, StatusCode};
-use responder::ErrorResponder;
+use errors::ErrorResponder;
 
 pub use self::url::form_urlencoded::Parse;
 

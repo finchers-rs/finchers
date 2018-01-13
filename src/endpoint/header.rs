@@ -1,10 +1,12 @@
 #![allow(missing_docs)]
 
 use std::fmt;
+use std::error::Error;
 use std::marker::PhantomData;
 use futures::future::{err, ok, FutureResult};
 use endpoint::{Endpoint, EndpointContext, EndpointResult};
-use http::{header, EmptyHeader, Error, Request};
+use http::{self, header, Request};
+use errors::ErrorResponder;
 
 pub fn header<H>() -> Header<H>
 where
@@ -39,7 +41,7 @@ where
     H: header::Header + Clone,
 {
     type Item = H;
-    type Error = EmptyHeader;
+    type Error = EmptyHeader<H>;
     type Result = HeaderResult<H>;
 
     fn apply(&self, _: &mut EndpointContext) -> Option<Self::Result> {
@@ -62,14 +64,51 @@ where
     H: header::Header + Clone,
 {
     type Item = H;
-    type Error = EmptyHeader;
-    type Future = FutureResult<H, Result<EmptyHeader, Error>>;
+    type Error = EmptyHeader<H>;
+    type Future = FutureResult<H, Result<Self::Error, http::Error>>;
 
     fn into_future(self, request: &mut Request) -> Self::Future {
         match request.header().cloned() {
             Some(h) => ok(h),
-            None => err(Ok(EmptyHeader(H::header_name()).into())),
+            None => err(Ok(EmptyHeader {
+                _marker: PhantomData,
+            })),
         }
+    }
+}
+
+#[allow(missing_docs)]
+pub struct EmptyHeader<H: header::Header> {
+    _marker: PhantomData<fn() -> H>,
+}
+
+impl<H: header::Header> fmt::Debug for EmptyHeader<H> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("EmptyHeader").finish()
+    }
+}
+
+impl<H: header::Header> fmt::Display for EmptyHeader<H> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "The header '{}' is not given",
+            <H as header::Header>::header_name()
+        )
+    }
+}
+
+impl<H: header::Header> Error for EmptyHeader<H> {
+    fn description(&self) -> &str {
+        "empty header"
+    }
+}
+
+impl<H: header::Header> ErrorResponder for EmptyHeader<H> {}
+
+impl<H: header::Header> PartialEq for EmptyHeader<H> {
+    fn eq(&self, _: &Self) -> bool {
+        true
     }
 }
 
@@ -127,7 +166,7 @@ where
 {
     type Item = Option<H>;
     type Error = E;
-    type Future = FutureResult<Option<H>, Result<E, Error>>;
+    type Future = FutureResult<Option<H>, Result<E, http::Error>>;
 
     fn into_future(self, request: &mut Request) -> Self::Future {
         ok(request.header().cloned())

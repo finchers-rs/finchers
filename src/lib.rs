@@ -23,6 +23,7 @@ mod macros;
 pub mod application;
 pub mod contrib;
 pub mod endpoint;
+pub mod errors;
 pub mod http;
 pub mod process;
 pub mod responder;
@@ -39,4 +40,4 @@ pub use endpoint::{Endpoint, EndpointResult, IntoEndpoint};
 pub use process::Process;
 
 #[doc(inline)]
-pub use responder::{ErrorResponder, IntoResponder, Responder};
+pub use responder::{IntoResponder, Responder};
