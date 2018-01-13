@@ -122,9 +122,9 @@ mod tests {
 
     #[test]
     fn test_or_1() {
-        let endpoint = e!("foo")
+        let endpoint = endpoint!("foo")
             .with(ok::<_, ()>("foo"))
-            .or(e!("bar").with(ok("bar")));
+            .or(endpoint!("bar").with(ok("bar")));
         let mut runner = TestRunner::new(endpoint).unwrap();
 
         let request = Request::new(Method::Get, "/foo".parse().unwrap());
@@ -142,8 +142,8 @@ mod tests {
 
     #[test]
     fn test_or_choose_longer_segments() {
-        let e1 = e!("foo").with(ok("foo"));
-        let e2 = e!("foo/bar").with(ok::<_, ()>("foobar"));
+        let e1 = endpoint!("foo").with(ok("foo"));
+        let e2 = endpoint!("foo/bar").with(ok::<_, ()>("foobar"));
         let endpoint = e1.or(e2);
         let mut runner = TestRunner::new(endpoint).unwrap();
 

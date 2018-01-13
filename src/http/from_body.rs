@@ -1,8 +1,6 @@
-use std::fmt;
-use std::error::Error;
 use std::string::FromUtf8Error;
-use super::{mime, Request, StatusCode};
-use responder::ErrorResponder;
+use super::{mime, Request};
+use errors::NeverReturn;
 
 /// The conversion from received request body.
 pub trait FromBody: Sized {
@@ -29,8 +27,20 @@ pub trait FromBody: Sized {
     fn from_body(body: Vec<u8>) -> Result<Self, Self::Error>;
 }
 
+impl FromBody for () {
+    type Error = NeverReturn;
+
+    fn validate(_: &Request) -> bool {
+        true
+    }
+
+    fn from_body(_: Vec<u8>) -> Result<Self, Self::Error> {
+        Ok(())
+    }
+}
+
 impl FromBody for Vec<u8> {
-    type Error = ();
+    type Error = NeverReturn;
 
     fn validate(_req: &Request) -> bool {
         true
@@ -52,36 +62,5 @@ impl FromBody for String {
 
     fn from_body(body: Vec<u8>) -> Result<Self, Self::Error> {
         String::from_utf8(body)
-    }
-}
-
-#[allow(missing_docs)]
-#[derive(Debug)]
-pub enum FromBodyError<E> {
-    BadRequest,
-    FromBody(E),
-}
-
-impl<E: fmt::Display> fmt::Display for FromBodyError<E> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            FromBodyError::BadRequest => f.write_str("bad request"),
-            FromBodyError::FromBody(ref e) => e.fmt(f),
-        }
-    }
-}
-
-impl<E: Error> Error for FromBodyError<E> {
-    fn description(&self) -> &str {
-        match *self {
-            FromBodyError::BadRequest => "bad request",
-            FromBodyError::FromBody(ref e) => e.description(),
-        }
-    }
-}
-
-impl<E: Error> ErrorResponder for FromBodyError<E> {
-    fn status(&self) -> StatusCode {
-        StatusCode::BadRequest
     }
 }

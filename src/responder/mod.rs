@@ -4,4 +4,4 @@ mod context;
 mod responder;
 
 pub use self::context::respond;
-pub use self::responder::{ErrorResponder, IntoResponder, Responder, StringResponder};
+pub use self::responder::{IntoResponder, Responder, StringResponder};

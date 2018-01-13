@@ -1,6 +1,5 @@
 //! Low level HTTP definitions from Hyper
 
-mod errors;
 mod from_body;
 mod into_body;
 pub(crate) mod request;
@@ -9,7 +8,6 @@ pub use hyper::{header, mime, Body, Chunk, Error, Method, Request as HyperReques
 pub use hyper::header::{Header, Headers};
 pub use http_crate::Request as HttpRequest;
 
-pub use self::errors::*;
-pub use self::from_body::{FromBody, FromBodyError};
+pub use self::from_body::FromBody;
 pub use self::into_body::IntoBody;
 pub use self::request::Request;

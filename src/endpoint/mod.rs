@@ -29,7 +29,7 @@ pub use self::endpoint::{Endpoint, EndpointResult, IntoEndpoint};
 pub use self::header::{header, header_opt};
 #[doc(inline)]
 pub use self::method::MatchMethod;
-pub use self::path::{match_, path, paths, ExtractPath, ExtractPaths, MatchPath};
+pub use self::path::{match_, path, paths, ExtractPath, ExtractPaths, FromSegments, MatchPath};
 pub use self::stream::{body_stream, BodyStream};
 
 pub use self::and_then::AndThen;

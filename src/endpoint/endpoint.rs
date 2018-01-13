@@ -26,6 +26,15 @@ pub trait Endpoint {
             .map(|result| result.into_future(&mut request))
     }
 
+    /// Add restrictions of associated types to this endpoint.
+    #[inline]
+    fn with_type<T, E>(self) -> Self
+    where
+        Self: Sized + Endpoint<Item = T, Error = E>,
+    {
+        self
+    }
+
     #[allow(missing_docs)]
     fn join<T, E>(self, e: E) -> Join<Self, E::Endpoint>
     where
