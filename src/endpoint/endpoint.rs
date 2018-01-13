@@ -1,7 +1,9 @@
 use std::rc::Rc;
 use std::sync::Arc;
 use futures::IntoFuture;
-use task::Task;
+use hyper;
+use http;
+use task::{Task, TaskContext};
 use super::*;
 
 /// Abstruction of an endpoint.
@@ -18,6 +20,23 @@ pub trait Endpoint {
     /// Validates the incoming HTTP request,
     /// and returns the instance of `Task` if matched.
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task>;
+
+    #[allow(missing_docs)]
+    fn apply_request(&self, request: hyper::Request) -> Option<<Self::Task as Task>::Future> {
+        let (mut request, body) = http::request::reconstruct(request);
+
+        let task = {
+            let mut ctx = EndpointContext::new(&request);
+            try_opt!(self.apply(&mut ctx))
+        };
+
+        let mut ctx = TaskContext {
+            request: &mut request,
+            body: Some(body),
+        };
+
+        Some(task.launch(&mut ctx))
+    }
 
     #[allow(missing_docs)]
     fn join<T, E>(self, e: E) -> Join<Self, E::Endpoint>
@@ -81,35 +100,6 @@ pub trait Endpoint {
         R: IntoFuture<Error = Self::Error>,
     {
         and_then::and_then(self, f)
-    }
-
-    #[allow(missing_docs)]
-    fn or_else<F, R>(self, f: F) -> OrElse<Self, F, R>
-    where
-        Self: Sized,
-        F: Fn(Self::Error) -> R,
-        R: IntoFuture<Item = Self::Item>,
-    {
-        or_else::or_else(self, f)
-    }
-
-    #[allow(missing_docs)]
-    fn then<F, R>(self, f: F) -> Then<Self, F, R>
-    where
-        Self: Sized,
-        F: Fn(Result<Self::Item, Self::Error>) -> R,
-        R: IntoFuture,
-    {
-        then::then(self, f)
-    }
-
-    #[allow(missing_docs)]
-    fn inspect<F>(self, f: F) -> Inspect<Self, F>
-    where
-        Self: Sized,
-        F: Fn(&Self::Item),
-    {
-        inspect::inspect(self, f)
     }
 }
 

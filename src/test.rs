@@ -7,7 +7,6 @@ use hyper::Request;
 use tokio_core::reactor::Core;
 
 use endpoint::Endpoint;
-use service::EndpointExt;
 
 #[derive(Debug)]
 pub struct TestRunner<E: Endpoint> {

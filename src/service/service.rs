@@ -8,9 +8,8 @@ use futures::{Async, Future, Poll};
 use hyper;
 use hyper::server::{NewService, Service};
 
-use http;
-use endpoint::{Endpoint, EndpointContext};
-use task::{Task, TaskContext};
+use endpoint::Endpoint;
+use task::Task;
 use process::Process;
 use responder::{IntoResponder, Responder};
 
@@ -181,32 +180,4 @@ where
             inner: self.inner.clone(),
         })
     }
-}
-
-pub trait EndpointExt: Endpoint + sealed::Sealed {
-    fn apply_request(&self, request: hyper::Request) -> Option<<Self::Task as Task>::Future> {
-        let (mut request, body) = http::request::reconstruct(request);
-
-        let task = {
-            let mut ctx = EndpointContext::new(&request);
-            try_opt!(self.apply(&mut ctx))
-        };
-
-        let mut ctx = TaskContext {
-            request: &mut request,
-            body: Some(body),
-        };
-
-        Some(task.launch(&mut ctx))
-    }
-}
-
-impl<E: Endpoint> EndpointExt for E {}
-
-mod sealed {
-    use endpoint::Endpoint;
-
-    pub trait Sealed {}
-
-    impl<E: Endpoint> Sealed for E {}
 }
