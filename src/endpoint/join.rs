@@ -2,12 +2,13 @@
 #![allow(non_snake_case)]
 
 use std::fmt;
-use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
-use task;
+use futures::{future, IntoFuture};
+use http::Request;
+use super::{Endpoint, EndpointContext, EndpointResult, IntoEndpoint};
 
 macro_rules! generate {
     ($(
-        ($new:ident, $Join:ident, <$($T:ident : $A:ident),*>),
+        ($new:ident, $Join:ident, $JoinResult:ident, <$($T:ident : $A:ident),*>),
     )*) => {$(
         pub fn $new<$($T,)* $($A,)* E>($($T: $T),*) -> $Join<$($T::Endpoint),*>
         where $(
@@ -61,13 +62,13 @@ macro_rules! generate {
         {
             type Item = ($($T::Item),*);
             type Error = E;
-            type Task = task::join::$Join<$($T::Task),*>;
+            type Result = $JoinResult<$($T::Result),*>;
 
-            fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Task> {
+            fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
                 $(
                     let $T = try_opt!(self.$T.apply(ctx));
                 )*
-                Some(task::join::$Join { inner: ($($T),*) })
+                Some($JoinResult { inner: ($($T),*) })
             }
         }
 
@@ -82,12 +83,35 @@ macro_rules! generate {
                 $new ($($T),*)
             }
         }
+
+        #[derive(Debug)]
+        pub struct $JoinResult<$($T),*> {
+            inner: ($($T),*),
+        }
+
+        impl<$($T,)* E> EndpointResult for $JoinResult<$($T),*>
+        where $(
+            $T: EndpointResult<Error = E>,
+        )*
+        {
+            type Item = ($($T::Item),*);
+            type Error = E;
+            type Future = future::$Join<$($T::Future),*>;
+
+            fn into_future(self, request: &mut Request) -> Self::Future {
+                let ($($T),*) = self.inner;
+                $(
+                    let $T = $T.into_future(request);
+                )*
+                IntoFuture::into_future(($($T),*))
+            }
+        }
     )*};
 }
 
 generate! {
-    (join,  Join,  <E1:T1, E2:T2>),
-    (join3, Join3, <E1:T1, E2:T2, E3:T3>),
-    (join4, Join4, <E1:T1, E2:T2, E3:T3, E4:T4>),
-    (join5, Join5, <E1:T1, E2:T2, E3:T3, E4:T4, E5:T5>),
+    (join,  Join, JoinResult, <E1:T1, E2:T2>),
+    (join3, Join3, Join3Result, <E1:T1, E2:T2, E3:T3>),
+    (join4, Join4, Join4Result, <E1:T1, E2:T2, E3:T3, E4:T4>),
+    (join5, Join5, Join5Result, <E1:T1, E2:T2, E3:T3, E4:T4, E5:T5>),
 }

@@ -3,11 +3,9 @@
 #![allow(missing_docs)]
 
 use std::io;
-use hyper::Request;
+use http::Request;
 use tokio_core::reactor::Core;
-
 use endpoint::Endpoint;
-use service::EndpointExt;
 
 #[derive(Debug)]
 pub struct TestRunner<E: Endpoint> {
@@ -27,11 +25,30 @@ impl<E: Endpoint> TestRunner<E> {
     ///
     /// # Panics
     /// This method will panic if an unexpected HTTP error will be occurred.
-    pub fn run(&mut self, request: Request) -> Option<Result<E::Item, E::Error>> {
+    pub fn run<R: Into<Request>>(&mut self, request: R) -> Option<Result<E::Item, E::Error>> {
         self.endpoint.apply_request(request).map(|fut| {
             self.core
                 .run(fut)
                 .map_err(|e| e.expect("unexpected HTTP error"))
         })
     }
+}
+
+pub trait EndpointTestExt: Endpoint + sealed::Sealed {
+    fn run<R: Into<Request>>(&self, request: R) -> Option<Result<Self::Item, Self::Error>>;
+}
+
+impl<E: Endpoint> EndpointTestExt for E {
+    fn run<R: Into<Request>>(&self, request: R) -> Option<Result<Self::Item, Self::Error>> {
+        let mut runner = TestRunner::new(self).unwrap();
+        runner.run(request)
+    }
+}
+
+mod sealed {
+    use endpoint::Endpoint;
+
+    pub trait Sealed {}
+
+    impl<E: Endpoint> Sealed for E {}
 }

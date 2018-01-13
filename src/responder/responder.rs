@@ -27,8 +27,8 @@ pub trait Responder {
     fn headers(&self, &mut Headers) {}
 
     #[allow(missing_docs)]
-    fn respond(&mut self) -> Response {
-        super::respond(self)
+    fn respond<R: From<Response>>(&mut self) -> R {
+        super::respond(self).into()
     }
 }
 
@@ -37,23 +37,6 @@ impl Responder for () {
 
     fn status(&self) -> StatusCode {
         StatusCode::NoContent
-    }
-}
-
-/// Abstrcution of types to be convert to a `Responder`.
-pub trait IntoResponder {
-    /// The type of returned value from `into_response`
-    type Responder: Responder;
-
-    /// Convert itself into `Self::Responder`
-    fn into_responder(self) -> Self::Responder;
-}
-
-impl<R: Responder> IntoResponder for R {
-    type Responder = Self;
-
-    fn into_responder(self) -> Self {
-        self
     }
 }
 
@@ -69,7 +52,91 @@ impl Responder for StringResponder {
     }
 }
 
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct OptionResponder<R>(Option<R>);
+
+impl<R: Responder> Responder for OptionResponder<R> {
+    type Body = R::Body;
+
+    fn status(&self) -> StatusCode {
+        self.0.as_ref().map_or(StatusCode::NotFound, |r| r.status())
+    }
+
+    fn body(&mut self) -> Option<Self::Body> {
+        self.0.as_mut().and_then(|r| r.body())
+    }
+
+    fn headers(&self, h: &mut Headers) {
+        self.0.as_ref().map(|r| r.headers(h));
+    }
+
+    fn respond<T: From<Response>>(&mut self) -> T {
+        if let Some(ref mut r) = self.0 {
+            return r.respond();
+        }
+        super::respond(self).into()
+    }
+}
+
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct ResultResponder<T, E>(Result<T, E>);
+
+impl<T: Responder, E: Responder<Body = T::Body>> Responder for ResultResponder<T, E> {
+    type Body = T::Body;
+
+    fn status(&self) -> StatusCode {
+        match self.0 {
+            Ok(ref t) => t.status(),
+            Err(ref e) => e.status(),
+        }
+    }
+
+    fn body(&mut self) -> Option<Self::Body> {
+        match self.0 {
+            Ok(ref mut t) => t.body(),
+            Err(ref mut e) => e.body(),
+        }
+    }
+
+    fn headers(&self, h: &mut Headers) {
+        match self.0 {
+            Ok(ref t) => t.headers(h),
+            Err(ref e) => e.headers(h),
+        }
+    }
+
+    fn respond<R: From<Response>>(&mut self) -> R {
+        match self.0 {
+            Ok(ref mut t) => t.respond(),
+            Err(ref mut e) => e.respond(),
+        }
+    }
+}
+
+/// Abstrcution of types to be convert to a `Responder`.
+pub trait IntoResponder {
+    /// The type of response body
+    type Body: IntoBody;
+    /// The type of returned value from `into_response`
+    type Responder: Responder<Body = Self::Body>;
+
+    /// Convert itself into `Self::Responder`
+    fn into_responder(self) -> Self::Responder;
+}
+
+impl<R: Responder> IntoResponder for R {
+    type Body = R::Body;
+    type Responder = Self;
+
+    fn into_responder(self) -> Self {
+        self
+    }
+}
+
 impl IntoResponder for &'static str {
+    type Body = Cow<'static, str>;
     type Responder = StringResponder;
 
     fn into_responder(self) -> Self::Responder {
@@ -78,6 +145,7 @@ impl IntoResponder for &'static str {
 }
 
 impl IntoResponder for String {
+    type Body = Cow<'static, str>;
     type Responder = StringResponder;
 
     fn into_responder(self) -> Self::Responder {
@@ -86,10 +154,32 @@ impl IntoResponder for String {
 }
 
 impl IntoResponder for Cow<'static, str> {
+    type Body = Cow<'static, str>;
     type Responder = StringResponder;
 
     fn into_responder(self) -> Self::Responder {
         StringResponder(Some(self))
+    }
+}
+
+impl<R: IntoResponder> IntoResponder for Option<R> {
+    type Body = R::Body;
+    type Responder = OptionResponder<R::Responder>;
+
+    fn into_responder(self) -> Self::Responder {
+        OptionResponder(self.map(IntoResponder::into_responder))
+    }
+}
+
+impl<T: IntoResponder, E: IntoResponder<Body = T::Body>> IntoResponder for Result<T, E> {
+    type Body = T::Body;
+    type Responder = ResultResponder<T::Responder, E::Responder>;
+
+    fn into_responder(self) -> Self::Responder {
+        ResultResponder(
+            self.map(IntoResponder::into_responder)
+                .map_err(IntoResponder::into_responder),
+        )
     }
 }
 
@@ -120,7 +210,6 @@ pub trait ErrorResponder: Error {
 mod implementors {
     use super::*;
     use std::string::{FromUtf8Error, ParseError};
-    use http::HttpError;
 
     impl ErrorResponder for FromUtf8Error {
         fn status(&self) -> StatusCode {
@@ -133,8 +222,6 @@ mod implementors {
             StatusCode::BadRequest
         }
     }
-
-    impl ErrorResponder for HttpError {}
 }
 
 impl<E: ErrorResponder> Responder for E {

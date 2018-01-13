@@ -2,7 +2,7 @@
 
 use std::mem;
 use futures::{Async, Future, Poll};
-use http::HttpError;
+use http::Error;
 
 #[derive(Debug)]
 pub enum Chain<A, B, C> {
@@ -15,14 +15,14 @@ use self::Chain::*;
 
 impl<A, B, C, D> Chain<A, B, C>
 where
-    A: Future<Error = Result<D, HttpError>>,
+    A: Future<Error = Result<D, Error>>,
     B: Future,
 {
     pub fn new(a: A, c: C) -> Self {
         Chain::First(a, c)
     }
 
-    pub fn poll<F>(&mut self, f: F) -> Poll<B::Item, Result<B::Error, HttpError>>
+    pub fn poll<F>(&mut self, f: F) -> Poll<B::Item, Result<B::Error, Error>>
     where
         F: FnOnce(Result<A::Item, D>, C) -> Result<Result<B::Item, B>, B::Error>,
     {

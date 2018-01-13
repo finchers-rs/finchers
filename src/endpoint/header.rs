@@ -1,10 +1,11 @@
+#![allow(missing_docs)]
+
 use std::fmt;
 use std::marker::PhantomData;
-use endpoint::{Endpoint, EndpointContext};
-use http::{header, EmptyHeader};
-use task;
+use futures::future::{err, ok, FutureResult};
+use endpoint::{Endpoint, EndpointContext, EndpointResult};
+use http::{header, EmptyHeader, Error, Request};
 
-#[allow(missing_docs)]
 pub fn header<H>() -> Header<H>
 where
     H: header::Header + Clone,
@@ -14,7 +15,6 @@ where
     }
 }
 
-#[allow(missing_docs)]
 pub struct Header<H> {
     _marker: PhantomData<fn() -> H>,
 }
@@ -40,16 +40,39 @@ where
 {
     type Item = H;
     type Error = EmptyHeader;
-    type Task = task::Header<H>;
+    type Result = HeaderResult<H>;
 
-    fn apply(&self, _: &mut EndpointContext) -> Option<Self::Task> {
-        Some(task::Header {
+    fn apply(&self, _: &mut EndpointContext) -> Option<Self::Result> {
+        Some(HeaderResult {
             _marker: PhantomData,
         })
     }
 }
 
-#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct HeaderResult<H>
+where
+    H: header::Header + Clone,
+{
+    _marker: PhantomData<fn() -> H>,
+}
+
+impl<H> EndpointResult for HeaderResult<H>
+where
+    H: header::Header + Clone,
+{
+    type Item = H;
+    type Error = EmptyHeader;
+    type Future = FutureResult<H, Result<EmptyHeader, Error>>;
+
+    fn into_future(self, request: &mut Request) -> Self::Future {
+        match request.header().cloned() {
+            Some(h) => ok(h),
+            None => err(Ok(EmptyHeader(H::header_name()).into())),
+        }
+    }
+}
+
 pub fn header_opt<H, E>() -> HeaderOpt<H, E>
 where
     H: header::Header + Clone,
@@ -59,7 +82,6 @@ where
     }
 }
 
-#[allow(missing_docs)]
 pub struct HeaderOpt<H, E> {
     _marker: PhantomData<fn() -> (H, E)>,
 }
@@ -85,11 +107,29 @@ where
 {
     type Item = Option<H>;
     type Error = E;
-    type Task = task::HeaderOpt<H, E>;
+    type Result = HeaderOptResult<H, E>;
 
-    fn apply(&self, _: &mut EndpointContext) -> Option<Self::Task> {
-        Some(task::HeaderOpt {
+    fn apply(&self, _: &mut EndpointContext) -> Option<Self::Result> {
+        Some(HeaderOptResult {
             _marker: PhantomData,
         })
+    }
+}
+
+#[derive(Debug)]
+pub struct HeaderOptResult<H, E> {
+    _marker: PhantomData<fn() -> (H, E)>,
+}
+
+impl<H, E> EndpointResult for HeaderOptResult<H, E>
+where
+    H: header::Header + Clone,
+{
+    type Item = Option<H>;
+    type Error = E;
+    type Future = FutureResult<Option<H>, Result<E, Error>>;
+
+    fn into_future(self, request: &mut Request) -> Self::Future {
+        ok(request.header().cloned())
     }
 }
