@@ -15,11 +15,8 @@ macro_rules! e {
     ($e:expr) => {
         $crate::IntoEndpoint::into_endpoint($e)
     };
-    ($h:expr, $($t:expr),*) => {
-        $crate::IntoEndpoint::into_endpoint(($h, $($t),*))
-    };
-    ($h:expr, $($t:expr,)+) => {
-        e!($h, $($t),+)
+    ($e:expr => <$a:ty, $b:ty>) => {
+        $crate::IntoEndpoint::<$a, $b>::into_endpoint($e)
     };
 }
 
@@ -43,10 +40,7 @@ mod tests {
     #[test]
     #[allow(unused_variables)]
     fn compile_test_e() {
-        use Endpoint;
-        let e = e!("foo").map_err(|e: ()| ());
-        let e = e!("foo", "bar", "baz").map_err(|e: ()| ());
-        let e = e!("foo", "bar", "baz",).map_err(|e: ()| ());
+        let a = e!("foo" => <(), ()>);
     }
 
     #[test]

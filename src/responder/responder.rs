@@ -27,8 +27,8 @@ pub trait Responder {
     fn headers(&self, &mut Headers) {}
 
     #[allow(missing_docs)]
-    fn respond(&mut self) -> Response {
-        super::respond(self)
+    fn respond<R: From<Response>>(&mut self) -> R {
+        super::respond(self).into()
     }
 }
 
@@ -120,7 +120,6 @@ pub trait ErrorResponder: Error {
 mod implementors {
     use super::*;
     use std::string::{FromUtf8Error, ParseError};
-    use http::HttpError;
 
     impl ErrorResponder for FromUtf8Error {
         fn status(&self) -> StatusCode {
@@ -133,8 +132,6 @@ mod implementors {
             StatusCode::BadRequest
         }
     }
-
-    impl ErrorResponder for HttpError {}
 }
 
 impl<E: ErrorResponder> Responder for E {

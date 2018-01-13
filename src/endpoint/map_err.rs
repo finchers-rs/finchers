@@ -4,7 +4,7 @@ use std::fmt;
 use std::marker::PhantomData;
 use std::sync::Arc;
 use futures::{Future, Poll};
-use http::{HttpError, Request};
+use http::{Error, Request};
 use super::{Endpoint, EndpointContext, EndpointResult, IntoEndpoint};
 
 pub fn map_err<E, F, R, A, B>(endpoint: E, f: F) -> MapErr<E::Endpoint, F, R>
@@ -106,11 +106,11 @@ pub struct MapErrFuture<T, F> {
 
 impl<T, F, E, R> Future for MapErrFuture<T, F>
 where
-    T: Future<Error = Result<E, HttpError>>,
+    T: Future<Error = Result<E, Error>>,
     F: Fn(E) -> R,
 {
     type Item = T::Item;
-    type Error = Result<R, HttpError>;
+    type Error = Result<R, Error>;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         match self.fut.poll() {

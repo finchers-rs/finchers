@@ -1,6 +1,8 @@
 use hyper::{self, Headers, HttpVersion, Method, Uri};
 use hyper::header::{self, Header};
 use hyper::mime::Mime;
+use http_crate;
+
 use super::Body;
 
 /// The value of incoming HTTP request
@@ -21,6 +23,19 @@ impl From<hyper::Request> for Request {
             uri,
             version,
             headers,
+            body: Some(body),
+        }
+    }
+}
+
+impl From<http_crate::Request<Body>> for Request {
+    fn from(request: http_crate::Request<Body>) -> Self {
+        let (parts, body) = request.into_parts();
+        Request {
+            method: parts.method.into(),
+            uri: parts.uri.into(),
+            version: parts.version.into(),
+            headers: parts.headers.into(),
             body: Some(body),
         }
     }

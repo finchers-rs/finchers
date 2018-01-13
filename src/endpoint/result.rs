@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 
 use futures::{future, Future, IntoFuture};
-use http::{HttpError, Request};
+use http::{Error, Request};
 
 /// Abstruction of returned value from an `Endpoint`.
 pub trait EndpointResult {
@@ -12,7 +12,7 @@ pub trait EndpointResult {
     type Error;
 
     /// The type of value returned from `launch`.
-    type Future: Future<Item = Self::Item, Error = Result<Self::Error, HttpError>>;
+    type Future: Future<Item = Self::Item, Error = Result<Self::Error, Error>>;
 
     /// Launches itself and construct a `Future`, and then return it.
     ///
@@ -23,7 +23,7 @@ pub trait EndpointResult {
 impl<F: IntoFuture> EndpointResult for F {
     type Item = F::Item;
     type Error = F::Error;
-    type Future = future::MapErr<F::Future, fn(F::Error) -> Result<F::Error, HttpError>>;
+    type Future = future::MapErr<F::Future, fn(F::Error) -> Result<F::Error, Error>>;
 
     fn into_future(self, _: &mut Request) -> Self::Future {
         self.into_future().map_err(Ok)

@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 use futures::{Future, IntoFuture, Poll};
 use endpoint::{Endpoint, EndpointContext, EndpointResult};
-use http::{HttpError, Request};
+use http::{Error, Request};
 use super::chain::Chain;
 
 pub fn and_then<E, F, R>(endpoint: E, f: F) -> AndThen<E, F, R>
@@ -107,7 +107,7 @@ where
 #[derive(Debug)]
 pub struct AndThenFuture<T, F, E, R>
 where
-    T: Future<Error = Result<E, HttpError>>,
+    T: Future<Error = Result<E, Error>>,
     F: Fn(T::Item) -> R,
     R: IntoFuture<Error = E>,
 {
@@ -116,12 +116,12 @@ where
 
 impl<T, F, E, R> Future for AndThenFuture<T, F, E, R>
 where
-    T: Future<Error = Result<E, HttpError>>,
+    T: Future<Error = Result<E, Error>>,
     F: Fn(T::Item) -> R,
     R: IntoFuture<Error = E>,
 {
     type Item = R::Item;
-    type Error = Result<R::Error, HttpError>;
+    type Error = Result<R::Error, Error>;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         self.inner.poll(|result, f| match result {

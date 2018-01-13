@@ -7,6 +7,7 @@
 
 #[macro_use]
 extern crate futures;
+extern crate http as http_crate;
 extern crate hyper;
 #[cfg(feature = "tls")]
 extern crate native_tls;

@@ -168,8 +168,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hyper::{Method, Request};
-    use test::TestRunner;
+    use http::HttpRequest;
+    use test::EndpointTestExt;
 
     #[test]
     fn test_match_single_segment() {
@@ -210,99 +210,66 @@ mod tests {
 
     #[test]
     fn test_endpoint_match_path() {
-        let endpoint = IntoEndpoint::<(), ()>::into_endpoint("foo");
-        let mut runner = TestRunner::new(endpoint).unwrap();
-
-        let request = Request::new(Method::Get, "/foo".parse().unwrap());
-        match runner.run(request) {
-            Some(Ok(())) => (),
-            _ => panic!("does not match"),
-        }
+        let request = HttpRequest::get("/foo").body(Default::default()).unwrap();
+        assert_eq!(e!("foo" => <_, ()>).run(request), Some(Ok(())),);
     }
 
     #[test]
     fn test_endpoint_reject_path() {
-        let endpoint = IntoEndpoint::<(), ()>::into_endpoint("bar");
-        let mut runner = TestRunner::new(endpoint).unwrap();
-
-        let request = Request::new(Method::Get, "/foo".parse().unwrap());
-        assert!(runner.run(request).is_none());
+        let request = HttpRequest::get("/foo").body(Default::default()).unwrap();
+        assert!(e!("bar" => <_, ()>).run(request).is_none());
     }
 
     #[test]
     fn test_endpoint_match_multi_segments() {
-        let endpoint = IntoEndpoint::<(), ()>::into_endpoint("/foo/bar");
-        let mut runner = TestRunner::new(endpoint).unwrap();
-
-        let request = Request::new(Method::Get, "/foo/bar".parse().unwrap());
-        match runner.run(request) {
-            Some(Ok(())) => (),
-            _ => panic!("does not match"),
-        }
+        let request = HttpRequest::get("/foo/bar")
+            .body(Default::default())
+            .unwrap();
+        assert_eq!(e!("/foo/bar" => <_, ()>).run(request), Some(Ok(())));
     }
 
     #[test]
     fn test_endpoint_reject_multi_segments() {
-        let endpoint = IntoEndpoint::<(), ()>::into_endpoint("/foo/bar");
-        let mut runner = TestRunner::new(endpoint).unwrap();
-
-        let request = Request::new(Method::Get, "/foo/baz".parse().unwrap());
-        assert!(runner.run(request).is_none());
+        let request = HttpRequest::get("/foo/baz")
+            .body(Default::default())
+            .unwrap();
+        assert!(e!("/foo/bar" => <_, ()>).run(request).is_none());
     }
 
     #[test]
     fn test_endpoint_reject_short_path() {
-        let endpoint = IntoEndpoint::<(), ()>::into_endpoint("/foo/bar/baz");
-        let mut runner = TestRunner::new(endpoint).unwrap();
-
-        let request = Request::new(Method::Get, "/foo/bar".parse().unwrap());
-        assert!(runner.run(request).is_none());
+        let request = HttpRequest::get("/foo/bar")
+            .body(Default::default())
+            .unwrap();
+        assert!(e!("/foo/bar/baz" => <_, ()>).run(request).is_none());
     }
 
     #[test]
     fn test_endpoint_match_all_path() {
-        let endpoint = IntoEndpoint::<(), ()>::into_endpoint("*");
-        let mut runner = TestRunner::new(endpoint).unwrap();
-
-        let request = Request::new(Method::Get, "/foo".parse().unwrap());
-        match runner.run(request) {
-            Some(Ok(())) => (),
-            _ => panic!("does not match"),
-        }
+        let request = HttpRequest::get("/foo").body(Default::default()).unwrap();
+        assert_eq!(e!("*" => <_, ()>).run(request), Some(Ok(())));
     }
 
     #[test]
     fn test_endpoint_extract_integer() {
-        let endpoint = path::<i32>();
-        let mut runner = TestRunner::new(endpoint).unwrap();
-        let request = Request::new(Method::Get, "/42".parse().unwrap());
-        match runner.run(request) {
-            Some(Ok(42)) => (),
-            _ => panic!("does not match"),
-        }
+        let request = HttpRequest::get("/42").body(Default::default()).unwrap();
+        assert_eq!(path::<i32>().run(request), Some(Ok(42)));
     }
 
     #[test]
     fn test_endpoint_extract_wrong_integer() {
-        let endpoint = path::<i32>();
-        let mut runner = TestRunner::new(endpoint).unwrap();
-        let request = Request::new(Method::Get, "/foo".parse().unwrap());
-        match runner.run(request) {
-            Some(Err(..)) => (),
-            _ => panic!("does not match"),
-        }
+        let request = HttpRequest::get("/foo").body(Default::default()).unwrap();
+        assert_eq!(path::<i32>().run(request).map(|r| r.is_err()), Some(true));
     }
 
     #[test]
     fn test_endpoint_extract_strings() {
-        let endpoint = paths::<Vec<String>, String>();
-        let mut runner = TestRunner::new(endpoint).unwrap();
-        let request = Request::new(Method::Get, "/foo/bar".parse().unwrap());
-        match runner.run(request) {
-            Some(Ok(paths)) => {
-                assert_eq!(paths, vec!["foo".to_string(), "bar".to_string()]);
-            }
-            _ => panic!("does not match"),
-        }
+        let request = HttpRequest::get("/foo/bar")
+            .body(Default::default())
+            .unwrap();
+        assert_eq!(
+            paths::<Vec<String>, String>().run(request),
+            Some(Ok(vec!["foo".to_string(), "bar".to_string()]))
+        );
     }
 }

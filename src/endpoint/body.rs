@@ -5,7 +5,7 @@ use std::mem;
 use std::marker::PhantomData;
 use futures::{Async, Future, Poll, Stream};
 use endpoint::{Endpoint, EndpointContext, EndpointResult};
-use http::{self, FromBody, FromBodyError, HttpError, Request};
+use http::{self, Error, FromBody, FromBodyError, Request};
 use http::header::ContentLength;
 
 pub fn body<T: FromBody>() -> Body<T> {
@@ -80,7 +80,7 @@ pub enum BodyFuture<T> {
 
 impl<T: FromBody> Future for BodyFuture<T> {
     type Item = T;
-    type Error = Result<FromBodyError<T::Error>, HttpError>;
+    type Error = Result<FromBodyError<T::Error>, Error>;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         use self::BodyFuture::*;

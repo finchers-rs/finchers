@@ -4,7 +4,7 @@ use std::fmt;
 use std::marker::PhantomData;
 use futures::future::{err, ok, FutureResult};
 use endpoint::{Endpoint, EndpointContext, EndpointResult};
-use http::{header, EmptyHeader, HttpError, Request};
+use http::{header, EmptyHeader, Error, Request};
 
 pub fn header<H>() -> Header<H>
 where
@@ -63,7 +63,7 @@ where
 {
     type Item = H;
     type Error = EmptyHeader;
-    type Future = FutureResult<H, Result<EmptyHeader, HttpError>>;
+    type Future = FutureResult<H, Result<EmptyHeader, Error>>;
 
     fn into_future(self, request: &mut Request) -> Self::Future {
         match request.header().cloned() {
@@ -127,7 +127,7 @@ where
 {
     type Item = Option<H>;
     type Error = E;
-    type Future = FutureResult<Option<H>, Result<E, HttpError>>;
+    type Future = FutureResult<Option<H>, Result<E, Error>>;
 
     fn into_future(self, request: &mut Request) -> Self::Future {
         ok(request.header().cloned())

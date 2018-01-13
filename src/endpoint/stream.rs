@@ -3,7 +3,7 @@
 use std::fmt;
 use std::marker::PhantomData;
 use futures::future::{self, FutureResult};
-use http::{self, HttpError, Request};
+use http::{self, Error, Request};
 use super::{Endpoint, EndpointContext, EndpointResult};
 
 pub fn body_stream<E>() -> BodyStream<E> {
@@ -51,7 +51,7 @@ pub struct BodyStreamResult<E> {
 impl<E> EndpointResult for BodyStreamResult<E> {
     type Item = http::Body;
     type Error = E;
-    type Future = FutureResult<Self::Item, Result<Self::Error, HttpError>>;
+    type Future = FutureResult<Self::Item, Result<Self::Error, Error>>;
 
     fn into_future(self, request: &mut Request) -> Self::Future {
         let body = request.body().expect("cannot take a body twice");
