@@ -1,7 +1,6 @@
 //! `Endpoint` layer
 
 pub mod method;
-pub mod result;
 
 pub(crate) mod body;
 pub(crate) mod chain;
@@ -24,11 +23,9 @@ pub(crate) mod skip_all;
 pub(crate) mod with;
 
 // re-exports
-pub use self::result::EndpointResult;
-
 pub use self::body::{body, Body};
 pub use self::context::{EndpointContext, Segment, Segments};
-pub use self::endpoint::{Endpoint, IntoEndpoint};
+pub use self::endpoint::{Endpoint, EndpointResult, IntoEndpoint};
 pub use self::header::{header, header_opt};
 #[doc(inline)]
 pub use self::method::MatchMethod;

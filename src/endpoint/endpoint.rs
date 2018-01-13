@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use std::sync::Arc;
-use futures::IntoFuture;
-use http::Request;
+use futures::{future, Future, IntoFuture};
+use http::{Error, Request};
 use super::*;
 
 /// Abstruction of an endpoint.
@@ -128,6 +128,33 @@ impl<E: Endpoint> Endpoint for Arc<E> {
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
         (**self).apply(ctx)
+    }
+}
+
+/// Abstruction of returned value from an `Endpoint`.
+pub trait EndpointResult {
+    /// The type *on success*.
+    type Item;
+
+    /// The type *on failure*.
+    type Error;
+
+    /// The type of value returned from `launch`.
+    type Future: Future<Item = Self::Item, Error = Result<Self::Error, Error>>;
+
+    /// Launches itself and construct a `Future`, and then return it.
+    ///
+    /// This method will be called *after* the routing is completed.
+    fn into_future(self, request: &mut Request) -> Self::Future;
+}
+
+impl<F: IntoFuture> EndpointResult for F {
+    type Item = F::Item;
+    type Error = F::Error;
+    type Future = future::MapErr<F::Future, fn(F::Error) -> Result<F::Error, Error>>;
+
+    fn into_future(self, _: &mut Request) -> Self::Future {
+        self.into_future().map_err(Ok)
     }
 }
 
