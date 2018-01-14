@@ -6,52 +6,55 @@ use futures::Async::*;
 use hyper;
 use hyper::server::Service;
 use endpoint::{Endpoint, EndpointResult};
-use process::Process;
+use handler::Handler;
 use responder::{self, Responder};
 
 /// An HTTP service which wraps a `Endpoint`.
 #[derive(Debug)]
-pub struct EndpointService<E, P, R>
+pub struct EndpointService<E, H, R>
 where
     E: Endpoint,
-    P: Process<E::Item> + Clone,
-    R: Responder<P::Item, E::Error, P::Error> + Clone,
+    H: Handler<E::Item> + Clone,
+    R: Responder<H::Item, E::Error, H::Error> + Clone,
 {
     endpoint: E,
-    process: P,
+    handler: H,
     responder: R,
 }
 
-impl<E, P, R> EndpointService<E, P, R>
+impl<E, H, R> EndpointService<E, H, R>
 where
     E: Endpoint,
-    P: Process<E::Item> + Clone,
-    R: Responder<P::Item, E::Error, P::Error> + Clone,
+    H: Handler<E::Item> + Clone,
+    R: Responder<H::Item, E::Error, H::Error> + Clone,
 {
-    pub fn new(endpoint: E, process: P, responder: R) -> Self {
+    pub fn new(endpoint: E, handler: H, responder: R) -> Self {
         EndpointService {
             endpoint,
-            process,
+            handler,
             responder,
         }
     }
 }
 
-impl<E, P, R> Service for EndpointService<E, P, R>
+impl<E, H, R> Service for EndpointService<E, H, R>
 where
     E: Endpoint,
-    P: Process<E::Item> + Clone,
-    R: Responder<P::Item, E::Error, P::Error> + Clone,
+    H: Handler<E::Item> + Clone,
+    R: Responder<H::Item, E::Error, H::Error> + Clone,
 {
     type Request = hyper::Request;
     type Response = hyper::Response;
     type Error = hyper::Error;
-    type Future = EndpointServiceFuture<E, P, R>;
+    type Future = EndpointServiceFuture<E, H, R>;
 
     fn call(&self, req: hyper::Request) -> Self::Future {
         EndpointServiceFuture {
             state: match self.endpoint.apply_request(req) {
-                Some(input) => State::PollingInput(input, self.process.clone()),
+                Some(input) => State::PollingInput {
+                    input,
+                    handler: self.handler.clone(),
+                },
                 None => State::NoRoute,
             },
             responder: self.responder.clone(),
@@ -61,56 +64,62 @@ where
 
 /// A future returned from `EndpointService::call()`
 #[allow(missing_debug_implementations)]
-pub struct EndpointServiceFuture<E, P, R>
+pub struct EndpointServiceFuture<E, H, R>
 where
     E: Endpoint,
-    P: Process<E::Item>,
-    R: Responder<P::Item, E::Error, P::Error>,
+    H: Handler<E::Item>,
+    R: Responder<H::Item, E::Error, H::Error>,
 {
-    state: State<E, P>,
+    state: State<E, H>,
     responder: R,
 }
 
 #[allow(missing_debug_implementations)]
-enum State<E, P>
+enum State<E, H>
 where
     E: Endpoint,
-    P: Process<E::Item>,
+    H: Handler<E::Item>,
 {
     NoRoute,
-    PollingInput(<E::Result as EndpointResult>::Future, P),
-    PollingOutput(P::Future),
+    PollingInput {
+        input: <E::Result as EndpointResult>::Future,
+        handler: H,
+    },
+    PollingOutput {
+        output: H::Future,
+    },
     Done,
 }
 
-impl<E, P, R> EndpointServiceFuture<E, P, R>
+impl<E, H, R> EndpointServiceFuture<E, H, R>
 where
     E: Endpoint,
-    P: Process<E::Item>,
-    R: Responder<P::Item, E::Error, P::Error>,
+    H: Handler<E::Item>,
+    R: Responder<H::Item, E::Error, H::Error>,
 {
-    fn poll_state(&mut self) -> Poll<Result<P::Item, responder::Error<E::Error, P::Error>>, hyper::Error> {
+    fn poll_state(&mut self) -> Poll<Result<H::Item, responder::Error<E::Error, H::Error>>, hyper::Error> {
         use self::State::*;
         loop {
             match mem::replace(&mut self.state, Done) {
                 NoRoute => break Ok(Ready(Err(responder::Error::NoRoute))),
-                PollingInput(mut t, p) => {
-                    let input = match t.poll() {
-                        Ok(Ready(item)) => item,
-                        Ok(NotReady) => {
-                            self.state = PollingInput(t, p);
-                            break Ok(NotReady);
-                        }
-                        Err(Ok(err)) => break Ok(Ready(Err(responder::Error::Endpoint(err)))),
-                        Err(Err(err)) => break Err(err),
-                    };
-                    self.state = PollingOutput(p.call(input));
-                    continue;
-                }
-                PollingOutput(mut p) => match p.poll() {
+                PollingInput { mut input, handler } => match input.poll() {
+                    Ok(Ready(input)) => {
+                        self.state = PollingOutput {
+                            output: handler.call(input),
+                        };
+                        continue;
+                    }
+                    Ok(NotReady) => {
+                        self.state = PollingInput { input, handler };
+                        break Ok(NotReady);
+                    }
+                    Err(Ok(err)) => break Ok(Ready(Err(responder::Error::Endpoint(err)))),
+                    Err(Err(err)) => break Err(err),
+                },
+                PollingOutput { mut output } => match output.poll() {
                     Ok(Ready(item)) => break Ok(Ready(Ok(item))),
                     Ok(NotReady) => {
-                        self.state = PollingOutput(p);
+                        self.state = PollingOutput { output };
                         break Ok(NotReady);
                     }
                     Err(err) => break Ok(Ready(Err(responder::Error::Process(err)))),
@@ -121,11 +130,11 @@ where
     }
 }
 
-impl<E, P, R> Future for EndpointServiceFuture<E, P, R>
+impl<E, H, R> Future for EndpointServiceFuture<E, H, R>
 where
     E: Endpoint,
-    P: Process<E::Item>,
-    R: Responder<P::Item, E::Error, P::Error>,
+    H: Handler<E::Item>,
+    R: Responder<H::Item, E::Error, H::Error>,
 {
     type Item = hyper::Response;
     type Error = hyper::Error;

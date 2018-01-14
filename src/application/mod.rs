@@ -11,7 +11,7 @@ use hyper::server::{NewService, Service};
 use tokio_core::reactor::{Core, Handle};
 
 use endpoint::Endpoint;
-use process::Process;
+use handler::Handler;
 use responder::{DefaultResponder, IntoResponse};
 use service::EndpointService;
 
@@ -166,20 +166,20 @@ where
     }
 }
 
-impl<E, P> Application<ConstService<EndpointService<E, Arc<P>, DefaultResponder>>, backend::DefaultBackend>
+impl<E, H> Application<ConstService<EndpointService<E, Arc<H>, DefaultResponder>>, backend::DefaultBackend>
 where
     E: Endpoint,
-    P: Process<E::Item>,
+    H: Handler<E::Item>,
     E::Error: IntoResponse,
-    P::Item: IntoResponse,
-    P::Error: IntoResponse,
+    H::Item: IntoResponse,
+    H::Error: IntoResponse,
 {
     #[allow(missing_docs)]
-    pub fn new(endpoint: E, process: P) -> Self {
+    pub fn new(endpoint: E, handler: H) -> Self {
         Self::from_service(
             const_service(EndpointService::new(
                 endpoint,
-                Arc::new(process),
+                Arc::new(handler),
                 Default::default(),
             )),
             Default::default(),

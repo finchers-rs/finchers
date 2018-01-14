@@ -5,7 +5,7 @@ use std::sync::Arc;
 use futures::{Future, IntoFuture};
 
 /// A trait implemented by *server-side* processes
-pub trait Process<In> {
+pub trait Handler<In> {
     /// The type of values *on success*
     type Item;
     /// The type of values *on failure*
@@ -16,7 +16,7 @@ pub trait Process<In> {
     fn call(&self, input: In) -> Self::Future;
 }
 
-impl<F, In, R> Process<In> for F
+impl<F, In, R> Handler<In> for F
 where
     F: Fn(In) -> R,
     R: IntoFuture,
@@ -30,20 +30,26 @@ where
     }
 }
 
-impl<P: Process<In>, In> Process<In> for Rc<P> {
-    type Item = P::Item;
-    type Error = P::Error;
-    type Future = P::Future;
+impl<H, In> Handler<In> for Rc<H>
+where
+    H: Handler<In>,
+{
+    type Item = H::Item;
+    type Error = H::Error;
+    type Future = H::Future;
 
     fn call(&self, input: In) -> Self::Future {
         (**self).call(input)
     }
 }
 
-impl<P: Process<In>, In> Process<In> for Arc<P> {
-    type Item = P::Item;
-    type Error = P::Error;
-    type Future = P::Future;
+impl<H, In> Handler<In> for Arc<H>
+where
+    H: Handler<In>,
+{
+    type Item = H::Item;
+    type Error = H::Error;
+    type Future = H::Future;
 
     fn call(&self, input: In) -> Self::Future {
         (**self).call(input)
