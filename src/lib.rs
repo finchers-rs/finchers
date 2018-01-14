@@ -40,4 +40,4 @@ pub use endpoint::{Endpoint, EndpointResult, IntoEndpoint};
 pub use process::Process;
 
 #[doc(inline)]
-pub use responder::{IntoResponder, Responder};
+pub use responder::Responder;

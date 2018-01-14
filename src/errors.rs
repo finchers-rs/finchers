@@ -3,7 +3,6 @@
 use std::fmt;
 use std::error::Error;
 use http::StatusCode;
-use responder::Responder;
 
 /// Abstruction of an "error" response.
 ///
@@ -47,18 +46,6 @@ mod implementors {
         ::std::str::ParseBoolError,
         ::std::string::FromUtf8Error,
         ::std::string::ParseError,
-    }
-}
-
-impl<E: ErrorResponder> Responder for E {
-    type Body = String;
-
-    fn status(&self) -> StatusCode {
-        ErrorResponder::status(self)
-    }
-
-    fn body(&mut self) -> Option<Self::Body> {
-        self.message()
     }
 }
 
