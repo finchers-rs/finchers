@@ -12,7 +12,7 @@ use tokio_core::reactor::{Core, Handle};
 
 use endpoint::Endpoint;
 use process::Process;
-use responder::Responder;
+use responder::{DefaultResponder, IntoResponse};
 use service::EndpointService;
 
 pub use self::backend::TcpBackend;
@@ -166,19 +166,21 @@ where
     }
 }
 
-impl<E, P, R> Application<ConstService<EndpointService<E, Arc<P>, Arc<R>>>, backend::DefaultBackend>
+impl<E, P> Application<ConstService<EndpointService<E, Arc<P>, DefaultResponder>>, backend::DefaultBackend>
 where
     E: Endpoint,
     P: Process<E::Item>,
-    R: Responder<P::Item, E::Error, P::Error>,
+    E::Error: IntoResponse,
+    P::Item: IntoResponse,
+    P::Error: IntoResponse,
 {
     #[allow(missing_docs)]
-    pub fn new(endpoint: E, process: P, responder: R) -> Self {
+    pub fn new(endpoint: E, process: P) -> Self {
         Self::from_service(
             const_service(EndpointService::new(
                 endpoint,
                 Arc::new(process),
-                Arc::new(responder),
+                Default::default(),
             )),
             Default::default(),
         )
