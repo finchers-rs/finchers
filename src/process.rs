@@ -3,13 +3,14 @@
 use std::rc::Rc;
 use std::sync::Arc;
 use futures::{Future, IntoFuture};
+use responder::IntoResponder;
 
 /// A trait implemented by *server-side* processes
 pub trait Process<In> {
     /// The type of values *on success*
-    type Out;
+    type Out: IntoResponder;
     /// The type of values *on failure*
-    type Err;
+    type Err: IntoResponder;
     /// The type of value returned from `call`
     type Future: Future<Item = Self::Out, Error = Self::Err>;
 
@@ -20,6 +21,8 @@ impl<F, In, R> Process<In> for F
 where
     F: Fn(Option<In>) -> R,
     R: IntoFuture,
+    R::Item: IntoResponder,
+    R::Error: IntoResponder,
 {
     type Out = R::Item;
     type Err = R::Error;

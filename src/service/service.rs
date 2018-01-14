@@ -1,23 +1,12 @@
 #![allow(missing_docs)]
 
-use std::io;
 use std::mem;
-use std::sync::Arc;
-
 use futures::{Async, Future, Poll};
 use hyper;
-use hyper::server::{NewService, Service};
-
+use hyper::server::Service;
 use endpoint::{Endpoint, EndpointResult};
 use process::Process;
 use responder::{IntoResponder, Responder};
-
-/// The inner representation of `EndpointService`.
-#[derive(Debug)]
-struct EndpointServiceContext<E, P> {
-    endpoint: E,
-    process: Arc<P>,
-}
 
 /// An HTTP service which wraps a `Endpoint`.
 #[derive(Debug)]
@@ -25,20 +14,28 @@ pub struct EndpointService<E, P>
 where
     E: Endpoint,
     E::Error: IntoResponder,
-    P: Process<E::Item>,
-    P::Out: IntoResponder,
-    P::Err: IntoResponder,
+    P: Process<E::Item> + Clone,
 {
-    inner: Arc<EndpointServiceContext<E, P>>,
+    endpoint: E,
+    process: P,
+}
+
+impl<E, P> EndpointService<E, P>
+where
+    E: Endpoint,
+    E::Error: IntoResponder,
+    P: Process<E::Item> + Clone,
+{
+    pub fn new(endpoint: E, process: P) -> Self {
+        EndpointService { endpoint, process }
+    }
 }
 
 impl<E, P> Service for EndpointService<E, P>
 where
     E: Endpoint,
     E::Error: IntoResponder,
-    P: Process<E::Item>,
-    P::Out: IntoResponder,
-    P::Err: IntoResponder,
+    P: Process<E::Item> + Clone,
 {
     type Request = hyper::Request;
     type Response = hyper::Response;
@@ -47,9 +44,9 @@ where
 
     fn call(&self, req: hyper::Request) -> Self::Future {
         EndpointServiceFuture {
-            inner: match self.inner.endpoint.apply_request(req) {
-                Some(input) => Inner::PollingInput(input, self.inner.process.clone()),
-                None => Inner::PollingOutput(self.inner.process.call(None)),
+            inner: match self.endpoint.apply_request(req) {
+                Some(input) => Inner::PollingInput(input, self.process.clone()),
+                None => Inner::PollingOutput(self.process.call(None)),
             },
         }
     }
@@ -61,38 +58,15 @@ pub struct EndpointServiceFuture<F, P, R> {
     inner: Inner<F, P, R>,
 }
 
-impl<F, P, R, E> Future for EndpointServiceFuture<F, P, R>
-where
-    F: Future<Error = Result<E, hyper::Error>>,
-    E: IntoResponder,
-    P: Process<F::Item, Future = R>,
-    R: Future<Item = P::Out, Error = P::Err>,
-    P::Out: IntoResponder,
-    P::Err: IntoResponder,
-{
-    type Item = hyper::Response;
-    type Error = hyper::Error;
-
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        match self.inner.poll() {
-            Ok(Async::NotReady) => Ok(Async::NotReady),
-            Ok(Async::Ready(item)) => Ok(Async::Ready(item.into_responder().respond())),
-            Err(InnerError::Endpoint(err)) => Ok(Async::Ready(err.into_responder().respond())),
-            Err(InnerError::Process(err)) => Ok(Async::Ready(err.into_responder().respond())),
-            Err(InnerError::Hyper(err)) => Err(err),
-        }
-    }
-}
-
 #[derive(Debug)]
-pub(crate) enum Inner<F, P, R> {
-    PollingInput(F, Arc<P>),
+enum Inner<F, P, R> {
+    PollingInput(F, P),
     PollingOutput(R),
     Done,
 }
 
 #[allow(missing_debug_implementations)]
-pub enum InnerError<E, P> {
+enum InnerError<E, P> {
     Endpoint(E),
     Process(P),
     Hyper(hyper::Error),
@@ -138,52 +112,23 @@ where
     }
 }
 
-#[derive(Debug)]
-pub struct EndpointServiceFactory<E, P>
+impl<F, P, R, E> Future for EndpointServiceFuture<F, P, R>
 where
-    E: Endpoint,
-    E::Error: IntoResponder,
-    P: Process<E::Item>,
-    P::Out: IntoResponder,
-    P::Err: IntoResponder,
+    F: Future<Error = Result<E, hyper::Error>>,
+    E: IntoResponder,
+    P: Process<F::Item, Future = R>,
+    R: Future<Item = P::Out, Error = P::Err>,
 {
-    inner: Arc<EndpointServiceContext<E, P>>,
-}
-
-impl<E, P> EndpointServiceFactory<E, P>
-where
-    E: Endpoint,
-    E::Error: IntoResponder,
-    P: Process<E::Item>,
-    P::Out: IntoResponder,
-    P::Err: IntoResponder,
-{
-    pub fn new(endpoint: E, process: P) -> Self {
-        EndpointServiceFactory {
-            inner: Arc::new(EndpointServiceContext {
-                endpoint,
-                process: Arc::new(process),
-            }),
-        }
-    }
-}
-
-impl<E, P> NewService for EndpointServiceFactory<E, P>
-where
-    E: Endpoint,
-    E::Error: IntoResponder,
-    P: Process<E::Item>,
-    P::Out: IntoResponder,
-    P::Err: IntoResponder,
-{
-    type Request = hyper::Request;
-    type Response = hyper::Response;
+    type Item = hyper::Response;
     type Error = hyper::Error;
-    type Instance = EndpointService<E, P>;
 
-    fn new_service(&self) -> io::Result<Self::Instance> {
-        Ok(EndpointService {
-            inner: self.inner.clone(),
-        })
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        match self.inner.poll() {
+            Ok(Async::NotReady) => Ok(Async::NotReady),
+            Ok(Async::Ready(item)) => Ok(Async::Ready(item.into_responder().respond())),
+            Err(InnerError::Endpoint(err)) => Ok(Async::Ready(err.into_responder().respond())),
+            Err(InnerError::Process(err)) => Ok(Async::Ready(err.into_responder().respond())),
+            Err(InnerError::Hyper(err)) => Err(err),
+        }
     }
 }

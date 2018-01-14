@@ -7,13 +7,13 @@ use std::net::{SocketAddr, ToSocketAddrs};
 use std::sync::Arc;
 use futures::{Future, Stream};
 use hyper::{self, Chunk};
-use hyper::server::NewService;
+use hyper::server::{NewService, Service};
 use tokio_core::reactor::{Core, Handle};
 
 use endpoint::Endpoint;
 use process::Process;
 use responder::IntoResponder;
-use service::EndpointServiceFactory;
+use service::EndpointService;
 
 pub use self::backend::TcpBackend;
 
@@ -79,6 +79,19 @@ impl<B> Tcp<B> {
     pub fn backend(&mut self) -> &mut B {
         &mut self.backend
     }
+
+    fn normalize_addrs(&mut self) {
+        if self.addrs.is_empty() {
+            println!("[info] Use default listener addresses.");
+            self.addrs.push("0.0.0.0:4000".parse().unwrap());
+            self.addrs.push("[::0]:4000".parse().unwrap());
+        } else {
+            let set: ::std::collections::HashSet<_> = ::std::mem::replace(&mut self.addrs, vec![])
+                .into_iter()
+                .collect();
+            self.addrs = set.into_iter().collect();
+        }
+    }
 }
 
 /// Worker level configuration
@@ -98,14 +111,14 @@ impl Default for Worker {
 #[derive(Debug)]
 pub struct Application<S, B>
 where
-    S: NewService<Request = hyper::Request, Response = hyper::Response, Error = hyper::Error>,
+    S: NewService<Request = hyper::Request, Response = hyper::Response, Error = hyper::Error> + Clone + 'static,
     B: TcpBackend,
 {
     /// The instance of `NewService`
     new_service: S,
 
     /// HTTP-level configuration
-    proto: Http,
+    http: Http,
 
     /// TCP-level configuration
     tcp: Tcp<B>,
@@ -116,14 +129,14 @@ where
 
 impl<S, B> Application<S, B>
 where
-    S: NewService<Request = hyper::Request, Response = hyper::Response, Error = hyper::Error>,
+    S: NewService<Request = hyper::Request, Response = hyper::Response, Error = hyper::Error> + Clone + 'static,
     B: TcpBackend,
 {
     /// Create a new launcher from given service and TCP backend.
     pub fn from_service(new_service: S, backend: B) -> Self {
         Application {
             new_service,
-            proto: Http::default(),
+            http: Http::default(),
             worker: Worker::default(),
             tcp: Tcp {
                 addrs: vec![],
@@ -139,7 +152,7 @@ where
 
     /// Returns a mutable reference of the HTTP configuration
     pub fn http(&mut self) -> &mut Http {
-        &mut self.proto
+        &mut self.http
     }
 
     /// Returns a mutable reference of the TCP configuration
@@ -153,18 +166,16 @@ where
     }
 }
 
-impl<E, P> Application<EndpointServiceFactory<E, P>, backend::DefaultBackend>
+impl<E, P> Application<ConstService<EndpointService<E, Arc<P>>>, backend::DefaultBackend>
 where
     E: Endpoint,
     P: Process<E::Item>,
     E::Error: IntoResponder,
-    P::Out: IntoResponder,
-    P::Err: IntoResponder,
 {
     #[allow(missing_docs)]
     pub fn new(endpoint: E, process: P) -> Self {
         Self::from_service(
-            EndpointServiceFactory::new(endpoint, process),
+            const_service(EndpointService::new(endpoint, Arc::new(process))),
             Default::default(),
         )
     }
@@ -172,28 +183,32 @@ where
 
 impl<S, B> Application<S, B>
 where
-    S: NewService<Request = hyper::Request, Response = hyper::Response, Error = hyper::Error> + Send + Sync + 'static,
+    S: NewService<Request = hyper::Request, Response = hyper::Response, Error = hyper::Error>
+        + Clone
+        + Send
+        + Sync
+        + 'static,
     B: TcpBackend + Send + Sync + 'static,
 {
     /// Start the HTTP server with given configurations
-    pub fn run(mut self) {
-        if self.tcp.addrs.is_empty() {
-            println!("[info] Use default listener addresses.");
-            self.tcp.addrs.push("0.0.0.0:4000".parse().unwrap());
-            self.tcp.addrs.push("[::0]:4000".parse().unwrap());
-        } else {
-            let set: ::std::collections::HashSet<_> = self.tcp.addrs.into_iter().collect();
-            self.tcp.addrs = set.into_iter().collect();
-        }
+    pub fn run(self) {
+        let Self {
+            new_service,
+            http,
+            mut tcp,
+            worker,
+        } = self;
+
+        tcp.normalize_addrs();
 
         let ctx = Arc::new(WorkerContext {
-            new_service: Arc::new(self.new_service),
-            http: self.proto,
-            tcp: self.tcp,
+            new_service,
+            http,
+            tcp,
         });
 
         let mut handles = vec![];
-        for _ in 0..self.worker.num_workers {
+        for _ in 0..worker.num_workers {
             let ctx = ctx.clone();
             handles.push(::std::thread::spawn(
                 move || -> Result<(), ::hyper::Error> {
@@ -212,17 +227,17 @@ where
 
 struct WorkerContext<S, B>
 where
-    S: NewService<Request = hyper::Request, Response = hyper::Response, Error = hyper::Error> + 'static,
+    S: NewService<Request = hyper::Request, Response = hyper::Response, Error = hyper::Error> + Clone + 'static,
     B: TcpBackend,
 {
-    new_service: Arc<S>,
+    new_service: S,
     http: Http,
     tcp: Tcp<B>,
 }
 
 impl<S, B> WorkerContext<S, B>
 where
-    S: NewService<Request = hyper::Request, Response = hyper::Response, Error = hyper::Error> + 'static,
+    S: NewService<Request = hyper::Request, Response = hyper::Response, Error = hyper::Error> + Clone + 'static,
     B: TcpBackend,
 {
     fn spawn(&self, handle: &Handle) -> Result<(), ::hyper::Error> {
@@ -237,5 +252,37 @@ where
         }
 
         Ok(())
+    }
+}
+
+#[allow(missing_docs)]
+pub fn const_service<S: Service>(service: S) -> ConstService<S> {
+    ConstService {
+        service: Arc::new(service),
+    }
+}
+
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct ConstService<S: Service> {
+    service: Arc<S>,
+}
+
+impl<S: Service> Clone for ConstService<S> {
+    fn clone(&self) -> Self {
+        ConstService {
+            service: self.service.clone(),
+        }
+    }
+}
+
+impl<S: Service> NewService for ConstService<S> {
+    type Request = S::Request;
+    type Response = S::Response;
+    type Error = S::Error;
+    type Instance = Arc<S>;
+
+    fn new_service(&self) -> io::Result<Self::Instance> {
+        Ok(self.service.clone())
     }
 }
