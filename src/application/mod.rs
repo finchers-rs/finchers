@@ -255,12 +255,14 @@ where
     }
 }
 
+#[allow(missing_docs)]
 pub fn const_service<S: Service>(service: S) -> ConstService<S> {
     ConstService {
         service: Arc::new(service),
     }
 }
 
+#[allow(missing_docs)]
 #[derive(Debug)]
 pub struct ConstService<S: Service> {
     service: Arc<S>,
