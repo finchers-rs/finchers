@@ -6,7 +6,6 @@ use std::marker::PhantomData;
 use futures::future::{err, ok, FutureResult};
 use endpoint::{Endpoint, EndpointContext, EndpointResult};
 use http::{self, header, Request};
-use errors::ErrorResponder;
 
 pub fn header<H>() -> Header<H>
 where
@@ -103,8 +102,6 @@ impl<H: header::Header> Error for EmptyHeader<H> {
         "empty header"
     }
 }
-
-impl<H: header::Header> ErrorResponder for EmptyHeader<H> {}
 
 impl<H: header::Header> PartialEq for EmptyHeader<H> {
     fn eq(&self, _: &Self) -> bool {

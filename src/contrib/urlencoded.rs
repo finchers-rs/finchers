@@ -15,8 +15,7 @@ use std::error::Error;
 use std::marker::PhantomData;
 
 use endpoint::{Endpoint, EndpointContext};
-use http::{mime, FromBody, Request, StatusCode};
-use errors::ErrorResponder;
+use http::{mime, FromBody, Request};
 
 pub use self::url::form_urlencoded::Parse;
 
@@ -140,10 +139,11 @@ impl Error for UrlDecodeError {
     fn description(&self) -> &str {
         "during parsing the urlencoded body"
     }
-}
 
-impl ErrorResponder for UrlDecodeError {
-    fn status(&self) -> StatusCode {
-        StatusCode::BadRequest
+    fn cause(&self) -> Option<&Error> {
+        match *self {
+            Other(ref e) => Some(&**e),
+            _ => None,
+        }
     }
 }

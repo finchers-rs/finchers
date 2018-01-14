@@ -6,7 +6,6 @@ use std::error::Error;
 use std::marker::PhantomData;
 use std::str::FromStr;
 use endpoint::{Endpoint, EndpointContext, IntoEndpoint, Segments};
-use errors::ErrorResponder;
 
 pub trait FromSegments: Sized {
     type Err;
@@ -197,12 +196,10 @@ where
     fn description(&self) -> &str {
         self.0.description()
     }
-}
 
-impl<T: FromStr> ErrorResponder for ExtractPathError<T>
-where
-    T::Err: Error,
-{
+    fn cause(&self) -> Option<&Error> {
+        Some(&self.0)
+    }
 }
 
 impl<T: FromStr> PartialEq for ExtractPathError<T>
@@ -267,12 +264,10 @@ where
     fn description(&self) -> &str {
         self.0.description()
     }
-}
 
-impl<T: FromSegments> ErrorResponder for ExtractPathsError<T>
-where
-    T::Err: Error,
-{
+    fn cause(&self) -> Option<&Error> {
+        Some(&self.0)
+    }
 }
 
 impl<T: FromSegments> PartialEq for ExtractPathsError<T>
