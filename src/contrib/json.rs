@@ -10,7 +10,8 @@ extern crate serde_json;
 pub use self::serde_json::{Error, Value};
 use self::serde::ser::Serialize;
 use self::serde::de::DeserializeOwned;
-use http::{self, header, mime, FromBody, Headers, IntoBody, Request};
+use errors::StdErrorResponseBuilder;
+use http::{self, header, mime, FromBody, Headers, IntoBody, IntoResponse, Request, Response};
 
 impl FromBody for Value {
     type Error = Error;
@@ -60,5 +61,11 @@ impl<T: Serialize> IntoBody for Json<T> {
         h.set(header::ContentType::json());
         h.set(header::ContentLength(body.len() as u64));
         body.into()
+    }
+}
+
+impl IntoResponse for Error {
+    fn into_response(self) -> Response {
+        StdErrorResponseBuilder::bad_request(self).finish()
     }
 }

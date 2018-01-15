@@ -8,7 +8,6 @@ use futures::{Async, Future, Poll, Stream};
 use endpoint::{Endpoint, EndpointContext, EndpointResult};
 use http::{self, FromBody, Request};
 use http::header::ContentLength;
-use errors::ErrorResponder;
 
 pub fn body<T: FromBody>() -> Body<T> {
     Body {
@@ -149,12 +148,13 @@ where
             BodyError::FromBody(ref e) => e.description(),
         }
     }
-}
 
-impl<T: FromBody> ErrorResponder for BodyError<T>
-where
-    T::Error: Error,
-{
+    fn cause(&self) -> Option<&Error> {
+        match *self {
+            BodyError::BadRequest => None,
+            BodyError::FromBody(ref e) => Some(e),
+        }
+    }
 }
 
 impl<T: FromBody> PartialEq for BodyError<T>

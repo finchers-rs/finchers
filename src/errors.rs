@@ -2,65 +2,10 @@
 
 use std::fmt;
 use std::error::Error;
-use http::StatusCode;
-use responder::Responder;
-
-/// Abstruction of an "error" response.
-///
-/// This trait is useful for defining the HTTP response of types
-/// which implements the [`Error`][error] trait.
-/// If the custom error response (like JSON body) is required, use
-/// [`Responder`][responder] instead.
-///
-/// [error]: https://doc.rust-lang.org/stable/std/error/trait.Error.html
-/// [responder]: ../trait.Responder.html
-pub trait ErrorResponder: Error {
-    /// Returns the status code of the HTTP response.
-    fn status(&self) -> StatusCode {
-        StatusCode::BadRequest
-    }
-
-    /// Returns the message string of the HTTP response.
-    fn message(&self) -> Option<String> {
-        Some(format!(
-            "description: {}\ndetail: {}",
-            Error::description(self),
-            self
-        ))
-    }
-}
-
-mod implementors {
-    macro_rules! impl_error_responder {
-        ($($t:ty,)*) => {
-            $(
-                impl super::ErrorResponder for $t {}
-            )*
-        };
-    }
-
-    impl_error_responder! {
-        ::std::char::ParseCharError,
-        ::std::net::AddrParseError,
-        ::std::num::ParseIntError,
-        ::std::num::ParseFloatError,
-        ::std::str::ParseBoolError,
-        ::std::string::FromUtf8Error,
-        ::std::string::ParseError,
-    }
-}
-
-impl<E: ErrorResponder> Responder for E {
-    type Body = String;
-
-    fn status(&self) -> StatusCode {
-        ErrorResponder::status(self)
-    }
-
-    fn body(&mut self) -> Option<Self::Body> {
-        self.message()
-    }
-}
+use std::str::FromStr;
+use endpoint::FromSegments;
+use http::{FromBody, IntoResponse, Response, StatusCode};
+use http::header::{ContentLength, ContentType};
 
 #[allow(missing_docs)]
 #[derive(Debug)]
@@ -78,11 +23,111 @@ impl Error for NeverReturn {
     }
 }
 
-impl ErrorResponder for NeverReturn {}
-
 impl PartialEq for NeverReturn {
     fn eq(&self, _: &Self) -> bool {
         unreachable!()
+    }
+}
+
+impl IntoResponse for NeverReturn {
+    fn into_response(self) -> Response {
+        unreachable!()
+    }
+}
+
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct StdErrorResponseBuilder<E: Error> {
+    status: StatusCode,
+    error: E,
+}
+
+#[allow(missing_docs)]
+impl<E: Error> StdErrorResponseBuilder<E> {
+    pub fn new(status: StatusCode, error: E) -> Self {
+        StdErrorResponseBuilder { status, error }
+    }
+
+    #[inline]
+    pub fn bad_request(error: E) -> Self {
+        Self::new(StatusCode::BadRequest, error)
+    }
+
+    #[inline]
+    pub fn server_error(error: E) -> Self {
+        Self::new(StatusCode::InternalServerError, error)
+    }
+
+    pub fn finish(self) -> Response {
+        let body = format!("Error: {}", self.error.description());
+        Response::new()
+            .with_status(self.status)
+            .with_header(ContentType::plaintext())
+            .with_header(ContentLength(body.len() as u64))
+            .with_body(body)
+    }
+}
+
+macro_rules! impl_into_response_for_std_error {
+    ($( @$i:ident $t:ty; )*) => {$(
+        impl IntoResponse for $t {
+            fn into_response(self) -> Response {
+                StdErrorResponseBuilder::$i(self).finish()
+            }
+        }
+    )*};
+}
+
+impl_into_response_for_std_error! {
+    @bad_request ::std::char::DecodeUtf16Error;
+    @bad_request ::std::char::ParseCharError;
+    @bad_request ::std::net::AddrParseError;
+    @bad_request ::std::num::ParseFloatError;
+    @bad_request ::std::num::ParseIntError;
+    @bad_request ::std::str::Utf8Error;
+    @bad_request ::std::str::ParseBoolError;
+    @bad_request ::std::string::ParseError;
+    @bad_request ::std::string::FromUtf8Error;
+    @bad_request ::std::string::FromUtf16Error;
+
+    @server_error ::std::cell::BorrowError;
+    @server_error ::std::cell::BorrowMutError;
+    @server_error ::std::env::VarError;
+    @server_error ::std::fmt::Error;
+    @server_error ::std::io::Error;
+    @server_error ::std::sync::mpsc::RecvError;
+    @server_error ::std::sync::mpsc::TryRecvError;
+    @server_error ::std::sync::mpsc::RecvTimeoutError;
+}
+
+#[cfg(feature = "unstable")]
+impl IntoResponse for ! {
+    fn into_response(self) -> Response {
+        unreachable!()
+    }
+}
+
+impl<T: Send> IntoResponse for ::std::sync::mpsc::SendError<T> {
+    fn into_response(self) -> Response {
+        StdErrorResponseBuilder::server_error(self).finish()
+    }
+}
+
+impl<T: Send> IntoResponse for ::std::sync::mpsc::TrySendError<T> {
+    fn into_response(self) -> Response {
+        StdErrorResponseBuilder::server_error(self).finish()
+    }
+}
+
+impl<T> IntoResponse for ::std::sync::PoisonError<T> {
+    fn into_response(self) -> Response {
+        StdErrorResponseBuilder::server_error(self).finish()
+    }
+}
+
+impl<T> IntoResponse for ::std::sync::TryLockError<T> {
+    fn into_response(self) -> Response {
+        StdErrorResponseBuilder::server_error(self).finish()
     }
 }
 
@@ -90,3 +135,30 @@ impl PartialEq for NeverReturn {
 pub use endpoint::body::BodyError;
 pub use endpoint::header::EmptyHeader;
 pub use endpoint::path::{ExtractPathError, ExtractPathsError};
+
+impl<T: FromBody> IntoResponse for BodyError<T>
+where
+    T::Error: Error,
+{
+    fn into_response(self) -> Response {
+        StdErrorResponseBuilder::bad_request(self).finish()
+    }
+}
+
+impl<T: FromStr> IntoResponse for ExtractPathError<T>
+where
+    T::Err: Error,
+{
+    fn into_response(self) -> Response {
+        StdErrorResponseBuilder::bad_request(self).finish()
+    }
+}
+
+impl<T: FromSegments> IntoResponse for ExtractPathsError<T>
+where
+    T::Err: Error,
+{
+    fn into_response(self) -> Response {
+        StdErrorResponseBuilder::bad_request(self).finish()
+    }
+}
