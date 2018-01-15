@@ -7,14 +7,14 @@ use std::net::{SocketAddr, ToSocketAddrs};
 use std::sync::Arc;
 use futures::{Future, Stream};
 use hyper::{self, Chunk};
-use hyper::server::{NewService, Service};
+use hyper::server::NewService;
 use tokio_core::reactor::{Core, Handle};
 
 use endpoint::Endpoint;
 use handler::Handler;
 use http::IntoResponse;
 use responder::DefaultResponder;
-use service::EndpointService;
+use service::{const_service, ConstService, FinchersService};
 
 pub use self::backend::TcpBackend;
 
@@ -167,7 +167,7 @@ where
     }
 }
 
-impl<E, H> Application<ConstService<EndpointService<E, Arc<H>, DefaultResponder>>, backend::DefaultBackend>
+impl<E, H> Application<ConstService<FinchersService<E, Arc<H>, DefaultResponder>>, backend::DefaultBackend>
 where
     E: Endpoint,
     H: Handler<E::Item>,
@@ -178,7 +178,7 @@ where
     #[allow(missing_docs)]
     pub fn new(endpoint: E, handler: H) -> Self {
         Self::from_service(
-            const_service(EndpointService::new(
+            const_service(FinchersService::new(
                 endpoint,
                 Arc::new(handler),
                 Default::default(),
@@ -259,37 +259,5 @@ where
         }
 
         Ok(())
-    }
-}
-
-#[allow(missing_docs)]
-pub fn const_service<S: Service>(service: S) -> ConstService<S> {
-    ConstService {
-        service: Arc::new(service),
-    }
-}
-
-#[allow(missing_docs)]
-#[derive(Debug)]
-pub struct ConstService<S: Service> {
-    service: Arc<S>,
-}
-
-impl<S: Service> Clone for ConstService<S> {
-    fn clone(&self) -> Self {
-        ConstService {
-            service: self.service.clone(),
-        }
-    }
-}
-
-impl<S: Service> NewService for ConstService<S> {
-    type Request = S::Request;
-    type Response = S::Response;
-    type Error = S::Error;
-    type Instance = Arc<S>;
-
-    fn new_service(&self) -> io::Result<Self::Instance> {
-        Ok(self.service.clone())
     }
 }
