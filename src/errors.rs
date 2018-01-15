@@ -37,24 +37,27 @@ impl IntoResponse for NeverReturn {
 
 #[allow(missing_docs)]
 #[derive(Debug)]
-pub struct StdErrorResponseBuilder<E: Error> {
+pub struct StdErrorResponseBuilder<'a> {
     status: StatusCode,
-    error: E,
+    error: Box<Error + 'a>,
 }
 
 #[allow(missing_docs)]
-impl<E: Error> StdErrorResponseBuilder<E> {
-    pub fn new(status: StatusCode, error: E) -> Self {
-        StdErrorResponseBuilder { status, error }
+impl<'a> StdErrorResponseBuilder<'a> {
+    pub fn new<E: Into<Box<Error + 'a>>>(status: StatusCode, error: E) -> Self {
+        StdErrorResponseBuilder {
+            status,
+            error: error.into(),
+        }
     }
 
     #[inline]
-    pub fn bad_request(error: E) -> Self {
+    pub fn bad_request<E: Into<Box<Error + 'a>>>(error: E) -> Self {
         Self::new(StatusCode::BadRequest, error)
     }
 
     #[inline]
-    pub fn server_error(error: E) -> Self {
+    pub fn server_error<E: Into<Box<Error + 'a>>>(error: E) -> Self {
         Self::new(StatusCode::InternalServerError, error)
     }
 

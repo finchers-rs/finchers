@@ -76,22 +76,48 @@ impl<T: FromUrlEncoded> Endpoint for Queries<T> {
     type Result = Result<Self::Item, Self::Error>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
-        let query_str = match ctx.request().query() {
-            Some(s) => s,
-            None => return Some(Err(UrlDecodeError::EmptyQuery)),
-        };
+        let query_str = try_opt!(ctx.request().query());
         let iter = self::url::form_urlencoded::parse(query_str.as_bytes());
         Some(T::from_urlencoded(iter))
+    }
+}
+
+#[allow(missing_docs)]
+pub fn queries_opt<T: FromUrlEncoded>() -> QueriesOpt<T> {
+    QueriesOpt {
+        _marker: PhantomData,
+    }
+}
+
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct QueriesOpt<T> {
+    _marker: PhantomData<fn() -> T>,
+}
+
+impl<T: FromUrlEncoded> Endpoint for QueriesOpt<T> {
+    type Item = Option<T>;
+    type Error = UrlDecodeError;
+    type Result = Result<Self::Item, Self::Error>;
+
+    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
+        match ctx.request().query() {
+            Some(query_str) => {
+                let iter = self::url::form_urlencoded::parse(query_str.as_bytes());
+                Some(T::from_urlencoded(iter).map(Some))
+            }
+            None => Some(Ok(None)),
+        }
     }
 }
 
 /// The error type returned from `FromForm::from_form`.
 #[derive(Debug)]
 pub enum UrlDecodeError {
-    /// The query string is empty.
-    EmptyQuery,
     /// The invalid key is exist.
     InvalidKey(Cow<'static, str>),
+    /// The value is invalid.
+    InvalidValue(Cow<'static, str>, Cow<'static, str>),
     /// The missing key is exist.
     MissingKey(Cow<'static, str>),
     /// The duplicated key is exist.
@@ -106,6 +132,11 @@ impl UrlDecodeError {
     #[allow(missing_docs)]
     pub fn invalid_key<S: Into<Cow<'static, str>>>(key: S) -> Self {
         InvalidKey(key.into())
+    }
+
+    #[allow(missing_docs)]
+    pub fn invalid_value<K: Into<Cow<'static, str>>, V: Into<Cow<'static, str>>>(key: K, value: V) -> Self {
+        InvalidValue(key.into(), value.into())
     }
 
     #[allow(missing_docs)]
@@ -127,8 +158,8 @@ impl UrlDecodeError {
 impl fmt::Display for UrlDecodeError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            EmptyQuery => f.write_str("empty query"),
             InvalidKey(ref key) => write!(f, "invalid key: \"{}\"", key),
+            InvalidValue(ref key, ref value) => write!(f, "invalid value: \"{}\" => \"{}\"", key, value),
             MissingKey(ref key) => write!(f, "missing key: \"{}\"", key),
             DuplicatedKey(ref key) => write!(f, "duplicated key: \"{}\"", key),
             Other(ref e) => e.fmt(f),
@@ -138,7 +169,7 @@ impl fmt::Display for UrlDecodeError {
 
 impl Error for UrlDecodeError {
     fn description(&self) -> &str {
-        "during parsing the urlencoded body"
+        "during parsing the urlencoded string"
     }
 
     fn cause(&self) -> Option<&Error> {
