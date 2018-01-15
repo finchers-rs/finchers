@@ -15,7 +15,8 @@ use std::error::Error;
 use std::marker::PhantomData;
 
 use endpoint::{Endpoint, EndpointContext};
-use http::{mime, FromBody, Request};
+use errors::StdErrorResponseBuilder;
+use http::{mime, FromBody, IntoResponse, Request, Response};
 
 pub use self::url::form_urlencoded::Parse;
 
@@ -145,5 +146,11 @@ impl Error for UrlDecodeError {
             Other(ref e) => Some(&**e),
             _ => None,
         }
+    }
+}
+
+impl IntoResponse for UrlDecodeError {
+    fn into_response(self) -> Response {
+        StdErrorResponseBuilder::bad_request(self).finish()
     }
 }

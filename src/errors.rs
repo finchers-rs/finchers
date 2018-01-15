@@ -68,6 +68,69 @@ impl<E: Error> StdErrorResponseBuilder<E> {
     }
 }
 
+macro_rules! impl_into_response_for_std_error {
+    ($( @$i:ident $t:ty; )*) => {$(
+        impl IntoResponse for $t {
+            fn into_response(self) -> Response {
+                StdErrorResponseBuilder::$i(self).finish()
+            }
+        }
+    )*};
+}
+
+impl_into_response_for_std_error! {
+    @bad_request ::std::char::DecodeUtf16Error;
+    @bad_request ::std::char::ParseCharError;
+    @bad_request ::std::net::AddrParseError;
+    @bad_request ::std::num::ParseFloatError;
+    @bad_request ::std::num::ParseIntError;
+    @bad_request ::std::str::Utf8Error;
+    @bad_request ::std::str::ParseBoolError;
+    @bad_request ::std::string::ParseError;
+    @bad_request ::std::string::FromUtf8Error;
+    @bad_request ::std::string::FromUtf16Error;
+
+    @server_error ::std::cell::BorrowError;
+    @server_error ::std::cell::BorrowMutError;
+    @server_error ::std::env::VarError;
+    @server_error ::std::fmt::Error;
+    @server_error ::std::io::Error;
+    @server_error ::std::sync::mpsc::RecvError;
+    @server_error ::std::sync::mpsc::TryRecvError;
+    @server_error ::std::sync::mpsc::RecvTimeoutError;
+}
+
+#[cfg(feature = "unstable")]
+impl IntoResponse for ! {
+    fn into_response(self) -> Response {
+        unreachable!()
+    }
+}
+
+impl<T: Send> IntoResponse for ::std::sync::mpsc::SendError<T> {
+    fn into_response(self) -> Response {
+        StdErrorResponseBuilder::server_error(self).finish()
+    }
+}
+
+impl<T: Send> IntoResponse for ::std::sync::mpsc::TrySendError<T> {
+    fn into_response(self) -> Response {
+        StdErrorResponseBuilder::server_error(self).finish()
+    }
+}
+
+impl<T> IntoResponse for ::std::sync::PoisonError<T> {
+    fn into_response(self) -> Response {
+        StdErrorResponseBuilder::server_error(self).finish()
+    }
+}
+
+impl<T> IntoResponse for ::std::sync::TryLockError<T> {
+    fn into_response(self) -> Response {
+        StdErrorResponseBuilder::server_error(self).finish()
+    }
+}
+
 // re-exports
 pub use endpoint::body::BodyError;
 pub use endpoint::header::EmptyHeader;
