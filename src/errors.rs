@@ -35,12 +35,14 @@ impl IntoResponse for NeverReturn {
     }
 }
 
+#[allow(missing_docs)]
 #[derive(Debug)]
 pub struct StdErrorResponseBuilder<E: Error> {
     status: StatusCode,
     error: E,
 }
 
+#[allow(missing_docs)]
 impl<E: Error> StdErrorResponseBuilder<E> {
     pub fn new(status: StatusCode, error: E) -> Self {
         StdErrorResponseBuilder { status, error }

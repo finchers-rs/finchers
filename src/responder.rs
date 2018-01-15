@@ -6,6 +6,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 use http::{header, IntoResponse, Response, StatusCode};
 
+#[allow(missing_docs)]
 #[derive(Debug)]
 pub enum Error<E, P> {
     NoRoute,
@@ -41,6 +42,7 @@ impl<E: error::Error, P: error::Error> error::Error for Error<E, P> {
     }
 }
 
+#[allow(missing_docs)]
 pub trait Responder<T, E, P> {
     fn respond(&self, Result<T, Error<E, P>>) -> Response;
 }
@@ -72,6 +74,7 @@ where
     }
 }
 
+#[allow(missing_docs)]
 #[derive(Copy, Clone, Debug, Default)]
 pub struct DefaultResponder;
 
