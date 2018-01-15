@@ -4,7 +4,7 @@ use std::fmt;
 use std::error;
 use std::rc::Rc;
 use std::sync::Arc;
-use http::{header, Response, StatusCode};
+use http::{header, IntoResponse, Response, StatusCode};
 
 #[derive(Debug)]
 pub enum Error<E, P> {
@@ -69,17 +69,6 @@ where
 {
     fn respond(&self, input: Result<T, Error<E, P>>) -> Response {
         (**self).respond(input)
-    }
-}
-
-pub trait IntoResponse {
-    fn into_response(self) -> Response;
-}
-
-impl<R: Into<Response>> IntoResponse for R {
-    #[inline]
-    fn into_response(self) -> Response {
-        self.into()
     }
 }
 

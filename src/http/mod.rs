@@ -11,3 +11,14 @@ pub use http_crate::Request as HttpRequest;
 pub use self::from_body::FromBody;
 pub use self::into_body::IntoBody;
 pub use self::request::Request;
+
+pub trait IntoResponse {
+    fn into_response(self) -> Response;
+}
+
+impl<R: Into<Response>> IntoResponse for R {
+    #[inline]
+    fn into_response(self) -> Response {
+        self.into()
+    }
+}

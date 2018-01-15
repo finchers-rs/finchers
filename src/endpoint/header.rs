@@ -5,7 +5,8 @@ use std::error::Error;
 use std::marker::PhantomData;
 use futures::future::{err, ok, FutureResult};
 use endpoint::{Endpoint, EndpointContext, EndpointResult};
-use http::{self, header, Request};
+use errors::StdErrorResponseBuilder;
+use http::{self, header, IntoResponse, Request, Response};
 
 pub fn header<H>() -> Header<H>
 where
@@ -106,6 +107,12 @@ impl<H: header::Header> Error for EmptyHeader<H> {
 impl<H: header::Header> PartialEq for EmptyHeader<H> {
     fn eq(&self, _: &Self) -> bool {
         true
+    }
+}
+
+impl<H: header::Header> IntoResponse for EmptyHeader<H> {
+    fn into_response(self) -> Response {
+        StdErrorResponseBuilder::bad_request(self).finish()
     }
 }
 

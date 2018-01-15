@@ -12,7 +12,8 @@ use tokio_core::reactor::{Core, Handle};
 
 use endpoint::Endpoint;
 use handler::Handler;
-use responder::{DefaultResponder, IntoResponse};
+use http::IntoResponse;
+use responder::DefaultResponder;
 use service::EndpointService;
 
 pub use self::backend::TcpBackend;
