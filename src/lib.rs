@@ -4,6 +4,7 @@
 #![deny(missing_docs)]
 #![deny(missing_debug_implementations)]
 #![deny(warnings)]
+#![cfg_attr(feature = "unstable", feature(never_type))]
 
 #[macro_use]
 extern crate futures;
