@@ -15,10 +15,6 @@ impl Server {
         Ok(Server { core: Core::new()? })
     }
 
-    pub fn reactor(&mut self) -> &mut Core {
-        &mut self.core
-    }
-
     pub fn handle(&self) -> Handle {
         self.core.handle()
     }

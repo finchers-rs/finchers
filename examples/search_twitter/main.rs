@@ -10,7 +10,7 @@ extern crate serde_derive;
 extern crate serde_json;
 extern crate tokio_core;
 
-mod common;
+mod config;
 #[macro_use]
 mod endpoint;
 mod handler;
@@ -25,8 +25,9 @@ use responder::SearchTwitterResponder;
 use server::Server;
 
 fn main() {
+    let token = config::retrieve_bearer_token("config.json");
+
     let mut server = Server::new().unwrap();
-    let token = common::retrieve_access_token(server.reactor());
 
     let endpoint = Rc::new(build_endpoint!());
     let handler = SearchTwitterHandler::new(token, server.handle());

@@ -8,8 +8,16 @@ use tokio_core::reactor::Handle;
 use endpoint::SearchTwitterParam;
 
 #[derive(Debug, Serialize)]
+pub struct Status {
+    username: String,
+    text: String,
+    created_at: String,
+    retweeted: bool,
+}
+
+#[derive(Debug, Serialize)]
 pub struct SearchTwitterItem {
-    pub statuses: Vec<String>,
+    pub statuses: Vec<Status>,
 }
 
 #[derive(Debug)]
@@ -58,7 +66,15 @@ impl Future for SearchTwitterFuture {
         let statuses = search
             .statuses
             .into_iter()
-            .map(|tweet| tweet.text)
+            .map(|tweet| Status {
+                username: tweet
+                    .user
+                    .map(|u| u.screen_name)
+                    .unwrap_or_else(|| "<unknown>".to_string()),
+                text: tweet.text,
+                created_at: tweet.created_at.to_string(),
+                retweeted: tweet.retweeted.unwrap_or(false),
+            })
             .collect();
 
         Ok(SearchTwitterItem { statuses }.into())
