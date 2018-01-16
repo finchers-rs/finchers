@@ -1,14 +1,19 @@
 sudo: false
 language: rust
+cache: cargo
 
 branches:
   only:
     - master
 
-rust:
-  - stable
-  - beta
-  - nightly
+matrix:
+  include:
+    - rust: stable
+    - rust: beta
+    - rust: nightly
+
+    - rust: nightly-2018-01-15
+      env: CI_MODE="lint"
 
 addons:
   apt:
@@ -22,10 +27,12 @@ addons:
 matrix:
   allow_failures:
     - rust: nightly
+    - rust: nightly-2018-01-15
 
 before_script:
   - pip install --user 'travis-cargo<0.2'
   - export PATH=$HOME/.local/bin:$PATH
+  - if [[ "$CI_MODE" == "lint" ]]; then rustup component add rustfmt-preview; fi
 
 script:
   - travis-cargo build
@@ -35,3 +42,4 @@ script:
 after_success:
   - travis-cargo --only stable doc-upload
   - travis-cargo --only stable coveralls --no-sudo
+  - if [[ "$CI_MODE" == "lint" ]]; then cargo fmt -- --write-mode=diff; fi
