@@ -43,7 +43,7 @@ impl Responder<SearchTwitterItem, EndpointError, SearchTwitterError> for SearchT
                 status: BadRequest,
                 "description": e.0.description(),
             },
-            Err(Error::Process(e)) => json_response! {
+            Err(Error::Handler(e)) => json_response! {
                 status: InternalServerError,
                 "description": e.0.description(),
             },

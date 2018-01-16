@@ -147,7 +147,7 @@ where
                         self.state = PollingOutput { output };
                         break Ok(NotReady);
                     }
-                    Err(err) => break Ok(Ready(Err(responder::Error::Process(err)))),
+                    Err(err) => break Ok(Ready(Err(responder::Error::Handler(err)))),
                 },
                 Done => panic!(),
             }
