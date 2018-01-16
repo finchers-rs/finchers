@@ -15,6 +15,10 @@ matrix:
     - rust: nightly-2018-01-15
       env: CI_MODE="lint"
 
+  allow_failures:
+    - rust: nightly
+    - rust: nightly-2018-01-15
+
 addons:
   apt:
     packages:
@@ -23,11 +27,6 @@ addons:
       - libdw-dev
       - binutils-dev
       - cmake
-
-matrix:
-  allow_failures:
-    - rust: nightly
-    - rust: nightly-2018-01-15
 
 before_script:
   - pip install --user 'travis-cargo<0.2'
