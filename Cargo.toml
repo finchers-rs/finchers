@@ -22,6 +22,7 @@ net2 = "0.2"
 url = "1.6"
 serde = "1.0"
 serde_json = "1.0"
+serde_urlencoded = "*"
 
 native-tls = { version = "0.1", optional = true }
 tokio-tls = { version = "0.1", optional = true }

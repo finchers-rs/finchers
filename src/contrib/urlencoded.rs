@@ -185,3 +185,81 @@ impl IntoResponse for UrlDecodeError {
         StdErrorResponseBuilder::bad_request(self).finish()
     }
 }
+
+#[allow(missing_docs)]
+pub mod serde {
+    extern crate serde;
+    extern crate serde_urlencoded;
+    use std::marker::PhantomData;
+    use self::serde::de::DeserializeOwned;
+    use self::serde_urlencoded::de::Error;
+    use endpoint::{Endpoint, EndpointContext};
+    use http::{mime, FromBody, Request};
+
+    #[allow(missing_docs)]
+    pub fn queries<T: DeserializeOwned>() -> Queries<T> {
+        Queries {
+            _marker: PhantomData,
+        }
+    }
+
+    #[allow(missing_docs)]
+    #[derive(Debug)]
+    pub struct Queries<T> {
+        _marker: PhantomData<fn() -> T>,
+    }
+
+    impl<T: DeserializeOwned> Endpoint for Queries<T> {
+        type Item = T;
+        type Error = Error;
+        type Result = Result<Self::Item, Self::Error>;
+
+        fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
+            let query_str = try_opt!(ctx.request().query());
+            Some(self::serde_urlencoded::de::from_str(query_str))
+        }
+    }
+
+    #[allow(missing_docs)]
+    pub fn queries_opt<T: DeserializeOwned>() -> QueriesOpt<T> {
+        QueriesOpt {
+            _marker: PhantomData,
+        }
+    }
+
+    #[allow(missing_docs)]
+    #[derive(Debug)]
+    pub struct QueriesOpt<T> {
+        _marker: PhantomData<fn() -> T>,
+    }
+
+    impl<T: DeserializeOwned> Endpoint for QueriesOpt<T> {
+        type Item = Option<T>;
+        type Error = Error;
+        type Result = Result<Self::Item, Self::Error>;
+
+        fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
+            match ctx.request().query() {
+                Some(query_str) => Some(self::serde_urlencoded::de::from_str(query_str).map(Some)),
+                None => Some(Ok(None)),
+            }
+        }
+    }
+
+    /// A wrapper struct which represents the contained type is parsed from `url-formencoded` body.
+    #[derive(Debug)]
+    pub struct Form<F: DeserializeOwned>(pub F);
+
+    impl<F: DeserializeOwned> FromBody for Form<F> {
+        type Error = Error;
+
+        fn validate(req: &Request) -> bool {
+            req.media_type()
+                .map_or(true, |m| *m == mime::APPLICATION_WWW_FORM_URLENCODED)
+        }
+
+        fn from_body(body: Vec<u8>) -> Result<Self, Self::Error> {
+            self::serde_urlencoded::from_bytes(&body).map(Form)
+        }
+    }
+}
