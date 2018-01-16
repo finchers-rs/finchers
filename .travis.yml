@@ -1,3 +1,4 @@
+dist: trusty
 sudo: false
 language: rust
 cache: cargo
@@ -11,13 +12,12 @@ matrix:
     - rust: stable
     - rust: beta
     - rust: nightly
-
-    - rust: nightly-2018-01-15
-      env: CI_MODE="lint"
+    #- rust: nightly-2018-01-15
+    #  env: CI_MODE="lint" CHANNEL="nightly-2018-01-15"
 
   allow_failures:
     - rust: nightly
-    - rust: nightly-2018-01-15
+    #- rust: nightly-2018-01-15
 
 addons:
   apt:
@@ -29,16 +29,16 @@ addons:
       - cmake
 
 before_script:
-  - pip install --user 'travis-cargo<0.2'
   - export PATH=$HOME/.local/bin:$PATH
-  - if [[ "$CI_MODE" == "lint" ]]; then rustup component add rustfmt-preview; fi
+  - if [[ "$CI_MODE" != "lint" ]]; then pip install --user 'travis-cargo<0.2'; fi
+  #- if [[ "$CI_MODE" == "lint" ]]; then rustup run "${CHANNEL}" cargo install rustfmt-nightly --version 0.3.4 || true; fi
 
 script:
-  - travis-cargo build
-  - travis-cargo test
-  - travis-cargo --only stable doc -- --no-deps
+  - if [[ "$CI_MODE" != "lint" ]]; then travis-cargo build; fi
+  - if [[ "$CI_MODE" != "lint" ]]; then travis-cargo test; fi
+  - if [[ "$CI_MODE" != "lint" ]]; then travis-cargo --only stable doc -- --no-deps; fi
+  #- if [[ "$CI_MODE" == "lint" ]]; then rustup run "${CHANNEL}" cargo fmt -- --write-mode=diff; fi
 
 after_success:
-  - travis-cargo --only stable doc-upload
-  - travis-cargo --only stable coveralls --no-sudo
-  - if [[ "$CI_MODE" == "lint" ]]; then cargo fmt -- --write-mode=diff; fi
+  - if [[ "$CI_MODE" != "lint" ]]; then travis-cargo --only stable doc-upload; fi
+  - if [[ "$CI_MODE" != "lint" ]]; then travis-cargo --only stable coveralls --no-sudo; fi
