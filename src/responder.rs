@@ -8,28 +8,28 @@ use http::{header, IntoResponse, Response, StatusCode};
 
 #[allow(missing_docs)]
 #[derive(Debug)]
-pub enum Error<E, P> {
+pub enum Error<E, H> {
     NoRoute,
     Endpoint(E),
-    Process(P),
+    Handler(H),
 }
 
-impl<E: fmt::Display, P: fmt::Display> fmt::Display for Error<E, P> {
+impl<E: fmt::Display, H: fmt::Display> fmt::Display for Error<E, H> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Error::NoRoute => f.write_str("no route"),
             Error::Endpoint(ref e) => e.fmt(f),
-            Error::Process(ref e) => e.fmt(f),
+            Error::Handler(ref e) => e.fmt(f),
         }
     }
 }
 
-impl<E: error::Error, P: error::Error> error::Error for Error<E, P> {
+impl<E: error::Error, H: error::Error> error::Error for Error<E, H> {
     fn description(&self) -> &str {
         match *self {
             Error::NoRoute => "no route",
             Error::Endpoint(ref e) => e.description(),
-            Error::Process(ref e) => e.description(),
+            Error::Handler(ref e) => e.description(),
         }
     }
 
@@ -37,39 +37,39 @@ impl<E: error::Error, P: error::Error> error::Error for Error<E, P> {
         match *self {
             Error::NoRoute => None,
             Error::Endpoint(ref e) => Some(e),
-            Error::Process(ref e) => Some(e),
+            Error::Handler(ref e) => Some(e),
         }
     }
 }
 
 #[allow(missing_docs)]
-pub trait Responder<T, E, P> {
-    fn respond(&self, Result<T, Error<E, P>>) -> Response;
+pub trait Responder<T, E, H> {
+    fn respond(&self, Result<T, Error<E, H>>) -> Response;
 }
 
-impl<F, T, E, P> Responder<T, E, P> for F
+impl<F, T, E, H> Responder<T, E, H> for F
 where
-    F: Fn(Result<T, Error<E, P>>) -> Response,
+    F: Fn(Result<T, Error<E, H>>) -> Response,
 {
-    fn respond(&self, input: Result<T, Error<E, P>>) -> Response {
+    fn respond(&self, input: Result<T, Error<E, H>>) -> Response {
         (*self)(input)
     }
 }
 
-impl<R, T, E, P> Responder<T, E, P> for Rc<R>
+impl<R, T, E, H> Responder<T, E, H> for Rc<R>
 where
-    R: Responder<T, E, P>,
+    R: Responder<T, E, H>,
 {
-    fn respond(&self, input: Result<T, Error<E, P>>) -> Response {
+    fn respond(&self, input: Result<T, Error<E, H>>) -> Response {
         (**self).respond(input)
     }
 }
 
-impl<R, T, E, P> Responder<T, E, P> for Arc<R>
+impl<R, T, E, H> Responder<T, E, H> for Arc<R>
 where
-    R: Responder<T, E, P>,
+    R: Responder<T, E, H>,
 {
-    fn respond(&self, input: Result<T, Error<E, P>>) -> Response {
+    fn respond(&self, input: Result<T, Error<E, H>>) -> Response {
         (**self).respond(input)
     }
 }
@@ -89,7 +89,7 @@ where
             Ok(item) => item.into_response(),
             Err(Error::NoRoute) => Response::new().with_status(StatusCode::NotFound),
             Err(Error::Endpoint(e)) => e.into_response(),
-            Err(Error::Process(e)) => e.into_response(),
+            Err(Error::Handler(e)) => e.into_response(),
         };
 
         if !response.headers().has::<header::Server>() {

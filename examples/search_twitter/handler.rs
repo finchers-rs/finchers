@@ -1,75 +1,27 @@
 use finchers::Handler;
-use finchers::errors::StdErrorResponseBuilder;
-use finchers::http::{header, IntoResponse, Response};
 
 use futures::{Future, Poll};
 use egg_mode::{self, search, Token};
 use egg_mode::search::ResultType;
 use tokio_core::reactor::Handle;
-use serde_json;
 
-#[derive(Debug)]
-pub struct SearchTwitterParam {
-    query: String,
-    result_type: Option<ResultType>,
-    count: Option<u32>,
-}
+use endpoint::SearchTwitterParam;
 
-mod __impl_search_params {
-    use finchers::contrib::urlencoded::{FromUrlEncoded, Parse, UrlDecodeError};
-    use egg_mode::search::ResultType;
-    use super::SearchTwitterParam;
-
-    impl FromUrlEncoded for SearchTwitterParam {
-        fn from_urlencoded(iter: Parse) -> Result<Self, UrlDecodeError> {
-            let mut query = None;
-            let mut result_type = None;
-            let mut count = None;
-            for (key, value) in iter {
-                match &*key {
-                    "q" => query = Some(value.into_owned()),
-                    "type" => match &*value {
-                        "recent" => result_type = Some(ResultType::Recent),
-                        "popular" => result_type = Some(ResultType::Popular),
-                        "mixed" => result_type = Some(ResultType::Mixed),
-                        s => return Err(UrlDecodeError::invalid_value("type", s.to_owned())),
-                    },
-                    "count" => count = Some(value.parse().map_err(|e| UrlDecodeError::other(e))?),
-                    s => return Err(UrlDecodeError::invalid_key(s.to_owned())),
-                }
-            }
-            Ok(SearchTwitterParam {
-                query: query.ok_or_else(|| UrlDecodeError::missing_key("q"))?,
-                result_type,
-                count,
-            })
-        }
-    }
+#[derive(Debug, Serialize)]
+pub struct Status {
+    username: String,
+    text: String,
+    created_at: String,
+    retweeted: bool,
 }
 
 #[derive(Debug, Serialize)]
 pub struct SearchTwitterItem {
-    pub statuses: Vec<String>,
-}
-
-impl IntoResponse for SearchTwitterItem {
-    fn into_response(self) -> Response {
-        let body = serde_json::to_vec(&self).unwrap();
-        Response::new()
-            .with_header(header::ContentType::json())
-            .with_header(header::ContentLength(body.len() as u64))
-            .with_body(body)
-    }
+    pub statuses: Vec<Status>,
 }
 
 #[derive(Debug)]
-pub struct SearchTwitterError(egg_mode::error::Error);
-
-impl IntoResponse for SearchTwitterError {
-    fn into_response(self) -> Response {
-        StdErrorResponseBuilder::server_error(self.0).finish()
-    }
-}
+pub struct SearchTwitterError(pub egg_mode::error::Error);
 
 #[derive(Debug, Clone)]
 pub struct SearchTwitterHandler {
@@ -114,7 +66,15 @@ impl Future for SearchTwitterFuture {
         let statuses = search
             .statuses
             .into_iter()
-            .map(|tweet| tweet.text)
+            .map(|tweet| Status {
+                username: tweet
+                    .user
+                    .map(|u| u.screen_name)
+                    .unwrap_or_else(|| "<unknown>".to_string()),
+                text: tweet.text,
+                created_at: tweet.created_at.to_string(),
+                retweeted: tweet.retweeted.unwrap_or(false),
+            })
             .collect();
 
         Ok(SearchTwitterItem { statuses }.into())
