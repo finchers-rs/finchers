@@ -44,14 +44,19 @@ impl<E: error::Error, H: error::Error> error::Error for Error<E, H> {
 
 #[allow(missing_docs)]
 pub trait Responder<T, E, H> {
-    fn respond(&self, Result<T, Error<E, H>>) -> Response;
+    type Response: IntoResponse;
+
+    fn respond(&self, Result<T, Error<E, H>>) -> Self::Response;
 }
 
-impl<F, T, E, H> Responder<T, E, H> for F
+impl<F, T, E, H, R> Responder<T, E, H> for F
 where
-    F: Fn(Result<T, Error<E, H>>) -> Response,
+    F: Fn(Result<T, Error<E, H>>) -> R,
+    R: IntoResponse,
 {
-    fn respond(&self, input: Result<T, Error<E, H>>) -> Response {
+    type Response = R;
+
+    fn respond(&self, input: Result<T, Error<E, H>>) -> Self::Response {
         (*self)(input)
     }
 }
@@ -60,7 +65,9 @@ impl<R, T, E, H> Responder<T, E, H> for Rc<R>
 where
     R: Responder<T, E, H>,
 {
-    fn respond(&self, input: Result<T, Error<E, H>>) -> Response {
+    type Response = R::Response;
+
+    fn respond(&self, input: Result<T, Error<E, H>>) -> Self::Response {
         (**self).respond(input)
     }
 }
@@ -69,7 +76,9 @@ impl<R, T, E, H> Responder<T, E, H> for Arc<R>
 where
     R: Responder<T, E, H>,
 {
-    fn respond(&self, input: Result<T, Error<E, H>>) -> Response {
+    type Response = R::Response;
+
+    fn respond(&self, input: Result<T, Error<E, H>>) -> Self::Response {
         (**self).respond(input)
     }
 }
@@ -84,7 +93,9 @@ where
     E: IntoResponse,
     P: IntoResponse,
 {
-    fn respond(&self, input: Result<T, Error<E, P>>) -> Response {
+    type Response = Response;
+
+    fn respond(&self, input: Result<T, Error<E, P>>) -> Self::Response {
         let mut response = match input {
             Ok(item) => item.into_response(),
             Err(Error::NoRoute) => Response::new().with_status(StatusCode::NotFound),

@@ -27,7 +27,9 @@ macro_rules! json_response {
 pub struct SearchTwitterResponder;
 
 impl Responder<SearchTwitterItem, EndpointError, SearchTwitterError> for SearchTwitterResponder {
-    fn respond(&self, result: Result<SearchTwitterItem, Error<EndpointError, SearchTwitterError>>) -> Response {
+    type Response = Response;
+
+    fn respond(&self, result: Result<SearchTwitterItem, Error<EndpointError, SearchTwitterError>>) -> Self::Response {
         match result {
             Ok(item) => {
                 let body = ::serde_json::to_vec(&item).unwrap();
