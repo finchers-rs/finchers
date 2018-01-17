@@ -4,7 +4,7 @@ use std::fmt;
 use std::error::Error;
 use std::mem;
 use std::marker::PhantomData;
-use futures::{Async, Future, Poll, Stream};
+use futures::{stream, Async, Future, Poll, Stream};
 use endpoint::{Endpoint, EndpointContext, EndpointResult};
 use http::{self, FromBody, Request};
 use http::header::ContentLength;
@@ -60,21 +60,21 @@ impl<T: FromBody> EndpointResult for BodyResult<T> {
     type Future = BodyFuture<T>;
 
     fn into_future(self, request: &mut Request) -> Self::Future {
-        if !T::validate(request) {
-            return BodyFuture::BadRequest;
-        }
-
         let body = request.body().expect("cannot take the request body twice");
-        let len = request
-            .header::<ContentLength>()
-            .map_or(0, |&ContentLength(len)| len as usize);
-        BodyFuture::Receiving(body, Vec::with_capacity(len))
+        if T::validate(request) {
+            let len = request
+                .header::<ContentLength>()
+                .map_or(0, |&ContentLength(len)| len as usize);
+            BodyFuture::Receiving(body, Vec::with_capacity(len))
+        } else {
+            BodyFuture::InvalidRequest(body.for_each(|_| Ok(())))
+        }
     }
 }
 
-#[derive(Debug)]
+#[allow(missing_debug_implementations)]
 pub enum BodyFuture<T> {
-    BadRequest,
+    InvalidRequest(stream::ForEach<http::Body, fn(http::Chunk) -> Result<(), http::Error>, Result<(), http::Error>>),
     Receiving(http::Body, Vec<u8>),
     Done(PhantomData<fn() -> T>),
 }
@@ -86,7 +86,13 @@ impl<T: FromBody> Future for BodyFuture<T> {
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         use self::BodyFuture::*;
         match mem::replace(self, BodyFuture::Done(PhantomData)) {
-            BadRequest => Err(Ok(BodyError::BadRequest)),
+            InvalidRequest(mut f) => match f.poll().map_err(Err)? {
+                Async::Ready(()) => Err(Ok(BodyError::InvalidRequest)),
+                Async::NotReady => {
+                    *self = BodyFuture::InvalidRequest(f);
+                    Ok(Async::NotReady)
+                }
+            },
             Receiving(mut body, mut buf) => loop {
                 match body.poll().map_err(Err)? {
                     Async::Ready(Some(item)) => {
@@ -110,7 +116,7 @@ impl<T: FromBody> Future for BodyFuture<T> {
 
 #[allow(missing_docs)]
 pub enum BodyError<T: FromBody = ()> {
-    BadRequest,
+    InvalidRequest,
     FromBody(T::Error),
 }
 
@@ -120,7 +126,7 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            BodyError::BadRequest => f.debug_struct("BadRequest").finish(),
+            BodyError::InvalidRequest => f.debug_struct("BadRequest").finish(),
             BodyError::FromBody(ref e) => e.fmt(f),
         }
     }
@@ -132,7 +138,7 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            BodyError::BadRequest => f.write_str("bad request"),
+            BodyError::InvalidRequest => f.write_str("invalid request"),
             BodyError::FromBody(ref e) => e.fmt(f),
         }
     }
@@ -144,14 +150,14 @@ where
 {
     fn description(&self) -> &str {
         match *self {
-            BodyError::BadRequest => "bad request",
+            BodyError::InvalidRequest => "invalid request",
             BodyError::FromBody(ref e) => e.description(),
         }
     }
 
     fn cause(&self) -> Option<&Error> {
         match *self {
-            BodyError::BadRequest => None,
+            BodyError::InvalidRequest => None,
             BodyError::FromBody(ref e) => Some(e),
         }
     }
@@ -163,7 +169,7 @@ where
 {
     fn eq(&self, rhs: &Self) -> bool {
         match (self, rhs) {
-            (&BodyError::BadRequest, &BodyError::BadRequest) => true,
+            (&BodyError::InvalidRequest, &BodyError::InvalidRequest) => true,
             (&BodyError::FromBody(ref l), &BodyError::FromBody(ref r)) => l.eq(r),
             _ => false,
         }
