@@ -8,6 +8,7 @@ use hyper::{Error, Request, Response};
 use hyper::server::{NewService, Service};
 use endpoint::{Endpoint, EndpointResult};
 use handler::Handler;
+use http::IntoResponse;
 use responder::{self, Responder};
 
 /// An HTTP service which wraps a `Endpoint`, `Handler` and `Responder`.
@@ -166,7 +167,7 @@ where
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         let input = try_ready!(self.poll_state());
-        let response = self.responder.respond(input);
+        let response = self.responder.respond(input).into_response();
         Ok(Ready(response))
     }
 }
