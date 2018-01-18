@@ -6,10 +6,12 @@ extern crate serde_urlencoded;
 use std::fmt;
 use std::error::Error as StdError;
 use std::marker::PhantomData;
+use futures::IntoFuture;
+use futures::future::FutureResult;
 
 use self::serde::de::DeserializeOwned;
-use endpoint::{Endpoint, EndpointContext};
-use http::{mime, FromBody, Request};
+use endpoint::{Endpoint, EndpointContext, EndpointResult};
+use http::{self, mime, FromBody, Request};
 
 pub use self::serde_urlencoded::de::Error;
 
@@ -43,11 +45,33 @@ impl<T> fmt::Debug for Queries<T> {
 impl<T: DeserializeOwned> Endpoint for Queries<T> {
     type Item = T;
     type Error = QueriesError<T>;
-    type Result = Result<Self::Item, Self::Error>;
+    type Result = QueriesResult<T>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
-        let query_str = try_opt!(ctx.request().query());
-        Some(self::serde_urlencoded::de::from_str(query_str).map_err(Into::into))
+        if ctx.request().query().is_some() {
+            Some(QueriesResult {
+                _marker: PhantomData,
+            })
+        } else {
+            None
+        }
+    }
+}
+
+#[doc(hidden)]
+#[allow(missing_debug_implementations)]
+pub struct QueriesResult<T: DeserializeOwned> {
+    _marker: PhantomData<fn() -> T>,
+}
+
+impl<T: DeserializeOwned> EndpointResult for QueriesResult<T> {
+    type Item = T;
+    type Error = QueriesError<T>;
+    type Future = FutureResult<Self::Item, Result<Self::Error, http::Error>>;
+
+    fn into_future(self, request: &mut Request) -> Self::Future {
+        let result = self::serde_urlencoded::de::from_str(request.query().unwrap()).map_err(|e| Ok(e.into()));
+        IntoFuture::into_future(result)
     }
 }
 
@@ -81,13 +105,32 @@ impl<T> fmt::Debug for QueriesRequired<T> {
 impl<T: DeserializeOwned> Endpoint for QueriesRequired<T> {
     type Item = T;
     type Error = QueriesError<T>;
-    type Result = Result<Self::Item, Self::Error>;
+    type Result = QueriesRequiredResult<T>;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
-        match ctx.request().query() {
-            Some(s) => Some(self::serde_urlencoded::de::from_str(s).map_err(Into::into)),
-            None => Some(Err(QueriesError::missing())),
-        }
+    fn apply(&self, _: &mut EndpointContext) -> Option<Self::Result> {
+        Some(QueriesRequiredResult {
+            _marker: PhantomData,
+        })
+    }
+}
+
+#[doc(hidden)]
+#[allow(missing_debug_implementations)]
+pub struct QueriesRequiredResult<T: DeserializeOwned> {
+    _marker: PhantomData<fn() -> T>,
+}
+
+impl<T: DeserializeOwned> EndpointResult for QueriesRequiredResult<T> {
+    type Item = T;
+    type Error = QueriesError<T>;
+    type Future = FutureResult<Self::Item, Result<Self::Error, http::Error>>;
+
+    fn into_future(self, request: &mut Request) -> Self::Future {
+        let result = match request.query() {
+            Some(s) => self::serde_urlencoded::de::from_str(s).map_err(|e| Ok(e.into())),
+            None => Err(Ok(QueriesError::missing())),
+        };
+        IntoFuture::into_future(result)
     }
 }
 
@@ -121,17 +164,34 @@ impl<T> fmt::Debug for QueriesOptional<T> {
 impl<T: DeserializeOwned> Endpoint for QueriesOptional<T> {
     type Item = Option<T>;
     type Error = QueriesError<T>;
-    type Result = Result<Self::Item, Self::Error>;
+    type Result = QueriesOptionalResult<T>;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
-        match ctx.request().query() {
-            Some(query_str) => Some(
-                self::serde_urlencoded::de::from_str(query_str)
-                    .map(Some)
-                    .map_err(Into::into),
-            ),
-            None => Some(Ok(None)),
-        }
+    fn apply(&self, _: &mut EndpointContext) -> Option<Self::Result> {
+        Some(QueriesOptionalResult {
+            _marker: PhantomData,
+        })
+    }
+}
+
+#[doc(hidden)]
+#[allow(missing_debug_implementations)]
+pub struct QueriesOptionalResult<T: DeserializeOwned> {
+    _marker: PhantomData<fn() -> T>,
+}
+
+impl<T: DeserializeOwned> EndpointResult for QueriesOptionalResult<T> {
+    type Item = Option<T>;
+    type Error = QueriesError<T>;
+    type Future = FutureResult<Self::Item, Result<Self::Error, http::Error>>;
+
+    fn into_future(self, request: &mut Request) -> Self::Future {
+        let result = match request.query() {
+            Some(s) => self::serde_urlencoded::de::from_str(s)
+                .map(Some)
+                .map_err(|e| Ok(e.into())),
+            None => Ok(None),
+        };
+        IntoFuture::into_future(result)
     }
 }
 
@@ -142,13 +202,14 @@ pub struct QueriesError<T: DeserializeOwned> {
 }
 
 impl<T: DeserializeOwned> QueriesError<T> {
-    pub fn missing() -> Self {
+    fn missing() -> Self {
         QueriesError {
             inner: None,
             _marker: PhantomData,
         }
     }
 
+    /// Returns the internal value if possible
     pub fn inner(&self) -> Option<&Error> {
         self.inner.as_ref()
     }
@@ -188,6 +249,7 @@ impl<T: DeserializeOwned> StdError for QueriesError<T> {
     }
 }
 
+#[allow(missing_docs)]
 #[derive(Debug)]
 pub struct Form<F: DeserializeOwned>(pub F);
 

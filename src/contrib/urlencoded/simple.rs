@@ -7,10 +7,12 @@ use std::collections::HashMap;
 use std::fmt;
 use std::error::Error;
 use std::marker::PhantomData;
+use futures::IntoFuture;
+use futures::future::FutureResult;
 
-use endpoint::{Endpoint, EndpointContext};
+use endpoint::{Endpoint, EndpointContext, EndpointResult};
 use errors::StdErrorResponseBuilder;
-use http::{mime, FromBody, IntoResponse, Request, Response};
+use http::{self, mime, FromBody, IntoResponse, Request, Response};
 
 pub use self::url::form_urlencoded::Parse;
 
@@ -132,12 +134,34 @@ impl<T> fmt::Debug for Queries<T> {
 impl<T: FromUrlEncoded> Endpoint for Queries<T> {
     type Item = T;
     type Error = QueriesError<T>;
-    type Result = Result<Self::Item, Self::Error>;
+    type Result = QueriesResult<T>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
-        let query_str = try_opt!(ctx.request().query());
+        if ctx.request().query().is_some() {
+            Some(QueriesResult {
+                _marker: PhantomData,
+            })
+        } else {
+            None
+        }
+    }
+}
+
+#[doc(hidden)]
+#[allow(missing_debug_implementations)]
+pub struct QueriesResult<T: FromUrlEncoded> {
+    _marker: PhantomData<fn() -> T>,
+}
+
+impl<T: FromUrlEncoded> EndpointResult for QueriesResult<T> {
+    type Item = T;
+    type Error = QueriesError<T>;
+    type Future = FutureResult<Self::Item, Result<Self::Error, http::Error>>;
+
+    fn into_future(self, request: &mut Request) -> Self::Future {
+        let query_str = request.query().unwrap();
         let iter = self::url::form_urlencoded::parse(query_str.as_bytes());
-        Some(T::from_urlencoded(iter).map_err(Into::into))
+        IntoFuture::into_future(T::from_urlencoded(iter).map_err(|e| Ok(e.into())))
     }
 }
 
@@ -171,16 +195,35 @@ impl<T> fmt::Debug for QueriesRequired<T> {
 impl<T: FromUrlEncoded> Endpoint for QueriesRequired<T> {
     type Item = T;
     type Error = QueriesError<T>;
-    type Result = Result<Self::Item, Self::Error>;
+    type Result = QueriesRequiredResult<T>;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
-        match ctx.request().query() {
+    fn apply(&self, _: &mut EndpointContext) -> Option<Self::Result> {
+        Some(QueriesRequiredResult {
+            _marker: PhantomData,
+        })
+    }
+}
+
+#[doc(hidden)]
+#[allow(missing_debug_implementations)]
+pub struct QueriesRequiredResult<T: FromUrlEncoded> {
+    _marker: PhantomData<fn() -> T>,
+}
+
+impl<T: FromUrlEncoded> EndpointResult for QueriesRequiredResult<T> {
+    type Item = T;
+    type Error = QueriesError<T>;
+    type Future = FutureResult<Self::Item, Result<Self::Error, http::Error>>;
+
+    fn into_future(self, request: &mut Request) -> Self::Future {
+        let result = match request.query() {
             Some(s) => {
                 let iter = self::url::form_urlencoded::parse(s.as_bytes());
-                Some(T::from_urlencoded(iter).map_err(Into::into))
+                T::from_urlencoded(iter).map_err(|e| Ok(e.into()))
             }
-            None => Some(Err(QueriesError::missing())),
-        }
+            None => Err(Ok(QueriesError::missing())),
+        };
+        IntoFuture::into_future(result)
     }
 }
 
@@ -214,16 +257,35 @@ impl<T> fmt::Debug for QueriesOptional<T> {
 impl<T: FromUrlEncoded> Endpoint for QueriesOptional<T> {
     type Item = Option<T>;
     type Error = QueriesError<T>;
-    type Result = Result<Self::Item, Self::Error>;
+    type Result = QueriesOptionalResult<T>;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
-        match ctx.request().query() {
-            Some(query_str) => {
-                let iter = self::url::form_urlencoded::parse(query_str.as_bytes());
-                Some(T::from_urlencoded(iter).map(Some).map_err(Into::into))
+    fn apply(&self, _: &mut EndpointContext) -> Option<Self::Result> {
+        Some(QueriesOptionalResult {
+            _marker: PhantomData,
+        })
+    }
+}
+
+#[doc(hidden)]
+#[allow(missing_debug_implementations)]
+pub struct QueriesOptionalResult<T: FromUrlEncoded> {
+    _marker: PhantomData<fn() -> T>,
+}
+
+impl<T: FromUrlEncoded> EndpointResult for QueriesOptionalResult<T> {
+    type Item = Option<T>;
+    type Error = QueriesError<T>;
+    type Future = FutureResult<Self::Item, Result<Self::Error, http::Error>>;
+
+    fn into_future(self, request: &mut Request) -> Self::Future {
+        let result = match request.query() {
+            Some(s) => {
+                let iter = self::url::form_urlencoded::parse(s.as_bytes());
+                T::from_urlencoded(iter).map(Some).map_err(|e| Ok(e.into()))
             }
-            None => Some(Ok(None)),
-        }
+            None => Ok(None),
+        };
+        IntoFuture::into_future(result)
     }
 }
 
@@ -234,13 +296,15 @@ pub struct QueriesError<T: FromUrlEncoded> {
 }
 
 impl<T: FromUrlEncoded> QueriesError<T> {
-    pub fn missing() -> Self {
+    #[allow(missing_docs)]
+    fn missing() -> Self {
         QueriesError {
             inner: None,
             _marker: PhantomData,
         }
     }
 
+    /// Returns the reference of internal value, if possible.
     pub fn inner(&self) -> Option<&UrlDecodeError> {
         self.inner.as_ref()
     }
@@ -288,6 +352,7 @@ impl<T: FromUrlEncoded> IntoResponse for QueriesError<T> {
     }
 }
 
+#[allow(missing_docs)]
 #[derive(Debug)]
 pub struct Form<F: FromUrlEncoded>(pub F);
 
