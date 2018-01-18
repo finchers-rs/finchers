@@ -47,10 +47,18 @@ mod implementors {
     }
 }
 
-#[derive(Clone)]
 pub struct MatchPath<E> {
     kind: MatchPathKind,
     _marker: PhantomData<fn() -> E>,
+}
+
+impl<E> Clone for MatchPath<E> {
+    fn clone(&self) -> Self {
+        MatchPath {
+            kind: self.kind.clone(),
+            _marker: PhantomData,
+        }
+    }
 }
 
 impl<E> fmt::Debug for MatchPath<E> {
@@ -151,6 +159,15 @@ pub struct ExtractPath<T> {
     _marker: PhantomData<fn() -> T>,
 }
 
+impl<T> Copy for ExtractPath<T> {}
+
+impl<T> Clone for ExtractPath<T> {
+    #[inline]
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
 impl<T> fmt::Debug for ExtractPath<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("ExtractPath").finish()
@@ -219,6 +236,15 @@ pub fn paths<T: FromSegments>() -> ExtractPaths<T> {
 
 pub struct ExtractPaths<T> {
     _marker: PhantomData<fn() -> T>,
+}
+
+impl<T> Copy for ExtractPaths<T> {}
+
+impl<T> Clone for ExtractPaths<T> {
+    #[inline]
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl<T> fmt::Debug for ExtractPaths<T> {
