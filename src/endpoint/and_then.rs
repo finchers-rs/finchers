@@ -1,14 +1,13 @@
 #![allow(missing_docs)]
 
 use std::fmt;
-use std::marker::PhantomData;
 use std::sync::Arc;
 use futures::{Future, IntoFuture, Poll};
 use endpoint::{Endpoint, EndpointContext, EndpointResult};
 use http::{Error, Request};
 use super::chain::Chain;
 
-pub fn and_then<E, F, R>(endpoint: E, f: F) -> AndThen<E, F, R>
+pub fn and_then<E, F, R>(endpoint: E, f: F) -> AndThen<E, F>
 where
     E: Endpoint,
     F: Fn(E::Item) -> R,
@@ -17,22 +16,15 @@ where
     AndThen {
         endpoint,
         f: Arc::new(f),
-        _marker: PhantomData,
     }
 }
 
-pub struct AndThen<E, F, R>
-where
-    E: Endpoint,
-    F: Fn(E::Item) -> R,
-    R: IntoFuture<Error = E::Error>,
-{
+pub struct AndThen<E, F> {
     endpoint: E,
     f: Arc<F>,
-    _marker: PhantomData<fn() -> R>,
 }
 
-impl<E, F, R> Clone for AndThen<E, F, R>
+impl<E, F, R> Clone for AndThen<E, F>
 where
     E: Endpoint + Clone,
     F: Fn(E::Item) -> R,
@@ -42,12 +34,11 @@ where
         AndThen {
             endpoint: self.endpoint.clone(),
             f: self.f.clone(),
-            _marker: PhantomData,
         }
     }
 }
 
-impl<E, F, R> fmt::Debug for AndThen<E, F, R>
+impl<E, F, R> fmt::Debug for AndThen<E, F>
 where
     E: Endpoint + fmt::Debug,
     F: Fn(E::Item) -> R + fmt::Debug,
@@ -61,7 +52,7 @@ where
     }
 }
 
-impl<E, F, R> Endpoint for AndThen<E, F, R>
+impl<E, F, R> Endpoint for AndThen<E, F>
 where
     E: Endpoint,
     F: Fn(E::Item) -> R,

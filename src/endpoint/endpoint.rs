@@ -72,7 +72,7 @@ pub trait Endpoint {
     }
 
     #[allow(missing_docs)]
-    fn map<F, U>(self, f: F) -> Map<Self, F, U>
+    fn map<F, U>(self, f: F) -> Map<Self, F>
     where
         Self: Sized,
         F: Fn(Self::Item) -> U,
@@ -81,7 +81,7 @@ pub trait Endpoint {
     }
 
     #[allow(missing_docs)]
-    fn map_err<F, U>(self, f: F) -> MapErr<Self, F, U>
+    fn map_err<F, U>(self, f: F) -> MapErr<Self, F>
     where
         Self: Sized,
         F: Fn(Self::Error) -> U,
@@ -90,7 +90,7 @@ pub trait Endpoint {
     }
 
     #[allow(missing_docs)]
-    fn and_then<F, R>(self, f: F) -> AndThen<Self, F, R>
+    fn and_then<F, R>(self, f: F) -> AndThen<Self, F>
     where
         Self: Sized,
         F: Fn(Self::Item) -> R,
