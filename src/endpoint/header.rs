@@ -39,7 +39,7 @@ impl<H: header::Header, E> Endpoint for Header<H, E> {
     type Result = HeaderResult<H, E>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
-        if ctx.request().headers().has::<H>() {
+        if ctx.headers().has::<H>() {
             Some(HeaderResult {
                 _marker: PhantomData,
             })

@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use http::{Request, Segments};
 
 /// A context during the routing.
@@ -23,5 +24,14 @@ impl<'a> EndpointContext<'a> {
     /// Returns the reference of remaining path segments
     pub fn segments(&mut self) -> &mut Segments<'a> {
         &mut self.segments
+    }
+}
+
+impl<'a> Deref for EndpointContext<'a> {
+    type Target = Request;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &*self.request
     }
 }
