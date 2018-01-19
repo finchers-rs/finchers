@@ -98,6 +98,16 @@ pub trait Endpoint {
     {
         and_then::and_then(self, f)
     }
+
+    #[allow(missing_docs)]
+    fn adapt<T, E>(self) -> Adapt<Self, T, E>
+    where
+        Self: Sized,
+        T: From<Self::Item>,
+        E: From<Self::Error>,
+    {
+        adapt::adapt(self)
+    }
 }
 
 impl<'a, E: Endpoint> Endpoint for &'a E {

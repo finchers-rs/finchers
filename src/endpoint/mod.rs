@@ -5,6 +5,7 @@ pub mod method;
 pub mod header;
 pub mod path;
 
+pub(crate) mod adapt;
 pub(crate) mod and_then;
 pub(crate) mod context;
 pub(crate) mod chain;
@@ -21,6 +22,7 @@ pub(crate) mod skip_all;
 pub(crate) mod with;
 
 // re-exports
+pub use self::adapt::Adapt;
 pub use self::and_then::AndThen;
 pub use self::context::EndpointContext;
 pub use self::endpoint::{Endpoint, EndpointResult, IntoEndpoint};
