@@ -1,12 +1,12 @@
 //! `Endpoint` layer
 
 pub mod method;
+pub mod header;
 
 pub(crate) mod body;
 pub(crate) mod chain;
 pub(crate) mod context;
 pub(crate) mod endpoint;
-pub(crate) mod header;
 pub(crate) mod path;
 pub(crate) mod stream;
 
@@ -26,7 +26,6 @@ pub(crate) mod with;
 pub use self::body::{body, Body};
 pub use self::context::{EndpointContext, Segment, Segments};
 pub use self::endpoint::{Endpoint, EndpointResult, IntoEndpoint};
-pub use self::header::{header, header_opt};
 #[doc(inline)]
 pub use self::method::MatchMethod;
 pub use self::path::{match_, path, paths, ExtractPath, ExtractPaths, FromSegments, MatchPath};

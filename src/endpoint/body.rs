@@ -63,7 +63,8 @@ impl<T: FromBody> EndpointResult for BodyResult<T> {
         let body = request.body().expect("cannot take the request body twice");
         if T::validate(request) {
             let len = request
-                .header::<ContentLength>()
+                .headers()
+                .get()
                 .map_or(0, |&ContentLength(len)| len as usize);
             BodyFuture::Receiving(body, Vec::with_capacity(len))
         } else {

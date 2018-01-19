@@ -8,72 +8,171 @@ use endpoint::{Endpoint, EndpointContext, EndpointResult};
 use errors::StdErrorResponseBuilder;
 use http::{self, header, IntoResponse, Request, Response};
 
-pub fn header<H>() -> Header<H>
-where
-    H: header::Header + Clone,
-{
+pub fn header<H: header::Header, E>() -> Header<H, E> {
     Header {
         _marker: PhantomData,
     }
 }
 
-pub struct Header<H> {
-    _marker: PhantomData<fn() -> H>,
+pub struct Header<H, E> {
+    _marker: PhantomData<fn() -> (H, E)>,
 }
 
-impl<H> Copy for Header<H> {}
+impl<H, E> Copy for Header<H, E> {}
 
-impl<H> Clone for Header<H> {
+impl<H, E> Clone for Header<H, E> {
     #[inline]
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<H> fmt::Debug for Header<H> {
+impl<H, E> fmt::Debug for Header<H, E> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("Header").finish()
     }
 }
 
-impl<H> Endpoint for Header<H>
-where
-    H: header::Header + Clone,
-{
+impl<H: header::Header, E> Endpoint for Header<H, E> {
+    type Item = H;
+    type Error = E;
+    type Result = HeaderResult<H, E>;
+
+    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
+        if ctx.request().headers().has::<H>() {
+            Some(HeaderResult {
+                _marker: PhantomData,
+            })
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct HeaderResult<H, E> {
+    _marker: PhantomData<fn() -> (H, E)>,
+}
+
+impl<H: header::Header, E> EndpointResult for HeaderResult<H, E> {
+    type Item = H;
+    type Error = E;
+    type Future = FutureResult<H, Result<Self::Error, http::Error>>;
+
+    fn into_future(self, request: &mut Request) -> Self::Future {
+        ok(request.headers_mut().remove().expect(&format!(
+            "The value of header {} has already taken",
+            H::header_name()
+        )))
+    }
+}
+
+pub fn header_req<H: header::Header>() -> HeaderRequired<H> {
+    HeaderRequired {
+        _marker: PhantomData,
+    }
+}
+
+pub struct HeaderRequired<H> {
+    _marker: PhantomData<fn() -> H>,
+}
+
+impl<H> Copy for HeaderRequired<H> {}
+
+impl<H> Clone for HeaderRequired<H> {
+    #[inline]
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<H> fmt::Debug for HeaderRequired<H> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("HeaderRequired").finish()
+    }
+}
+
+impl<H: header::Header> Endpoint for HeaderRequired<H> {
     type Item = H;
     type Error = EmptyHeader<H>;
-    type Result = HeaderResult<H>;
+    type Result = HeaderRequiredResult<H>;
 
     fn apply(&self, _: &mut EndpointContext) -> Option<Self::Result> {
-        Some(HeaderResult {
+        Some(HeaderRequiredResult {
             _marker: PhantomData,
         })
     }
 }
 
 #[derive(Debug)]
-pub struct HeaderResult<H>
-where
-    H: header::Header + Clone,
-{
+pub struct HeaderRequiredResult<H> {
     _marker: PhantomData<fn() -> H>,
 }
 
-impl<H> EndpointResult for HeaderResult<H>
-where
-    H: header::Header + Clone,
-{
+impl<H: header::Header> EndpointResult for HeaderRequiredResult<H> {
     type Item = H;
     type Error = EmptyHeader<H>;
     type Future = FutureResult<H, Result<Self::Error, http::Error>>;
 
     fn into_future(self, request: &mut Request) -> Self::Future {
-        match request.header().cloned() {
+        match request.headers_mut().remove() {
             Some(h) => ok(h),
             None => err(Ok(EmptyHeader {
                 _marker: PhantomData,
             })),
         }
+    }
+}
+
+pub fn header_opt<H: header::Header, E>() -> HeaderOptional<H, E> {
+    HeaderOptional {
+        _marker: PhantomData,
+    }
+}
+
+pub struct HeaderOptional<H, E> {
+    _marker: PhantomData<fn() -> (H, E)>,
+}
+
+impl<H, E> Copy for HeaderOptional<H, E> {}
+
+impl<H, E> Clone for HeaderOptional<H, E> {
+    #[inline]
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<H, E> fmt::Debug for HeaderOptional<H, E> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("HeaderOpt").finish()
+    }
+}
+
+impl<H: header::Header, E> Endpoint for HeaderOptional<H, E> {
+    type Item = Option<H>;
+    type Error = E;
+    type Result = HeaderOptionalResult<H, E>;
+
+    fn apply(&self, _: &mut EndpointContext) -> Option<Self::Result> {
+        Some(HeaderOptionalResult {
+            _marker: PhantomData,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct HeaderOptionalResult<H, E> {
+    _marker: PhantomData<fn() -> (H, E)>,
+}
+
+impl<H: header::Header, E> EndpointResult for HeaderOptionalResult<H, E> {
+    type Item = Option<H>;
+    type Error = E;
+    type Future = FutureResult<Option<H>, Result<E, http::Error>>;
+
+    fn into_future(self, request: &mut Request) -> Self::Future {
+        ok(request.headers_mut().remove())
     }
 }
 
@@ -113,66 +212,5 @@ impl<H: header::Header> PartialEq for EmptyHeader<H> {
 impl<H: header::Header> IntoResponse for EmptyHeader<H> {
     fn into_response(self) -> Response {
         StdErrorResponseBuilder::bad_request(self).finish()
-    }
-}
-
-pub fn header_opt<H, E>() -> HeaderOpt<H, E>
-where
-    H: header::Header + Clone,
-{
-    HeaderOpt {
-        _marker: PhantomData,
-    }
-}
-
-pub struct HeaderOpt<H, E> {
-    _marker: PhantomData<fn() -> (H, E)>,
-}
-
-impl<H, E> Copy for HeaderOpt<H, E> {}
-
-impl<H, E> Clone for HeaderOpt<H, E> {
-    #[inline]
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl<H, E> fmt::Debug for HeaderOpt<H, E> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("HeaderOpt").finish()
-    }
-}
-
-impl<H, E> Endpoint for HeaderOpt<H, E>
-where
-    H: header::Header + Clone,
-{
-    type Item = Option<H>;
-    type Error = E;
-    type Result = HeaderOptResult<H, E>;
-
-    fn apply(&self, _: &mut EndpointContext) -> Option<Self::Result> {
-        Some(HeaderOptResult {
-            _marker: PhantomData,
-        })
-    }
-}
-
-#[derive(Debug)]
-pub struct HeaderOptResult<H, E> {
-    _marker: PhantomData<fn() -> (H, E)>,
-}
-
-impl<H, E> EndpointResult for HeaderOptResult<H, E>
-where
-    H: header::Header + Clone,
-{
-    type Item = Option<H>;
-    type Error = E;
-    type Future = FutureResult<Option<H>, Result<E, http::Error>>;
-
-    fn into_future(self, request: &mut Request) -> Self::Future {
-        ok(request.header().cloned())
     }
 }
