@@ -70,7 +70,7 @@ impl<'a> Iterator for Segments<'a> {
     }
 }
 
-/// The type of returned value of `Segments::next()`
+/// A path segment in HTTP requests
 #[derive(Debug, Copy, Clone)]
 pub struct Segment<'a> {
     s: &'a str,

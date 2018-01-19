@@ -1,4 +1,4 @@
-#![allow(missing_docs)]
+//! Components for parsing request path
 
 use std::borrow::Cow;
 use std::fmt;
@@ -8,6 +8,7 @@ use std::str::FromStr;
 use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
 use http::FromSegments;
 
+#[allow(missing_docs)]
 pub struct MatchPath<E> {
     kind: MatchPathKind,
     _marker: PhantomData<fn() -> E>,
@@ -30,8 +31,16 @@ impl<E> fmt::Debug for MatchPath<E> {
     }
 }
 
+impl<E> MatchPath<E> {
+    #[allow(missing_docs)]
+    pub fn kind(&self) -> &MatchPathKind {
+        &self.kind
+    }
+}
+
+#[allow(missing_docs)]
 #[derive(Debug, Clone, PartialEq)]
-enum MatchPathKind {
+pub enum MatchPathKind {
     Segments(Vec<String>),
     AllSegments,
 }
@@ -63,11 +72,13 @@ impl<E> Endpoint for MatchPath<E> {
     }
 }
 
+#[allow(missing_docs)]
 #[derive(Debug, PartialEq)]
 pub enum ParseMatchError {
     EmptyString,
 }
 
+#[allow(missing_docs)]
 pub fn match_<E>(s: &str) -> Result<MatchPath<E>, ParseMatchError> {
     let s = s.trim().trim_left_matches("/").trim_right_matches("/");
     let kind = if s == "*" {
@@ -110,12 +121,14 @@ impl<'a, E> IntoEndpoint<(), E> for Cow<'a, str> {
     }
 }
 
+#[allow(missing_docs)]
 pub fn path<T: FromStr>() -> ExtractPath<T> {
     ExtractPath {
         _marker: PhantomData,
     }
 }
 
+#[allow(missing_docs)]
 pub struct ExtractPath<T> {
     _marker: PhantomData<fn() -> T>,
 }
@@ -147,7 +160,8 @@ impl<T: FromStr> Endpoint for ExtractPath<T> {
     }
 }
 
-pub struct ExtractPathError<T: FromStr = ()>(pub T::Err);
+#[allow(missing_docs)]
+pub struct ExtractPathError<T: FromStr>(pub T::Err);
 
 impl<T: FromStr> fmt::Debug for ExtractPathError<T>
 where
@@ -189,12 +203,14 @@ where
     }
 }
 
+#[allow(missing_docs)]
 pub fn paths<T: FromSegments>() -> ExtractPaths<T> {
     ExtractPaths {
         _marker: PhantomData,
     }
 }
 
+#[allow(missing_docs)]
 pub struct ExtractPaths<T> {
     _marker: PhantomData<fn() -> T>,
 }
@@ -224,7 +240,8 @@ impl<T: FromSegments> Endpoint for ExtractPaths<T> {
     }
 }
 
-pub struct ExtractPathsError<T: FromSegments = ()>(pub T::Err);
+#[allow(missing_docs)]
+pub struct ExtractPathsError<T: FromSegments>(pub T::Err);
 
 impl<T: FromSegments> fmt::Debug for ExtractPathsError<T>
 where

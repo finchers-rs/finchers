@@ -1,8 +1,9 @@
-#![allow(missing_docs)]
+//! Components for checking the HTTP method
 
 use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
 use http::Method;
 
+#[allow(missing_docs)]
 #[derive(Debug, Clone)]
 pub struct MatchMethod<E: Endpoint> {
     method: Method,
@@ -23,6 +24,7 @@ impl<E: Endpoint> Endpoint for MatchMethod<E> {
     }
 }
 
+#[allow(missing_docs)]
 pub fn method<E, A, B>(method: Method, endpoint: E) -> MatchMethod<E::Endpoint>
 where
     E: IntoEndpoint<A, B>,
@@ -33,6 +35,7 @@ where
     }
 }
 
+#[allow(missing_docs)]
 #[inline]
 pub fn get<E, A, B>(endpoint: E) -> MatchMethod<E::Endpoint>
 where
@@ -41,6 +44,7 @@ where
     method(Method::Get, endpoint)
 }
 
+#[allow(missing_docs)]
 #[inline]
 pub fn post<E, A, B>(endpoint: E) -> MatchMethod<E::Endpoint>
 where
@@ -49,6 +53,7 @@ where
     method(Method::Post, endpoint)
 }
 
+#[allow(missing_docs)]
 #[inline]
 pub fn put<E, A, B>(endpoint: E) -> MatchMethod<E::Endpoint>
 where
@@ -57,6 +62,7 @@ where
     method(Method::Put, endpoint)
 }
 
+#[allow(missing_docs)]
 #[inline]
 pub fn delete<E, A, B>(endpoint: E) -> MatchMethod<E::Endpoint>
 where
@@ -65,6 +71,7 @@ where
     method(Method::Delete, endpoint)
 }
 
+#[allow(missing_docs)]
 #[inline]
 pub fn head<E, A, B>(endpoint: E) -> MatchMethod<E::Endpoint>
 where
@@ -73,6 +80,7 @@ where
     method(Method::Head, endpoint)
 }
 
+#[allow(missing_docs)]
 #[inline]
 pub fn patch<E, A, B>(endpoint: E) -> MatchMethod<E::Endpoint>
 where
@@ -81,6 +89,7 @@ where
     method(Method::Patch, endpoint)
 }
 
+#[allow(missing_docs)]
 #[inline]
 pub fn trace<E, A, B>(endpoint: E) -> MatchMethod<E::Endpoint>
 where
@@ -89,6 +98,7 @@ where
     method(Method::Trace, endpoint)
 }
 
+#[allow(missing_docs)]
 #[inline]
 pub fn connect<E, A, B>(endpoint: E) -> MatchMethod<E::Endpoint>
 where
@@ -97,6 +107,7 @@ where
     method(Method::Connect, endpoint)
 }
 
+#[allow(missing_docs)]
 #[inline]
 pub fn options<E, A, B>(endpoint: E) -> MatchMethod<E::Endpoint>
 where

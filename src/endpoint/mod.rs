@@ -36,3 +36,12 @@ pub use self::or::Or;
 pub use self::skip::Skip;
 pub use self::skip_all::{skip_all, SkipAll};
 pub use self::with::With;
+
+/// The "prelude" for building endpoints
+pub mod prelude {
+    pub use super::{Endpoint, IntoEndpoint};
+    pub use super::body::{body, body_stream};
+    pub use super::header::{header, header_opt, header_req};
+    pub use super::path::{match_, path, paths};
+    pub use super::method::{delete, get, head, patch, post, put};
+}
