@@ -24,11 +24,11 @@ pub(crate) mod with;
 
 // re-exports
 pub use self::body::{body, Body};
-pub use self::context::{EndpointContext, Segment, Segments};
+pub use self::context::EndpointContext;
 pub use self::endpoint::{Endpoint, EndpointResult, IntoEndpoint};
 #[doc(inline)]
 pub use self::method::MatchMethod;
-pub use self::path::{match_, path, paths, ExtractPath, ExtractPaths, FromSegments, MatchPath};
+pub use self::path::{match_, path, paths, ExtractPath, ExtractPaths, MatchPath};
 pub use self::stream::{body_stream, BodyStream};
 
 pub use self::and_then::AndThen;

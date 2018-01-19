@@ -5,47 +5,8 @@ use std::fmt;
 use std::error::Error;
 use std::marker::PhantomData;
 use std::str::FromStr;
-use endpoint::{Endpoint, EndpointContext, IntoEndpoint, Segments};
-
-pub trait FromSegments: Sized {
-    type Err;
-
-    fn from_segments(segments: &mut Segments) -> Result<Self, Self::Err>;
-}
-
-mod implementors {
-    use std::path::PathBuf;
-    use errors::NeverReturn;
-    use super::*;
-
-    impl<T: FromStr> FromSegments for Vec<T> {
-        type Err = T::Err;
-
-        fn from_segments(segments: &mut Segments) -> Result<Self, Self::Err> {
-            segments.into_iter().map(|s| s.parse()).collect()
-        }
-    }
-
-    impl FromSegments for String {
-        type Err = NeverReturn;
-
-        fn from_segments(segments: &mut Segments) -> Result<Self, Self::Err> {
-            let s = segments.remaining_path().to_owned();
-            let _ = segments.last();
-            Ok(s)
-        }
-    }
-
-    impl FromSegments for PathBuf {
-        type Err = NeverReturn;
-
-        fn from_segments(segments: &mut Segments) -> Result<Self, Self::Err> {
-            let s = PathBuf::from(segments.remaining_path());
-            let _ = segments.last();
-            Ok(s)
-        }
-    }
-}
+use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
+use http::FromSegments;
 
 pub struct MatchPath<E> {
     kind: MatchPathKind,
