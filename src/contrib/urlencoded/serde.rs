@@ -250,8 +250,31 @@ impl<T: DeserializeOwned> StdError for QueriesError<T> {
 }
 
 #[allow(missing_docs)]
-#[derive(Debug)]
-pub struct Form<F: DeserializeOwned>(pub F);
+#[derive(Debug, Default, Copy, Clone, PartialEq, PartialOrd, Eq, Hash)]
+pub struct Form<F>(pub F);
+
+impl<F> From<F> for Form<F> {
+    #[inline]
+    fn from(inner: F) -> Self {
+        Form(inner)
+    }
+}
+
+impl<F> ::std::ops::Deref for Form<F> {
+    type Target = F;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<F> ::std::ops::DerefMut for Form<F> {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 impl<F: DeserializeOwned> FromBody for Form<F> {
     type Error = Error;

@@ -1,5 +1,5 @@
 //! Support for parsing urlencoded queries and message body
-//! 
+//!
 //! Provided endpoins/utilities are as follows:
 //!
 //! * `Queries<T>` - Parses the query string in incoming request to the value of `T`, otherwise skips the current route.

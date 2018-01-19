@@ -36,8 +36,31 @@ impl IntoBody for Value {
 }
 
 /// Represents a JSON value
-#[derive(Debug)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, PartialOrd, Eq, Hash)]
 pub struct Json<T = Value>(pub T);
+
+impl<T> From<T> for Json<T> {
+    #[inline]
+    fn from(inner: T) -> Self {
+        Json(inner)
+    }
+}
+
+impl<T> ::std::ops::Deref for Json<T> {
+    type Target = T;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T> ::std::ops::DerefMut for Json<T> {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 impl<T: DeserializeOwned> FromBody for Json<T> {
     type Error = Error;
