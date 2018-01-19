@@ -49,6 +49,7 @@ impl<H: header::Header, E> Endpoint for Header<H, E> {
     }
 }
 
+#[doc(hidden)]
 #[derive(Debug)]
 pub struct HeaderResult<H, E> {
     _marker: PhantomData<fn() -> (H, E)>,
@@ -104,6 +105,7 @@ impl<H: header::Header> Endpoint for HeaderRequired<H> {
     }
 }
 
+#[doc(hidden)]
 #[derive(Debug)]
 pub struct HeaderRequiredResult<H> {
     _marker: PhantomData<fn() -> H>,
@@ -161,6 +163,7 @@ impl<H: header::Header, E> Endpoint for HeaderOptional<H, E> {
     }
 }
 
+#[doc(hidden)]
 #[derive(Debug)]
 pub struct HeaderOptionalResult<H, E> {
     _marker: PhantomData<fn() -> (H, E)>,

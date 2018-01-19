@@ -1,16 +1,14 @@
 //! `Endpoint` layer
 
+pub mod body;
 pub mod method;
 pub mod header;
-
-pub(crate) mod body;
-pub(crate) mod chain;
-pub(crate) mod context;
-pub(crate) mod endpoint;
-pub(crate) mod path;
-pub(crate) mod stream;
+pub mod path;
 
 pub(crate) mod and_then;
+pub(crate) mod context;
+pub(crate) mod chain;
+pub(crate) mod endpoint;
 pub(crate) mod err;
 pub(crate) mod join;
 pub(crate) mod join_all;
@@ -23,15 +21,9 @@ pub(crate) mod skip_all;
 pub(crate) mod with;
 
 // re-exports
-pub use self::body::{body, Body};
+pub use self::and_then::AndThen;
 pub use self::context::EndpointContext;
 pub use self::endpoint::{Endpoint, EndpointResult, IntoEndpoint};
-#[doc(inline)]
-pub use self::method::MatchMethod;
-pub use self::path::{match_, path, paths, ExtractPath, ExtractPaths, MatchPath};
-pub use self::stream::{body_stream, BodyStream};
-
-pub use self::and_then::AndThen;
 pub use self::err::{err, EndpointErr};
 pub use self::join::{Join, Join3, Join4, Join5};
 pub use self::join_all::{join_all, JoinAll};
