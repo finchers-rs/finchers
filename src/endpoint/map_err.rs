@@ -1,13 +1,12 @@
 #![allow(missing_docs)]
 
 use std::fmt;
-use std::marker::PhantomData;
 use std::sync::Arc;
 use futures::{Future, Poll};
 use http::{Error, Request};
 use super::{Endpoint, EndpointContext, EndpointResult, IntoEndpoint};
 
-pub fn map_err<E, F, R, A, B>(endpoint: E, f: F) -> MapErr<E::Endpoint, F, R>
+pub fn map_err<E, F, R, A, B>(endpoint: E, f: F) -> MapErr<E::Endpoint, F>
 where
     E: IntoEndpoint<A, B>,
     F: Fn(B) -> R,
@@ -15,21 +14,15 @@ where
     MapErr {
         endpoint: endpoint.into_endpoint(),
         f: Arc::new(f),
-        _marker: PhantomData,
     }
 }
 
-pub struct MapErr<E, F, R>
-where
-    E: Endpoint,
-    F: Fn(E::Error) -> R,
-{
+pub struct MapErr<E, F> {
     endpoint: E,
     f: Arc<F>,
-    _marker: PhantomData<fn() -> R>,
 }
 
-impl<E, F, R> Clone for MapErr<E, F, R>
+impl<E, F, R> Clone for MapErr<E, F>
 where
     E: Endpoint + Clone,
     F: Fn(E::Error) -> R,
@@ -38,12 +31,11 @@ where
         MapErr {
             endpoint: self.endpoint.clone(),
             f: self.f.clone(),
-            _marker: PhantomData,
         }
     }
 }
 
-impl<E, F, R> fmt::Debug for MapErr<E, F, R>
+impl<E, F, R> fmt::Debug for MapErr<E, F>
 where
     E: Endpoint + fmt::Debug,
     F: Fn(E::Error) -> R + fmt::Debug,
@@ -56,7 +48,7 @@ where
     }
 }
 
-impl<E, F, R> Endpoint for MapErr<E, F, R>
+impl<E, F, R> Endpoint for MapErr<E, F>
 where
     E: Endpoint,
     F: Fn(E::Error) -> R,

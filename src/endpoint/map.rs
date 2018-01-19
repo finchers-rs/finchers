@@ -1,13 +1,12 @@
 #![allow(missing_docs)]
 
 use std::fmt;
-use std::marker::PhantomData;
 use std::sync::Arc;
 use futures::{Future, Poll};
 use http::Request;
 use super::{Endpoint, EndpointContext, EndpointResult, IntoEndpoint};
 
-pub fn map<E, F, R, A, B>(endpoint: E, f: F) -> Map<E::Endpoint, F, R>
+pub fn map<E, F, R, A, B>(endpoint: E, f: F) -> Map<E::Endpoint, F>
 where
     E: IntoEndpoint<A, B>,
     F: Fn(A) -> R,
@@ -15,21 +14,15 @@ where
     Map {
         endpoint: endpoint.into_endpoint(),
         f: Arc::new(f),
-        _marker: PhantomData,
     }
 }
 
-pub struct Map<E, F, R>
-where
-    E: Endpoint,
-    F: Fn(E::Item) -> R,
-{
+pub struct Map<E, F> {
     endpoint: E,
     f: Arc<F>,
-    _marker: PhantomData<fn() -> R>,
 }
 
-impl<E, F, R> Clone for Map<E, F, R>
+impl<E, F, R> Clone for Map<E, F>
 where
     E: Endpoint + Clone,
     F: Fn(E::Item) -> R,
@@ -38,12 +31,11 @@ where
         Map {
             endpoint: self.endpoint.clone(),
             f: self.f.clone(),
-            _marker: PhantomData,
         }
     }
 }
 
-impl<E, F, R> fmt::Debug for Map<E, F, R>
+impl<E, F, R> fmt::Debug for Map<E, F>
 where
     E: Endpoint + fmt::Debug,
     F: Fn(E::Item) -> R + fmt::Debug,
@@ -56,7 +48,7 @@ where
     }
 }
 
-impl<E, F, R> Endpoint for Map<E, F, R>
+impl<E, F, R> Endpoint for Map<E, F>
 where
     E: Endpoint,
     F: Fn(E::Item) -> R,
