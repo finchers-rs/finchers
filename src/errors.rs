@@ -3,8 +3,7 @@
 use std::fmt;
 use std::error::Error;
 use std::str::FromStr;
-use endpoint::FromSegments;
-use http::{FromBody, IntoResponse, Response, StatusCode};
+use http::{FromBody, FromSegments, IntoResponse, Response, StatusCode};
 use http::header::{ContentLength, ContentType};
 
 #[allow(missing_docs)]

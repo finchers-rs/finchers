@@ -1,5 +1,5 @@
 use hyper::{self, Headers, HttpVersion, Method, Uri};
-use hyper::header::{self, Header};
+use hyper::header;
 use hyper::mime::Mime;
 use http_crate;
 
@@ -57,9 +57,14 @@ impl Request {
         self.uri.query()
     }
 
-    /// Return the reference of the header of HTTP request
-    pub fn header<H: Header>(&self) -> Option<&H> {
-        self.headers.get::<H>()
+    /// Returns the shared reference of header map
+    pub fn headers(&self) -> &Headers {
+        &self.headers
+    }
+
+    /// Returns the mutable reference of header map
+    pub fn headers_mut(&mut self) -> &mut Headers {
+        &mut self.headers
     }
 
     #[allow(missing_docs)]
@@ -69,6 +74,6 @@ impl Request {
 
     #[allow(missing_docs)]
     pub fn media_type(&self) -> Option<&Mime> {
-        self.header().map(|&header::ContentType(ref m)| m)
+        self.headers.get().map(|&header::ContentType(ref m)| m)
     }
 }

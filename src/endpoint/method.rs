@@ -15,7 +15,7 @@ impl<E: Endpoint> Endpoint for MatchMethod<E> {
     type Result = E::Result;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
-        if *ctx.request().method() == self.method {
+        if *ctx.method() == self.method {
             self.endpoint.apply(ctx)
         } else {
             None

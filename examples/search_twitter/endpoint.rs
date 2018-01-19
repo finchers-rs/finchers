@@ -71,7 +71,7 @@ macro_rules! build_endpoint {
         use endpoint::EndpointError;
         use finchers::Endpoint;
         use finchers::contrib::urlencoded::serde::{queries, Form};
-        use finchers::endpoint::body;
+        use finchers::endpoint::body::body;
         use finchers::endpoint::method::{get, post};
 
         endpoint!("search").with(endpoint![
