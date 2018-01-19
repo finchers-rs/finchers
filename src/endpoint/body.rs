@@ -1,4 +1,18 @@
-#![allow(missing_docs)]
+//! Components for parsing an HTTP request body.
+//!
+//! The key component is an endpoint `Body<T>`.
+//! It will check if the incoming request is valid and start to receive
+//! the request body in asynchronous mannar, finally do conversion from
+//! received data into the value of `T`.
+//!
+//! The actual parsing of request body are in implementions of the trait
+//! `FromBody`.
+//! See [the documentation of `FromBody`][from_body] for details.
+//!
+//! If you would like to take the *raw* instance of hyper's body stream,
+//! use `BodyStream` instead.
+//!
+//! [from_body]: ../../http/trait.FromBody.html
 
 use std::fmt;
 use std::error::Error;
@@ -10,12 +24,14 @@ use endpoint::{Endpoint, EndpointContext, EndpointResult};
 use http::{self, FromBody, Request};
 use http::header::ContentLength;
 
+/// Creates an endpoint for parsing the incoming request body into the value of `T`
 pub fn body<T: FromBody>() -> Body<T> {
     Body {
         _marker: PhantomData,
     }
 }
 
+#[allow(missing_docs)]
 pub struct Body<T> {
     _marker: PhantomData<fn() -> T>,
 }
@@ -118,9 +134,11 @@ impl<T: FromBody> Future for BodyFuture<T> {
     }
 }
 
-#[allow(missing_docs)]
-pub enum BodyError<T: FromBody = ()> {
+/// The error type returned from `Body<T>`
+pub enum BodyError<T: FromBody> {
+    /// Something wrong in the incoming request
     InvalidRequest,
+    /// An error during parsing the received body
     FromBody(T::Error),
 }
 
@@ -130,7 +148,7 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            BodyError::InvalidRequest => f.debug_struct("BadRequest").finish(),
+            BodyError::InvalidRequest => f.debug_struct("InvalidRequest").finish(),
             BodyError::FromBody(ref e) => e.fmt(f),
         }
     }
@@ -180,12 +198,14 @@ where
     }
 }
 
+/// Creates an endpoint for taking the instance of `hyper::Body`
 pub fn body_stream<E>() -> BodyStream<E> {
     BodyStream {
         _marker: PhantomData,
     }
 }
 
+#[allow(missing_docs)]
 pub struct BodyStream<E> {
     _marker: PhantomData<fn() -> E>,
 }

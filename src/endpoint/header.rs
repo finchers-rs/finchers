@@ -1,4 +1,10 @@
-#![allow(missing_docs)]
+//! Components for accessing of HTTP headers
+//!
+//! There are three endpoint for accessing the value of HTTP header:
+//!
+//! * `Header<H, E>` - Returns the value of `H` from the header map. If the value of `H` is not found, then skipping the current route.
+//! * `HeaderRequired<H>` - Similar to `Header`, but always matches and returns an error if `H` is not found.
+//! * `HeaderOptional<H, E>` - Similar to `Header`, but always matches and returns a `None` if `H` is not found.
 
 use std::fmt;
 use std::error::Error;
@@ -8,12 +14,14 @@ use endpoint::{Endpoint, EndpointContext, EndpointResult};
 use errors::StdErrorResponseBuilder;
 use http::{self, header, IntoResponse, Request, Response};
 
+#[allow(missing_docs)]
 pub fn header<H: header::Header, E>() -> Header<H, E> {
     Header {
         _marker: PhantomData,
     }
 }
 
+#[allow(missing_docs)]
 pub struct Header<H, E> {
     _marker: PhantomData<fn() -> (H, E)>,
 }
@@ -68,12 +76,14 @@ impl<H: header::Header, E> EndpointResult for HeaderResult<H, E> {
     }
 }
 
+#[allow(missing_docs)]
 pub fn header_req<H: header::Header>() -> HeaderRequired<H> {
     HeaderRequired {
         _marker: PhantomData,
     }
 }
 
+#[allow(missing_docs)]
 pub struct HeaderRequired<H> {
     _marker: PhantomData<fn() -> H>,
 }
@@ -126,12 +136,14 @@ impl<H: header::Header> EndpointResult for HeaderRequiredResult<H> {
     }
 }
 
+#[allow(missing_docs)]
 pub fn header_opt<H: header::Header, E>() -> HeaderOptional<H, E> {
     HeaderOptional {
         _marker: PhantomData,
     }
 }
 
+#[allow(missing_docs)]
 pub struct HeaderOptional<H, E> {
     _marker: PhantomData<fn() -> (H, E)>,
 }
