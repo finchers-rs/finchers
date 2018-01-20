@@ -405,6 +405,15 @@ pub struct FormBody<T> {
     inner: endpoint::body::Body<Form<T>>,
 }
 
+impl<T> Copy for FormBody<T> {}
+
+impl<T> Clone for FormBody<T> {
+    #[inline]
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
 impl<T> fmt::Debug for FormBody<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_tuple("FormBody").field(&self.inner).finish()

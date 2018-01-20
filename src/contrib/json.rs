@@ -109,6 +109,15 @@ pub struct JsonBody<T> {
     inner: endpoint::body::Body<Json<T>>,
 }
 
+impl<T> Copy for JsonBody<T> {}
+
+impl<T> Clone for JsonBody<T> {
+    #[inline]
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
 impl<T> fmt::Debug for JsonBody<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_tuple("JsonBody").field(&self.inner).finish()
