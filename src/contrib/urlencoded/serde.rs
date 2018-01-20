@@ -6,11 +6,11 @@ extern crate serde_urlencoded;
 use std::fmt;
 use std::error::Error as StdError;
 use std::marker::PhantomData;
-use futures::IntoFuture;
-use futures::future::FutureResult;
+use futures::future::{self, Future, FutureResult, IntoFuture};
 
 use self::serde::de::DeserializeOwned;
-use endpoint::{Endpoint, EndpointContext, EndpointResult};
+use endpoint::{self, Endpoint, EndpointContext, EndpointResult};
+use endpoint::body::BodyError;
 use http::{self, mime, FromBody, Request};
 
 pub use self::serde_urlencoded::de::Error;
@@ -286,5 +286,51 @@ impl<F: DeserializeOwned> FromBody for Form<F> {
 
     fn from_body(body: Vec<u8>) -> Result<Self, Self::Error> {
         self::serde_urlencoded::from_bytes(&body).map(Form)
+    }
+}
+
+#[allow(missing_docs)]
+pub fn form_body<T: DeserializeOwned>() -> FormBody<T> {
+    FormBody {
+        inner: endpoint::body::body(),
+    }
+}
+
+#[allow(missing_docs)]
+pub struct FormBody<T> {
+    inner: endpoint::body::Body<Form<T>>,
+}
+
+impl<T> fmt::Debug for FormBody<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_tuple("FormBody").field(&self.inner).finish()
+    }
+}
+
+impl<T: DeserializeOwned> Endpoint for FormBody<T> {
+    type Item = T;
+    type Error = BodyError<Form<T>>;
+    type Result = FormBodyResult<T>;
+
+    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
+        Some(FormBodyResult {
+            inner: try_opt!(self.inner.apply(ctx)),
+        })
+    }
+}
+
+#[doc(hidden)]
+#[allow(missing_debug_implementations)]
+pub struct FormBodyResult<T> {
+    inner: endpoint::body::BodyResult<Form<T>>,
+}
+
+impl<T: DeserializeOwned> EndpointResult for FormBodyResult<T> {
+    type Item = T;
+    type Error = BodyError<Form<T>>;
+    type Future = future::Map<endpoint::body::BodyFuture<Form<T>>, fn(Form<T>) -> T>;
+
+    fn into_future(self, request: &mut Request) -> Self::Future {
+        self.inner.into_future(request).map(|Form(body)| body)
     }
 }
