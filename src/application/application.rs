@@ -4,10 +4,10 @@ use hyper;
 use hyper::server::{NewService, Service};
 
 use endpoint::Endpoint;
-use handler::Handler;
+use handler::DefaultHandler;
 use http::IntoResponse;
-use service::FinchersService;
 use responder::DefaultResponder;
+use service::{EndpointServiceExt, FinchersService};
 
 use super::{Http, Tcp, TcpBackend, Worker};
 use super::backend::DefaultBackend;
@@ -31,7 +31,7 @@ where
     B: TcpBackend,
 {
     /// Create a new launcher from given service and TCP backend.
-    pub fn from_service(new_service: S, backend: B) -> Self {
+    pub fn new(new_service: S, backend: B) -> Self {
         Application {
             new_service,
             http: Http::default(),
@@ -68,25 +68,30 @@ where
     }
 }
 
-impl<E, H> Application<ConstService<FinchersService<E, Arc<H>, DefaultResponder>>, DefaultBackend>
+impl<S> Application<ConstService<S>, DefaultBackend>
 where
-    E: Endpoint,
-    H: Handler<E::Item, Error = E::Error>,
-    H::Item: IntoResponse,
-    H::Error: IntoResponse,
+    S: Service<Request = hyper::Request, Response = hyper::Response, Error = hyper::Error>,
 {
     #[allow(missing_docs)]
-    pub fn new(endpoint: E, handler: H) -> Self {
-        Self::from_service(
+    pub fn from_service(service: S) -> Self {
+        Self::new(
             ConstService {
-                service: Arc::new(FinchersService::new(
-                    endpoint,
-                    Arc::new(handler),
-                    Default::default(),
-                )),
+                service: Arc::new(service),
             },
             Default::default(),
         )
+    }
+}
+
+impl<E> Application<ConstService<FinchersService<E, DefaultHandler<E::Error>, DefaultResponder>>, DefaultBackend>
+where
+    E: Endpoint,
+    E::Item: IntoResponse,
+    E::Error: IntoResponse,
+{
+    #[allow(missing_docs)]
+    pub fn from_endpoint(endpoint: E) -> Self {
+        Self::from_service(endpoint.into_service())
     }
 }
 

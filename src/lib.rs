@@ -42,3 +42,6 @@ pub use handler::Handler;
 
 #[doc(inline)]
 pub use responder::Responder;
+
+#[doc(inline)]
+pub use service::EndpointServiceExt;

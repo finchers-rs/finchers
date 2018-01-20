@@ -5,9 +5,11 @@ use futures::{Future, IntoFuture, Poll};
 use futures::Async::*;
 use hyper::{Error, Request, Response};
 use hyper::server::Service;
+
 use endpoint::{Endpoint, EndpointResult};
-use handler::Handler;
-use responder::Responder;
+use http::IntoResponse;
+use handler::{DefaultHandler, Handler};
+use responder::{DefaultResponder, Responder};
 
 /// An HTTP service which wraps a `Endpoint`, `Handler` and `Responder`.
 #[derive(Debug)]
@@ -172,4 +174,44 @@ where
         self.responder.after_respond(&mut response);
         Ok(Ready(response))
     }
+}
+
+#[allow(missing_docs)]
+pub trait EndpointServiceExt: Endpoint + Sized + sealed::Sealed
+where
+    Self::Item: IntoResponse,
+    Self::Error: IntoResponse,
+{
+    fn into_service(self) -> FinchersService<Self, DefaultHandler<Self::Error>, DefaultResponder>;
+
+    fn with_handler<H>(self, handler: H) -> FinchersService<Self, H, DefaultResponder>
+    where
+        H: Handler<Self::Item, Error = Self::Error> + Clone,
+        H::Item: IntoResponse,
+        H::Error: IntoResponse;
+}
+
+impl<E: Endpoint> EndpointServiceExt for E
+where
+    E::Item: IntoResponse,
+    E::Error: IntoResponse,
+{
+    fn into_service(self) -> FinchersService<Self, DefaultHandler<Self::Error>, DefaultResponder> {
+        FinchersService::new(self, DefaultHandler::default(), Default::default())
+    }
+
+    fn with_handler<H>(self, handler: H) -> FinchersService<Self, H, DefaultResponder>
+    where
+        H: Handler<Self::Item, Error = Self::Error> + Clone,
+        H::Item: IntoResponse,
+        H::Error: IntoResponse,
+    {
+        FinchersService::new(self, handler, Default::default())
+    }
+}
+
+mod sealed {
+    use endpoint::Endpoint;
+    pub trait Sealed {}
+    impl<E: Endpoint> Sealed for E {}
 }

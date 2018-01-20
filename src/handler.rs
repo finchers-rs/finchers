@@ -58,17 +58,34 @@ where
     }
 }
 
-pub struct DefaultHandler<T, E> {
-    _marker: PhantomData<fn() -> (T, E)>,
+pub struct DefaultHandler<E> {
+    _marker: PhantomData<fn() -> E>,
 }
 
-impl<T, E> fmt::Debug for DefaultHandler<T, E> {
+impl<E> Copy for DefaultHandler<E> {}
+
+impl<E> Clone for DefaultHandler<E> {
+    #[inline]
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<E> fmt::Debug for DefaultHandler<E> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("DefaultHandler").finish()
     }
 }
 
-impl<T, E> Handler<T> for DefaultHandler<T, E> {
+impl<E> Default for DefaultHandler<E> {
+    fn default() -> Self {
+        DefaultHandler {
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<T, E> Handler<T> for DefaultHandler<E> {
     type Item = T;
     type Error = E;
     type Result = Result<Option<T>, E>;
