@@ -5,7 +5,6 @@ pub mod method;
 pub mod header;
 pub mod path;
 
-pub(crate) mod adapt;
 pub(crate) mod and_then;
 pub(crate) mod context;
 pub(crate) mod chain;
@@ -13,6 +12,7 @@ pub(crate) mod endpoint;
 pub(crate) mod err;
 pub(crate) mod from_err;
 pub(crate) mod from_ok;
+pub(crate) mod from_ok_err;
 pub(crate) mod join;
 pub(crate) mod join_all;
 pub(crate) mod map;
@@ -24,13 +24,13 @@ pub(crate) mod skip_all;
 pub(crate) mod with;
 
 // re-exports
-pub use self::adapt::Adapt;
 pub use self::and_then::AndThen;
 pub use self::context::EndpointContext;
 pub use self::endpoint::{Endpoint, EndpointResult, IntoEndpoint};
 pub use self::err::{err, EndpointErr};
 pub use self::from_err::FromErr;
 pub use self::from_ok::FromOk;
+pub use self::from_ok_err::FromOkErr;
 pub use self::join::{Join, Join3, Join4, Join5};
 pub use self::join_all::{join_all, JoinAll};
 pub use self::map::Map;

@@ -100,13 +100,13 @@ pub trait Endpoint {
     }
 
     #[allow(missing_docs)]
-    fn adapt<T, E>(self) -> Adapt<Self, T, E>
+    fn from_ok_err<T, E>(self) -> FromOkErr<Self, T, E>
     where
         Self: Sized,
         T: From<Self::Item>,
         E: From<Self::Error>,
     {
-        adapt::adapt(self)
+        from_ok_err::from_ok_err(self)
     }
 
     #[allow(missing_docs)]
