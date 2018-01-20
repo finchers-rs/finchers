@@ -170,8 +170,7 @@ where
 impl<E, H> Application<ConstService<FinchersService<E, Arc<H>, DefaultResponder>>, backend::DefaultBackend>
 where
     E: Endpoint,
-    H: Handler<E::Item>,
-    E::Error: IntoResponse,
+    H: Handler<E::Item, Error = E::Error>,
     H::Item: IntoResponse,
     H::Error: IntoResponse,
 {

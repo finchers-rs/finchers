@@ -13,6 +13,7 @@ extern crate tokio_core;
 mod config;
 #[macro_use]
 mod endpoint;
+mod error;
 mod handler;
 mod responder;
 mod server;

@@ -1,85 +1,61 @@
 //! `Responder` layer
 
-use std::fmt;
-use std::error;
 use std::rc::Rc;
 use std::sync::Arc;
 use http::{header, IntoResponse, Response, StatusCode};
 
 #[allow(missing_docs)]
-#[derive(Debug)]
-pub enum Error<E, H> {
-    NoRoute,
-    Endpoint(E),
-    Handler(H),
-}
+pub trait Responder<T, E> {
+    fn respond_ok(&self, T) -> Option<Response>;
 
-impl<E: fmt::Display, H: fmt::Display> fmt::Display for Error<E, H> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Error::NoRoute => f.write_str("no route"),
-            Error::Endpoint(ref e) => e.fmt(f),
-            Error::Handler(ref e) => e.fmt(f),
-        }
-    }
-}
+    fn respond_err(&self, E) -> Response;
 
-impl<E: error::Error, H: error::Error> error::Error for Error<E, H> {
-    fn description(&self) -> &str {
-        match *self {
-            Error::NoRoute => "no route",
-            Error::Endpoint(ref e) => e.description(),
-            Error::Handler(ref e) => e.description(),
-        }
+    fn respond_noroute(&self) -> Response {
+        Response::new().with_status(StatusCode::NotFound)
     }
 
-    fn cause(&self) -> Option<&error::Error> {
-        match *self {
-            Error::NoRoute => None,
-            Error::Endpoint(ref e) => Some(e),
-            Error::Handler(ref e) => Some(e),
-        }
-    }
+    fn after_respond(&self, &mut Response) {}
 }
 
-#[allow(missing_docs)]
-pub trait Responder<T, E, H> {
-    type Response: IntoResponse;
-
-    fn respond(&self, Result<T, Error<E, H>>) -> Self::Response;
-}
-
-impl<F, T, E, H, R> Responder<T, E, H> for F
+impl<R, T, E> Responder<T, E> for Rc<R>
 where
-    F: Fn(Result<T, Error<E, H>>) -> R,
-    R: IntoResponse,
+    R: Responder<T, E>,
 {
-    type Response = R;
+    fn respond_ok(&self, input: T) -> Option<Response> {
+        (**self).respond_ok(input)
+    }
 
-    fn respond(&self, input: Result<T, Error<E, H>>) -> Self::Response {
-        (*self)(input)
+    fn respond_err(&self, err: E) -> Response {
+        (**self).respond_err(err)
+    }
+
+    fn respond_noroute(&self) -> Response {
+        (**self).respond_noroute()
+    }
+
+    fn after_respond(&self, response: &mut Response) {
+        (**self).after_respond(response)
     }
 }
 
-impl<R, T, E, H> Responder<T, E, H> for Rc<R>
+impl<R, T, E> Responder<T, E> for Arc<R>
 where
-    R: Responder<T, E, H>,
+    R: Responder<T, E>,
 {
-    type Response = R::Response;
-
-    fn respond(&self, input: Result<T, Error<E, H>>) -> Self::Response {
-        (**self).respond(input)
+    fn respond_ok(&self, input: T) -> Option<Response> {
+        (**self).respond_ok(input)
     }
-}
 
-impl<R, T, E, H> Responder<T, E, H> for Arc<R>
-where
-    R: Responder<T, E, H>,
-{
-    type Response = R::Response;
+    fn respond_err(&self, err: E) -> Response {
+        (**self).respond_err(err)
+    }
 
-    fn respond(&self, input: Result<T, Error<E, H>>) -> Self::Response {
-        (**self).respond(input)
+    fn respond_noroute(&self) -> Response {
+        (**self).respond_noroute()
+    }
+
+    fn after_respond(&self, response: &mut Response) {
+        (**self).after_respond(response)
     }
 }
 
@@ -87,26 +63,26 @@ where
 #[derive(Copy, Clone, Debug, Default)]
 pub struct DefaultResponder;
 
-impl<T, E, P> Responder<T, E, P> for DefaultResponder
+impl<T, E> Responder<T, E> for DefaultResponder
 where
     T: IntoResponse,
     E: IntoResponse,
-    P: IntoResponse,
 {
-    type Response = Response;
+    fn respond_ok(&self, input: T) -> Option<Response> {
+        Some(input.into_response())
+    }
 
-    fn respond(&self, input: Result<T, Error<E, P>>) -> Self::Response {
-        let mut response = match input {
-            Ok(item) => item.into_response(),
-            Err(Error::NoRoute) => Response::new().with_status(StatusCode::NotFound),
-            Err(Error::Endpoint(e)) => e.into_response(),
-            Err(Error::Handler(e)) => e.into_response(),
-        };
+    fn respond_err(&self, err: E) -> Response {
+        err.into_response()
+    }
 
+    fn respond_noroute(&self) -> Response {
+        Response::new().with_status(StatusCode::NotFound)
+    }
+
+    fn after_respond(&self, response: &mut Response) {
         if !response.headers().has::<header::Server>() {
             response.headers_mut().set(header::Server::new("Finchers"));
         }
-
-        response
     }
 }
