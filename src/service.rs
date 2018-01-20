@@ -2,7 +2,7 @@
 
 use std::{io, mem};
 use std::sync::Arc;
-use futures::{Future, Poll};
+use futures::{Future, IntoFuture, Poll};
 use futures::Async::*;
 use hyper::{Error, Request, Response};
 use hyper::server::{NewService, Service};
@@ -112,7 +112,7 @@ where
         handler: H,
     },
     PollingOutput {
-        output: H::Future,
+        output: <H::Result as IntoFuture>::Future,
     },
     Done,
 }
@@ -131,7 +131,7 @@ where
                 PollingInput { mut input, handler } => match input.poll() {
                     Ok(Ready(input)) => {
                         self.state = PollingOutput {
-                            output: handler.call(input),
+                            output: IntoFuture::into_future(handler.call(input)),
                         };
                         continue;
                     }
@@ -143,7 +143,8 @@ where
                     Err(Err(err)) => break Err(err),
                 },
                 PollingOutput { mut output } => match output.poll() {
-                    Ok(Ready(item)) => break Ok(Ready(Ok(item))),
+                    Ok(Ready(Some(item))) => break Ok(Ready(Ok(item))),
+                    Ok(Ready(None)) => break Ok(Ready(Err(responder::Error::NoRoute))),
                     Ok(NotReady) => {
                         self.state = PollingOutput { output };
                         break Ok(NotReady);

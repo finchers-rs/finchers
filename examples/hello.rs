@@ -3,8 +3,8 @@ extern crate finchers;
 use finchers::Application;
 use finchers::endpoint::ok;
 
-fn handler<T>(value: T) -> Result<T, ()> {
-    Ok(value)
+fn handler<T>(value: T) -> Result<Option<T>, ()> {
+    Ok(Some(value))
 }
 
 fn main() {

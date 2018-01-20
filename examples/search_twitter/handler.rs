@@ -38,9 +38,9 @@ impl SearchTwitterHandler {
 impl Handler<SearchTwitterParam> for SearchTwitterHandler {
     type Item = SearchTwitterItem;
     type Error = SearchTwitterError;
-    type Future = SearchTwitterFuture;
+    type Result = SearchTwitterFuture;
 
-    fn call(&self, param: SearchTwitterParam) -> Self::Future {
+    fn call(&self, param: SearchTwitterParam) -> Self::Result {
         let search = search::search(param.query)
             .result_type(param.result_type.unwrap_or(ResultType::Recent))
             .count(param.count.unwrap_or(20));
@@ -55,7 +55,7 @@ pub struct SearchTwitterFuture {
 }
 
 impl Future for SearchTwitterFuture {
-    type Item = SearchTwitterItem;
+    type Item = Option<SearchTwitterItem>;
     type Error = SearchTwitterError;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
@@ -77,6 +77,6 @@ impl Future for SearchTwitterFuture {
             })
             .collect();
 
-        Ok(SearchTwitterItem { statuses }.into())
+        Ok(Some(SearchTwitterItem { statuses }).into())
     }
 }
