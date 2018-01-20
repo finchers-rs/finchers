@@ -1,11 +1,10 @@
 //! Components of lower-level HTTP services
 
-use std::{io, mem};
-use std::sync::Arc;
+use std::mem;
 use futures::{Future, IntoFuture, Poll};
 use futures::Async::*;
 use hyper::{Error, Request, Response};
-use hyper::server::{NewService, Service};
+use hyper::server::Service;
 use endpoint::{Endpoint, EndpointResult};
 use handler::Handler;
 use responder::Responder;
@@ -172,37 +171,5 @@ where
         };
         self.responder.after_respond(&mut response);
         Ok(Ready(response))
-    }
-}
-
-#[allow(missing_docs)]
-pub fn const_service<S: Service>(service: S) -> ConstService<S> {
-    ConstService {
-        service: Arc::new(service),
-    }
-}
-
-#[allow(missing_docs)]
-#[derive(Debug)]
-pub struct ConstService<S: Service> {
-    service: Arc<S>,
-}
-
-impl<S: Service> Clone for ConstService<S> {
-    fn clone(&self) -> Self {
-        ConstService {
-            service: self.service.clone(),
-        }
-    }
-}
-
-impl<S: Service> NewService for ConstService<S> {
-    type Request = S::Request;
-    type Response = S::Response;
-    type Error = S::Error;
-    type Instance = Arc<S>;
-
-    fn new_service(&self) -> io::Result<Self::Instance> {
-        Ok(self.service.clone())
     }
 }
