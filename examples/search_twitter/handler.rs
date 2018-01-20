@@ -6,6 +6,7 @@ use egg_mode::search::ResultType;
 use tokio_core::reactor::Handle;
 
 use endpoint::SearchTwitterParam;
+use error::SearchTwitterError;
 
 #[derive(Debug, Serialize)]
 pub struct Status {
@@ -19,9 +20,6 @@ pub struct Status {
 pub struct SearchTwitterItem {
     pub statuses: Vec<Status>,
 }
-
-#[derive(Debug)]
-pub struct SearchTwitterError(pub egg_mode::error::Error);
 
 #[derive(Debug, Clone)]
 pub struct SearchTwitterHandler {
@@ -38,9 +36,9 @@ impl SearchTwitterHandler {
 impl Handler<SearchTwitterParam> for SearchTwitterHandler {
     type Item = SearchTwitterItem;
     type Error = SearchTwitterError;
-    type Future = SearchTwitterFuture;
+    type Result = SearchTwitterFuture;
 
-    fn call(&self, param: SearchTwitterParam) -> Self::Future {
+    fn call(&self, param: SearchTwitterParam) -> Self::Result {
         let search = search::search(param.query)
             .result_type(param.result_type.unwrap_or(ResultType::Recent))
             .count(param.count.unwrap_or(20));
@@ -55,13 +53,13 @@ pub struct SearchTwitterFuture {
 }
 
 impl Future for SearchTwitterFuture {
-    type Item = SearchTwitterItem;
+    type Item = Option<SearchTwitterItem>;
     type Error = SearchTwitterError;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         let egg_mode::Response {
             response: search, ..
-        } = try_ready!(self.inner.poll().map_err(SearchTwitterError));
+        } = try_ready!(self.inner.poll().map_err(SearchTwitterError::Twitter));
 
         let statuses = search
             .statuses
@@ -77,6 +75,6 @@ impl Future for SearchTwitterFuture {
             })
             .collect();
 
-        Ok(SearchTwitterItem { statuses }.into())
+        Ok(Some(SearchTwitterItem { statuses }).into())
     }
 }

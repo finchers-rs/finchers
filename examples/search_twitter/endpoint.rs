@@ -1,4 +1,3 @@
-use std::error::Error;
 use egg_mode::search::ResultType;
 
 #[derive(Debug, Deserialize)]
@@ -56,19 +55,12 @@ mod parse {
     }
 }
 
-pub struct EndpointError(pub Box<Error>);
-
-impl<E: Error + 'static> From<E> for EndpointError {
-    fn from(error: E) -> Self {
-        EndpointError(Box::new(error))
-    }
-}
-
 // TODO: use impl Trait
 #[macro_export]
 macro_rules! build_endpoint {
     () => {{
-        use endpoint::{EndpointError, SearchTwitterParam};
+        use endpoint::SearchTwitterParam;
+        use error::SearchTwitterError;
         use finchers::endpoint::prelude::*;
         use finchers::contrib::urlencoded::serde::{queries, Form};
 
@@ -76,6 +68,6 @@ macro_rules! build_endpoint {
             get(queries()),
             post(body()).map(|Form(queries)| queries)
         ])
-        .assert_types::<SearchTwitterParam, EndpointError>()
+        .assert_types::<SearchTwitterParam, SearchTwitterError>()
     }};
 }

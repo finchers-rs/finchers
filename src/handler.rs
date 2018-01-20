@@ -1,8 +1,10 @@
 #![allow(missing_docs)]
 
+use std::fmt;
+use std::marker::PhantomData;
 use std::rc::Rc;
 use std::sync::Arc;
-use futures::{Future, IntoFuture};
+use futures::IntoFuture;
 
 /// A trait implemented by *server-side* processes
 pub trait Handler<In> {
@@ -11,22 +13,22 @@ pub trait Handler<In> {
     /// The type of values *on failure*
     type Error;
     /// The type of value returned from `call`
-    type Future: Future<Item = Self::Item, Error = Self::Error>;
+    type Result: IntoFuture<Item = Option<Self::Item>, Error = Self::Error>;
 
-    fn call(&self, input: In) -> Self::Future;
+    fn call(&self, input: In) -> Self::Result;
 }
 
-impl<F, In, R> Handler<In> for F
+impl<F, In, R, T> Handler<In> for F
 where
     F: Fn(In) -> R,
-    R: IntoFuture,
+    R: IntoFuture<Item = Option<T>>,
 {
-    type Item = R::Item;
+    type Item = T;
     type Error = R::Error;
-    type Future = R::Future;
+    type Result = R;
 
-    fn call(&self, input: In) -> Self::Future {
-        (*self)(input).into_future()
+    fn call(&self, input: In) -> Self::Result {
+        (*self)(input)
     }
 }
 
@@ -36,9 +38,9 @@ where
 {
     type Item = H::Item;
     type Error = H::Error;
-    type Future = H::Future;
+    type Result = H::Result;
 
-    fn call(&self, input: In) -> Self::Future {
+    fn call(&self, input: In) -> Self::Result {
         (**self).call(input)
     }
 }
@@ -49,9 +51,47 @@ where
 {
     type Item = H::Item;
     type Error = H::Error;
-    type Future = H::Future;
+    type Result = H::Result;
 
-    fn call(&self, input: In) -> Self::Future {
+    fn call(&self, input: In) -> Self::Result {
         (**self).call(input)
+    }
+}
+
+pub struct DefaultHandler<E> {
+    _marker: PhantomData<fn() -> E>,
+}
+
+impl<E> Copy for DefaultHandler<E> {}
+
+impl<E> Clone for DefaultHandler<E> {
+    #[inline]
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<E> fmt::Debug for DefaultHandler<E> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("DefaultHandler").finish()
+    }
+}
+
+impl<E> Default for DefaultHandler<E> {
+    fn default() -> Self {
+        DefaultHandler {
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<T, E> Handler<T> for DefaultHandler<E> {
+    type Item = T;
+    type Error = E;
+    type Result = Result<Option<T>, E>;
+
+    #[inline]
+    fn call(&self, input: T) -> Self::Result {
+        Ok(Some(input))
     }
 }
