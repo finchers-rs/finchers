@@ -244,3 +244,11 @@ where
         join_all(self)
     }
 }
+
+/// A shortcut of `IntoEndpoint::into_endpoint()`
+pub fn endpoint<E, A, B>(endpoint: E) -> E::Endpoint
+where
+    E: IntoEndpoint<A, B>,
+{
+    endpoint.into_endpoint()
+}

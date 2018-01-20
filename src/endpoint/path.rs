@@ -286,6 +286,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use endpoint::{endpoint, Endpoint};
     use http::HttpRequest;
     use test::EndpointTestExt;
 
@@ -330,7 +331,7 @@ mod tests {
     fn test_endpoint_match_path() {
         let request = HttpRequest::get("/foo").body(Default::default()).unwrap();
         assert_eq!(
-            endpoint!("foo").assert_types::<_, ()>().run(request),
+            endpoint("foo").assert_types::<_, ()>().run(request),
             Some(Ok(())),
         );
     }
@@ -339,7 +340,7 @@ mod tests {
     fn test_endpoint_reject_path() {
         let request = HttpRequest::get("/foo").body(Default::default()).unwrap();
         assert!(
-            endpoint!("bar")
+            endpoint("bar")
                 .assert_types::<_, ()>()
                 .run(request)
                 .is_none()
@@ -352,7 +353,7 @@ mod tests {
             .body(Default::default())
             .unwrap();
         assert_eq!(
-            endpoint!("/foo/bar").assert_types::<_, ()>().run(request),
+            endpoint("/foo/bar").assert_types::<_, ()>().run(request),
             Some(Ok(()))
         );
     }
@@ -363,7 +364,7 @@ mod tests {
             .body(Default::default())
             .unwrap();
         assert!(
-            endpoint!("/foo/bar")
+            endpoint("/foo/bar")
                 .assert_types::<_, ()>()
                 .run(request)
                 .is_none()
@@ -376,7 +377,7 @@ mod tests {
             .body(Default::default())
             .unwrap();
         assert!(
-            endpoint!("/foo/bar/baz")
+            endpoint("/foo/bar/baz")
                 .assert_types::<_, ()>()
                 .run(request)
                 .is_none()
@@ -387,7 +388,7 @@ mod tests {
     fn test_endpoint_match_all_path() {
         let request = HttpRequest::get("/foo").body(Default::default()).unwrap();
         assert_eq!(
-            endpoint!("*").assert_types::<_, ()>().run(request),
+            endpoint("*").assert_types::<_, ()>().run(request),
             Some(Ok(()))
         );
     }

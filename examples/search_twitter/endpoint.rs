@@ -68,15 +68,14 @@ impl<E: Error + 'static> From<E> for EndpointError {
 #[macro_export]
 macro_rules! build_endpoint {
     () => {{
-        use endpoint::EndpointError;
-        use finchers::Endpoint;
+        use endpoint::{EndpointError, SearchTwitterParam};
+        use finchers::endpoint::prelude::*;
         use finchers::contrib::urlencoded::serde::{queries, Form};
-        use finchers::endpoint::body::body;
-        use finchers::endpoint::method::{get, post};
 
-        endpoint!("search").with(endpoint![
-            get(queries().map_err(EndpointError::from)),
-            post(body()).map(|Form(queries)| queries).map_err(EndpointError::from)
+        endpoint("search").with(choice![
+            get(queries()),
+            post(body()).map(|Form(queries)| queries)
         ])
+        .assert_types::<SearchTwitterParam, EndpointError>()
     }};
 }
