@@ -35,83 +35,50 @@ where
     }
 }
 
-#[allow(missing_docs)]
-#[inline]
-pub fn get<E, A, B>(endpoint: E) -> MatchMethod<E::Endpoint>
-where
-    E: IntoEndpoint<A, B>,
-{
-    method(Method::Get, endpoint)
+macro_rules! define_method {
+    ($(
+        ($name:ident, $method:ident, $Endpoint:ident),
+    )*) => {$(
+        #[allow(missing_docs)]
+        pub fn $name<E, A, B>(endpoint: E) -> $Endpoint<E::Endpoint>
+        where
+            E: IntoEndpoint<A, B>,
+        {
+            $Endpoint {
+                endpoint: endpoint.into_endpoint(),
+            }
+        }
+
+        #[allow(missing_docs)]
+        #[derive(Debug, Copy, Clone)]
+        pub struct $Endpoint<E> {
+            endpoint: E,
+        }
+
+        impl<E: Endpoint> Endpoint for $Endpoint<E> {
+            type Item = E::Item;
+            type Error = E::Error;
+            type Result = E::Result;
+
+            fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
+                if *ctx.method() == Method::$method {
+                    self.endpoint.apply(ctx)
+                } else {
+                    None
+                }
+            }
+        }
+    )*};
 }
 
-#[allow(missing_docs)]
-#[inline]
-pub fn post<E, A, B>(endpoint: E) -> MatchMethod<E::Endpoint>
-where
-    E: IntoEndpoint<A, B>,
-{
-    method(Method::Post, endpoint)
-}
-
-#[allow(missing_docs)]
-#[inline]
-pub fn put<E, A, B>(endpoint: E) -> MatchMethod<E::Endpoint>
-where
-    E: IntoEndpoint<A, B>,
-{
-    method(Method::Put, endpoint)
-}
-
-#[allow(missing_docs)]
-#[inline]
-pub fn delete<E, A, B>(endpoint: E) -> MatchMethod<E::Endpoint>
-where
-    E: IntoEndpoint<A, B>,
-{
-    method(Method::Delete, endpoint)
-}
-
-#[allow(missing_docs)]
-#[inline]
-pub fn head<E, A, B>(endpoint: E) -> MatchMethod<E::Endpoint>
-where
-    E: IntoEndpoint<A, B>,
-{
-    method(Method::Head, endpoint)
-}
-
-#[allow(missing_docs)]
-#[inline]
-pub fn patch<E, A, B>(endpoint: E) -> MatchMethod<E::Endpoint>
-where
-    E: IntoEndpoint<A, B>,
-{
-    method(Method::Patch, endpoint)
-}
-
-#[allow(missing_docs)]
-#[inline]
-pub fn trace<E, A, B>(endpoint: E) -> MatchMethod<E::Endpoint>
-where
-    E: IntoEndpoint<A, B>,
-{
-    method(Method::Trace, endpoint)
-}
-
-#[allow(missing_docs)]
-#[inline]
-pub fn connect<E, A, B>(endpoint: E) -> MatchMethod<E::Endpoint>
-where
-    E: IntoEndpoint<A, B>,
-{
-    method(Method::Connect, endpoint)
-}
-
-#[allow(missing_docs)]
-#[inline]
-pub fn options<E, A, B>(endpoint: E) -> MatchMethod<E::Endpoint>
-where
-    E: IntoEndpoint<A, B>,
-{
-    method(Method::Options, endpoint)
+define_method! {
+    (get, Get, MatchGet),
+    (post, Post, MatchPost),
+    (put, Put, MatchPut),
+    (delete, Delete, MatchDelete),
+    (head, Head, MatchHead),
+    (patch, Patch, MatchPatch),
+    (trace, Trace, MatchTrace),
+    (connect, Connect, MatchConnect),
+    (options, Options, MatchOptions),
 }
