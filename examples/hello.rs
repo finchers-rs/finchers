@@ -1,11 +1,13 @@
-#[macro_use]
 extern crate finchers;
 
 use finchers::Application;
+use finchers::endpoint::ok;
+
+fn handler<T>(value: T) -> Result<T, ()> {
+    Ok(value)
+}
 
 fn main() {
-    let endpoint = endpoint!(() => <_, ()>);
-    let handler = |_| Ok("Hello, Finchers") as Result<_, ()>;
-
+    let endpoint = ok::<&str, ()>("Hello, Finchers");
     Application::new(endpoint, handler).run();
 }

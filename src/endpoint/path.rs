@@ -286,6 +286,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use endpoint::{endpoint, Endpoint};
     use http::HttpRequest;
     use test::EndpointTestExt;
 
@@ -329,13 +330,21 @@ mod tests {
     #[test]
     fn test_endpoint_match_path() {
         let request = HttpRequest::get("/foo").body(Default::default()).unwrap();
-        assert_eq!(endpoint!("foo" => <_, ()>).run(request), Some(Ok(())),);
+        assert_eq!(
+            endpoint("foo").assert_types::<_, ()>().run(request),
+            Some(Ok(())),
+        );
     }
 
     #[test]
     fn test_endpoint_reject_path() {
         let request = HttpRequest::get("/foo").body(Default::default()).unwrap();
-        assert!(endpoint!("bar" => <_, ()>).run(request).is_none());
+        assert!(
+            endpoint("bar")
+                .assert_types::<_, ()>()
+                .run(request)
+                .is_none()
+        );
     }
 
     #[test]
@@ -343,7 +352,10 @@ mod tests {
         let request = HttpRequest::get("/foo/bar")
             .body(Default::default())
             .unwrap();
-        assert_eq!(endpoint!("/foo/bar" => <_, ()>).run(request), Some(Ok(())));
+        assert_eq!(
+            endpoint("/foo/bar").assert_types::<_, ()>().run(request),
+            Some(Ok(()))
+        );
     }
 
     #[test]
@@ -351,7 +363,12 @@ mod tests {
         let request = HttpRequest::get("/foo/baz")
             .body(Default::default())
             .unwrap();
-        assert!(endpoint!("/foo/bar" => <_, ()>).run(request).is_none());
+        assert!(
+            endpoint("/foo/bar")
+                .assert_types::<_, ()>()
+                .run(request)
+                .is_none()
+        );
     }
 
     #[test]
@@ -359,13 +376,21 @@ mod tests {
         let request = HttpRequest::get("/foo/bar")
             .body(Default::default())
             .unwrap();
-        assert!(endpoint!("/foo/bar/baz" => <_, ()>).run(request).is_none());
+        assert!(
+            endpoint("/foo/bar/baz")
+                .assert_types::<_, ()>()
+                .run(request)
+                .is_none()
+        );
     }
 
     #[test]
     fn test_endpoint_match_all_path() {
         let request = HttpRequest::get("/foo").body(Default::default()).unwrap();
-        assert_eq!(endpoint!("*" => <_, ()>).run(request), Some(Ok(())));
+        assert_eq!(
+            endpoint("*").assert_types::<_, ()>().run(request),
+            Some(Ok(()))
+        );
     }
 
     #[test]

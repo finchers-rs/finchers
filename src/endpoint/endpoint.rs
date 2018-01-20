@@ -26,9 +26,19 @@ pub trait Endpoint {
             .map(|result| result.into_future(&mut request))
     }
 
-    /// Add restrictions of associated types to this endpoint.
+    /// Add an assertion to associated types in this endpoint.
+    ///
+    /// # Example
+    /// ```
+    /// # use finchers::{Endpoint, IntoEndpoint};
+    /// // The error type of `endpoint` is unknown
+    /// let endpoint = IntoEndpoint::into_endpoint("foo");
+    ///
+    /// // Add an assertion that the error type of `endpoint` must be ().
+    /// let endpoint = endpoint.assert_types::<_, ()>();
+    /// ```
     #[inline]
-    fn with_type<T, E>(self) -> Self
+    fn assert_types<T, E>(self) -> Self
     where
         Self: Sized + Endpoint<Item = T, Error = E>,
     {
@@ -41,7 +51,7 @@ pub trait Endpoint {
         Self: Sized,
         E: IntoEndpoint<T, Self::Error>,
     {
-        join::join(self, e)
+        join::join(self, e).assert_types::<(Self::Item, <E::Endpoint as Endpoint>::Item), Self::Error>()
     }
 
     #[allow(missing_docs)]
@@ -50,7 +60,7 @@ pub trait Endpoint {
         Self: Sized,
         E: IntoEndpoint<T, Self::Error>,
     {
-        with::with(self, e)
+        with::with(self, e).assert_types::<<E::Endpoint as Endpoint>::Item, Self::Error>()
     }
 
     #[allow(missing_docs)]
@@ -59,7 +69,7 @@ pub trait Endpoint {
         Self: Sized,
         E: IntoEndpoint<T, Self::Error>,
     {
-        skip::skip(self, e)
+        skip::skip(self, e).assert_types::<Self::Item, Self::Error>()
     }
 
     #[allow(missing_docs)]
@@ -68,16 +78,16 @@ pub trait Endpoint {
         Self: Sized,
         E: IntoEndpoint<Self::Item, Self::Error>,
     {
-        or::or(self, e)
+        or::or(self, e).assert_types::<Self::Item, Self::Error>()
     }
 
     #[allow(missing_docs)]
-    fn map<F, U>(self, f: F) -> Map<Self, F>
+    fn map<F, T>(self, f: F) -> Map<Self, F>
     where
         Self: Sized,
-        F: Fn(Self::Item) -> U,
+        F: Fn(Self::Item) -> T,
     {
-        map::map(self, f)
+        map::map(self, f).assert_types::<T, Self::Error>()
     }
 
     #[allow(missing_docs)]
@@ -86,7 +96,7 @@ pub trait Endpoint {
         Self: Sized,
         F: Fn(Self::Error) -> U,
     {
-        map_err::map_err(self, f)
+        map_err::map_err(self, f).assert_types::<Self::Item, U>()
     }
 
     #[allow(missing_docs)]
@@ -96,17 +106,35 @@ pub trait Endpoint {
         F: Fn(Self::Item) -> R,
         R: IntoFuture<Error = Self::Error>,
     {
-        and_then::and_then(self, f)
+        and_then::and_then(self, f).assert_types::<R::Item, Self::Error>()
     }
 
     #[allow(missing_docs)]
-    fn adapt<T, E>(self) -> Adapt<Self, T, E>
+    fn from_ok_err<T, E>(self) -> FromOkErr<Self, T, E>
     where
         Self: Sized,
         T: From<Self::Item>,
         E: From<Self::Error>,
     {
-        adapt::adapt(self)
+        from_ok_err::from_ok_err(self).assert_types::<T, E>()
+    }
+
+    #[allow(missing_docs)]
+    fn from_ok<T>(self) -> FromOk<Self, T>
+    where
+        Self: Sized,
+        T: From<Self::Item>,
+    {
+        from_ok::from_ok(self).assert_types::<T, Self::Error>()
+    }
+
+    #[allow(missing_docs)]
+    fn from_err<E>(self) -> FromErr<Self, E>
+    where
+        Self: Sized,
+        E: From<Self::Error>,
+    {
+        from_err::from_err(self).assert_types::<Self::Item, E>()
     }
 }
 
@@ -215,4 +243,12 @@ where
     fn into_endpoint(self) -> Self::Endpoint {
         join_all(self)
     }
+}
+
+/// A shortcut of `IntoEndpoint::into_endpoint()`
+pub fn endpoint<E, A, B>(endpoint: E) -> E::Endpoint
+where
+    E: IntoEndpoint<A, B>,
+{
+    endpoint.into_endpoint()
 }
