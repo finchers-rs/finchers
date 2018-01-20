@@ -108,6 +108,24 @@ pub trait Endpoint {
     {
         adapt::adapt(self)
     }
+
+    #[allow(missing_docs)]
+    fn from_ok<T>(self) -> FromOk<Self, T>
+    where
+        Self: Sized,
+        T: From<Self::Item>,
+    {
+        from_ok::from_ok(self)
+    }
+
+    #[allow(missing_docs)]
+    fn from_err<E>(self) -> FromErr<Self, E>
+    where
+        Self: Sized,
+        E: From<Self::Error>,
+    {
+        from_err::from_err(self)
+    }
 }
 
 impl<'a, E: Endpoint> Endpoint for &'a E {
