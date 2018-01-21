@@ -6,7 +6,7 @@ use http::{header, IntoResponse, Response, StatusCode};
 
 #[allow(missing_docs)]
 pub trait Responder<T, E> {
-    fn respond_ok(&self, T) -> Option<Response>;
+    fn respond_ok(&self, T) -> Response;
 
     fn respond_err(&self, E) -> Response;
 
@@ -21,7 +21,7 @@ impl<R, T, E> Responder<T, E> for Rc<R>
 where
     R: Responder<T, E>,
 {
-    fn respond_ok(&self, input: T) -> Option<Response> {
+    fn respond_ok(&self, input: T) -> Response {
         (**self).respond_ok(input)
     }
 
@@ -42,7 +42,7 @@ impl<R, T, E> Responder<T, E> for Arc<R>
 where
     R: Responder<T, E>,
 {
-    fn respond_ok(&self, input: T) -> Option<Response> {
+    fn respond_ok(&self, input: T) -> Response {
         (**self).respond_ok(input)
     }
 
@@ -68,8 +68,8 @@ where
     T: IntoResponse,
     E: IntoResponse,
 {
-    fn respond_ok(&self, input: T) -> Option<Response> {
-        Some(input.into_response())
+    fn respond_ok(&self, input: T) -> Response {
+        input.into_response()
     }
 
     fn respond_err(&self, err: E) -> Response {

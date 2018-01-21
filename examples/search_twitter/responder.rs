@@ -10,14 +10,12 @@ use handler::SearchTwitterItem;
 pub struct SearchTwitterResponder;
 
 impl Responder<SearchTwitterItem, SearchTwitterError> for SearchTwitterResponder {
-    fn respond_ok(&self, item: SearchTwitterItem) -> Option<Response> {
+    fn respond_ok(&self, item: SearchTwitterItem) -> Response {
         let body = serde_json::to_vec(&item).unwrap();
-        Some(
-            Response::new()
-                .with_header(header::ContentType::json())
-                .with_header(header::ContentLength(body.len() as u64))
-                .with_body(body),
-        )
+        Response::new()
+            .with_header(header::ContentType::json())
+            .with_header(header::ContentLength(body.len() as u64))
+            .with_body(body)
     }
 
     fn respond_err(&self, err: SearchTwitterError) -> Response {
