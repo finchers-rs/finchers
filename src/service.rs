@@ -167,8 +167,8 @@ where
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         let mut response = match try_ready!(self.poll_state()) {
-            Ok(item) => item.and_then(|item| self.responder.respond_ok(item))
-                .unwrap_or_else(|| self.responder.respond_noroute()),
+            Ok(Some(item)) => self.responder.respond_ok(item),
+            Ok(None) => self.responder.respond_noroute(),
             Err(err) => self.responder.respond_err(err),
         };
         self.responder.after_respond(&mut response);
