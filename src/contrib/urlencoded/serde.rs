@@ -1,7 +1,7 @@
-//! `serde`-powered parsing of urlencoded strings, based on `serde_urlencoded`
+//! `serde`-powered parsing of urlencoded strings, based on `serde_qs`
 
 extern crate serde;
-extern crate serde_urlencoded;
+extern crate serde_qs;
 
 use std::fmt;
 use std::error::Error as StdError;
@@ -13,7 +13,7 @@ use endpoint::{self, Endpoint, EndpointContext, EndpointResult};
 use endpoint::body::BodyError;
 use http::{self, mime, FromBody, Request};
 
-pub use self::serde_urlencoded::de::Error;
+pub use self::serde_qs::Error;
 
 #[allow(missing_docs)]
 pub fn queries<T: DeserializeOwned>() -> Queries<T> {
@@ -70,7 +70,7 @@ impl<T: DeserializeOwned> EndpointResult for QueriesResult<T> {
     type Future = FutureResult<Self::Item, Result<Self::Error, http::Error>>;
 
     fn into_future(self, request: &mut Request) -> Self::Future {
-        let result = self::serde_urlencoded::de::from_str(request.query().unwrap()).map_err(|e| Ok(e.into()));
+        let result = self::serde_qs::from_str(request.query().unwrap()).map_err(|e| Ok(e.into()));
         IntoFuture::into_future(result)
     }
 }
@@ -127,7 +127,7 @@ impl<T: DeserializeOwned> EndpointResult for QueriesRequiredResult<T> {
 
     fn into_future(self, request: &mut Request) -> Self::Future {
         let result = match request.query() {
-            Some(s) => self::serde_urlencoded::de::from_str(s).map_err(|e| Ok(e.into())),
+            Some(s) => self::serde_qs::from_str(s).map_err(|e| Ok(e.into())),
             None => Err(Ok(QueriesError::missing())),
         };
         IntoFuture::into_future(result)
@@ -186,7 +186,7 @@ impl<T: DeserializeOwned> EndpointResult for QueriesOptionalResult<T> {
 
     fn into_future(self, request: &mut Request) -> Self::Future {
         let result = match request.query() {
-            Some(s) => self::serde_urlencoded::de::from_str(s)
+            Some(s) => self::serde_qs::from_str(s)
                 .map(Some)
                 .map_err(|e| Ok(e.into())),
             None => Ok(None),
@@ -285,7 +285,7 @@ impl<F: DeserializeOwned> FromBody for Form<F> {
     }
 
     fn from_body(body: Vec<u8>) -> Result<Self, Self::Error> {
-        self::serde_urlencoded::from_bytes(&body).map(Form)
+        self::serde_qs::from_bytes(&body).map(Form)
     }
 }
 
