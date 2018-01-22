@@ -6,9 +6,10 @@ extern crate serde_qs;
 use std::fmt;
 use std::error::Error as StdError;
 use std::marker::PhantomData;
+use std::iter::FromIterator;
 use futures::future::{self, Future, FutureResult, IntoFuture};
+use self::serde::de::{self, IntoDeserializer};
 
-use self::serde::de::DeserializeOwned;
 use endpoint::{self, Endpoint, EndpointContext, EndpointResult};
 use endpoint::body::BodyError;
 use http::{self, mime, FromBody, Request};
@@ -16,7 +17,7 @@ use http::{self, mime, FromBody, Request};
 pub use self::serde_qs::Error;
 
 #[allow(missing_docs)]
-pub fn queries<T: DeserializeOwned>() -> Queries<T> {
+pub fn queries<T: de::DeserializeOwned>() -> Queries<T> {
     Queries {
         _marker: PhantomData,
     }
@@ -42,7 +43,7 @@ impl<T> fmt::Debug for Queries<T> {
     }
 }
 
-impl<T: DeserializeOwned> Endpoint for Queries<T> {
+impl<T: de::DeserializeOwned> Endpoint for Queries<T> {
     type Item = T;
     type Error = QueriesError<T>;
     type Result = QueriesResult<T>;
@@ -60,11 +61,11 @@ impl<T: DeserializeOwned> Endpoint for Queries<T> {
 
 #[doc(hidden)]
 #[allow(missing_debug_implementations)]
-pub struct QueriesResult<T: DeserializeOwned> {
+pub struct QueriesResult<T: de::DeserializeOwned> {
     _marker: PhantomData<fn() -> T>,
 }
 
-impl<T: DeserializeOwned> EndpointResult for QueriesResult<T> {
+impl<T: de::DeserializeOwned> EndpointResult for QueriesResult<T> {
     type Item = T;
     type Error = QueriesError<T>;
     type Future = FutureResult<Self::Item, Result<Self::Error, http::Error>>;
@@ -76,7 +77,7 @@ impl<T: DeserializeOwned> EndpointResult for QueriesResult<T> {
 }
 
 #[allow(missing_docs)]
-pub fn queries_req<T: DeserializeOwned>() -> QueriesRequired<T> {
+pub fn queries_req<T: de::DeserializeOwned>() -> QueriesRequired<T> {
     QueriesRequired {
         _marker: PhantomData,
     }
@@ -102,7 +103,7 @@ impl<T> fmt::Debug for QueriesRequired<T> {
     }
 }
 
-impl<T: DeserializeOwned> Endpoint for QueriesRequired<T> {
+impl<T: de::DeserializeOwned> Endpoint for QueriesRequired<T> {
     type Item = T;
     type Error = QueriesError<T>;
     type Result = QueriesRequiredResult<T>;
@@ -116,11 +117,11 @@ impl<T: DeserializeOwned> Endpoint for QueriesRequired<T> {
 
 #[doc(hidden)]
 #[allow(missing_debug_implementations)]
-pub struct QueriesRequiredResult<T: DeserializeOwned> {
+pub struct QueriesRequiredResult<T: de::DeserializeOwned> {
     _marker: PhantomData<fn() -> T>,
 }
 
-impl<T: DeserializeOwned> EndpointResult for QueriesRequiredResult<T> {
+impl<T: de::DeserializeOwned> EndpointResult for QueriesRequiredResult<T> {
     type Item = T;
     type Error = QueriesError<T>;
     type Future = FutureResult<Self::Item, Result<Self::Error, http::Error>>;
@@ -135,7 +136,7 @@ impl<T: DeserializeOwned> EndpointResult for QueriesRequiredResult<T> {
 }
 
 #[allow(missing_docs)]
-pub fn queries_opt<T: DeserializeOwned>() -> QueriesOptional<T> {
+pub fn queries_opt<T: de::DeserializeOwned>() -> QueriesOptional<T> {
     QueriesOptional {
         _marker: PhantomData,
     }
@@ -161,7 +162,7 @@ impl<T> fmt::Debug for QueriesOptional<T> {
     }
 }
 
-impl<T: DeserializeOwned> Endpoint for QueriesOptional<T> {
+impl<T: de::DeserializeOwned> Endpoint for QueriesOptional<T> {
     type Item = Option<T>;
     type Error = QueriesError<T>;
     type Result = QueriesOptionalResult<T>;
@@ -175,11 +176,11 @@ impl<T: DeserializeOwned> Endpoint for QueriesOptional<T> {
 
 #[doc(hidden)]
 #[allow(missing_debug_implementations)]
-pub struct QueriesOptionalResult<T: DeserializeOwned> {
+pub struct QueriesOptionalResult<T: de::DeserializeOwned> {
     _marker: PhantomData<fn() -> T>,
 }
 
-impl<T: DeserializeOwned> EndpointResult for QueriesOptionalResult<T> {
+impl<T: de::DeserializeOwned> EndpointResult for QueriesOptionalResult<T> {
     type Item = Option<T>;
     type Error = QueriesError<T>;
     type Future = FutureResult<Self::Item, Result<Self::Error, http::Error>>;
@@ -196,12 +197,12 @@ impl<T: DeserializeOwned> EndpointResult for QueriesOptionalResult<T> {
 }
 
 /// An error from `Queries` and `QueriesOpt`
-pub struct QueriesError<T: DeserializeOwned> {
+pub struct QueriesError<T: de::DeserializeOwned> {
     inner: Option<Error>,
     _marker: PhantomData<fn() -> T>,
 }
 
-impl<T: DeserializeOwned> QueriesError<T> {
+impl<T: de::DeserializeOwned> QueriesError<T> {
     fn missing() -> Self {
         QueriesError {
             inner: None,
@@ -215,7 +216,7 @@ impl<T: DeserializeOwned> QueriesError<T> {
     }
 }
 
-impl<T: DeserializeOwned> From<Error> for QueriesError<T> {
+impl<T: de::DeserializeOwned> From<Error> for QueriesError<T> {
     fn from(inner: Error) -> Self {
         QueriesError {
             inner: Some(inner),
@@ -224,13 +225,13 @@ impl<T: DeserializeOwned> From<Error> for QueriesError<T> {
     }
 }
 
-impl<T: DeserializeOwned> fmt::Debug for QueriesError<T> {
+impl<T: de::DeserializeOwned> fmt::Debug for QueriesError<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_tuple("QueriesError").field(&self.inner).finish()
     }
 }
 
-impl<T: DeserializeOwned> fmt::Display for QueriesError<T> {
+impl<T: de::DeserializeOwned> fmt::Display for QueriesError<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.inner {
             Some(ref e) => e.fmt(f),
@@ -239,7 +240,7 @@ impl<T: DeserializeOwned> fmt::Display for QueriesError<T> {
     }
 }
 
-impl<T: DeserializeOwned> StdError for QueriesError<T> {
+impl<T: de::DeserializeOwned> StdError for QueriesError<T> {
     fn description(&self) -> &str {
         "failed to parse an urlencoded string"
     }
@@ -276,7 +277,7 @@ impl<F> ::std::ops::DerefMut for Form<F> {
     }
 }
 
-impl<F: DeserializeOwned> FromBody for Form<F> {
+impl<F: de::DeserializeOwned> FromBody for Form<F> {
     type Error = Error;
 
     fn validate(req: &Request) -> bool {
@@ -290,7 +291,7 @@ impl<F: DeserializeOwned> FromBody for Form<F> {
 }
 
 #[allow(missing_docs)]
-pub fn form_body<T: DeserializeOwned>() -> FormBody<T> {
+pub fn form_body<T: de::DeserializeOwned>() -> FormBody<T> {
     FormBody {
         inner: endpoint::body::body(),
     }
@@ -316,7 +317,7 @@ impl<T> fmt::Debug for FormBody<T> {
     }
 }
 
-impl<T: DeserializeOwned> Endpoint for FormBody<T> {
+impl<T: de::DeserializeOwned> Endpoint for FormBody<T> {
     type Item = T;
     type Error = BodyError<Form<T>>;
     type Result = FormBodyResult<T>;
@@ -334,7 +335,7 @@ pub struct FormBodyResult<T> {
     inner: endpoint::body::BodyResult<Form<T>>,
 }
 
-impl<T: DeserializeOwned> EndpointResult for FormBodyResult<T> {
+impl<T: de::DeserializeOwned> EndpointResult for FormBodyResult<T> {
     type Item = T;
     type Error = BodyError<Form<T>>;
     type Future = future::Map<endpoint::body::BodyFuture<Form<T>>, fn(Form<T>) -> T>;
@@ -342,4 +343,42 @@ impl<T: DeserializeOwned> EndpointResult for FormBodyResult<T> {
     fn into_future(self, request: &mut Request) -> Self::Future {
         self.inner.into_future(request).map(|Form(body)| body)
     }
+}
+
+#[allow(missing_debug_implementations)]
+struct CSVSeqVisitor<I, T> {
+    _marker: PhantomData<fn() -> (I, T)>,
+}
+
+impl<'de, I, T> de::Visitor<'de> for CSVSeqVisitor<I, T>
+where
+    I: FromIterator<T>,
+    T: de::Deserialize<'de>,
+{
+    type Value = I;
+
+    fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("a string")
+    }
+
+    fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        s.split(",")
+            .map(|s| de::Deserialize::deserialize(s.into_deserializer()))
+            .collect()
+    }
+}
+
+/// Deserialize a sequece from a comma-separated string
+pub fn from_csv<'de, D, I, T>(de: D) -> Result<I, D::Error>
+where
+    D: de::Deserializer<'de>,
+    I: FromIterator<T>,
+    T: de::Deserialize<'de>,
+{
+    de.deserialize_str(CSVSeqVisitor {
+        _marker: PhantomData,
+    })
 }
