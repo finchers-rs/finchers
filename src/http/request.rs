@@ -1,7 +1,7 @@
 use hyper::{self, Headers, HttpVersion, Method, Uri};
 use hyper::header;
 use hyper::mime::Mime;
-use http_crate;
+use http_crate::{self, Extensions};
 
 use super::Body;
 
@@ -13,6 +13,7 @@ pub struct Request {
     version: HttpVersion,
     headers: Headers,
     body: Option<Body>,
+    extensions: Extensions,
 }
 
 impl From<hyper::Request> for Request {
@@ -24,6 +25,7 @@ impl From<hyper::Request> for Request {
             version,
             headers,
             body: Some(body),
+            extensions: Extensions::new(),
         }
     }
 }
@@ -37,6 +39,7 @@ impl From<http_crate::Request<Body>> for Request {
             version: parts.version.into(),
             headers: parts.headers.into(),
             body: Some(body),
+            extensions: parts.extensions,
         }
     }
 }
@@ -70,6 +73,16 @@ impl Request {
     #[allow(missing_docs)]
     pub fn body(&mut self) -> Option<Body> {
         self.body.take()
+    }
+
+    #[allow(missing_docs)]
+    pub fn extensions(&self) -> &Extensions {
+        &self.extensions
+    }
+
+    #[allow(missing_docs)]
+    pub fn extensions_mut(&mut self) -> &mut Extensions {
+        &mut self.extensions
     }
 
     #[allow(missing_docs)]
