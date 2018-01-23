@@ -8,7 +8,7 @@ pub(crate) mod request;
 
 pub use hyper::{header, mime, Body, Chunk, Error, Method, Request as HyperRequest, Response, StatusCode};
 pub use hyper::header::{Header, Headers};
-pub use http_crate::{Request as HttpRequest, Response as HttpResponse, Extensions};
+pub use http_crate::{Extensions, Request as HttpRequest, Response as HttpResponse};
 
 pub use self::from_body::FromBody;
 pub use self::into_body::IntoBody;
