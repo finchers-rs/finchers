@@ -22,7 +22,6 @@ extern crate tokio_tls;
 mod macros;
 
 pub mod application;
-pub mod contrib;
 pub mod endpoint;
 pub mod errors;
 pub mod http;
