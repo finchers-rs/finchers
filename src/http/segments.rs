@@ -1,5 +1,7 @@
 use std::ops::Deref;
+use std::path::PathBuf;
 use std::str::FromStr;
+use errors::NeverReturn;
 
 /// An iterator of remaning path segments.
 #[derive(Debug, Copy, Clone)]
@@ -98,6 +100,13 @@ impl<'a> Segment<'a> {
     }
 }
 
+impl<'a> AsRef<[u8]> for Segment<'a> {
+    #[inline]
+    fn as_ref(&self) -> &[u8] {
+        self.as_str().as_bytes()
+    }
+}
+
 impl<'a> AsRef<str> for Segment<'a> {
     #[inline]
     fn as_ref(&self) -> &str {
@@ -114,6 +123,58 @@ impl<'a> Deref for Segment<'a> {
     }
 }
 
+/// Represents the conversion from `Segment`
+pub trait FromSegment: Sized {
+    /// The error type returned from `from_segment`
+    type Err;
+
+    /// Create the instance of `Self` from a path segment
+    fn from_segment(segment: &Segment) -> Result<Self, Self::Err>;
+}
+
+macro_rules! impl_from_segment_from_str {
+    ($($t:ty,)*) => {$(
+        impl FromSegment for $t {
+            type Err = <$t as FromStr>::Err;
+
+            #[inline]
+            fn from_segment(segment: &Segment) -> Result<Self, Self::Err> {
+                FromStr::from_str(&*segment)
+            }
+        }
+    )*};
+}
+
+impl_from_segment_from_str! {
+    String, bool, f32, f64,
+    i8, i16, i32, i64, isize,
+    u8, u16, u32, u64, usize,
+    ::std::net::IpAddr,
+    ::std::net::Ipv4Addr,
+    ::std::net::Ipv6Addr,
+    ::std::net::SocketAddr,
+    ::std::net::SocketAddrV4,
+    ::std::net::SocketAddrV6,
+}
+
+impl<T: FromSegment> FromSegment for Option<T> {
+    type Err = NeverReturn;
+
+    #[inline]
+    fn from_segment(segment: &Segment) -> Result<Self, Self::Err> {
+        Ok(FromSegment::from_segment(&*segment).ok())
+    }
+}
+
+impl<T: FromSegment> FromSegment for Result<T, T::Err> {
+    type Err = NeverReturn;
+
+    #[inline]
+    fn from_segment(segment: &Segment) -> Result<Self, Self::Err> {
+        Ok(FromSegment::from_segment(&*segment))
+    }
+}
+
 /// Represents the conversion from `Segments`
 pub trait FromSegments: Sized {
     /// The error type from `from_segments`
@@ -123,46 +184,56 @@ pub trait FromSegments: Sized {
     fn from_segments(segments: &mut Segments) -> Result<Self, Self::Err>;
 }
 
-mod implementors {
-    use std::path::PathBuf;
-    use errors::NeverReturn;
-    use super::*;
+impl<T: FromStr> FromSegments for Vec<T> {
+    type Err = T::Err;
 
-    impl<T: FromStr> FromSegments for Vec<T> {
-        type Err = T::Err;
-
-        fn from_segments(segments: &mut Segments) -> Result<Self, Self::Err> {
-            segments.into_iter().map(|s| s.parse()).collect()
-        }
+    fn from_segments(segments: &mut Segments) -> Result<Self, Self::Err> {
+        segments.into_iter().map(|s| s.parse()).collect()
     }
+}
 
-    impl FromSegments for String {
-        type Err = NeverReturn;
+impl FromSegments for String {
+    type Err = NeverReturn;
 
-        fn from_segments(segments: &mut Segments) -> Result<Self, Self::Err> {
-            let s = segments.remaining_path().to_owned();
-            let _ = segments.last();
-            Ok(s)
-        }
+    fn from_segments(segments: &mut Segments) -> Result<Self, Self::Err> {
+        let s = segments.remaining_path().to_owned();
+        let _ = segments.last();
+        Ok(s)
     }
+}
 
-    impl FromSegments for PathBuf {
-        type Err = NeverReturn;
+impl FromSegments for PathBuf {
+    type Err = NeverReturn;
 
-        fn from_segments(segments: &mut Segments) -> Result<Self, Self::Err> {
-            let s = PathBuf::from(segments.remaining_path());
-            let _ = segments.last();
-            Ok(s)
-        }
+    fn from_segments(segments: &mut Segments) -> Result<Self, Self::Err> {
+        let s = PathBuf::from(segments.remaining_path());
+        let _ = segments.last();
+        Ok(s)
+    }
+}
+
+impl<T: FromSegments> FromSegments for Option<T> {
+    type Err = NeverReturn;
+
+    fn from_segments(segments: &mut Segments) -> Result<Self, Self::Err> {
+        Ok(FromSegments::from_segments(segments).ok())
+    }
+}
+
+impl<T: FromSegments> FromSegments for Result<T, T::Err> {
+    type Err = NeverReturn;
+
+    fn from_segments(segments: &mut Segments) -> Result<Self, Self::Err> {
+        Ok(FromSegments::from_segments(segments))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::Segments;
+    use super::*;
 
     #[test]
-    fn test_segments() {
+    fn segments() {
         let mut segments = Segments::from("/foo/bar.txt");
         assert_eq!(segments.remaining_path(), "foo/bar.txt");
         assert_eq!(segments.next().map(|s| s.as_str()), Some("foo"));
@@ -175,9 +246,16 @@ mod tests {
     }
 
     #[test]
-    fn test_root() {
+    fn segments_from_root_path() {
         let mut segments = Segments::from("/");
         assert_eq!(segments.remaining_path(), "");
         assert_eq!(segments.next().map(|s| s.as_str()), None);
+    }
+
+    #[test]
+    fn from_segments() {
+        let mut segments = Segments::from("/foo/bar.txt");
+        let result = FromSegments::from_segments(&mut segments);
+        assert_eq!(result, Ok(PathBuf::from("foo/bar.txt")));
     }
 }

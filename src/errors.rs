@@ -2,8 +2,7 @@
 
 use std::fmt;
 use std::error::Error;
-use std::str::FromStr;
-use http::{FromBody, FromSegments, IntoResponse, Response, StatusCode};
+use http::{FromBody, FromSegment, FromSegments, IntoResponse, Response, StatusCode};
 use http::header::{ContentLength, ContentType};
 
 #[allow(missing_docs)]
@@ -147,7 +146,7 @@ where
     }
 }
 
-impl<T: FromStr> IntoResponse for ExtractPathError<T>
+impl<T: FromSegment> IntoResponse for ExtractPathError<T>
 where
     T::Err: Error,
 {
