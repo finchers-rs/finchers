@@ -12,4 +12,4 @@ pub use http_crate::{Extensions, Request as HttpRequest, Response as HttpRespons
 pub use self::from_body::FromBody;
 pub use self::into_response::IntoResponse;
 pub use self::request::Request;
-pub use self::segments::{FromSegments, Segment, Segments};
+pub use self::segments::{FromSegment, FromSegments, Segment, Segments};
