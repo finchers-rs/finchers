@@ -22,16 +22,16 @@ macro_rules! try_opt {
 /// will be expanded to
 ///
 /// ```ignore
-/// endpoint(e1).from_err()
-///     .or(endpoint(e2).from_err())
-///     .or(endpoint(e3).from_err())
+/// endpoint(e1)
+///     .or(endpoint(e2))
+///     .or(endpoint(e3))
 /// ```
 #[macro_export]
 macro_rules! choice {
     ($h:expr, $($t:expr),*) => {{
         use $crate::endpoint::{endpoint, Endpoint};
-        endpoint($h).from_err()
-            $( .or(endpoint($t).from_err()) )*
+        endpoint($h)
+            $( .or(endpoint($t)) )*
     }};
     ($h:expr, $($t:expr,)+) => {
         choice!($h, $($t),*)
