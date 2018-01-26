@@ -12,10 +12,10 @@ use std::marker::PhantomData;
 use futures::future::{err, ok, FutureResult};
 use endpoint::{Endpoint, EndpointContext, EndpointResult};
 use errors::StdErrorResponseBuilder;
-use http::{self, Header as HeaderTrait, IntoResponse, Request, Response};
+use http::{self, FromHeader, IntoResponse, Request, Response};
 
 #[allow(missing_docs)]
-pub fn header<H: HeaderTrait, E>() -> Header<H, E> {
+pub fn header<H: FromHeader, E>() -> Header<H, E> {
     Header {
         _marker: PhantomData,
     }
@@ -41,15 +41,13 @@ impl<H, E> fmt::Debug for Header<H, E> {
     }
 }
 
-impl<H: HeaderTrait, E> Endpoint for Header<H, E> {
+impl<H: FromHeader, E> Endpoint for Header<H, E> {
     type Item = H;
     type Error = E;
     type Result = HeaderResult<H, E>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
-        if ctx.headers()
-            .contains_key(<H as HeaderTrait>::header_name())
-        {
+        if ctx.headers().contains_key(<H as FromHeader>::header_name()) {
             Some(HeaderResult {
                 _marker: PhantomData,
             })
@@ -65,7 +63,7 @@ pub struct HeaderResult<H, E> {
     _marker: PhantomData<fn() -> (H, E)>,
 }
 
-impl<H: HeaderTrait, E> EndpointResult for HeaderResult<H, E> {
+impl<H: FromHeader, E> EndpointResult for HeaderResult<H, E> {
     type Item = H;
     type Error = E;
     type Future = FutureResult<H, Result<Self::Error, http::Error>>;
@@ -74,18 +72,21 @@ impl<H: HeaderTrait, E> EndpointResult for HeaderResult<H, E> {
         // TODO: appropriate error handling
         let h = request
             .headers_mut()
-            .remove(<H as HeaderTrait>::header_name())
+            .get(<H as FromHeader>::header_name())
             .expect(&format!(
                 "The value of header {} has already taken",
-                H::header_name()
+                H::header_name().as_str()
             ));
-        let h = H::parse_header(&h.to_str().unwrap().into()).unwrap();
+        let h = match H::from_header(&h) {
+            Ok(h) => h,
+            Err(..) => panic!(),
+        };
         ok(h)
     }
 }
 
 #[allow(missing_docs)]
-pub fn header_req<H: HeaderTrait>() -> HeaderRequired<H> {
+pub fn header_req<H: FromHeader>() -> HeaderRequired<H> {
     HeaderRequired {
         _marker: PhantomData,
     }
@@ -111,7 +112,7 @@ impl<H> fmt::Debug for HeaderRequired<H> {
     }
 }
 
-impl<H: HeaderTrait> Endpoint for HeaderRequired<H> {
+impl<H: FromHeader> Endpoint for HeaderRequired<H> {
     type Item = H;
     type Error = EmptyHeader<H>;
     type Result = HeaderRequiredResult<H>;
@@ -129,18 +130,18 @@ pub struct HeaderRequiredResult<H> {
     _marker: PhantomData<fn() -> H>,
 }
 
-impl<H: HeaderTrait> EndpointResult for HeaderRequiredResult<H> {
+impl<H: FromHeader> EndpointResult for HeaderRequiredResult<H> {
     type Item = H;
     type Error = EmptyHeader<H>;
     type Future = FutureResult<H, Result<Self::Error, http::Error>>;
 
     fn into_future(self, request: &mut Request) -> Self::Future {
-        match request
-            .headers_mut()
-            .remove(<H as HeaderTrait>::header_name())
-        {
+        match request.headers_mut().get(<H as FromHeader>::header_name()) {
             Some(h) => {
-                let h = H::parse_header(&h.to_str().unwrap().into()).unwrap();
+                let h = match H::from_header(h) {
+                    Ok(h) => h,
+                    Err(..) => panic!(),
+                };
                 ok(h)
             }
             None => err(Ok(EmptyHeader {
@@ -151,7 +152,7 @@ impl<H: HeaderTrait> EndpointResult for HeaderRequiredResult<H> {
 }
 
 #[allow(missing_docs)]
-pub fn header_opt<H: HeaderTrait, E>() -> HeaderOptional<H, E> {
+pub fn header_opt<H: FromHeader, E>() -> HeaderOptional<H, E> {
     HeaderOptional {
         _marker: PhantomData,
     }
@@ -177,7 +178,7 @@ impl<H, E> fmt::Debug for HeaderOptional<H, E> {
     }
 }
 
-impl<H: HeaderTrait, E> Endpoint for HeaderOptional<H, E> {
+impl<H: FromHeader, E> Endpoint for HeaderOptional<H, E> {
     type Item = Option<H>;
     type Error = E;
     type Result = HeaderOptionalResult<H, E>;
@@ -195,54 +196,55 @@ pub struct HeaderOptionalResult<H, E> {
     _marker: PhantomData<fn() -> (H, E)>,
 }
 
-impl<H: HeaderTrait, E> EndpointResult for HeaderOptionalResult<H, E> {
+impl<H: FromHeader, E> EndpointResult for HeaderOptionalResult<H, E> {
     type Item = Option<H>;
     type Error = E;
     type Future = FutureResult<Option<H>, Result<E, http::Error>>;
 
     fn into_future(self, request: &mut Request) -> Self::Future {
-        let h = request
-            .headers_mut()
-            .remove(<H as HeaderTrait>::header_name());
-        let h = h.map(|h| H::parse_header(&h.to_str().unwrap().into()).unwrap());
+        let h = request.headers_mut().get(<H as FromHeader>::header_name());
+        let h = h.map(|h| match H::from_header(h) {
+            Ok(h) => h,
+            Err(..) => panic!(),
+        });
         ok(h)
     }
 }
 
 #[allow(missing_docs)]
-pub struct EmptyHeader<H: HeaderTrait> {
+pub struct EmptyHeader<H: FromHeader> {
     _marker: PhantomData<fn() -> H>,
 }
 
-impl<H: HeaderTrait> fmt::Debug for EmptyHeader<H> {
+impl<H: FromHeader> fmt::Debug for EmptyHeader<H> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("EmptyHeader").finish()
     }
 }
 
-impl<H: HeaderTrait> fmt::Display for EmptyHeader<H> {
+impl<H: FromHeader> fmt::Display for EmptyHeader<H> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
             "The header '{}' is not given",
-            <H as HeaderTrait>::header_name()
+            <H as FromHeader>::header_name().as_str()
         )
     }
 }
 
-impl<H: HeaderTrait> Error for EmptyHeader<H> {
+impl<H: FromHeader> Error for EmptyHeader<H> {
     fn description(&self) -> &str {
         "empty header"
     }
 }
 
-impl<H: HeaderTrait> PartialEq for EmptyHeader<H> {
+impl<H: FromHeader> PartialEq for EmptyHeader<H> {
     fn eq(&self, _: &Self) -> bool {
         true
     }
 }
 
-impl<H: HeaderTrait> IntoResponse for EmptyHeader<H> {
+impl<H: FromHeader> IntoResponse for EmptyHeader<H> {
     fn into_response(self) -> Response {
         StdErrorResponseBuilder::bad_request(self).finish()
     }
