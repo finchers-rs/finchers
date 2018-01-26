@@ -22,7 +22,7 @@ use futures::{stream, Async, Future, Poll, Stream};
 use futures::future::{self, FutureResult};
 use endpoint::{Endpoint, EndpointContext, EndpointResult};
 use http::{self, FromBody, Request};
-use http::header::ContentLength;
+use http_crate::header::CONTENT_LENGTH;
 
 /// Creates an endpoint for parsing the incoming request body into the value of `T`
 pub fn body<T: FromBody>() -> Body<T> {
@@ -78,12 +78,17 @@ impl<T: FromBody> EndpointResult for BodyResult<T> {
     type Future = BodyFuture<T>;
 
     fn into_future(self, request: &mut Request) -> Self::Future {
-        let body = request.body().expect("cannot take the request body twice");
+        let body = request
+            .body_mut()
+            .take()
+            .expect("cannot take the request body twice");
         if T::validate(request) {
-            let len = request
-                .headers()
-                .get()
-                .map_or(0, |&ContentLength(len)| len as usize);
+            let len = request.headers().get(CONTENT_LENGTH).map_or(0, |v| {
+                v.to_str()
+                    .ok()
+                    .and_then(|s| s.parse::<usize>().ok())
+                    .unwrap_or(0)
+            });
             BodyFuture::Receiving(body, Vec::with_capacity(len))
         } else {
             BodyFuture::InvalidRequest(body.for_each(|_| Ok(())))
@@ -249,7 +254,7 @@ impl<E> EndpointResult for BodyStreamResult<E> {
     type Future = FutureResult<Self::Item, Result<Self::Error, http::Error>>;
 
     fn into_future(self, request: &mut Request) -> Self::Future {
-        let body = request.body().expect("cannot take a body twice");
+        let body = request.body_mut().take().expect("cannot take a body twice");
         future::ok(body)
     }
 }

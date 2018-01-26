@@ -5,7 +5,8 @@ mod into_response;
 mod segments;
 pub(crate) mod request;
 
-pub use hyper::{header, mime, Body, Chunk, Error, Method, Request as HyperRequest, Response, StatusCode};
+pub use hyper::{Body, Chunk, Error, Request as HyperRequest};
+pub use hyper::{Response, StatusCode};
 pub use hyper::header::{Header, Headers};
 pub use http_crate::{Extensions, Request as HttpRequest, Response as HttpResponse};
 

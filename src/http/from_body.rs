@@ -1,5 +1,5 @@
 use std::string::FromUtf8Error;
-use super::{mime, Request};
+use super::Request;
 use errors::NeverReturn;
 
 /// The conversion from received request body.
@@ -54,10 +54,8 @@ impl FromBody for Vec<u8> {
 impl FromBody for String {
     type Error = FromUtf8Error;
 
-    fn validate(req: &Request) -> bool {
-        req.media_type()
-            .and_then(|m| m.get_param("charset"))
-            .map_or(true, |m| m == mime::UTF_8)
+    fn validate(_: &Request) -> bool {
+        true
     }
 
     fn from_body(body: Vec<u8>) -> Result<Self, Self::Error> {

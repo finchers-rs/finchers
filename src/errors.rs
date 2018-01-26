@@ -2,8 +2,8 @@
 
 use std::fmt;
 use std::error::Error;
+use hyper::header::{ContentLength, ContentType};
 use http::{FromBody, FromSegment, FromSegments, IntoResponse, Response, StatusCode};
-use http::header::{ContentLength, ContentType};
 
 #[allow(missing_docs)]
 #[derive(Debug)]

@@ -1,7 +1,7 @@
 //! Components for checking the HTTP method
 
 use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
-use http::Method;
+use http_crate::Method;
 
 #[allow(missing_docs)]
 #[derive(Debug, Clone)]
@@ -72,13 +72,13 @@ macro_rules! define_method {
 }
 
 define_method! {
-    (get, Get, MatchGet),
-    (post, Post, MatchPost),
-    (put, Put, MatchPut),
-    (delete, Delete, MatchDelete),
-    (head, Head, MatchHead),
-    (patch, Patch, MatchPatch),
-    (trace, Trace, MatchTrace),
-    (connect, Connect, MatchConnect),
-    (options, Options, MatchOptions),
+    (get, GET, MatchGet),
+    (post, POST, MatchPost),
+    (put, PUT, MatchPut),
+    (delete, DELETE, MatchDelete),
+    (head, HEAD, MatchHead),
+    (patch, PATCH, MatchPatch),
+    (trace, TRACE, MatchTrace),
+    (connect, CONNECT, MatchConnect),
+    (options, OPTIONS, MatchOptions),
 }

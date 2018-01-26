@@ -12,7 +12,7 @@ impl<'a> EndpointContext<'a> {
     pub(crate) fn new(request: &'a Request) -> Self {
         EndpointContext {
             request,
-            segments: Segments::from(request.path()),
+            segments: Segments::from(request.uri().path()),
         }
     }
 

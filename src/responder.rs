@@ -2,7 +2,8 @@
 
 use std::rc::Rc;
 use std::sync::Arc;
-use http::{header, IntoResponse, Response, StatusCode};
+use http::{IntoResponse, Response, StatusCode};
+use hyper::header;
 
 #[allow(missing_docs)]
 pub trait Responder<T, E> {
