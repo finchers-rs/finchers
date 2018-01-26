@@ -177,18 +177,21 @@ where
 }
 
 #[allow(missing_docs)]
-pub trait EndpointServiceExt: Endpoint + Sized + sealed::Sealed
+pub trait EndpointServiceExt: Endpoint + sealed::Sealed
 where
     Self::Item: IntoResponse,
     Self::Error: IntoResponse,
 {
-    fn into_service(self) -> FinchersService<Self, DefaultHandler<Self::Error>, DefaultResponder>;
+    fn into_service(self) -> FinchersService<Self, DefaultHandler<Self::Error>, DefaultResponder>
+    where
+        Self: Sized;
 
     fn with_handler<H>(self, handler: H) -> FinchersService<Self, H, DefaultResponder>
     where
         H: Handler<Self::Item, Error = Self::Error> + Clone,
         H::Item: IntoResponse,
-        H::Error: IntoResponse;
+        H::Error: IntoResponse,
+        Self: Sized;
 }
 
 impl<E: Endpoint> EndpointServiceExt for E
@@ -214,4 +217,17 @@ mod sealed {
     use endpoint::Endpoint;
     pub trait Sealed {}
     impl<E: Endpoint> Sealed for E {}
+}
+
+mod tests {
+    #[test]
+    fn smoke_service_ext() {
+        use endpoint::prelude::*;
+        use std::rc::Rc;
+        use super::EndpointServiceExt;
+
+        let endpoint = endpoint("foo").assert_types::<(), ()>();
+        let _ = endpoint.clone().into_service();
+        let _ = endpoint.with_handler(Rc::new(|()| Ok(Some("Hello"))));
+    }
 }
