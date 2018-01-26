@@ -20,8 +20,7 @@ pub trait Endpoint {
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result>;
 
     #[allow(missing_docs)]
-    fn apply_request<R: Into<Request>>(&self, request: R) -> Option<<Self::Result as EndpointResult>::Future> {
-        let mut request = request.into();
+    fn apply_request(&self, mut request: Request) -> Option<<Self::Result as EndpointResult>::Future> {
         self.apply(&mut EndpointContext::new(&request))
             .map(|result| result.into_future(&mut request))
     }

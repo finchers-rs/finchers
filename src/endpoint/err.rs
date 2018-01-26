@@ -45,13 +45,13 @@ impl<T, E: Clone> Endpoint for EndpointErr<T, E> {
 mod tests {
     use super::*;
     use test::TestRunner;
-    use hyper::{Method, Request};
+    use http_crate::Request;
 
     #[test]
     fn test_err() {
         let endpoint = err("Alice");
         let mut runner = TestRunner::new(endpoint).unwrap();
-        let request = Request::new(Method::Get, "/".parse().unwrap());
+        let request = Request::get("/").body(Default::default()).unwrap();
         let result: Option<Result<(), &str>> = runner.run(request);
         assert_eq!(result, Some(Err("Alice")));
     }

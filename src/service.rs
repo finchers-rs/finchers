@@ -74,9 +74,10 @@ where
     type Error = Error;
     type Future = FinchersServiceFuture<E, H, R>;
 
-    fn call(&self, req: Self::Request) -> Self::Future {
+    fn call(&self, request: Self::Request) -> Self::Future {
+        let request = ::http_crate::Request::from(request).map(Some);
         FinchersServiceFuture {
-            state: match self.endpoint.apply_request(req) {
+            state: match self.endpoint.apply_request(request) {
                 Some(input) => State::PollingInput {
                     input,
                     handler: self.handler.clone(),
