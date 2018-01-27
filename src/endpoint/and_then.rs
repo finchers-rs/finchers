@@ -3,8 +3,8 @@
 use std::fmt;
 use std::sync::Arc;
 use futures::{Future, IntoFuture, Poll};
-use endpoint::{Endpoint, EndpointContext, EndpointResult};
-use http::{Error, Request};
+use endpoint::{Endpoint, EndpointContext, EndpointResult, Request};
+use http::Error;
 use super::chain::Chain;
 
 pub fn and_then<E, F, R>(endpoint: E, f: F) -> AndThen<E, F>

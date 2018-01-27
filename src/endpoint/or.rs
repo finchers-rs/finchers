@@ -1,8 +1,7 @@
 #![allow(missing_docs)]
 
 use futures::{Future, Poll};
-use http::Request;
-use super::{Endpoint, EndpointContext, EndpointResult, IntoEndpoint};
+use super::{Endpoint, EndpointContext, EndpointResult, IntoEndpoint, Request};
 
 pub fn or<E1, E2, A, B>(e1: E1, e2: E2) -> Or<E1::Endpoint, E2::Endpoint>
 where
@@ -116,7 +115,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hyper::{Method, Request};
+    use http_crate::Request;
     use endpoint::{endpoint, ok};
     use test::TestRunner;
 
@@ -127,13 +126,13 @@ mod tests {
             .or(endpoint("bar").with(ok("bar")));
         let mut runner = TestRunner::new(endpoint).unwrap();
 
-        let request = Request::new(Method::Get, "/foo".parse().unwrap());
+        let request = Request::get("/foo").body(Default::default()).unwrap();
         match runner.run(request) {
             Some(Ok("foo")) => (),
             _ => panic!("does not match"),
         }
 
-        let request = Request::new(Method::Get, "/bar".parse().unwrap());
+        let request = Request::get("/bar").body(Default::default()).unwrap();
         match runner.run(request) {
             Some(Ok("bar")) => (),
             _ => panic!("does not match"),
@@ -147,13 +146,13 @@ mod tests {
         let endpoint = e1.or(e2);
         let mut runner = TestRunner::new(endpoint).unwrap();
 
-        let request = Request::new(Method::Get, "/foo".parse().unwrap());
+        let request = Request::get("/foo").body(Default::default()).unwrap();
         match runner.run(request) {
             Some(Ok("foo")) => (),
             _ => panic!("does not match"),
         }
 
-        let request = Request::new(Method::Get, "/foo/bar".parse().unwrap());
+        let request = Request::get("/foo/bar").body(Default::default()).unwrap();
         match runner.run(request) {
             Some(Ok("foobar")) => (),
             _ => panic!("does not match"),

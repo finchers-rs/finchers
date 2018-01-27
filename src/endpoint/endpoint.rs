@@ -1,8 +1,11 @@
 use std::rc::Rc;
 use std::sync::Arc;
 use futures::{future, Future, IntoFuture};
-use http::{Error, Request};
+use http::{Body, Error};
 use super::*;
+
+#[allow(missing_docs)]
+pub type Request = ::http_crate::Request<Option<Body>>;
 
 /// Abstruction of an endpoint.
 pub trait Endpoint {
@@ -20,8 +23,7 @@ pub trait Endpoint {
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result>;
 
     #[allow(missing_docs)]
-    fn apply_request<R: Into<Request>>(&self, request: R) -> Option<<Self::Result as EndpointResult>::Future> {
-        let mut request = request.into();
+    fn apply_request(&self, mut request: Request) -> Option<<Self::Result as EndpointResult>::Future> {
         self.apply(&mut EndpointContext::new(&request))
             .map(|result| result.into_future(&mut request))
     }

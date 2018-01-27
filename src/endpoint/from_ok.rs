@@ -4,8 +4,7 @@ use std::fmt;
 use std::marker::PhantomData;
 
 use futures::{future, Future};
-use endpoint::{Endpoint, EndpointContext, EndpointResult, IntoEndpoint};
-use http::Request;
+use endpoint::{Endpoint, EndpointContext, EndpointResult, IntoEndpoint, Request};
 
 pub fn from_ok<E, A, B, T>(endpoint: E) -> FromOk<E, T>
 where

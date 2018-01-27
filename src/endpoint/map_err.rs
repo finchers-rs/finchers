@@ -3,8 +3,8 @@
 use std::fmt;
 use std::sync::Arc;
 use futures::{Future, Poll};
-use http::{Error, Request};
-use super::{Endpoint, EndpointContext, EndpointResult, IntoEndpoint};
+use http::Error;
+use super::{Endpoint, EndpointContext, EndpointResult, IntoEndpoint, Request};
 
 pub fn map_err<E, F, R, A, B>(endpoint: E, f: F) -> MapErr<E::Endpoint, F>
 where

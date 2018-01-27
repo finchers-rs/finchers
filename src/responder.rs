@@ -2,38 +2,37 @@
 
 use std::rc::Rc;
 use std::sync::Arc;
-use http::{header, IntoResponse, Response, StatusCode};
+use http::{Body, IntoResponse};
+use http_crate::{header, Error, Response, StatusCode};
 
 #[allow(missing_docs)]
 pub trait Responder<T, E> {
-    fn respond_ok(&self, T) -> Response;
+    fn respond_ok(&self, T) -> Result<Response<Body>, Error>;
 
-    fn respond_err(&self, E) -> Response;
+    fn respond_err(&self, E) -> Result<Response<Body>, Error>;
 
-    fn respond_noroute(&self) -> Response {
-        Response::new().with_status(StatusCode::NotFound)
-    }
+    fn respond_noroute(&self) -> Result<Response<Body>, Error>;
 
-    fn after_respond(&self, &mut Response) {}
+    fn after_respond(&self, response: &mut Response<Body>);
 }
 
 impl<R, T, E> Responder<T, E> for Rc<R>
 where
     R: Responder<T, E>,
 {
-    fn respond_ok(&self, input: T) -> Response {
+    fn respond_ok(&self, input: T) -> Result<Response<Body>, Error> {
         (**self).respond_ok(input)
     }
 
-    fn respond_err(&self, err: E) -> Response {
+    fn respond_err(&self, err: E) -> Result<Response<Body>, Error> {
         (**self).respond_err(err)
     }
 
-    fn respond_noroute(&self) -> Response {
+    fn respond_noroute(&self) -> Result<Response<Body>, Error> {
         (**self).respond_noroute()
     }
 
-    fn after_respond(&self, response: &mut Response) {
+    fn after_respond(&self, response: &mut Response<Body>) {
         (**self).after_respond(response)
     }
 }
@@ -42,19 +41,19 @@ impl<R, T, E> Responder<T, E> for Arc<R>
 where
     R: Responder<T, E>,
 {
-    fn respond_ok(&self, input: T) -> Response {
+    fn respond_ok(&self, input: T) -> Result<Response<Body>, Error> {
         (**self).respond_ok(input)
     }
 
-    fn respond_err(&self, err: E) -> Response {
+    fn respond_err(&self, err: E) -> Result<Response<Body>, Error> {
         (**self).respond_err(err)
     }
 
-    fn respond_noroute(&self) -> Response {
+    fn respond_noroute(&self) -> Result<Response<Body>, Error> {
         (**self).respond_noroute()
     }
 
-    fn after_respond(&self, response: &mut Response) {
+    fn after_respond(&self, response: &mut Response<Body>) {
         (**self).after_respond(response)
     }
 }
@@ -68,21 +67,25 @@ where
     T: IntoResponse,
     E: IntoResponse,
 {
-    fn respond_ok(&self, input: T) -> Response {
+    fn respond_ok(&self, input: T) -> Result<Response<Body>, Error> {
         input.into_response()
     }
 
-    fn respond_err(&self, err: E) -> Response {
+    fn respond_err(&self, err: E) -> Result<Response<Body>, Error> {
         err.into_response()
     }
 
-    fn respond_noroute(&self) -> Response {
-        Response::new().with_status(StatusCode::NotFound)
+    fn respond_noroute(&self) -> Result<Response<Body>, Error> {
+        Response::builder()
+            .status(StatusCode::NOT_FOUND)
+            .body(Default::default())
     }
 
-    fn after_respond(&self, response: &mut Response) {
-        if !response.headers().has::<header::Server>() {
-            response.headers_mut().set(header::Server::new("Finchers"));
+    fn after_respond(&self, response: &mut Response<Body>) {
+        if !response.headers().contains_key(header::SERVER) {
+            response
+                .headers_mut()
+                .insert(header::SERVER, "Finchers".parse().unwrap());
         }
     }
 }

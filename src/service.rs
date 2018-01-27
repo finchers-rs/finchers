@@ -3,8 +3,9 @@
 use std::mem;
 use futures::{Future, IntoFuture, Poll};
 use futures::Async::*;
-use hyper::{Error, Request, Response};
+use hyper::{Body, Error};
 use hyper::server::Service;
+use http_crate::{Request, Response};
 
 use endpoint::{Endpoint, EndpointResult};
 use http::IntoResponse;
@@ -69,14 +70,14 @@ where
     H: Handler<E::Item, Error = E::Error> + Clone,
     R: Responder<H::Item, H::Error> + Clone,
 {
-    type Request = Request;
-    type Response = Response;
+    type Request = Request<Body>;
+    type Response = Response<Body>;
     type Error = Error;
     type Future = FinchersServiceFuture<E, H, R>;
 
-    fn call(&self, req: Self::Request) -> Self::Future {
+    fn call(&self, request: Self::Request) -> Self::Future {
         FinchersServiceFuture {
-            state: match self.endpoint.apply_request(req) {
+            state: match self.endpoint.apply_request(request.map(Some)) {
                 Some(input) => State::PollingInput {
                     input,
                     handler: self.handler.clone(),
@@ -162,15 +163,22 @@ where
     H: Handler<E::Item, Error = E::Error>,
     R: Responder<H::Item, H::Error>,
 {
-    type Item = Response;
+    type Item = Response<Body>;
     type Error = Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let mut response = match try_ready!(self.poll_state()) {
+        let response = match try_ready!(self.poll_state()) {
             Ok(Some(item)) => self.responder.respond_ok(item),
             Ok(None) => self.responder.respond_noroute(),
             Err(err) => self.responder.respond_err(err),
         };
+        let mut response = response.unwrap_or_else(|e| {
+            use http_crate::{Response, StatusCode};
+            Response::builder()
+                .status(StatusCode::INTERNAL_SERVER_ERROR)
+                .body(format!("server_error: {}", e).into())
+                .expect("failed to construct an error response")
+        });
         self.responder.after_respond(&mut response);
         Ok(Ready(response))
     }

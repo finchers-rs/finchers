@@ -3,8 +3,7 @@
 use std::fmt;
 use std::sync::Arc;
 use futures::{Future, Poll};
-use http::Request;
-use super::{Endpoint, EndpointContext, EndpointResult, IntoEndpoint};
+use super::{Endpoint, EndpointContext, EndpointResult, IntoEndpoint, Request};
 
 pub fn map<E, F, R, A, B>(endpoint: E, f: F) -> Map<E::Endpoint, F>
 where

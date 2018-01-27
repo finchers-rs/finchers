@@ -2,8 +2,7 @@
 
 use std::fmt;
 use futures::future;
-use http::Request;
-use super::{Endpoint, EndpointContext, EndpointResult, IntoEndpoint};
+use super::{Endpoint, EndpointContext, EndpointResult, IntoEndpoint, Request};
 
 pub fn join_all<I, E, A, B>(iter: I) -> JoinAll<E::Endpoint>
 where

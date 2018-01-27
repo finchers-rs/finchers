@@ -4,8 +4,8 @@ use std::fmt;
 use std::marker::PhantomData;
 
 use futures::{future, Future};
-use endpoint::{Endpoint, EndpointContext, EndpointResult, IntoEndpoint};
-use http::{Error, Request};
+use endpoint::{Endpoint, EndpointContext, EndpointResult, IntoEndpoint, Request};
+use http::Error;
 
 pub fn from_ok_err<E, A, B, C, D>(endpoint: E) -> FromOkErr<E, C, D>
 where
