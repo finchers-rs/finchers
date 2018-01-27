@@ -1,46 +1,39 @@
-use super::{Body, HttpResponse, Response, StatusCode};
-use hyper::header;
+use super::Body;
+use http_crate::{header, Error, Response, StatusCode};
 
 #[allow(missing_docs)]
 pub trait IntoResponse {
-    fn into_response(self) -> Response;
+    fn into_response(self) -> Result<Response<Body>, Error>;
 }
 
-impl IntoResponse for Response {
+impl<B: Into<Body>> IntoResponse for Response<B> {
     #[inline]
-    fn into_response(self) -> Response {
-        self
-    }
-}
-
-impl<B: Into<Body>> IntoResponse for HttpResponse<B> {
-    #[inline]
-    fn into_response(self) -> Response {
-        let (parts, body) = self.into_parts();
-        HttpResponse::from_parts(parts, body.into()).into()
+    fn into_response(self) -> Result<Response<Body>, Error> {
+        Ok(self.map(Into::into))
     }
 }
 
 impl IntoResponse for () {
-    fn into_response(self) -> Response {
-        Response::new()
-            .with_status(StatusCode::NoContent)
-            .with_header(header::ContentLength(0))
+    fn into_response(self) -> Result<Response<Body>, Error> {
+        Response::builder()
+            .status(StatusCode::NO_CONTENT)
+            .body(Body::default())
     }
 }
 
 impl<T: IntoResponse> IntoResponse for Option<T> {
-    fn into_response(self) -> Response {
-        self.map(IntoResponse::into_response).unwrap_or_else(|| {
-            Response::new()
-                .with_status(StatusCode::NotFound)
-                .with_header(header::ContentLength(0))
-        })
+    fn into_response(self) -> Result<Response<Body>, Error> {
+        match self {
+            Some(r) => r.into_response(),
+            None => Response::builder()
+                .status(StatusCode::NOT_FOUND)
+                .body(Body::default()),
+        }
     }
 }
 
 impl<T: IntoResponse, E: IntoResponse> IntoResponse for Result<T, E> {
-    fn into_response(self) -> Response {
+    fn into_response(self) -> Result<Response<Body>, Error> {
         match self {
             Ok(t) => t.into_response(),
             Err(e) => e.into_response(),
@@ -49,28 +42,28 @@ impl<T: IntoResponse, E: IntoResponse> IntoResponse for Result<T, E> {
 }
 
 impl IntoResponse for &'static str {
-    fn into_response(self) -> Response {
-        Response::new()
-            .with_header(header::ContentType::plaintext())
-            .with_header(header::ContentLength(self.len() as u64))
-            .with_body(self)
+    fn into_response(self) -> Result<Response<Body>, Error> {
+        Response::builder()
+            .header(header::CONTENT_TYPE, "text/plain")
+            .header(header::CONTENT_LENGTH, format!("{}", self.len()).as_str())
+            .body(Body::from(self))
     }
 }
 
 impl IntoResponse for String {
-    fn into_response(self) -> Response {
-        Response::new()
-            .with_header(header::ContentType::plaintext())
-            .with_header(header::ContentLength(self.len() as u64))
-            .with_body(self)
+    fn into_response(self) -> Result<Response<Body>, Error> {
+        Response::builder()
+            .header(header::CONTENT_TYPE, "text/plain")
+            .header(header::CONTENT_LENGTH, format!("{}", self.len()).as_str())
+            .body(Body::from(self))
     }
 }
 
 impl IntoResponse for ::std::borrow::Cow<'static, str> {
-    fn into_response(self) -> Response {
-        Response::new()
-            .with_header(header::ContentType::plaintext())
-            .with_header(header::ContentLength(self.len() as u64))
-            .with_body(self)
+    fn into_response(self) -> Result<Response<Body>, Error> {
+        Response::builder()
+            .header(header::CONTENT_TYPE, "text/plain")
+            .header(header::CONTENT_LENGTH, format!("{}", self.len()).as_str())
+            .body(Body::from(self))
     }
 }

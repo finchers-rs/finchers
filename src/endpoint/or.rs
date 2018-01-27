@@ -1,8 +1,7 @@
 #![allow(missing_docs)]
 
 use futures::{Future, Poll};
-use http::Request;
-use super::{Endpoint, EndpointContext, EndpointResult, IntoEndpoint};
+use super::{Endpoint, EndpointContext, EndpointResult, IntoEndpoint, Request};
 
 pub fn or<E1, E2, A, B>(e1: E1, e2: E2) -> Or<E1::Endpoint, E2::Endpoint>
 where

@@ -10,9 +10,8 @@ use std::fmt;
 use std::error::Error;
 use std::marker::PhantomData;
 use futures::future::{err, result, FutureResult};
-use endpoint::{Endpoint, EndpointContext, EndpointResult};
-use errors::StdErrorResponseBuilder;
-use http::{self, FromHeader, IntoResponse, Request, Response};
+use endpoint::{Endpoint, EndpointContext, EndpointResult, Request};
+use http::{self, FromHeader};
 
 #[allow(missing_docs)]
 pub fn header<H: FromHeader>() -> Header<H> {
@@ -230,11 +229,5 @@ impl<H: FromHeader> Error for HeaderError<H> {
 impl<H: FromHeader> PartialEq for HeaderError<H> {
     fn eq(&self, _: &Self) -> bool {
         true
-    }
-}
-
-impl<H: FromHeader> IntoResponse for HeaderError<H> {
-    fn into_response(self) -> Response {
-        StdErrorResponseBuilder::bad_request(self).finish()
     }
 }

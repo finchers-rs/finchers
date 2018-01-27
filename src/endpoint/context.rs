@@ -1,5 +1,6 @@
 use std::ops::Deref;
-use http::{Request, Segments};
+use http::Segments;
+use super::endpoint::Request;
 
 /// A context during the routing.
 #[derive(Debug, Clone)]

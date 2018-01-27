@@ -20,8 +20,8 @@ use std::mem;
 use std::marker::PhantomData;
 use futures::{stream, Async, Future, Poll, Stream};
 use futures::future::{self, FutureResult};
-use endpoint::{Endpoint, EndpointContext, EndpointResult};
-use http::{self, FromBody, Request};
+use endpoint::{Endpoint, EndpointContext, EndpointResult, Request};
+use http::{self, FromBody};
 use http_crate::header::CONTENT_LENGTH;
 
 /// Creates an endpoint for parsing the incoming request body into the value of `T`

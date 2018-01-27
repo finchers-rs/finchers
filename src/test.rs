@@ -3,9 +3,8 @@
 #![allow(missing_docs)]
 
 use std::io;
-use http::Request;
 use tokio_core::reactor::Core;
-use endpoint::Endpoint;
+use endpoint::{Endpoint, Request};
 
 #[derive(Debug)]
 pub struct TestRunner<E: Endpoint> {

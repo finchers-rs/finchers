@@ -3,8 +3,7 @@
 
 use std::fmt;
 use futures::{future, IntoFuture};
-use http::Request;
-use super::{Endpoint, EndpointContext, EndpointResult, IntoEndpoint};
+use super::{Endpoint, EndpointContext, EndpointResult, IntoEndpoint, Request};
 
 macro_rules! generate {
     ($(

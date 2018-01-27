@@ -167,13 +167,20 @@ where
     type Error = Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let mut response = match try_ready!(self.poll_state()) {
+        let response = match try_ready!(self.poll_state()) {
             Ok(Some(item)) => self.responder.respond_ok(item),
             Ok(None) => self.responder.respond_noroute(),
             Err(err) => self.responder.respond_err(err),
         };
+        let mut response = response.unwrap_or_else(|e| {
+            use http_crate::{Response, StatusCode};
+            Response::builder()
+                .status(StatusCode::INTERNAL_SERVER_ERROR)
+                .body(format!("server_error: {}", e).into())
+                .expect("failed to construct an error response")
+        });
         self.responder.after_respond(&mut response);
-        Ok(Ready(response))
+        Ok(Ready(response.into()))
     }
 }
 

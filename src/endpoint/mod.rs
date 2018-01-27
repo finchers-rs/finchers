@@ -26,7 +26,7 @@ pub(crate) mod with;
 // re-exports
 pub use self::and_then::AndThen;
 pub use self::context::EndpointContext;
-pub use self::endpoint::{endpoint, Endpoint, EndpointResult, IntoEndpoint};
+pub use self::endpoint::{endpoint, Endpoint, EndpointResult, IntoEndpoint, Request};
 pub use self::err::{err, EndpointErr};
 pub use self::from_err::FromErr;
 pub use self::from_ok::FromOk;

@@ -1,8 +1,11 @@
 use std::rc::Rc;
 use std::sync::Arc;
 use futures::{future, Future, IntoFuture};
-use http::{Error, Request};
+use http::{Body, Error};
 use super::*;
+
+#[allow(missing_docs)]
+pub type Request = ::http_crate::Request<Option<Body>>;
 
 /// Abstruction of an endpoint.
 pub trait Endpoint {
