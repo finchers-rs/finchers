@@ -1,7 +1,8 @@
 use std::io;
 use std::sync::Arc;
-use hyper;
+use hyper::{Body, Error};
 use hyper::server::{NewService, Service};
+use http_crate::{Request, Response};
 
 use endpoint::Endpoint;
 use handler::DefaultHandler;
@@ -16,7 +17,7 @@ use super::backend::DefaultBackend;
 #[derive(Debug)]
 pub struct Application<S, B>
 where
-    S: NewService<Request = hyper::Request, Response = hyper::Response, Error = hyper::Error> + Clone + 'static,
+    S: NewService<Request = Request<Body>, Response = Response<Body>, Error = Error> + Clone + 'static,
     B: TcpBackend,
 {
     new_service: S,
@@ -27,7 +28,7 @@ where
 
 impl<S, B> Application<S, B>
 where
-    S: NewService<Request = hyper::Request, Response = hyper::Response, Error = hyper::Error> + Clone + 'static,
+    S: NewService<Request = Request<Body>, Response = Response<Body>, Error = Error> + Clone + 'static,
     B: TcpBackend,
 {
     /// Create a new launcher from given service and TCP backend.
@@ -70,7 +71,7 @@ where
 
 impl<S> Application<ConstService<S>, DefaultBackend>
 where
-    S: Service<Request = hyper::Request, Response = hyper::Response, Error = hyper::Error>,
+    S: Service<Request = Request<Body>, Response = Response<Body>, Error = Error>,
 {
     #[allow(missing_docs)]
     pub fn from_service(service: S) -> Self {
@@ -97,7 +98,7 @@ where
 
 impl<S, B> Application<S, B>
 where
-    S: NewService<Request = hyper::Request, Response = hyper::Response, Error = hyper::Error> + Clone + 'static,
+    S: NewService<Request = Request<Body>, Response = Response<Body>, Error = Error> + Clone + 'static,
     B: TcpBackend,
     S: Send + Sync,
     B: Send + Sync + 'static,

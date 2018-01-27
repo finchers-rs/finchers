@@ -3,8 +3,9 @@
 use std::mem;
 use futures::{Future, IntoFuture, Poll};
 use futures::Async::*;
-use hyper::{Error, Request, Response};
+use hyper::{Body, Error};
 use hyper::server::Service;
+use http_crate::{Request, Response};
 
 use endpoint::{Endpoint, EndpointResult};
 use http::IntoResponse;
@@ -69,15 +70,14 @@ where
     H: Handler<E::Item, Error = E::Error> + Clone,
     R: Responder<H::Item, H::Error> + Clone,
 {
-    type Request = Request;
-    type Response = Response;
+    type Request = Request<Body>;
+    type Response = Response<Body>;
     type Error = Error;
     type Future = FinchersServiceFuture<E, H, R>;
 
     fn call(&self, request: Self::Request) -> Self::Future {
-        let request = ::http_crate::Request::from(request).map(Some);
         FinchersServiceFuture {
-            state: match self.endpoint.apply_request(request) {
+            state: match self.endpoint.apply_request(request.map(Some)) {
                 Some(input) => State::PollingInput {
                     input,
                     handler: self.handler.clone(),
@@ -163,7 +163,7 @@ where
     H: Handler<E::Item, Error = E::Error>,
     R: Responder<H::Item, H::Error>,
 {
-    type Item = Response;
+    type Item = Response<Body>;
     type Error = Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
@@ -180,7 +180,7 @@ where
                 .expect("failed to construct an error response")
         });
         self.responder.after_respond(&mut response);
-        Ok(Ready(response.into()))
+        Ok(Ready(response))
     }
 }
 
