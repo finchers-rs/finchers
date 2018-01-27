@@ -8,7 +8,7 @@ mod segments;
 pub use hyper::{Body, Chunk, Error};
 pub use hyper::{Response, StatusCode};
 pub use hyper::header::Headers;
-pub use http_crate::{Response as HttpResponse};
+pub use http_crate::Response as HttpResponse;
 
 pub use self::from_body::FromBody;
 pub use self::from_header::FromHeader;

@@ -134,7 +134,7 @@ impl<T> IntoResponse for ::std::sync::TryLockError<T> {
 
 // re-exports
 pub use endpoint::body::BodyError;
-pub use endpoint::header::EmptyHeader;
+pub use endpoint::header::HeaderError;
 pub use endpoint::path::{ExtractPathError, ExtractPathsError};
 
 impl<T: FromBody> IntoResponse for BodyError<T>
