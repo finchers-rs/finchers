@@ -16,13 +16,11 @@
 
 use std::fmt;
 use std::error::Error;
-use std::mem;
 use std::marker::PhantomData;
-use futures::{stream, Async, Future, Poll, Stream};
+use futures::{Future, Poll};
 use futures::future::{self, FutureResult};
 use endpoint::{Endpoint, EndpointContext, EndpointError, EndpointResult};
 use http::{self, FromBody, HttpError, Request, StatusCode};
-use http::header::ContentLength;
 
 /// Creates an endpoint for parsing the incoming request body into the value of `T`
 pub fn body<T: FromBody>() -> Body<T> {
@@ -82,15 +80,14 @@ where
     type Future = BodyFuture<T>;
 
     fn into_future(self, request: &mut Request) -> Self::Future {
-        let body = request.body().expect("cannot take the request body twice");
+        let body = request
+            .body()
+            .map(http::Body::from)
+            .expect("cannot take the request body twice");
         if T::validate(request) {
-            let len = request
-                .headers()
-                .get()
-                .map_or(0, |&ContentLength(len)| len as usize);
-            BodyFuture::Receiving(body, Vec::with_capacity(len))
+            BodyFuture::Receiving(body, PhantomData)
         } else {
-            BodyFuture::InvalidRequest(body.for_each(|_| Ok(())))
+            BodyFuture::InvalidRequest(body)
         }
     }
 }
@@ -98,9 +95,8 @@ where
 #[doc(hidden)]
 #[allow(missing_debug_implementations)]
 pub enum BodyFuture<T> {
-    InvalidRequest(stream::ForEach<http::Body, fn(http::Chunk) -> Result<(), http::Error>, Result<(), http::Error>>),
-    Receiving(http::Body, Vec<u8>),
-    Done(PhantomData<fn() -> T>),
+    InvalidRequest(http::Body),
+    Receiving(http::Body, PhantomData<fn() -> T>),
 }
 
 impl<T: FromBody> Future for BodyFuture<T>
@@ -112,31 +108,16 @@ where
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         use self::BodyFuture::*;
-        match mem::replace(self, BodyFuture::Done(PhantomData)) {
-            InvalidRequest(mut f) => match f.poll()? {
-                Async::Ready(()) => Err((BodyError::InvalidRequest as BodyError<T>).into()),
-                Async::NotReady => {
-                    *self = BodyFuture::InvalidRequest(f);
-                    Ok(Async::NotReady)
-                }
-            },
-            Receiving(mut body, mut buf) => loop {
-                match body.poll()? {
-                    Async::Ready(Some(item)) => {
-                        buf.extend_from_slice(&item);
-                        continue;
-                    }
-                    Async::Ready(None) => {
-                        let body = T::from_body(buf).map_err(|e| BodyError::FromBody(e) as BodyError<T>)?;
-                        break Ok(Async::Ready(body));
-                    }
-                    Async::NotReady => {
-                        *self = Receiving(body, buf);
-                        break Ok(Async::NotReady);
-                    }
-                }
-            },
-            Done(..) => panic!("cannot resolve twice"),
+        match *self {
+            InvalidRequest(ref mut f) => {
+                try_ready!(f.poll());
+                Err((BodyError::InvalidRequest as BodyError<T>).into())
+            }
+            Receiving(ref mut body, ..) => {
+                let buf = try_ready!(body.poll());
+                let body = T::from_body(&*buf).map_err(|e| BodyError::FromBody(e) as BodyError<T>)?;
+                Ok(body.into())
+            }
         }
     }
 }
@@ -245,7 +226,7 @@ impl<E> Endpoint for BodyStream<E>
 where
     E: HttpError,
 {
-    type Item = http::Body;
+    type Item = http::BodyStream;
     type Result = BodyStreamResult<E>;
 
     fn apply(&self, _: &mut EndpointContext) -> Option<Self::Result> {
@@ -265,11 +246,11 @@ impl<E> EndpointResult for BodyStreamResult<E>
 where
     E: HttpError,
 {
-    type Item = http::Body;
+    type Item = http::BodyStream;
     type Future = FutureResult<Self::Item, EndpointError>;
 
     fn into_future(self, request: &mut Request) -> Self::Future {
         let body = request.body().expect("cannot take a body twice");
-        future::ok(body)
+        future::ok(body.into())
     }
 }

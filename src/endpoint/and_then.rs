@@ -3,7 +3,8 @@
 use std::fmt;
 use std::mem;
 use std::sync::Arc;
-use futures::{Async, Future, IntoFuture, Poll};
+use futures::{Future, IntoFuture, Poll};
+use futures::Async::*;
 use endpoint::{Endpoint, EndpointContext, EndpointError, EndpointResult};
 use http::Request;
 use self::Chain::*;
@@ -151,10 +152,9 @@ where
     {
         let a_result = match *self {
             First(ref mut a, ..) => match a.poll() {
-                Ok(Async::Ready(item)) => Ok(item),
-                Ok(Async::NotReady) => return Ok(Async::NotReady),
-                Err(EndpointError::Endpoint(err)) => Err(EndpointError::Endpoint(err)),
-                Err(EndpointError::Http(err)) => return Err(err.into()),
+                Ok(Ready(item)) => Ok(item),
+                Ok(NotReady) => return Ok(NotReady),
+                Err(e) => Err(e),
             },
             Second(ref mut b) => return b.poll().map_err(Into::into),
             Done => panic!("cannot poll twice"),
@@ -166,7 +166,7 @@ where
         };
 
         match f(a_result, data)? {
-            Ok(item) => Ok(Async::Ready(item)),
+            Ok(item) => Ok(Ready(item)),
             Err(mut b) => {
                 let result = b.poll().map_err(Into::into);
                 *self = Second(b);

@@ -129,6 +129,7 @@ impl<E: Endpoint> Endpoint for Arc<E> {
 pub enum EndpointError {
     Endpoint(Box<HttpError>),
     Http(http::Error),
+    BodyReceiving(::futures::future::SharedError<::hyper::Error>),
 }
 
 impl<E: HttpError + 'static> From<E> for EndpointError {
@@ -140,6 +141,12 @@ impl<E: HttpError + 'static> From<E> for EndpointError {
 impl From<http::Error> for EndpointError {
     fn from(err: http::Error) -> Self {
         EndpointError::Http(err)
+    }
+}
+
+impl From<::futures::future::SharedError<::hyper::Error>> for EndpointError {
+    fn from(err: ::futures::future::SharedError<::hyper::Error>) -> Self {
+        EndpointError::BodyReceiving(err)
     }
 }
 

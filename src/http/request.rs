@@ -1,9 +1,7 @@
-use hyper::{self, Headers, HttpVersion, Method, Uri};
+use hyper::{self, Body, Headers, HttpVersion, Method, Uri};
 use hyper::header;
 use hyper::mime::Mime;
 use http_crate::{self, Extensions};
-
-use super::Body;
 
 /// The value of incoming HTTP request
 #[derive(Debug)]
