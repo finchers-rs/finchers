@@ -4,13 +4,14 @@ use std::fmt;
 use std::marker::PhantomData;
 
 use futures::{future, Future};
-use endpoint::{Endpoint, EndpointContext, EndpointResult, IntoEndpoint};
-use http::{Error, Request};
+use endpoint::{Endpoint, EndpointContext, EndpointError, EndpointResult, IntoEndpoint};
+use errors::HttpError;
+use http::Request;
 
-pub fn from_err<E, A, B, U>(endpoint: E) -> FromErr<E, U>
+pub fn from_err<E, A, B: HttpError, U>(endpoint: E) -> FromErr<E, U>
 where
     E: IntoEndpoint<A, B>,
-    U: From<B>,
+    U: From<B> + HttpError,
 {
     FromErr {
         endpoint,
@@ -43,7 +44,7 @@ impl<E: fmt::Debug, U> fmt::Debug for FromErr<E, U> {
     }
 }
 
-impl<E, U> Endpoint for FromErr<E, U>
+impl<E, U: HttpError> Endpoint for FromErr<E, U>
 where
     E: Endpoint,
     U: From<E::Error>,
@@ -77,14 +78,17 @@ impl<R: fmt::Debug, U> fmt::Debug for FromErrResult<R, U> {
 impl<R, U> EndpointResult for FromErrResult<R, U>
 where
     R: EndpointResult,
-    U: From<R::Error>,
+    U: From<R::Error> + HttpError,
 {
     type Item = R::Item;
     type Error = U;
-    type Future = future::MapErr<R::Future, fn(Result<R::Error, Error>) -> Result<U, Error>>;
+    type Future = future::MapErr<R::Future, fn(EndpointError<R::Error>) -> EndpointError<U>>;
 
     fn into_future(self, request: &mut Request) -> Self::Future {
         let future = self.result.into_future(request);
-        future.map_err(|e| e.map(Into::into))
+        future.map_err(|e| match e {
+            EndpointError::Endpoint(e) => EndpointError::Endpoint(e.into()),
+            EndpointError::Http(e) => EndpointError::Http(e),
+        })
     }
 }

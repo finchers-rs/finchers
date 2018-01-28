@@ -5,12 +5,13 @@ use std::fmt;
 use futures::{future, IntoFuture};
 use http::Request;
 use super::{Endpoint, EndpointContext, EndpointResult, IntoEndpoint};
+use errors::HttpError;
 
 macro_rules! generate {
     ($(
         ($new:ident, $Join:ident, $JoinResult:ident, <$($T:ident : $A:ident),*>),
     )*) => {$(
-        pub fn $new<$($T,)* $($A,)* E>($($T: $T),*) -> $Join<$($T::Endpoint),*>
+        pub fn $new<$($T,)* $($A,)* E: HttpError>($($T: $T),*) -> $Join<$($T::Endpoint),*>
         where $(
             $T: IntoEndpoint<$A, E>,
         )*
@@ -55,7 +56,7 @@ macro_rules! generate {
             }
         }
 
-        impl<$($T,)* E> Endpoint for $Join<$($T),*>
+        impl<$($T,)* E: HttpError> Endpoint for $Join<$($T),*>
         where $(
             $T: Endpoint<Error = E>,
         )*
@@ -72,7 +73,7 @@ macro_rules! generate {
             }
         }
 
-        impl<$($T,)* $($A,)* E> IntoEndpoint<($($A),*), E> for ($($T),*)
+        impl<$($T,)* $($A,)* E: HttpError> IntoEndpoint<($($A),*), E> for ($($T),*)
         where $(
             $T: IntoEndpoint<$A, E>,
         )* {
@@ -89,7 +90,7 @@ macro_rules! generate {
             inner: ($($T),*),
         }
 
-        impl<$($T,)* E> EndpointResult for $JoinResult<$($T),*>
+        impl<$($T,)* E: HttpError> EndpointResult for $JoinResult<$($T),*>
         where $(
             $T: EndpointResult<Error = E>,
         )*

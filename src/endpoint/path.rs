@@ -24,6 +24,7 @@ use std::error::Error;
 use std::marker::PhantomData;
 use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
 use http::{FromSegment, FromSegments};
+use errors::HttpError;
 
 #[allow(missing_docs)]
 pub struct MatchPath<E> {
@@ -63,7 +64,7 @@ pub enum MatchPathKind {
 }
 use self::MatchPathKind::*;
 
-impl<E> Endpoint for MatchPath<E> {
+impl<E: HttpError> Endpoint for MatchPath<E> {
     type Item = ();
     type Error = E;
     type Result = Result<Self::Item, Self::Error>;
@@ -117,21 +118,21 @@ pub fn match_<E>(s: &str) -> Result<MatchPath<E>, ParseMatchError> {
     })
 }
 
-impl<'a, E> IntoEndpoint<(), E> for &'a str {
+impl<'a, E: HttpError> IntoEndpoint<(), E> for &'a str {
     type Endpoint = MatchPath<E>;
     fn into_endpoint(self) -> Self::Endpoint {
         match_(self).unwrap()
     }
 }
 
-impl<E> IntoEndpoint<(), E> for String {
+impl<E: HttpError> IntoEndpoint<(), E> for String {
     type Endpoint = MatchPath<E>;
     fn into_endpoint(self) -> Self::Endpoint {
         match_(&self).unwrap()
     }
 }
 
-impl<'a, E> IntoEndpoint<(), E> for Cow<'a, str> {
+impl<'a, E: HttpError> IntoEndpoint<(), E> for Cow<'a, str> {
     type Endpoint = MatchPath<E>;
     fn into_endpoint(self) -> Self::Endpoint {
         match_(&*self).unwrap()
@@ -165,7 +166,7 @@ impl<T, E> fmt::Debug for ExtractPath<T, E> {
     }
 }
 
-impl<T: FromSegment, E> Endpoint for ExtractPath<T, E> {
+impl<T: FromSegment, E: HttpError> Endpoint for ExtractPath<T, E> {
     type Item = T;
     type Error = E;
     type Result = Result<Self::Item, Self::Error>;
@@ -204,7 +205,10 @@ impl<T> fmt::Debug for ExtractPathRequired<T> {
     }
 }
 
-impl<T: FromSegment> Endpoint for ExtractPathRequired<T> {
+impl<T: FromSegment> Endpoint for ExtractPathRequired<T>
+where
+    T::Err: Error,
+{
     type Item = T;
     type Error = ExtractPathError<T>;
     type Result = Result<Self::Item, Self::Error>;
@@ -288,7 +292,7 @@ impl<T, E> fmt::Debug for ExtractPathOptional<T, E> {
     }
 }
 
-impl<T: FromSegment, E> Endpoint for ExtractPathOptional<T, E> {
+impl<T: FromSegment, E: HttpError> Endpoint for ExtractPathOptional<T, E> {
     type Item = Option<T>;
     type Error = E;
     type Result = Result<Self::Item, Self::Error>;
@@ -325,7 +329,7 @@ impl<T, E> fmt::Debug for ExtractPaths<T, E> {
     }
 }
 
-impl<T: FromSegments, E> Endpoint for ExtractPaths<T, E> {
+impl<T: FromSegments, E: HttpError> Endpoint for ExtractPaths<T, E> {
     type Item = T;
     type Error = E;
     type Result = Result<Self::Item, Self::Error>;
@@ -362,7 +366,10 @@ impl<T> fmt::Debug for ExtractPathsRequired<T> {
     }
 }
 
-impl<T: FromSegments> Endpoint for ExtractPathsRequired<T> {
+impl<T: FromSegments> Endpoint for ExtractPathsRequired<T>
+where
+    T::Err: Error,
+{
     type Item = T;
     type Error = ExtractPathsError<T>;
     type Result = Result<Self::Item, Self::Error>;
@@ -442,7 +449,7 @@ impl<T, E> fmt::Debug for ExtractPathsOptional<T, E> {
     }
 }
 
-impl<T: FromSegments, E> Endpoint for ExtractPathsOptional<T, E> {
+impl<T: FromSegments, E: HttpError> Endpoint for ExtractPathsOptional<T, E> {
     type Item = Option<T>;
     type Error = E;
     type Result = Result<Self::Item, Self::Error>;
@@ -456,6 +463,7 @@ impl<T: FromSegments, E> Endpoint for ExtractPathsOptional<T, E> {
 mod tests {
     use super::*;
     use endpoint::{endpoint, Endpoint};
+    use errors::NeverReturn;
     use http::HttpRequest;
     use test::EndpointTestExt;
 
@@ -500,7 +508,9 @@ mod tests {
     fn test_endpoint_match_path() {
         let request = HttpRequest::get("/foo").body(Default::default()).unwrap();
         assert_eq!(
-            endpoint("foo").assert_types::<_, ()>().run(request),
+            endpoint("foo")
+                .assert_types::<_, NeverReturn>()
+                .run(request),
             Some(Ok(())),
         );
     }
@@ -510,7 +520,7 @@ mod tests {
         let request = HttpRequest::get("/foo").body(Default::default()).unwrap();
         assert!(
             endpoint("bar")
-                .assert_types::<_, ()>()
+                .assert_types::<_, NeverReturn>()
                 .run(request)
                 .is_none()
         );
@@ -522,7 +532,9 @@ mod tests {
             .body(Default::default())
             .unwrap();
         assert_eq!(
-            endpoint("/foo/bar").assert_types::<_, ()>().run(request),
+            endpoint("/foo/bar")
+                .assert_types::<_, NeverReturn>()
+                .run(request),
             Some(Ok(()))
         );
     }
@@ -534,7 +546,7 @@ mod tests {
             .unwrap();
         assert!(
             endpoint("/foo/bar")
-                .assert_types::<_, ()>()
+                .assert_types::<_, NeverReturn>()
                 .run(request)
                 .is_none()
         );
@@ -547,7 +559,7 @@ mod tests {
             .unwrap();
         assert!(
             endpoint("/foo/bar/baz")
-                .assert_types::<_, ()>()
+                .assert_types::<_, NeverReturn>()
                 .run(request)
                 .is_none()
         );
@@ -557,7 +569,7 @@ mod tests {
     fn test_endpoint_match_all_path() {
         let request = HttpRequest::get("/foo").body(Default::default()).unwrap();
         assert_eq!(
-            endpoint("*").assert_types::<_, ()>().run(request),
+            endpoint("*").assert_types::<_, NeverReturn>().run(request),
             Some(Ok(()))
         );
     }
@@ -565,19 +577,19 @@ mod tests {
     #[test]
     fn test_endpoint_extract_integer() {
         let request = HttpRequest::get("/42").body(Default::default()).unwrap();
-        assert_eq!(path::<i32, ()>().run(request), Some(Ok(42)));
+        assert_eq!(path::<i32, NeverReturn>().run(request), Some(Ok(42)));
     }
 
     #[test]
     fn test_endpoint_extract_wrong_integer() {
         let request = HttpRequest::get("/foo").body(Default::default()).unwrap();
-        assert_eq!(path::<i32, ()>().run(request), None);
+        assert_eq!(path::<i32, NeverReturn>().run(request), None);
     }
 
     #[test]
     fn test_endpoint_extract_wrong_integer_result() {
         let request = HttpRequest::get("/foo").body(Default::default()).unwrap();
-        match path::<Result<i32, _>, ()>().run(request) {
+        match path::<Result<i32, _>, NeverReturn>().run(request) {
             Some(Ok(Err(..))) => (),
             _ => panic!("assertion failed"),
         }
@@ -598,7 +610,7 @@ mod tests {
             .body(Default::default())
             .unwrap();
         assert_eq!(
-            paths::<Vec<String>, ()>().run(request),
+            paths::<Vec<String>, NeverReturn>().run(request),
             Some(Ok(vec!["foo".to_string(), "bar".to_string()]))
         );
     }

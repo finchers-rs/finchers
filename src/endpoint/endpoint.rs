@@ -1,7 +1,8 @@
 use std::rc::Rc;
 use std::sync::Arc;
 use futures::{future, Future, IntoFuture};
-use http::{Error, Request};
+use errors::HttpError;
+use http::{self, Request};
 use super::*;
 
 /// Abstruction of an endpoint.
@@ -10,7 +11,7 @@ pub trait Endpoint {
     type Item;
 
     /// The type *on failure*
-    type Error;
+    type Error: HttpError;
 
     /// The type of returned value from `apply`.
     type Result: EndpointResult<Item = Self::Item, Error = Self::Error>;
@@ -29,7 +30,8 @@ pub trait Endpoint {
     /// Add an assertion to associated types in this endpoint.
     ///
     /// # Example
-    /// ```
+    ///
+    /// ```ignore
     /// # use finchers::{Endpoint, IntoEndpoint};
     /// // The error type of `endpoint` is unknown
     /// let endpoint = IntoEndpoint::into_endpoint("foo");
@@ -95,6 +97,7 @@ pub trait Endpoint {
     where
         Self: Sized,
         F: Fn(Self::Error) -> U,
+        U: HttpError,
     {
         map_err::map_err(self, f).assert_types::<Self::Item, U>()
     }
@@ -114,7 +117,7 @@ pub trait Endpoint {
     where
         Self: Sized,
         T: From<Self::Item>,
-        E: From<Self::Error>,
+        E: From<Self::Error> + HttpError,
     {
         from_ok_err::from_ok_err(self).assert_types::<T, E>()
     }
@@ -132,7 +135,7 @@ pub trait Endpoint {
     fn from_err<E>(self) -> FromErr<Self, E>
     where
         Self: Sized,
-        E: From<Self::Error>,
+        E: From<Self::Error> + HttpError,
     {
         from_err::from_err(self).assert_types::<Self::Item, E>()
     }
@@ -178,16 +181,35 @@ impl<E: Endpoint> Endpoint for Arc<E> {
     }
 }
 
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub enum EndpointError<E: HttpError> {
+    Endpoint(E),
+    Http(http::Error),
+}
+
+impl<E: HttpError> From<E> for EndpointError<E> {
+    fn from(err: E) -> Self {
+        EndpointError::Endpoint(err)
+    }
+}
+
+impl<E: HttpError> From<http::Error> for EndpointError<E> {
+    fn from(err: http::Error) -> Self {
+        EndpointError::Http(err)
+    }
+}
+
 /// Abstruction of returned value from an `Endpoint`.
 pub trait EndpointResult {
     /// The type *on success*.
     type Item;
 
     /// The type *on failure*.
-    type Error;
+    type Error: HttpError;
 
     /// The type of value returned from `launch`.
-    type Future: Future<Item = Self::Item, Error = Result<Self::Error, Error>>;
+    type Future: Future<Item = Self::Item, Error = EndpointError<Self::Error>>;
 
     /// Launches itself and construct a `Future`, and then return it.
     ///
@@ -195,18 +217,21 @@ pub trait EndpointResult {
     fn into_future(self, request: &mut Request) -> Self::Future;
 }
 
-impl<F: IntoFuture> EndpointResult for F {
+impl<F: IntoFuture> EndpointResult for F
+where
+    F::Error: HttpError,
+{
     type Item = F::Item;
     type Error = F::Error;
-    type Future = future::MapErr<F::Future, fn(F::Error) -> Result<F::Error, Error>>;
+    type Future = future::MapErr<F::Future, fn(F::Error) -> EndpointError<F::Error>>;
 
     fn into_future(self, _: &mut Request) -> Self::Future {
-        self.into_future().map_err(Ok)
+        self.into_future().map_err(Into::into)
     }
 }
 
 /// Abstruction of types to be convert to an `Endpoint`.
-pub trait IntoEndpoint<T, E> {
+pub trait IntoEndpoint<T, E: HttpError> {
     /// The type of value returned from `into_endpoint`.
     type Endpoint: Endpoint<Item = T, Error = E>;
 
@@ -214,7 +239,7 @@ pub trait IntoEndpoint<T, E> {
     fn into_endpoint(self) -> Self::Endpoint;
 }
 
-impl<E, A, B> IntoEndpoint<A, B> for E
+impl<E, A, B: HttpError> IntoEndpoint<A, B> for E
 where
     E: Endpoint<Item = A, Error = B>,
 {
@@ -226,7 +251,7 @@ where
     }
 }
 
-impl<E> IntoEndpoint<(), E> for () {
+impl<E: HttpError> IntoEndpoint<(), E> for () {
     type Endpoint = EndpointOk<(), E>;
 
     fn into_endpoint(self) -> Self::Endpoint {
@@ -234,7 +259,7 @@ impl<E> IntoEndpoint<(), E> for () {
     }
 }
 
-impl<T, A, B> IntoEndpoint<Vec<A>, B> for Vec<T>
+impl<T, A, B: HttpError> IntoEndpoint<Vec<A>, B> for Vec<T>
 where
     T: IntoEndpoint<A, B>,
 {
@@ -246,7 +271,7 @@ where
 }
 
 /// A shortcut of `IntoEndpoint::into_endpoint()`
-pub fn endpoint<E, A, B>(endpoint: E) -> E::Endpoint
+pub fn endpoint<E, A, B: HttpError>(endpoint: E) -> E::Endpoint
 where
     E: IntoEndpoint<A, B>,
 {

@@ -3,8 +3,9 @@
 use futures::{Future, Poll};
 use http::Request;
 use super::{Endpoint, EndpointContext, EndpointResult, IntoEndpoint};
+use errors::HttpError;
 
-pub fn or<E1, E2, A, B>(e1: E1, e2: E2) -> Or<E1::Endpoint, E2::Endpoint>
+pub fn or<E1, E2, A, B: HttpError>(e1: E1, e2: E2) -> Or<E1::Endpoint, E2::Endpoint>
 where
     E1: IntoEndpoint<A, B>,
     E2: IntoEndpoint<A, B>,
@@ -118,12 +119,13 @@ mod tests {
     use super::*;
     use hyper::{Method, Request};
     use endpoint::{endpoint, ok};
+    use errors::NeverReturn;
     use test::TestRunner;
 
     #[test]
     fn test_or_1() {
         let endpoint = endpoint("foo")
-            .with(ok::<_, ()>("foo"))
+            .with(ok::<_, NeverReturn>("foo"))
             .or(endpoint("bar").with(ok("bar")));
         let mut runner = TestRunner::new(endpoint).unwrap();
 
@@ -143,7 +145,7 @@ mod tests {
     #[test]
     fn test_or_choose_longer_segments() {
         let e1 = endpoint("foo").with(ok("foo"));
-        let e2 = endpoint("foo/bar").with(ok::<_, ()>("foobar"));
+        let e2 = endpoint("foo/bar").with(ok::<_, NeverReturn>("foobar"));
         let endpoint = e1.or(e2);
         let mut runner = TestRunner::new(endpoint).unwrap();
 

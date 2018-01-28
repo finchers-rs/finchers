@@ -1,8 +1,9 @@
 #![allow(missing_docs)]
 
 use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
+use errors::HttpError;
 
-pub fn skip<E1, E2, A, B, C>(e1: E1, e2: E2) -> Skip<E1::Endpoint, E2::Endpoint>
+pub fn skip<E1, E2, A, B: HttpError, C>(e1: E1, e2: E2) -> Skip<E1::Endpoint, E2::Endpoint>
 where
     E1: IntoEndpoint<A, B>,
     E2: IntoEndpoint<C, B>,

@@ -6,7 +6,7 @@ use futures::Async::*;
 use hyper::{Error, Request, Response};
 use hyper::server::Service;
 
-use endpoint::{Endpoint, EndpointResult};
+use endpoint::{Endpoint, EndpointError, EndpointResult};
 use http::IntoResponse;
 use handler::{DefaultHandler, Handler};
 use responder::{DefaultResponder, Responder};
@@ -139,8 +139,8 @@ where
                         self.state = PollingInput { input, handler };
                         break Ok(NotReady);
                     }
-                    Err(Ok(err)) => break Ok(Ready(Err(err))),
-                    Err(Err(err)) => break Err(err),
+                    Err(EndpointError::Endpoint(err)) => break Ok(Ready(Err(err))),
+                    Err(EndpointError::Http(err)) => break Err(err),
                 },
                 PollingOutput { mut output } => match output.poll() {
                     Ok(Ready(item)) => break Ok(Ready(Ok(item))),
@@ -217,17 +217,4 @@ mod sealed {
     use endpoint::Endpoint;
     pub trait Sealed {}
     impl<E: Endpoint> Sealed for E {}
-}
-
-mod tests {
-    #[test]
-    fn smoke_service_ext() {
-        use endpoint::prelude::*;
-        use std::rc::Rc;
-        use super::EndpointServiceExt;
-
-        let endpoint = endpoint("foo").assert_types::<(), ()>();
-        let _ = endpoint.clone().into_service();
-        let _ = endpoint.with_handler(Rc::new(|()| Ok(Some("Hello"))));
-    }
 }

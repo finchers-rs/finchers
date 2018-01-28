@@ -5,8 +5,14 @@ use std::error::Error;
 use http::{FromBody, FromSegment, FromSegments, Header, StatusCode};
 
 #[allow(missing_docs)]
-#[derive(Debug)]
+#[derive(Debug, Copy, PartialEq, Eq, Hash)]
 pub enum NeverReturn {}
+
+impl Clone for NeverReturn {
+    fn clone(&self) -> Self {
+        unreachable!()
+    }
+}
 
 impl fmt::Display for NeverReturn {
     fn fmt(&self, _: &mut fmt::Formatter) -> fmt::Result {
@@ -16,12 +22,6 @@ impl fmt::Display for NeverReturn {
 
 impl Error for NeverReturn {
     fn description(&self) -> &str {
-        unreachable!()
-    }
-}
-
-impl PartialEq for NeverReturn {
-    fn eq(&self, _: &Self) -> bool {
         unreachable!()
     }
 }
@@ -72,7 +72,6 @@ impl_http_error_for_std! {
     @server_error ::std::sync::mpsc::TryRecvError;
     @server_error ::std::sync::mpsc::RecvTimeoutError;
 }
-
 
 // re-exports
 pub use endpoint::body::BodyError;

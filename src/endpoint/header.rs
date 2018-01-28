@@ -10,8 +10,9 @@ use std::fmt;
 use std::error::Error;
 use std::marker::PhantomData;
 use futures::future::{err, ok, FutureResult};
-use endpoint::{Endpoint, EndpointContext, EndpointResult};
-use http::{self, header, Request};
+use endpoint::{Endpoint, EndpointContext, EndpointError, EndpointResult};
+use errors::HttpError;
+use http::{header, Request};
 
 #[allow(missing_docs)]
 pub fn header<H: header::Header, E>() -> Header<H, E> {
@@ -40,7 +41,7 @@ impl<H, E> fmt::Debug for Header<H, E> {
     }
 }
 
-impl<H: header::Header, E> Endpoint for Header<H, E> {
+impl<H: header::Header, E: HttpError> Endpoint for Header<H, E> {
     type Item = H;
     type Error = E;
     type Result = HeaderResult<H, E>;
@@ -62,10 +63,10 @@ pub struct HeaderResult<H, E> {
     _marker: PhantomData<fn() -> (H, E)>,
 }
 
-impl<H: header::Header, E> EndpointResult for HeaderResult<H, E> {
+impl<H: header::Header, E: HttpError> EndpointResult for HeaderResult<H, E> {
     type Item = H;
     type Error = E;
-    type Future = FutureResult<H, Result<Self::Error, http::Error>>;
+    type Future = FutureResult<H, EndpointError<Self::Error>>;
 
     fn into_future(self, request: &mut Request) -> Self::Future {
         ok(request.headers_mut().remove().expect(&format!(
@@ -123,14 +124,14 @@ pub struct HeaderRequiredResult<H> {
 impl<H: header::Header> EndpointResult for HeaderRequiredResult<H> {
     type Item = H;
     type Error = EmptyHeader<H>;
-    type Future = FutureResult<H, Result<Self::Error, http::Error>>;
+    type Future = FutureResult<H, EndpointError<Self::Error>>;
 
     fn into_future(self, request: &mut Request) -> Self::Future {
         match request.headers_mut().remove() {
             Some(h) => ok(h),
-            None => err(Ok(EmptyHeader {
+            None => err(EmptyHeader {
                 _marker: PhantomData,
-            })),
+            }.into()),
         }
     }
 }
@@ -162,7 +163,7 @@ impl<H, E> fmt::Debug for HeaderOptional<H, E> {
     }
 }
 
-impl<H: header::Header, E> Endpoint for HeaderOptional<H, E> {
+impl<H: header::Header, E: HttpError> Endpoint for HeaderOptional<H, E> {
     type Item = Option<H>;
     type Error = E;
     type Result = HeaderOptionalResult<H, E>;
@@ -180,10 +181,10 @@ pub struct HeaderOptionalResult<H, E> {
     _marker: PhantomData<fn() -> (H, E)>,
 }
 
-impl<H: header::Header, E> EndpointResult for HeaderOptionalResult<H, E> {
+impl<H: header::Header, E: HttpError> EndpointResult for HeaderOptionalResult<H, E> {
     type Item = Option<H>;
     type Error = E;
-    type Future = FutureResult<Option<H>, Result<E, http::Error>>;
+    type Future = FutureResult<Option<H>, EndpointError<E>>;
 
     fn into_future(self, request: &mut Request) -> Self::Future {
         ok(request.headers_mut().remove())

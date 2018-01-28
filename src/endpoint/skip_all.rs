@@ -1,8 +1,9 @@
 #![allow(missing_docs)]
 
 use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
+use errors::HttpError;
 
-pub fn skip_all<I, E, A, B>(iter: I) -> SkipAll<E::Endpoint>
+pub fn skip_all<I, E, A, B: HttpError>(iter: I) -> SkipAll<E::Endpoint>
 where
     I: IntoIterator<Item = E>,
     E: IntoEndpoint<A, B>,

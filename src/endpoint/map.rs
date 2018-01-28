@@ -5,8 +5,9 @@ use std::sync::Arc;
 use futures::{Future, Poll};
 use http::Request;
 use super::{Endpoint, EndpointContext, EndpointResult, IntoEndpoint};
+use errors::HttpError;
 
-pub fn map<E, F, R, A, B>(endpoint: E, f: F) -> Map<E::Endpoint, F>
+pub fn map<E, F, R, A, B: HttpError>(endpoint: E, f: F) -> Map<E::Endpoint, F>
 where
     E: IntoEndpoint<A, B>,
     F: Fn(A) -> R,

@@ -2,7 +2,8 @@
 
 use std::fmt;
 use std::marker::PhantomData;
-use super::{Endpoint, EndpointContext};
+use errors::HttpError;
+use endpoint::{Endpoint, EndpointContext};
 
 pub fn err<T, E: Clone>(x: E) -> EndpointErr<T, E> {
     EndpointErr {
@@ -31,28 +32,15 @@ impl<T, E: fmt::Debug> fmt::Debug for EndpointErr<T, E> {
     }
 }
 
-impl<T, E: Clone> Endpoint for EndpointErr<T, E> {
+impl<T, E: Clone> Endpoint for EndpointErr<T, E>
+where
+    E: HttpError,
+{
     type Item = T;
     type Error = E;
     type Result = Result<T, E>;
 
     fn apply(&self, _: &mut EndpointContext) -> Option<Self::Result> {
         Some(Err(self.x.clone()))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use test::TestRunner;
-    use hyper::{Method, Request};
-
-    #[test]
-    fn test_err() {
-        let endpoint = err("Alice");
-        let mut runner = TestRunner::new(endpoint).unwrap();
-        let request = Request::new(Method::Get, "/".parse().unwrap());
-        let result: Option<Result<(), &str>> = runner.run(request);
-        assert_eq!(result, Some(Err("Alice")));
     }
 }

@@ -3,6 +3,7 @@
 use std::fmt;
 use std::marker::PhantomData;
 use super::{Endpoint, EndpointContext};
+use errors::HttpError;
 
 pub fn ok<T: Clone, E>(x: T) -> EndpointOk<T, E> {
     EndpointOk {
@@ -31,7 +32,7 @@ impl<T: fmt::Debug, E> fmt::Debug for EndpointOk<T, E> {
     }
 }
 
-impl<T: Clone, E> Endpoint for EndpointOk<T, E> {
+impl<T: Clone, E: HttpError> Endpoint for EndpointOk<T, E> {
     type Item = T;
     type Error = E;
     type Result = Result<T, E>;
@@ -45,6 +46,7 @@ impl<T: Clone, E> Endpoint for EndpointOk<T, E> {
 mod tests {
     use super::*;
     use test::TestRunner;
+    use errors::NeverReturn;
     use hyper::{Method, Request};
 
     #[test]
@@ -52,7 +54,7 @@ mod tests {
         let endpoint = ok("Alice");
         let mut runner = TestRunner::new(endpoint).unwrap();
         let request = Request::new(Method::Get, "/".parse().unwrap());
-        let result: Option<Result<&str, ()>> = runner.run(request);
+        let result: Option<Result<&str, NeverReturn>> = runner.run(request);
         assert_eq!(result, Some(Ok("Alice")));
     }
 }

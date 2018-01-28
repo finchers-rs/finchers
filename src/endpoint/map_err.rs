@@ -3,10 +3,11 @@
 use std::fmt;
 use std::sync::Arc;
 use futures::{Future, Poll};
-use http::{Error, Request};
-use super::{Endpoint, EndpointContext, EndpointResult, IntoEndpoint};
+use http::Request;
+use super::{Endpoint, EndpointContext, EndpointError, EndpointResult, IntoEndpoint};
+use errors::HttpError;
 
-pub fn map_err<E, F, R, A, B>(endpoint: E, f: F) -> MapErr<E::Endpoint, F>
+pub fn map_err<E, F, R, A, B: HttpError>(endpoint: E, f: F) -> MapErr<E::Endpoint, F>
 where
     E: IntoEndpoint<A, B>,
     F: Fn(B) -> R,
@@ -48,7 +49,7 @@ where
     }
 }
 
-impl<E, F, R> Endpoint for MapErr<E, F>
+impl<E, F, R: HttpError> Endpoint for MapErr<E, F>
 where
     E: Endpoint,
     F: Fn(E::Error) -> R,
@@ -72,7 +73,7 @@ pub struct MapErrResult<T, F> {
     f: Arc<F>,
 }
 
-impl<T, F, R> EndpointResult for MapErrResult<T, F>
+impl<T, F, R: HttpError> EndpointResult for MapErrResult<T, F>
 where
     T: EndpointResult,
     F: Fn(T::Error) -> R,
@@ -96,20 +97,23 @@ pub struct MapErrFuture<T, F> {
     f: Option<Arc<F>>,
 }
 
-impl<T, F, E, R> Future for MapErrFuture<T, F>
+impl<T, F, E: HttpError, R: HttpError> Future for MapErrFuture<T, F>
 where
-    T: Future<Error = Result<E, Error>>,
+    T: Future<Error = EndpointError<E>>,
     F: Fn(E) -> R,
 {
     type Item = T::Item;
-    type Error = Result<R, Error>;
+    type Error = EndpointError<R>;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         match self.fut.poll() {
             Ok(async) => Ok(async),
             Err(e) => {
                 let f = self.f.take().expect("cannot reject twice");
-                Err(e.map(|e| (*f)(e)))
+                Err(match e {
+                    EndpointError::Endpoint(e) => EndpointError::Endpoint((*f)(e)),
+                    EndpointError::Http(e) => EndpointError::Http(e),
+                })
             }
         }
     }

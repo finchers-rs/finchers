@@ -20,7 +20,8 @@ use std::mem;
 use std::marker::PhantomData;
 use futures::{stream, Async, Future, Poll, Stream};
 use futures::future::{self, FutureResult};
-use endpoint::{Endpoint, EndpointContext, EndpointResult};
+use endpoint::{Endpoint, EndpointContext, EndpointError, EndpointResult};
+use errors::HttpError;
 use http::{self, FromBody, Request};
 use http::header::ContentLength;
 
@@ -51,7 +52,10 @@ impl<T> fmt::Debug for Body<T> {
     }
 }
 
-impl<T: FromBody> Endpoint for Body<T> {
+impl<T: FromBody> Endpoint for Body<T>
+where
+    T::Error: Error,
+{
     type Item = T;
     type Error = BodyError<T>;
     type Result = BodyResult<T>;
@@ -72,7 +76,10 @@ pub struct BodyResult<T> {
     _marker: PhantomData<fn() -> T>,
 }
 
-impl<T: FromBody> EndpointResult for BodyResult<T> {
+impl<T: FromBody> EndpointResult for BodyResult<T>
+where
+    T::Error: Error,
+{
     type Item = T;
     type Error = BodyError<T>;
     type Future = BodyFuture<T>;
@@ -99,28 +106,31 @@ pub enum BodyFuture<T> {
     Done(PhantomData<fn() -> T>),
 }
 
-impl<T: FromBody> Future for BodyFuture<T> {
+impl<T: FromBody> Future for BodyFuture<T>
+where
+    T::Error: Error,
+{
     type Item = T;
-    type Error = Result<BodyError<T>, http::Error>;
+    type Error = EndpointError<BodyError<T>>;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         use self::BodyFuture::*;
         match mem::replace(self, BodyFuture::Done(PhantomData)) {
-            InvalidRequest(mut f) => match f.poll().map_err(Err)? {
-                Async::Ready(()) => Err(Ok(BodyError::InvalidRequest)),
+            InvalidRequest(mut f) => match f.poll()? {
+                Async::Ready(()) => Err(BodyError::InvalidRequest.into()),
                 Async::NotReady => {
                     *self = BodyFuture::InvalidRequest(f);
                     Ok(Async::NotReady)
                 }
             },
             Receiving(mut body, mut buf) => loop {
-                match body.poll().map_err(Err)? {
+                match body.poll()? {
                     Async::Ready(Some(item)) => {
                         buf.extend_from_slice(&item);
                         continue;
                     }
                     Async::Ready(None) => {
-                        let body = T::from_body(buf).map_err(|e| Ok(BodyError::FromBody(e)))?;
+                        let body = T::from_body(buf).map_err(|e| BodyError::FromBody(e))?;
                         break Ok(Async::Ready(body));
                     }
                     Async::NotReady => {
@@ -225,7 +235,10 @@ impl<E> fmt::Debug for BodyStream<E> {
     }
 }
 
-impl<E> Endpoint for BodyStream<E> {
+impl<E> Endpoint for BodyStream<E>
+where
+    E: HttpError,
+{
     type Item = http::Body;
     type Error = E;
     type Result = BodyStreamResult<E>;
@@ -243,10 +256,13 @@ pub struct BodyStreamResult<E> {
     _marker: PhantomData<fn() -> E>,
 }
 
-impl<E> EndpointResult for BodyStreamResult<E> {
+impl<E> EndpointResult for BodyStreamResult<E>
+where
+    E: HttpError,
+{
     type Item = http::Body;
     type Error = E;
-    type Future = FutureResult<Self::Item, Result<Self::Error, http::Error>>;
+    type Future = FutureResult<Self::Item, EndpointError<Self::Error>>;
 
     fn into_future(self, request: &mut Request) -> Self::Future {
         let body = request.body().expect("cannot take a body twice");

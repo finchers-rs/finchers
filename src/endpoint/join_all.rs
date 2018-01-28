@@ -4,8 +4,9 @@ use std::fmt;
 use futures::future;
 use http::Request;
 use super::{Endpoint, EndpointContext, EndpointResult, IntoEndpoint};
+use errors::HttpError;
 
-pub fn join_all<I, E, A, B>(iter: I) -> JoinAll<E::Endpoint>
+pub fn join_all<I, E, A, B: HttpError>(iter: I) -> JoinAll<E::Endpoint>
 where
     I: IntoIterator<Item = E>,
     E: IntoEndpoint<A, B>,

@@ -5,9 +5,10 @@ use std::marker::PhantomData;
 
 use futures::{future, Future};
 use endpoint::{Endpoint, EndpointContext, EndpointResult, IntoEndpoint};
+use errors::HttpError;
 use http::Request;
 
-pub fn from_ok<E, A, B, T>(endpoint: E) -> FromOk<E, T>
+pub fn from_ok<E, A, B: HttpError, T>(endpoint: E) -> FromOk<E, T>
 where
     E: IntoEndpoint<A, B>,
     T: From<A>,

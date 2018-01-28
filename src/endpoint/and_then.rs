@@ -3,8 +3,9 @@
 use std::fmt;
 use std::sync::Arc;
 use futures::{Future, IntoFuture, Poll};
-use endpoint::{Endpoint, EndpointContext, EndpointResult};
-use http::{Error, Request};
+use endpoint::{Endpoint, EndpointContext, EndpointError, EndpointResult};
+use errors::HttpError;
+use http::Request;
 use super::chain::Chain;
 
 pub fn and_then<E, F, R>(endpoint: E, f: F) -> AndThen<E, F>
@@ -98,7 +99,8 @@ where
 #[derive(Debug)]
 pub struct AndThenFuture<T, F, E, R>
 where
-    T: Future<Error = Result<E, Error>>,
+    T: Future<Error = EndpointError<E>>,
+    E: HttpError,
     F: Fn(T::Item) -> R,
     R: IntoFuture<Error = E>,
 {
@@ -107,12 +109,13 @@ where
 
 impl<T, F, E, R> Future for AndThenFuture<T, F, E, R>
 where
-    T: Future<Error = Result<E, Error>>,
+    T: Future<Error = EndpointError<E>>,
+    E: HttpError,
     F: Fn(T::Item) -> R,
     R: IntoFuture<Error = E>,
 {
     type Item = R::Item;
-    type Error = Result<R::Error, Error>;
+    type Error = EndpointError<R::Error>;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         self.inner.poll(|result, f| match result {
