@@ -2,8 +2,7 @@
 
 use std::fmt;
 use std::error::Error;
-use http::{FromBody, FromSegment, FromSegments, IntoResponse, Response, StatusCode};
-use http::header::{ContentLength, ContentType};
+use http::{FromBody, FromSegment, FromSegments, Header, StatusCode};
 
 #[allow(missing_docs)]
 #[derive(Debug)]
@@ -27,59 +26,32 @@ impl PartialEq for NeverReturn {
     }
 }
 
-impl IntoResponse for NeverReturn {
-    fn into_response(self) -> Response {
+impl HttpError for NeverReturn {
+    fn status_code(&self) -> StatusCode {
         unreachable!()
     }
 }
 
 #[allow(missing_docs)]
-#[derive(Debug)]
-pub struct StdErrorResponseBuilder<'a> {
-    status: StatusCode,
-    error: Box<Error + 'a>,
+pub trait HttpError: Error {
+    fn status_code(&self) -> StatusCode;
 }
 
-#[allow(missing_docs)]
-impl<'a> StdErrorResponseBuilder<'a> {
-    pub fn new<E: Into<Box<Error + 'a>>>(status: StatusCode, error: E) -> Self {
-        StdErrorResponseBuilder {
-            status,
-            error: error.into(),
-        }
-    }
+macro_rules! impl_http_error_for_std {
+    (@bad_request) => { StatusCode::BadRequest };
+    (@server_error) => { StatusCode::InternalServerError };
 
-    #[inline]
-    pub fn bad_request<E: Into<Box<Error + 'a>>>(error: E) -> Self {
-        Self::new(StatusCode::BadRequest, error)
-    }
-
-    #[inline]
-    pub fn server_error<E: Into<Box<Error + 'a>>>(error: E) -> Self {
-        Self::new(StatusCode::InternalServerError, error)
-    }
-
-    pub fn finish(self) -> Response {
-        let body = format!("Error: {}", self.error.description());
-        Response::new()
-            .with_status(self.status)
-            .with_header(ContentType::plaintext())
-            .with_header(ContentLength(body.len() as u64))
-            .with_body(body)
-    }
-}
-
-macro_rules! impl_into_response_for_std_error {
     ($( @$i:ident $t:ty; )*) => {$(
-        impl IntoResponse for $t {
-            fn into_response(self) -> Response {
-                StdErrorResponseBuilder::$i(self).finish()
+        impl HttpError for $t {
+            #[inline]
+            fn status_code(&self) -> StatusCode {
+                impl_http_error_for_std!(@$i)
             }
         }
     )*};
 }
 
-impl_into_response_for_std_error! {
+impl_http_error_for_std! {
     @bad_request ::std::char::DecodeUtf16Error;
     @bad_request ::std::char::ParseCharError;
     @bad_request ::std::net::AddrParseError;
@@ -101,65 +73,41 @@ impl_into_response_for_std_error! {
     @server_error ::std::sync::mpsc::RecvTimeoutError;
 }
 
-#[cfg(feature = "unstable")]
-impl IntoResponse for ! {
-    fn into_response(self) -> Response {
-        unreachable!()
-    }
-}
-
-impl<T: Send> IntoResponse for ::std::sync::mpsc::SendError<T> {
-    fn into_response(self) -> Response {
-        StdErrorResponseBuilder::server_error(self).finish()
-    }
-}
-
-impl<T: Send> IntoResponse for ::std::sync::mpsc::TrySendError<T> {
-    fn into_response(self) -> Response {
-        StdErrorResponseBuilder::server_error(self).finish()
-    }
-}
-
-impl<T> IntoResponse for ::std::sync::PoisonError<T> {
-    fn into_response(self) -> Response {
-        StdErrorResponseBuilder::server_error(self).finish()
-    }
-}
-
-impl<T> IntoResponse for ::std::sync::TryLockError<T> {
-    fn into_response(self) -> Response {
-        StdErrorResponseBuilder::server_error(self).finish()
-    }
-}
 
 // re-exports
 pub use endpoint::body::BodyError;
 pub use endpoint::header::EmptyHeader;
 pub use endpoint::path::{ExtractPathError, ExtractPathsError};
 
-impl<T: FromBody> IntoResponse for BodyError<T>
+impl<T: FromBody> HttpError for BodyError<T>
 where
     T::Error: Error,
 {
-    fn into_response(self) -> Response {
-        StdErrorResponseBuilder::bad_request(self).finish()
+    fn status_code(&self) -> StatusCode {
+        StatusCode::BadRequest
     }
 }
 
-impl<T: FromSegment> IntoResponse for ExtractPathError<T>
-where
-    T::Err: Error,
-{
-    fn into_response(self) -> Response {
-        StdErrorResponseBuilder::bad_request(self).finish()
+impl<H: Header> HttpError for EmptyHeader<H> {
+    fn status_code(&self) -> StatusCode {
+        StatusCode::BadRequest
     }
 }
 
-impl<T: FromSegments> IntoResponse for ExtractPathsError<T>
+impl<T: FromSegment> HttpError for ExtractPathError<T>
 where
     T::Err: Error,
 {
-    fn into_response(self) -> Response {
-        StdErrorResponseBuilder::bad_request(self).finish()
+    fn status_code(&self) -> StatusCode {
+        StatusCode::BadRequest
+    }
+}
+
+impl<T: FromSegments> HttpError for ExtractPathsError<T>
+where
+    T::Err: Error,
+{
+    fn status_code(&self) -> StatusCode {
+        StatusCode::BadRequest
     }
 }
