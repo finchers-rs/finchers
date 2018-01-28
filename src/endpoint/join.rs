@@ -5,15 +5,14 @@ use std::fmt;
 use futures::{future, IntoFuture};
 use http::Request;
 use super::{Endpoint, EndpointContext, EndpointResult, IntoEndpoint};
-use errors::HttpError;
 
 macro_rules! generate {
     ($(
-        ($new:ident, $Join:ident, $JoinResult:ident, <$($T:ident : $A:ident),*>),
+        ($new:ident, $Join:ident, $JoinResult:ident, <$($T:ident),*>),
     )*) => {$(
-        pub fn $new<$($T,)* $($A,)* E: HttpError>($($T: $T),*) -> $Join<$($T::Endpoint),*>
+        pub fn $new<$($T),*>($($T: $T),*) -> $Join<$($T::Endpoint),*>
         where $(
-            $T: IntoEndpoint<$A, E>,
+            $T: IntoEndpoint,
         )*
         {
             $Join {
@@ -56,13 +55,12 @@ macro_rules! generate {
             }
         }
 
-        impl<$($T,)* E: HttpError> Endpoint for $Join<$($T),*>
+        impl<$($T),*> Endpoint for $Join<$($T),*>
         where $(
-            $T: Endpoint<Error = E>,
+            $T: Endpoint,
         )*
         {
             type Item = ($($T::Item),*);
-            type Error = E;
             type Result = $JoinResult<$($T::Result),*>;
 
             fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
@@ -73,10 +71,8 @@ macro_rules! generate {
             }
         }
 
-        impl<$($T,)* $($A,)* E: HttpError> IntoEndpoint<($($A),*), E> for ($($T),*)
-        where $(
-            $T: IntoEndpoint<$A, E>,
-        )* {
+        impl<$($T: IntoEndpoint),*> IntoEndpoint for ($($T),*) {
+            type Item = ($($T::Item),*);
             type Endpoint = $Join<$($T::Endpoint),*>;
 
             fn into_endpoint(self) -> Self::Endpoint {
@@ -90,13 +86,8 @@ macro_rules! generate {
             inner: ($($T),*),
         }
 
-        impl<$($T,)* E: HttpError> EndpointResult for $JoinResult<$($T),*>
-        where $(
-            $T: EndpointResult<Error = E>,
-        )*
-        {
+        impl<$($T: EndpointResult),*> EndpointResult for $JoinResult<$($T),*> {
             type Item = ($($T::Item),*);
-            type Error = E;
             type Future = future::$Join<$($T::Future),*>;
 
             fn into_future(self, request: &mut Request) -> Self::Future {
@@ -111,8 +102,8 @@ macro_rules! generate {
 }
 
 generate! {
-    (join,  Join, JoinResult, <E1:T1, E2:T2>),
-    (join3, Join3, Join3Result, <E1:T1, E2:T2, E3:T3>),
-    (join4, Join4, Join4Result, <E1:T1, E2:T2, E3:T3, E4:T4>),
-    (join5, Join5, Join5Result, <E1:T1, E2:T2, E3:T3, E4:T4, E5:T5>),
+    (join,  Join, JoinResult, <E1, E2>),
+    (join3, Join3, Join3Result, <E1, E2, E3>),
+    (join4, Join4, Join4Result, <E1, E2, E3, E4>),
+    (join5, Join5, Join5Result, <E1, E2, E3, E4, E5>),
 }

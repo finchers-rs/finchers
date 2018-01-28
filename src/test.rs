@@ -25,22 +25,19 @@ impl<E: Endpoint> TestRunner<E> {
     ///
     /// # Panics
     /// This method will panic if an unexpected HTTP error will be occurred.
-    pub fn run<R: Into<Request>>(&mut self, request: R) -> Option<Result<E::Item, E::Error>> {
-        self.endpoint.apply_request(request).map(|fut| {
-            self.core.run(fut).map_err(|e| match e {
-                EndpointError::Endpoint(e) => e,
-                EndpointError::Http(e) => panic!("unexpected HTTP error: {}", e),
-            })
-        })
+    pub fn run<R: Into<Request>>(&mut self, request: R) -> Option<Result<E::Item, EndpointError>> {
+        self.endpoint
+            .apply_request(request)
+            .map(|fut| self.core.run(fut))
     }
 }
 
 pub trait EndpointTestExt: Endpoint + sealed::Sealed {
-    fn run<R: Into<Request>>(&self, request: R) -> Option<Result<Self::Item, Self::Error>>;
+    fn run<R: Into<Request>>(&self, request: R) -> Option<Result<Self::Item, EndpointError>>;
 }
 
 impl<E: Endpoint> EndpointTestExt for E {
-    fn run<R: Into<Request>>(&self, request: R) -> Option<Result<Self::Item, Self::Error>> {
+    fn run<R: Into<Request>>(&self, request: R) -> Option<Result<Self::Item, EndpointError>> {
         let mut runner = TestRunner::new(self).unwrap();
         runner.run(request)
     }

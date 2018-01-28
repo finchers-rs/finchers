@@ -3,7 +3,7 @@ use super::{mime, Request};
 use errors::NeverReturn;
 
 /// The conversion from received request body.
-pub trait FromBody: Sized {
+pub trait FromBody: 'static + Sized {
     /// The type of error value during `validate` and `from_body`.
     type Error;
 

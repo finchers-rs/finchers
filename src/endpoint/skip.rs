@@ -1,12 +1,11 @@
 #![allow(missing_docs)]
 
 use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
-use errors::HttpError;
 
-pub fn skip<E1, E2, A, B: HttpError, C>(e1: E1, e2: E2) -> Skip<E1::Endpoint, E2::Endpoint>
+pub fn skip<E1, E2>(e1: E1, e2: E2) -> Skip<E1::Endpoint, E2::Endpoint>
 where
-    E1: IntoEndpoint<A, B>,
-    E2: IntoEndpoint<C, B>,
+    E1: IntoEndpoint,
+    E2: IntoEndpoint,
 {
     Skip {
         e1: e1.into_endpoint(),
@@ -15,11 +14,7 @@ where
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct Skip<E1, E2>
-where
-    E1: Endpoint,
-    E2: Endpoint<Error = E1::Error>,
-{
+pub struct Skip<E1, E2> {
     e1: E1,
     e2: E2,
 }
@@ -27,10 +22,9 @@ where
 impl<E1, E2> Endpoint for Skip<E1, E2>
 where
     E1: Endpoint,
-    E2: Endpoint<Error = E1::Error>,
+    E2: Endpoint,
 {
     type Item = E1::Item;
-    type Error = E1::Error;
     type Result = E1::Result;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {

@@ -2,13 +2,11 @@
 
 use std::rc::Rc;
 use std::sync::Arc;
-use http::{header, IntoResponse, Response, StatusCode};
+use http::{header, HttpError, Response, StatusCode};
 
 #[allow(missing_docs)]
-pub trait Responder<T, E> {
-    fn respond_ok(&self, T) -> Response;
-
-    fn respond_err(&self, E) -> Response;
+pub trait Responder {
+    fn respond_err(&self, &HttpError) -> Response;
 
     fn respond_noroute(&self) -> Response {
         Response::new().with_status(StatusCode::NotFound)
@@ -17,15 +15,8 @@ pub trait Responder<T, E> {
     fn after_respond(&self, &mut Response) {}
 }
 
-impl<R, T, E> Responder<T, E> for Rc<R>
-where
-    R: Responder<T, E>,
-{
-    fn respond_ok(&self, input: T) -> Response {
-        (**self).respond_ok(input)
-    }
-
-    fn respond_err(&self, err: E) -> Response {
+impl<R: Responder> Responder for Rc<R> {
+    fn respond_err(&self, err: &HttpError) -> Response {
         (**self).respond_err(err)
     }
 
@@ -38,15 +29,8 @@ where
     }
 }
 
-impl<R, T, E> Responder<T, E> for Arc<R>
-where
-    R: Responder<T, E>,
-{
-    fn respond_ok(&self, input: T) -> Response {
-        (**self).respond_ok(input)
-    }
-
-    fn respond_err(&self, err: E) -> Response {
+impl<R: Responder> Responder for Arc<R> {
+    fn respond_err(&self, err: &HttpError) -> Response {
         (**self).respond_err(err)
     }
 
@@ -63,17 +47,14 @@ where
 #[derive(Copy, Clone, Debug, Default)]
 pub struct DefaultResponder;
 
-impl<T, E> Responder<T, E> for DefaultResponder
-where
-    T: IntoResponse,
-    E: IntoResponse,
-{
-    fn respond_ok(&self, input: T) -> Response {
-        input.into_response()
-    }
-
-    fn respond_err(&self, err: E) -> Response {
-        err.into_response()
+impl Responder for DefaultResponder {
+    fn respond_err(&self, err: &HttpError) -> Response {
+        let message = err.to_string();
+        Response::new()
+            .with_status(err.status_code())
+            .with_header(header::ContentType::plaintext())
+            .with_header(header::ContentLength(message.len() as u64))
+            .with_body(message)
     }
 
     fn respond_noroute(&self) -> Response {

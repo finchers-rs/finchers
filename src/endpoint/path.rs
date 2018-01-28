@@ -23,25 +23,23 @@ use std::fmt;
 use std::error::Error;
 use std::marker::PhantomData;
 use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
-use http::{FromSegment, FromSegments};
-use errors::HttpError;
+use errors::NeverReturn;
+use http::{FromSegment, FromSegments, HttpError, StatusCode};
 
 #[allow(missing_docs)]
-pub struct MatchPath<E> {
+pub struct MatchPath {
     kind: MatchPathKind,
-    _marker: PhantomData<fn() -> E>,
 }
 
-impl<E> Clone for MatchPath<E> {
+impl Clone for MatchPath {
     fn clone(&self) -> Self {
         MatchPath {
             kind: self.kind.clone(),
-            _marker: PhantomData,
         }
     }
 }
 
-impl<E> fmt::Debug for MatchPath<E> {
+impl fmt::Debug for MatchPath {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("MatchPath")
             .field("kind", &self.kind)
@@ -49,7 +47,7 @@ impl<E> fmt::Debug for MatchPath<E> {
     }
 }
 
-impl<E> MatchPath<E> {
+impl MatchPath {
     #[allow(missing_docs)]
     pub fn kind(&self) -> &MatchPathKind {
         &self.kind
@@ -64,10 +62,9 @@ pub enum MatchPathKind {
 }
 use self::MatchPathKind::*;
 
-impl<E: HttpError> Endpoint for MatchPath<E> {
+impl Endpoint for MatchPath {
     type Item = ();
-    type Error = E;
-    type Result = Result<Self::Item, Self::Error>;
+    type Result = Result<Self::Item, NeverReturn>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
         match self.kind {
@@ -97,7 +94,7 @@ pub enum ParseMatchError {
 }
 
 #[allow(missing_docs)]
-pub fn match_<E>(s: &str) -> Result<MatchPath<E>, ParseMatchError> {
+pub fn match_(s: &str) -> Result<MatchPath, ParseMatchError> {
     let s = s.trim().trim_left_matches("/").trim_right_matches("/");
     let kind = if s == "*" {
         AllSegments
@@ -112,64 +109,66 @@ pub fn match_<E>(s: &str) -> Result<MatchPath<E>, ParseMatchError> {
         Segments(segments)
     };
 
-    Ok(MatchPath {
-        kind,
-        _marker: PhantomData,
-    })
+    Ok(MatchPath { kind })
 }
 
-impl<'a, E: HttpError> IntoEndpoint<(), E> for &'a str {
-    type Endpoint = MatchPath<E>;
+impl<'a> IntoEndpoint for &'a str {
+    type Item = ();
+    type Endpoint = MatchPath;
+
     fn into_endpoint(self) -> Self::Endpoint {
         match_(self).unwrap()
     }
 }
 
-impl<E: HttpError> IntoEndpoint<(), E> for String {
-    type Endpoint = MatchPath<E>;
+impl IntoEndpoint for String {
+    type Item = ();
+    type Endpoint = MatchPath;
+
     fn into_endpoint(self) -> Self::Endpoint {
         match_(&self).unwrap()
     }
 }
 
-impl<'a, E: HttpError> IntoEndpoint<(), E> for Cow<'a, str> {
-    type Endpoint = MatchPath<E>;
+impl<'a> IntoEndpoint for Cow<'a, str> {
+    type Item = ();
+    type Endpoint = MatchPath;
+
     fn into_endpoint(self) -> Self::Endpoint {
         match_(&*self).unwrap()
     }
 }
 
 #[allow(missing_docs)]
-pub fn path<T: FromSegment, E>() -> ExtractPath<T, E> {
+pub fn path<T: FromSegment>() -> ExtractPath<T> {
     ExtractPath {
         _marker: PhantomData,
     }
 }
 
 #[allow(missing_docs)]
-pub struct ExtractPath<T, E> {
-    _marker: PhantomData<fn() -> (T, E)>,
+pub struct ExtractPath<T> {
+    _marker: PhantomData<fn() -> T>,
 }
 
-impl<T, E> Copy for ExtractPath<T, E> {}
+impl<T> Copy for ExtractPath<T> {}
 
-impl<T, E> Clone for ExtractPath<T, E> {
+impl<T> Clone for ExtractPath<T> {
     #[inline]
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<T, E> fmt::Debug for ExtractPath<T, E> {
+impl<T> fmt::Debug for ExtractPath<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("ExtractPath").finish()
     }
 }
 
-impl<T: FromSegment, E: HttpError> Endpoint for ExtractPath<T, E> {
+impl<T: FromSegment> Endpoint for ExtractPath<T> {
     type Item = T;
-    type Error = E;
-    type Result = Result<Self::Item, Self::Error>;
+    type Result = Result<Self::Item, NeverReturn>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
         ctx.segments()
@@ -205,13 +204,12 @@ impl<T> fmt::Debug for ExtractPathRequired<T> {
     }
 }
 
-impl<T: FromSegment> Endpoint for ExtractPathRequired<T>
+impl<T: FromSegment + 'static> Endpoint for ExtractPathRequired<T>
 where
-    T::Err: Error,
+    T::Err: Error + 'static,
 {
     type Item = T;
-    type Error = ExtractPathError<T>;
-    type Result = Result<Self::Item, Self::Error>;
+    type Result = Result<Self::Item, ExtractPathError<T>>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
         ctx.segments()
@@ -256,6 +254,15 @@ where
     }
 }
 
+impl<T: FromSegment> HttpError for ExtractPathError<T>
+where
+    T::Err: Error,
+{
+    fn status_code(&self) -> StatusCode {
+        StatusCode::BadRequest
+    }
+}
+
 impl<T: FromSegment> PartialEq for ExtractPathError<T>
 where
     T::Err: PartialEq,
@@ -266,36 +273,35 @@ where
 }
 
 #[allow(missing_docs)]
-pub fn path_opt<T: FromSegment, E>() -> ExtractPathOptional<T, E> {
+pub fn path_opt<T: FromSegment>() -> ExtractPathOptional<T> {
     ExtractPathOptional {
         _marker: PhantomData,
     }
 }
 
 #[allow(missing_docs)]
-pub struct ExtractPathOptional<T, E> {
-    _marker: PhantomData<fn() -> (T, E)>,
+pub struct ExtractPathOptional<T> {
+    _marker: PhantomData<fn() -> T>,
 }
 
-impl<T, E> Copy for ExtractPathOptional<T, E> {}
+impl<T> Copy for ExtractPathOptional<T> {}
 
-impl<T, E> Clone for ExtractPathOptional<T, E> {
+impl<T> Clone for ExtractPathOptional<T> {
     #[inline]
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<T, E> fmt::Debug for ExtractPathOptional<T, E> {
+impl<T> fmt::Debug for ExtractPathOptional<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("ExtractPathOptional").finish()
     }
 }
 
-impl<T: FromSegment, E: HttpError> Endpoint for ExtractPathOptional<T, E> {
+impl<T: FromSegment> Endpoint for ExtractPathOptional<T> {
     type Item = Option<T>;
-    type Error = E;
-    type Result = Result<Self::Item, Self::Error>;
+    type Result = Result<Self::Item, NeverReturn>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
         ctx.segments().next().map(|s| Ok(T::from_segment(&s).ok()))
@@ -303,36 +309,35 @@ impl<T: FromSegment, E: HttpError> Endpoint for ExtractPathOptional<T, E> {
 }
 
 #[allow(missing_docs)]
-pub fn paths<T: FromSegments, E>() -> ExtractPaths<T, E> {
+pub fn paths<T: FromSegments>() -> ExtractPaths<T> {
     ExtractPaths {
         _marker: PhantomData,
     }
 }
 
 #[allow(missing_docs)]
-pub struct ExtractPaths<T, E> {
-    _marker: PhantomData<fn() -> (T, E)>,
+pub struct ExtractPaths<T> {
+    _marker: PhantomData<fn() -> (T)>,
 }
 
-impl<T, E> Copy for ExtractPaths<T, E> {}
+impl<T> Copy for ExtractPaths<T> {}
 
-impl<T, E> Clone for ExtractPaths<T, E> {
+impl<T> Clone for ExtractPaths<T> {
     #[inline]
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<T, E> fmt::Debug for ExtractPaths<T, E> {
+impl<T> fmt::Debug for ExtractPaths<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("ExtractPaths").finish()
     }
 }
 
-impl<T: FromSegments, E: HttpError> Endpoint for ExtractPaths<T, E> {
+impl<T: FromSegments> Endpoint for ExtractPaths<T> {
     type Item = T;
-    type Error = E;
-    type Result = Result<Self::Item, Self::Error>;
+    type Result = Result<Self::Item, NeverReturn>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
         T::from_segments(ctx.segments()).map(Ok).ok()
@@ -366,13 +371,12 @@ impl<T> fmt::Debug for ExtractPathsRequired<T> {
     }
 }
 
-impl<T: FromSegments> Endpoint for ExtractPathsRequired<T>
+impl<T: FromSegments + 'static> Endpoint for ExtractPathsRequired<T>
 where
     T::Err: Error,
 {
     type Item = T;
-    type Error = ExtractPathsError<T>;
-    type Result = Result<Self::Item, Self::Error>;
+    type Result = Result<Self::Item, ExtractPathsError<T>>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
         Some(T::from_segments(ctx.segments()).map_err(ExtractPathsError))
@@ -413,6 +417,15 @@ where
     }
 }
 
+impl<T: FromSegments> HttpError for ExtractPathsError<T>
+where
+    T::Err: Error,
+{
+    fn status_code(&self) -> StatusCode {
+        StatusCode::BadRequest
+    }
+}
+
 impl<T: FromSegments> PartialEq for ExtractPathsError<T>
 where
     T::Err: PartialEq,
@@ -423,36 +436,35 @@ where
 }
 
 #[allow(missing_docs)]
-pub fn paths_opt<T: FromSegments, E>() -> ExtractPathsOptional<T, E> {
+pub fn paths_opt<T: FromSegments>() -> ExtractPathsOptional<T> {
     ExtractPathsOptional {
         _marker: PhantomData,
     }
 }
 
 #[allow(missing_docs)]
-pub struct ExtractPathsOptional<T, E> {
-    _marker: PhantomData<fn() -> (T, E)>,
+pub struct ExtractPathsOptional<T> {
+    _marker: PhantomData<fn() -> (T)>,
 }
 
-impl<T, E> Copy for ExtractPathsOptional<T, E> {}
+impl<T> Copy for ExtractPathsOptional<T> {}
 
-impl<T, E> Clone for ExtractPathsOptional<T, E> {
+impl<T> Clone for ExtractPathsOptional<T> {
     #[inline]
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<T, E> fmt::Debug for ExtractPathsOptional<T, E> {
+impl<T> fmt::Debug for ExtractPathsOptional<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("ExtractPathsOptional").finish()
     }
 }
 
-impl<T: FromSegments, E: HttpError> Endpoint for ExtractPathsOptional<T, E> {
+impl<T: FromSegments> Endpoint for ExtractPathsOptional<T> {
     type Item = Option<T>;
-    type Error = E;
-    type Result = Result<Self::Item, Self::Error>;
+    type Result = Result<Self::Item, NeverReturn>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
         Some(Ok(T::from_segments(ctx.segments()).ok()))
@@ -462,15 +474,14 @@ impl<T: FromSegments, E: HttpError> Endpoint for ExtractPathsOptional<T, E> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use endpoint::{endpoint, Endpoint};
-    use errors::NeverReturn;
+    use endpoint::endpoint;
     use http::HttpRequest;
     use test::EndpointTestExt;
 
     #[test]
     fn test_match_single_segment() {
         assert_eq!(
-            match_::<()>("foo").map(|m| m.kind),
+            match_("foo").map(|m| m.kind),
             Ok(Segments(vec!["foo".to_owned()]))
         );
     }
@@ -478,20 +489,20 @@ mod tests {
     #[test]
     fn test_match_multi_segments() {
         assert_eq!(
-            match_::<()>("foo/bar").map(|m| m.kind),
+            match_("foo/bar").map(|m| m.kind),
             Ok(Segments(vec!["foo".to_owned(), "bar".to_owned()]))
         );
     }
 
     #[test]
     fn test_match_all_segments() {
-        assert_eq!(match_::<()>("*").map(|m| m.kind), Ok(AllSegments));
+        assert_eq!(match_("*").map(|m| m.kind), Ok(AllSegments));
     }
 
     #[test]
     fn test_match_failure_empty() {
         assert_eq!(
-            match_::<()>("").map(|m| m.kind),
+            match_("").map(|m| m.kind),
             Err(ParseMatchError::EmptyString)
         );
     }
@@ -499,7 +510,7 @@ mod tests {
     #[test]
     fn test_match_failure_empty_2() {
         assert_eq!(
-            match_::<()>("foo//bar").map(|m| m.kind),
+            match_("foo//bar").map(|m| m.kind),
             Err(ParseMatchError::EmptyString)
         );
     }
@@ -507,23 +518,13 @@ mod tests {
     #[test]
     fn test_endpoint_match_path() {
         let request = HttpRequest::get("/foo").body(Default::default()).unwrap();
-        assert_eq!(
-            endpoint("foo")
-                .assert_types::<_, NeverReturn>()
-                .run(request),
-            Some(Ok(())),
-        );
+        assert_eq!(endpoint("foo").run(request), Some(Ok(())),);
     }
 
     #[test]
     fn test_endpoint_reject_path() {
         let request = HttpRequest::get("/foo").body(Default::default()).unwrap();
-        assert!(
-            endpoint("bar")
-                .assert_types::<_, NeverReturn>()
-                .run(request)
-                .is_none()
-        );
+        assert!(endpoint("bar").run(request).is_none());
     }
 
     #[test]
@@ -531,12 +532,7 @@ mod tests {
         let request = HttpRequest::get("/foo/bar")
             .body(Default::default())
             .unwrap();
-        assert_eq!(
-            endpoint("/foo/bar")
-                .assert_types::<_, NeverReturn>()
-                .run(request),
-            Some(Ok(()))
-        );
+        assert_eq!(endpoint("/foo/bar").run(request), Some(Ok(())));
     }
 
     #[test]
@@ -544,12 +540,7 @@ mod tests {
         let request = HttpRequest::get("/foo/baz")
             .body(Default::default())
             .unwrap();
-        assert!(
-            endpoint("/foo/bar")
-                .assert_types::<_, NeverReturn>()
-                .run(request)
-                .is_none()
-        );
+        assert!(endpoint("/foo/bar").run(request).is_none());
     }
 
     #[test]
@@ -557,39 +548,31 @@ mod tests {
         let request = HttpRequest::get("/foo/bar")
             .body(Default::default())
             .unwrap();
-        assert!(
-            endpoint("/foo/bar/baz")
-                .assert_types::<_, NeverReturn>()
-                .run(request)
-                .is_none()
-        );
+        assert!(endpoint("/foo/bar/baz").run(request).is_none());
     }
 
     #[test]
     fn test_endpoint_match_all_path() {
         let request = HttpRequest::get("/foo").body(Default::default()).unwrap();
-        assert_eq!(
-            endpoint("*").assert_types::<_, NeverReturn>().run(request),
-            Some(Ok(()))
-        );
+        assert_eq!(endpoint("*").run(request), Some(Ok(())));
     }
 
     #[test]
     fn test_endpoint_extract_integer() {
         let request = HttpRequest::get("/42").body(Default::default()).unwrap();
-        assert_eq!(path::<i32, NeverReturn>().run(request), Some(Ok(42)));
+        assert_eq!(path().run(request), Some(Ok(42i32)));
     }
 
     #[test]
     fn test_endpoint_extract_wrong_integer() {
         let request = HttpRequest::get("/foo").body(Default::default()).unwrap();
-        assert_eq!(path::<i32, NeverReturn>().run(request), None);
+        assert_eq!(path::<i32>().run(request), None);
     }
 
     #[test]
     fn test_endpoint_extract_wrong_integer_result() {
         let request = HttpRequest::get("/foo").body(Default::default()).unwrap();
-        match path::<Result<i32, _>, NeverReturn>().run(request) {
+        match path::<Result<i32, _>>().run(request) {
             Some(Ok(Err(..))) => (),
             _ => panic!("assertion failed"),
         }
@@ -610,7 +593,7 @@ mod tests {
             .body(Default::default())
             .unwrap();
         assert_eq!(
-            paths::<Vec<String>, NeverReturn>().run(request),
+            paths::<Vec<String>>().run(request),
             Some(Ok(vec!["foo".to_string(), "bar".to_string()]))
         );
     }
