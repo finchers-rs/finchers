@@ -4,7 +4,7 @@ use futures::{Future, Poll, Stream};
 use futures::future;
 use futures::Async::*;
 use hyper;
-use super::{mime, Request};
+use super::{Request, RequestParts};
 use errors::NeverReturn;
 
 /// A raw `Stream` to receive the incoming request body
@@ -98,25 +98,14 @@ pub trait FromBody: 'static + Sized {
         true
     }
 
-    /// Check whether the conversion is available, based on the incoming request.
-    ///
-    /// This method will be called after the route has been established
-    /// and before reading the request body is started.
-    #[allow(unused_variables)]
-    fn validate(req: &Request) -> bool;
-
     /// Performs conversion from raw bytes into itself.
-    fn from_body(body: &[u8]) -> Result<Self, Self::Error>;
+    fn from_body(request: &RequestParts, body: &[u8]) -> Result<Self, Self::Error>;
 }
 
 impl FromBody for () {
     type Error = NeverReturn;
 
-    fn validate(_: &Request) -> bool {
-        true
-    }
-
-    fn from_body(_: &[u8]) -> Result<Self, Self::Error> {
+    fn from_body(_: &RequestParts, _: &[u8]) -> Result<Self, Self::Error> {
         Ok(())
     }
 }
@@ -124,11 +113,7 @@ impl FromBody for () {
 impl FromBody for Vec<u8> {
     type Error = NeverReturn;
 
-    fn validate(_req: &Request) -> bool {
-        true
-    }
-
-    fn from_body(body: &[u8]) -> Result<Self, Self::Error> {
+    fn from_body(_: &RequestParts, body: &[u8]) -> Result<Self, Self::Error> {
         Ok(Vec::from(body))
     }
 }
@@ -136,13 +121,23 @@ impl FromBody for Vec<u8> {
 impl FromBody for String {
     type Error = FromUtf8Error;
 
-    fn validate(req: &Request) -> bool {
-        req.media_type()
-            .and_then(|m| m.get_param("charset"))
-            .map_or(true, |m| m == mime::UTF_8)
-    }
-
-    fn from_body(body: &[u8]) -> Result<Self, Self::Error> {
+    fn from_body(_: &RequestParts, body: &[u8]) -> Result<Self, Self::Error> {
         String::from_utf8(body.into())
+    }
+}
+
+impl<T: FromBody> FromBody for Option<T> {
+    type Error = NeverReturn;
+
+    fn from_body(request: &RequestParts, body: &[u8]) -> Result<Self, Self::Error> {
+        Ok(T::from_body(request, body).ok())
+    }
+}
+
+impl<T: FromBody> FromBody for Result<T, T::Error> {
+    type Error = NeverReturn;
+
+    fn from_body(request: &RequestParts, body: &[u8]) -> Result<Self, Self::Error> {
+        Ok(T::from_body(request, body))
     }
 }

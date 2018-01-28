@@ -13,5 +13,5 @@ pub use http_crate::{Extensions, Request as HttpRequest, Response as HttpRespons
 pub use self::body::{Body, BodyStream, FromBody};
 pub use self::error::HttpError;
 pub use self::into_response::IntoResponse;
-pub use self::request::Request;
+pub use self::request::{Request, RequestParts};
 pub use self::segments::{FromSegment, FromSegments, Segment, Segments};

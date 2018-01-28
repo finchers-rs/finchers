@@ -1,16 +1,48 @@
-use hyper::{self, Body, Headers, HttpVersion, Method, Uri};
+use std::rc::Rc;
+use hyper::{self, Headers, HttpVersion, Method, Uri};
 use hyper::header;
 use hyper::mime::Mime;
 use http_crate::{self, Extensions};
+use super::{Body, BodyStream};
 
-/// The value of incoming HTTP request
+#[allow(missing_docs)]
+#[derive(Debug, Clone)]
+pub struct RequestParts {
+    inner: Rc<Inner>,
+}
+
 #[derive(Debug)]
-pub struct Request {
+struct Inner {
     method: Method,
     uri: Uri,
     version: HttpVersion,
     headers: Headers,
-    body: Option<Body>,
+}
+
+#[allow(missing_docs)]
+impl RequestParts {
+    pub fn method(&self) -> &Method {
+        &self.inner.method
+    }
+
+    pub fn uri(&self) -> &Uri {
+        &self.inner.uri
+    }
+
+    pub fn version(&self) -> &HttpVersion {
+        &self.inner.version
+    }
+
+    pub fn headers(&self) -> &Headers {
+        &self.inner.headers
+    }
+}
+
+/// The value of incoming HTTP request
+#[derive(Debug)]
+pub struct Request {
+    shared: RequestParts,
+    body: Option<hyper::Body>,
     extensions: Extensions,
 }
 
@@ -18,24 +50,32 @@ impl From<hyper::Request> for Request {
     fn from(request: hyper::Request) -> Self {
         let (method, uri, version, headers, body) = request.deconstruct();
         Request {
-            method,
-            uri,
-            version,
-            headers,
+            shared: RequestParts {
+                inner: Rc::new(Inner {
+                    method,
+                    uri,
+                    version,
+                    headers,
+                }),
+            },
             body: Some(body),
             extensions: Extensions::new(),
         }
     }
 }
 
-impl From<http_crate::Request<Body>> for Request {
-    fn from(request: http_crate::Request<Body>) -> Self {
+impl From<http_crate::Request<hyper::Body>> for Request {
+    fn from(request: http_crate::Request<hyper::Body>) -> Self {
         let (parts, body) = request.into_parts();
         Request {
-            method: parts.method.into(),
-            uri: parts.uri.into(),
-            version: parts.version.into(),
-            headers: parts.headers.into(),
+            shared: RequestParts {
+                inner: Rc::new(Inner {
+                    method: parts.method.into(),
+                    uri: parts.uri.into(),
+                    version: parts.version.into(),
+                    headers: parts.headers.into(),
+                }),
+            },
             body: Some(body),
             extensions: parts.extensions,
         }
@@ -45,32 +85,35 @@ impl From<http_crate::Request<Body>> for Request {
 impl Request {
     /// Return the reference of HTTP method
     pub fn method(&self) -> &Method {
-        &self.method
+        self.shared.method()
     }
 
     /// Return the path of HTTP request
     pub fn path(&self) -> &str {
-        self.uri.path()
+        self.shared.uri().path()
     }
 
     /// Return the query part of HTTP request
     pub fn query(&self) -> Option<&str> {
-        self.uri.query()
+        self.shared.uri().query()
     }
 
     /// Returns the shared reference of header map
     pub fn headers(&self) -> &Headers {
-        &self.headers
-    }
-
-    /// Returns the mutable reference of header map
-    pub fn headers_mut(&mut self) -> &mut Headers {
-        &mut self.headers
+        self.shared.headers()
     }
 
     #[allow(missing_docs)]
     pub fn body(&mut self) -> Option<Body> {
-        self.body.take()
+        if let Some(stream) = self.body.take() {
+            self.extensions.insert(Body::from(stream));
+        }
+        self.extensions.get::<Body>().cloned()
+    }
+
+    #[allow(missing_docs)]
+    pub fn body_stream(&mut self) -> Option<BodyStream> {
+        self.body.take().map(Into::into)
     }
 
     #[allow(missing_docs)]
@@ -85,6 +128,16 @@ impl Request {
 
     #[allow(missing_docs)]
     pub fn media_type(&self) -> Option<&Mime> {
-        self.headers.get().map(|&header::ContentType(ref m)| m)
+        self.shared
+            .headers()
+            .get()
+            .map(|&header::ContentType(ref m)| m)
+    }
+
+    #[allow(missing_docs)]
+    pub fn shared_parts(&mut self) -> (RequestParts, Body) {
+        let shared = self.shared.clone();
+        let body = self.body().expect("cannot take the request body twice");
+        (shared, body)
     }
 }
