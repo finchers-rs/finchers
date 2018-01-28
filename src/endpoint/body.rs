@@ -20,7 +20,8 @@ use std::marker::PhantomData;
 use futures::{Future, Poll};
 use futures::future::{self, FutureResult};
 use endpoint::{Endpoint, EndpointContext, EndpointError, EndpointResult};
-use http::{self, FromBody, HttpError, Request, RequestParts, StatusCode};
+use errors::BadRequest;
+use http::{self, FromBody, HttpError, Request, RequestParts};
 
 /// Creates an endpoint for parsing the incoming request body into the value of `T`
 pub fn body<T: FromBody>() -> Body<T> {
@@ -106,73 +107,8 @@ where
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         let buf = try_ready!(self.body.poll());
-        let body = T::from_body(&self.request, &*buf).map_err(|e| BodyError::FromBody(e) as BodyError<T>)?;
+        let body = T::from_body(&self.request, &*buf).map_err(BadRequest::new)?;
         Ok(body.into())
-    }
-}
-
-/// The error type returned from `Body<T>`
-pub enum BodyError<T: FromBody> {
-    /// An error during parsing the received body
-    FromBody(T::Error),
-}
-
-impl<T: FromBody> fmt::Debug for BodyError<T>
-where
-    T::Error: fmt::Debug,
-{
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            BodyError::FromBody(ref e) => e.fmt(f),
-        }
-    }
-}
-
-impl<T: FromBody> fmt::Display for BodyError<T>
-where
-    T::Error: fmt::Display,
-{
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            BodyError::FromBody(ref e) => e.fmt(f),
-        }
-    }
-}
-
-impl<T: FromBody> Error for BodyError<T>
-where
-    T::Error: Error,
-{
-    fn description(&self) -> &str {
-        match *self {
-            BodyError::FromBody(ref e) => e.description(),
-        }
-    }
-
-    fn cause(&self) -> Option<&Error> {
-        match *self {
-            BodyError::FromBody(ref e) => Some(e),
-        }
-    }
-}
-
-impl<T: FromBody> HttpError for BodyError<T>
-where
-    T::Error: Error,
-{
-    fn status_code(&self) -> StatusCode {
-        StatusCode::BadRequest
-    }
-}
-
-impl<T: FromBody> PartialEq for BodyError<T>
-where
-    T::Error: PartialEq,
-{
-    fn eq(&self, rhs: &Self) -> bool {
-        match (self, rhs) {
-            (&BodyError::FromBody(ref l), &BodyError::FromBody(ref r)) => l.eq(r),
-        }
     }
 }
 

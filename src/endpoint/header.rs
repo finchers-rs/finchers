@@ -7,11 +7,11 @@
 //! * `HeaderOptional<H, E>` - Similar to `Header`, but always matches and returns a `None` if `H` is not found.
 
 use std::fmt;
-use std::error::Error;
 use std::marker::PhantomData;
 use futures::future::{err, ok, FutureResult};
 use endpoint::{Endpoint, EndpointContext, EndpointError, EndpointResult};
-use http::{header, HttpError, Request, StatusCode};
+use errors::NotPresent;
+use http::{header, Request};
 
 #[allow(missing_docs)]
 pub fn header<H: header::Header + Clone>() -> Header<H> {
@@ -124,10 +124,10 @@ impl<H: header::Header + Clone> EndpointResult for HeaderRequiredResult<H> {
     fn into_future(self, request: &mut Request) -> Self::Future {
         match request.headers().get().cloned() {
             Some(h) => ok(h),
-            None => err((EmptyHeader {
-                _marker: PhantomData,
-            } as EmptyHeader<H>)
-                .into()),
+            None => err(NotPresent::new(format!(
+                "The header `{}' does not exist in the request",
+                H::header_name()
+            )).into()),
         }
     }
 }
@@ -182,44 +182,5 @@ impl<H: header::Header + Clone> EndpointResult for HeaderOptionalResult<H> {
 
     fn into_future(self, request: &mut Request) -> Self::Future {
         ok(request.headers().get().cloned())
-    }
-}
-
-#[allow(missing_docs)]
-pub struct EmptyHeader<H: header::Header> {
-    _marker: PhantomData<fn() -> H>,
-}
-
-impl<H: header::Header> fmt::Debug for EmptyHeader<H> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("EmptyHeader").finish()
-    }
-}
-
-impl<H: header::Header> fmt::Display for EmptyHeader<H> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "The header '{}' is not given",
-            <H as header::Header>::header_name()
-        )
-    }
-}
-
-impl<H: header::Header> Error for EmptyHeader<H> {
-    fn description(&self) -> &str {
-        "empty header"
-    }
-}
-
-impl<H: header::Header> HttpError for EmptyHeader<H> {
-    fn status_code(&self) -> StatusCode {
-        StatusCode::BadRequest
-    }
-}
-
-impl<H: header::Header> PartialEq for EmptyHeader<H> {
-    fn eq(&self, _: &Self) -> bool {
-        true
     }
 }
