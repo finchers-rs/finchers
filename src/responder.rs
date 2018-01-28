@@ -1,14 +1,18 @@
 //! `Responder` layer
 
+use std::fmt;
+use std::marker::PhantomData;
 use std::rc::Rc;
 use std::sync::Arc;
-use http::{header, IntoResponse, Response, StatusCode};
+use http::{header, HttpError, IntoResponse, Response, StatusCode};
 
 #[allow(missing_docs)]
-pub trait Responder<T, E> {
-    fn respond_ok(&self, T) -> Response;
+pub trait Responder {
+    type Item;
 
-    fn respond_err(&self, E) -> Response;
+    fn respond_ok(&self, item: Self::Item) -> Response;
+
+    fn respond_err(&self, &HttpError) -> Response;
 
     fn respond_noroute(&self) -> Response {
         Response::new().with_status(StatusCode::NotFound)
@@ -17,15 +21,14 @@ pub trait Responder<T, E> {
     fn after_respond(&self, &mut Response) {}
 }
 
-impl<R, T, E> Responder<T, E> for Rc<R>
-where
-    R: Responder<T, E>,
-{
-    fn respond_ok(&self, input: T) -> Response {
-        (**self).respond_ok(input)
+impl<R: Responder> Responder for Rc<R> {
+    type Item = R::Item;
+
+    fn respond_ok(&self, item: Self::Item) -> Response {
+        (**self).respond_ok(item)
     }
 
-    fn respond_err(&self, err: E) -> Response {
+    fn respond_err(&self, err: &HttpError) -> Response {
         (**self).respond_err(err)
     }
 
@@ -38,15 +41,14 @@ where
     }
 }
 
-impl<R, T, E> Responder<T, E> for Arc<R>
-where
-    R: Responder<T, E>,
-{
-    fn respond_ok(&self, input: T) -> Response {
-        (**self).respond_ok(input)
+impl<R: Responder> Responder for Arc<R> {
+    type Item = R::Item;
+
+    fn respond_ok(&self, item: Self::Item) -> Response {
+        (**self).respond_ok(item)
     }
 
-    fn respond_err(&self, err: E) -> Response {
+    fn respond_err(&self, err: &HttpError) -> Response {
         (**self).respond_err(err)
     }
 
@@ -60,20 +62,48 @@ where
 }
 
 #[allow(missing_docs)]
-#[derive(Copy, Clone, Debug, Default)]
-pub struct DefaultResponder;
+pub struct DefaultResponder<T> {
+    _marker: PhantomData<fn(T) -> ()>,
+}
 
-impl<T, E> Responder<T, E> for DefaultResponder
-where
-    T: IntoResponse,
-    E: IntoResponse,
-{
-    fn respond_ok(&self, input: T) -> Response {
-        input.into_response()
+impl<T> Copy for DefaultResponder<T> {}
+
+impl<T> Clone for DefaultResponder<T> {
+    #[inline]
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<T> Default for DefaultResponder<T> {
+    #[inline]
+    fn default() -> Self {
+        DefaultResponder {
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<T> fmt::Debug for DefaultResponder<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("DefaultResponder").finish()
+    }
+}
+
+impl<T: IntoResponse> Responder for DefaultResponder<T> {
+    type Item = T;
+
+    fn respond_ok(&self, item: Self::Item) -> Response {
+        item.into_response()
     }
 
-    fn respond_err(&self, err: E) -> Response {
-        err.into_response()
+    fn respond_err(&self, err: &HttpError) -> Response {
+        let message = err.to_string();
+        Response::new()
+            .with_status(err.status_code())
+            .with_header(header::ContentType::plaintext())
+            .with_header(header::ContentLength(message.len() as u64))
+            .with_body(message)
     }
 
     fn respond_noroute(&self) -> Response {

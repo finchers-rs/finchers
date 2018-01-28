@@ -5,10 +5,10 @@ use futures::future;
 use http::Request;
 use super::{Endpoint, EndpointContext, EndpointResult, IntoEndpoint};
 
-pub fn join_all<I, E, A, B>(iter: I) -> JoinAll<E::Endpoint>
+pub fn join_all<I>(iter: I) -> JoinAll<<I::Item as IntoEndpoint>::Endpoint>
 where
-    I: IntoIterator<Item = E>,
-    E: IntoEndpoint<A, B>,
+    I: IntoIterator,
+    I::Item: IntoEndpoint,
 {
     JoinAll {
         inner: iter.into_iter().map(IntoEndpoint::into_endpoint).collect(),
@@ -35,7 +35,6 @@ impl<E: Endpoint + fmt::Debug> fmt::Debug for JoinAll<E> {
 
 impl<E: Endpoint> Endpoint for JoinAll<E> {
     type Item = Vec<E::Item>;
-    type Error = E::Error;
     type Result = JoinAllResult<E::Result>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
@@ -56,7 +55,6 @@ pub struct JoinAllResult<T> {
 
 impl<T: EndpointResult> EndpointResult for JoinAllResult<T> {
     type Item = Vec<T::Item>;
-    type Error = T::Error;
     type Future = future::JoinAll<Vec<T::Future>>;
 
     fn into_future(self, request: &mut Request) -> Self::Future {

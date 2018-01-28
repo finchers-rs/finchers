@@ -6,30 +6,20 @@ use futures::Async::*;
 use hyper::{Error, Request, Response};
 use hyper::server::Service;
 
-use endpoint::{Endpoint, EndpointResult};
-use http::IntoResponse;
+use endpoint::{Endpoint, EndpointError, EndpointResult};
+use http::{HttpError, IntoResponse};
 use handler::{DefaultHandler, Handler};
 use responder::{DefaultResponder, Responder};
 
 /// An HTTP service which wraps a `Endpoint`, `Handler` and `Responder`.
-#[derive(Debug)]
-pub struct FinchersService<E, H, R>
-where
-    E: Endpoint,
-    H: Handler<E::Item, Error = E::Error> + Clone,
-    R: Responder<H::Item, H::Error> + Clone,
-{
+#[derive(Debug, Copy, Clone)]
+pub struct FinchersService<E, H, R> {
     endpoint: E,
     handler: H,
     responder: R,
 }
 
-impl<E, H, R> FinchersService<E, H, R>
-where
-    E: Endpoint,
-    H: Handler<E::Item, Error = E::Error> + Clone,
-    R: Responder<H::Item, H::Error> + Clone,
-{
+impl<E, H, R> FinchersService<E, H, R> {
     /// Create an instance of `FinchersService` from components
     pub fn new(endpoint: E, handler: H, responder: R) -> Self {
         Self {
@@ -40,34 +30,11 @@ where
     }
 }
 
-impl<E, H, R> Copy for FinchersService<E, H, R>
-where
-    E: Endpoint + Copy,
-    H: Handler<E::Item, Error = E::Error> + Copy,
-    R: Responder<H::Item, H::Error> + Copy,
-{
-}
-
-impl<E, H, R> Clone for FinchersService<E, H, R>
-where
-    E: Endpoint + Clone,
-    H: Handler<E::Item, Error = E::Error> + Clone,
-    R: Responder<H::Item, H::Error> + Clone,
-{
-    fn clone(&self) -> Self {
-        Self {
-            endpoint: self.endpoint.clone(),
-            handler: self.handler.clone(),
-            responder: self.responder.clone(),
-        }
-    }
-}
-
 impl<E, H, R> Service for FinchersService<E, H, R>
 where
     E: Endpoint,
-    H: Handler<E::Item, Error = E::Error> + Clone,
-    R: Responder<H::Item, H::Error> + Clone,
+    H: Handler<E::Item> + Clone,
+    R: Responder<Item = H::Item> + Clone,
 {
     type Request = Request;
     type Response = Response;
@@ -75,14 +42,15 @@ where
     type Future = FinchersServiceFuture<E, H, R>;
 
     fn call(&self, req: Self::Request) -> Self::Future {
-        FinchersServiceFuture {
-            state: match self.endpoint.apply_request(req) {
-                Some(input) => State::PollingInput {
-                    input,
-                    handler: self.handler.clone(),
-                },
-                None => State::NoRoute,
+        let state = match self.endpoint.apply_request(req) {
+            Some(input) => State::PollingInput {
+                input,
+                handler: self.handler.clone(),
             },
+            None => State::NoRoute,
+        };
+        FinchersServiceFuture {
+            state,
             responder: self.responder.clone(),
         }
     }
@@ -93,8 +61,8 @@ where
 pub struct FinchersServiceFuture<E, H, R>
 where
     E: Endpoint,
-    H: Handler<E::Item, Error = E::Error>,
-    R: Responder<H::Item, H::Error>,
+    H: Handler<E::Item>,
+    R: Responder,
 {
     state: State<E, H>,
     responder: R,
@@ -120,10 +88,10 @@ where
 impl<E, H, R> FinchersServiceFuture<E, H, R>
 where
     E: Endpoint,
-    H: Handler<E::Item, Error = E::Error>,
-    R: Responder<H::Item, H::Error>,
+    H: Handler<E::Item>,
+    R: Responder,
 {
-    fn poll_state(&mut self) -> Poll<Result<Option<H::Item>, H::Error>, Error> {
+    fn poll_state(&mut self) -> Poll<Result<Option<H::Item>, Box<HttpError>>, Error> {
         use self::State::*;
         loop {
             match mem::replace(&mut self.state, Done) {
@@ -139,8 +107,8 @@ where
                         self.state = PollingInput { input, handler };
                         break Ok(NotReady);
                     }
-                    Err(Ok(err)) => break Ok(Ready(Err(err))),
-                    Err(Err(err)) => break Err(err),
+                    Err(EndpointError::Endpoint(err)) => break Ok(Ready(Err(err))),
+                    Err(EndpointError::Http(err)) => break Err(err),
                 },
                 PollingOutput { mut output } => match output.poll() {
                     Ok(Ready(item)) => break Ok(Ready(Ok(item))),
@@ -148,7 +116,7 @@ where
                         self.state = PollingOutput { output };
                         break Ok(NotReady);
                     }
-                    Err(err) => break Ok(Ready(Err(err))),
+                    Err(err) => break Err(err),
                 },
                 Done => panic!(),
             }
@@ -159,8 +127,8 @@ where
 impl<E, H, R> Future for FinchersServiceFuture<E, H, R>
 where
     E: Endpoint,
-    H: Handler<E::Item, Error = E::Error>,
-    R: Responder<H::Item, H::Error>,
+    H: Handler<E::Item>,
+    R: Responder<Item = H::Item>,
 {
     type Item = Response;
     type Error = Error;
@@ -169,7 +137,7 @@ where
         let mut response = match try_ready!(self.poll_state()) {
             Ok(Some(item)) => self.responder.respond_ok(item),
             Ok(None) => self.responder.respond_noroute(),
-            Err(err) => self.responder.respond_err(err),
+            Err(err) => self.responder.respond_err(&*err),
         };
         self.responder.after_respond(&mut response);
         Ok(Ready(response))
@@ -180,34 +148,28 @@ where
 pub trait EndpointServiceExt: Endpoint + sealed::Sealed
 where
     Self::Item: IntoResponse,
-    Self::Error: IntoResponse,
 {
-    fn into_service(self) -> FinchersService<Self, DefaultHandler<Self::Error>, DefaultResponder>
+    fn into_service(self) -> FinchersService<Self, DefaultHandler, DefaultResponder<Self::Item>>
     where
         Self: Sized;
 
-    fn with_handler<H>(self, handler: H) -> FinchersService<Self, H, DefaultResponder>
+    fn with_handler<H>(self, handler: H) -> FinchersService<Self, H, DefaultResponder<H::Item>>
     where
-        H: Handler<Self::Item, Error = Self::Error> + Clone,
-        H::Item: IntoResponse,
-        H::Error: IntoResponse,
+        H: Handler<Self::Item> + Clone,
         Self: Sized;
 }
 
 impl<E: Endpoint> EndpointServiceExt for E
 where
     E::Item: IntoResponse,
-    E::Error: IntoResponse,
 {
-    fn into_service(self) -> FinchersService<Self, DefaultHandler<Self::Error>, DefaultResponder> {
+    fn into_service(self) -> FinchersService<Self, DefaultHandler, DefaultResponder<Self::Item>> {
         FinchersService::new(self, DefaultHandler::default(), Default::default())
     }
 
-    fn with_handler<H>(self, handler: H) -> FinchersService<Self, H, DefaultResponder>
+    fn with_handler<H>(self, handler: H) -> FinchersService<Self, H, DefaultResponder<H::Item>>
     where
-        H: Handler<Self::Item, Error = Self::Error> + Clone,
-        H::Item: IntoResponse,
-        H::Error: IntoResponse,
+        H: Handler<Self::Item> + Clone,
     {
         FinchersService::new(self, handler, Default::default())
     }
@@ -217,17 +179,4 @@ mod sealed {
     use endpoint::Endpoint;
     pub trait Sealed {}
     impl<E: Endpoint> Sealed for E {}
-}
-
-mod tests {
-    #[test]
-    fn smoke_service_ext() {
-        use endpoint::prelude::*;
-        use std::rc::Rc;
-        use super::EndpointServiceExt;
-
-        let endpoint = endpoint("foo").assert_types::<(), ()>();
-        let _ = endpoint.clone().into_service();
-        let _ = endpoint.with_handler(Rc::new(|()| Ok(Some("Hello"))));
-    }
 }

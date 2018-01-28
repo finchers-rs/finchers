@@ -40,7 +40,7 @@ macro_rules! choice {
 
 #[cfg(test)]
 mod tests {
-    use endpoint::{endpoint, Endpoint};
+    use endpoint::endpoint;
 
     #[test]
     #[allow(unused_variables)]
@@ -48,6 +48,5 @@ mod tests {
         let e1 = endpoint("foo");
         let e2 = choice!(e1, "bar", "baz");
         let e3 = choice!("foobar", e2,);
-        let e4 = e3.assert_types::<_, ()>();
     }
 }

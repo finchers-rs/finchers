@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use std::sync::Arc;
 use futures::{future, Future, IntoFuture};
-use http::{Error, Request};
+use http::{self, HttpError, Request};
 use super::*;
 
 /// Abstruction of an endpoint.
@@ -9,11 +9,8 @@ pub trait Endpoint {
     /// The type *on success*.
     type Item;
 
-    /// The type *on failure*
-    type Error;
-
     /// The type of returned value from `apply`.
-    type Result: EndpointResult<Item = Self::Item, Error = Self::Error>;
+    type Result: EndpointResult<Item = Self::Item>;
 
     /// Validates the incoming HTTP request,
     /// and returns the instance of `Task` if matched.
@@ -26,59 +23,40 @@ pub trait Endpoint {
             .map(|result| result.into_future(&mut request))
     }
 
-    /// Add an assertion to associated types in this endpoint.
-    ///
-    /// # Example
-    /// ```
-    /// # use finchers::{Endpoint, IntoEndpoint};
-    /// // The error type of `endpoint` is unknown
-    /// let endpoint = IntoEndpoint::into_endpoint("foo");
-    ///
-    /// // Add an assertion that the error type of `endpoint` must be ().
-    /// let endpoint = endpoint.assert_types::<_, ()>();
-    /// ```
-    #[inline]
-    fn assert_types<T, E>(self) -> Self
+    #[allow(missing_docs)]
+    fn join<E>(self, e: E) -> Join<Self, E::Endpoint>
     where
-        Self: Sized + Endpoint<Item = T, Error = E>,
+        Self: Sized,
+        E: IntoEndpoint,
     {
-        self
+        assert_endpoint::<_, (Self::Item, <E::Endpoint as Endpoint>::Item)>(join::join(self, e))
     }
 
     #[allow(missing_docs)]
-    fn join<T, E>(self, e: E) -> Join<Self, E::Endpoint>
+    fn with<E>(self, e: E) -> With<Self, E::Endpoint>
     where
         Self: Sized,
-        E: IntoEndpoint<T, Self::Error>,
+        E: IntoEndpoint,
     {
-        join::join(self, e).assert_types::<(Self::Item, <E::Endpoint as Endpoint>::Item), Self::Error>()
+        assert_endpoint::<_, E::Item>(with::with(self, e))
     }
 
     #[allow(missing_docs)]
-    fn with<T, E>(self, e: E) -> With<Self, E::Endpoint>
+    fn skip<E>(self, e: E) -> Skip<Self, E::Endpoint>
     where
         Self: Sized,
-        E: IntoEndpoint<T, Self::Error>,
+        E: IntoEndpoint,
     {
-        with::with(self, e).assert_types::<<E::Endpoint as Endpoint>::Item, Self::Error>()
-    }
-
-    #[allow(missing_docs)]
-    fn skip<T, E>(self, e: E) -> Skip<Self, E::Endpoint>
-    where
-        Self: Sized,
-        E: IntoEndpoint<T, Self::Error>,
-    {
-        skip::skip(self, e).assert_types::<Self::Item, Self::Error>()
+        assert_endpoint::<_, Self::Item>(skip::skip(self, e))
     }
 
     #[allow(missing_docs)]
     fn or<E>(self, e: E) -> Or<Self, E::Endpoint>
     where
         Self: Sized,
-        E: IntoEndpoint<Self::Item, Self::Error>,
+        E: IntoEndpoint<Item = Self::Item>,
     {
-        or::or(self, e).assert_types::<Self::Item, Self::Error>()
+        assert_endpoint::<_, Self::Item>(or::or(self, e))
     }
 
     #[allow(missing_docs)]
@@ -87,16 +65,7 @@ pub trait Endpoint {
         Self: Sized,
         F: Fn(Self::Item) -> T,
     {
-        map::map(self, f).assert_types::<T, Self::Error>()
-    }
-
-    #[allow(missing_docs)]
-    fn map_err<F, U>(self, f: F) -> MapErr<Self, F>
-    where
-        Self: Sized,
-        F: Fn(Self::Error) -> U,
-    {
-        map_err::map_err(self, f).assert_types::<Self::Item, U>()
+        assert_endpoint::<_, T>(map::map(self, f))
     }
 
     #[allow(missing_docs)]
@@ -104,43 +73,23 @@ pub trait Endpoint {
     where
         Self: Sized,
         F: Fn(Self::Item) -> R,
-        R: IntoFuture<Error = Self::Error>,
+        R: IntoFuture,
+        R::Error: Into<EndpointError>,
     {
-        and_then::and_then(self, f).assert_types::<R::Item, Self::Error>()
+        assert_endpoint::<_, R::Item>(and_then::and_then(self, f))
     }
+}
 
-    #[allow(missing_docs)]
-    fn from_ok_err<T, E>(self) -> FromOkErr<Self, T, E>
-    where
-        Self: Sized,
-        T: From<Self::Item>,
-        E: From<Self::Error>,
-    {
-        from_ok_err::from_ok_err(self).assert_types::<T, E>()
-    }
-
-    #[allow(missing_docs)]
-    fn from_ok<T>(self) -> FromOk<Self, T>
-    where
-        Self: Sized,
-        T: From<Self::Item>,
-    {
-        from_ok::from_ok(self).assert_types::<T, Self::Error>()
-    }
-
-    #[allow(missing_docs)]
-    fn from_err<E>(self) -> FromErr<Self, E>
-    where
-        Self: Sized,
-        E: From<Self::Error>,
-    {
-        from_err::from_err(self).assert_types::<Self::Item, E>()
-    }
+#[inline]
+fn assert_endpoint<E, T>(endpoint: E) -> E
+where
+    E: Endpoint<Item = T>,
+{
+    endpoint
 }
 
 impl<'a, E: Endpoint> Endpoint for &'a E {
     type Item = E::Item;
-    type Error = E::Error;
     type Result = E::Result;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
@@ -150,7 +99,6 @@ impl<'a, E: Endpoint> Endpoint for &'a E {
 
 impl<E: Endpoint> Endpoint for Box<E> {
     type Item = E::Item;
-    type Error = E::Error;
     type Result = E::Result;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
@@ -160,7 +108,6 @@ impl<E: Endpoint> Endpoint for Box<E> {
 
 impl<E: Endpoint> Endpoint for Rc<E> {
     type Item = E::Item;
-    type Error = E::Error;
     type Result = E::Result;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
@@ -170,11 +117,36 @@ impl<E: Endpoint> Endpoint for Rc<E> {
 
 impl<E: Endpoint> Endpoint for Arc<E> {
     type Item = E::Item;
-    type Error = E::Error;
     type Result = E::Result;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
         (**self).apply(ctx)
+    }
+}
+
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub enum EndpointError {
+    Endpoint(Box<HttpError>),
+    Http(http::Error),
+}
+
+impl<E: HttpError + 'static> From<E> for EndpointError {
+    fn from(err: E) -> Self {
+        EndpointError::Endpoint(Box::new(err))
+    }
+}
+
+impl From<http::Error> for EndpointError {
+    fn from(err: http::Error) -> Self {
+        EndpointError::Http(err)
+    }
+}
+
+#[cfg(test)]
+impl PartialEq for EndpointError {
+    fn eq(&self, _other: &Self) -> bool {
+        panic!("not supported")
     }
 }
 
@@ -183,11 +155,8 @@ pub trait EndpointResult {
     /// The type *on success*.
     type Item;
 
-    /// The type *on failure*.
-    type Error;
-
     /// The type of value returned from `launch`.
-    type Future: Future<Item = Self::Item, Error = Result<Self::Error, Error>>;
+    type Future: Future<Item = Self::Item, Error = EndpointError>;
 
     /// Launches itself and construct a `Future`, and then return it.
     ///
@@ -195,29 +164,31 @@ pub trait EndpointResult {
     fn into_future(self, request: &mut Request) -> Self::Future;
 }
 
-impl<F: IntoFuture> EndpointResult for F {
+impl<F: IntoFuture> EndpointResult for F
+where
+    F::Error: HttpError + 'static,
+{
     type Item = F::Item;
-    type Error = F::Error;
-    type Future = future::MapErr<F::Future, fn(F::Error) -> Result<F::Error, Error>>;
+    type Future = future::FromErr<F::Future, EndpointError>;
 
     fn into_future(self, _: &mut Request) -> Self::Future {
-        self.into_future().map_err(Ok)
+        self.into_future().from_err()
     }
 }
 
 /// Abstruction of types to be convert to an `Endpoint`.
-pub trait IntoEndpoint<T, E> {
+pub trait IntoEndpoint {
+    /// The return type
+    type Item;
     /// The type of value returned from `into_endpoint`.
-    type Endpoint: Endpoint<Item = T, Error = E>;
+    type Endpoint: Endpoint<Item = Self::Item>;
 
     /// Convert itself into `Self::Endpoint`.
     fn into_endpoint(self) -> Self::Endpoint;
 }
 
-impl<E, A, B> IntoEndpoint<A, B> for E
-where
-    E: Endpoint<Item = A, Error = B>,
-{
+impl<E: Endpoint> IntoEndpoint for E {
+    type Item = E::Item;
     type Endpoint = E;
 
     #[inline]
@@ -226,29 +197,28 @@ where
     }
 }
 
-impl<E> IntoEndpoint<(), E> for () {
-    type Endpoint = EndpointOk<(), E>;
+impl IntoEndpoint for () {
+    type Item = ();
+    type Endpoint = EndpointOk<()>;
 
+    #[inline]
     fn into_endpoint(self) -> Self::Endpoint {
         ok(())
     }
 }
 
-impl<T, A, B> IntoEndpoint<Vec<A>, B> for Vec<T>
-where
-    T: IntoEndpoint<A, B>,
-{
-    type Endpoint = JoinAll<T::Endpoint>;
+impl<E: IntoEndpoint> IntoEndpoint for Vec<E> {
+    type Item = Vec<E::Item>;
+    type Endpoint = JoinAll<E::Endpoint>;
 
+    #[inline]
     fn into_endpoint(self) -> Self::Endpoint {
         join_all(self)
     }
 }
 
 /// A shortcut of `IntoEndpoint::into_endpoint()`
-pub fn endpoint<E, A, B>(endpoint: E) -> E::Endpoint
-where
-    E: IntoEndpoint<A, B>,
-{
+#[inline]
+pub fn endpoint<E: IntoEndpoint>(endpoint: E) -> E::Endpoint {
     endpoint.into_endpoint()
 }

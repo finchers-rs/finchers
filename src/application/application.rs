@@ -83,11 +83,10 @@ where
     }
 }
 
-impl<E> Application<ConstService<FinchersService<E, DefaultHandler<E::Error>, DefaultResponder>>, DefaultBackend>
+impl<E> Application<ConstService<FinchersService<E, DefaultHandler, DefaultResponder<E::Item>>>, DefaultBackend>
 where
     E: Endpoint,
     E::Item: IntoResponse,
-    E::Error: IntoResponse,
 {
     #[allow(missing_docs)]
     pub fn from_endpoint(endpoint: E) -> Self {

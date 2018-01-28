@@ -4,10 +4,10 @@ use futures::{Future, Poll};
 use http::Request;
 use super::{Endpoint, EndpointContext, EndpointResult, IntoEndpoint};
 
-pub fn or<E1, E2, A, B>(e1: E1, e2: E2) -> Or<E1::Endpoint, E2::Endpoint>
+pub fn or<E1, E2>(e1: E1, e2: E2) -> Or<E1::Endpoint, E2::Endpoint>
 where
-    E1: IntoEndpoint<A, B>,
-    E2: IntoEndpoint<A, B>,
+    E1: IntoEndpoint,
+    E2: IntoEndpoint<Item = E1::Item>,
 {
     Or {
         e1: e1.into_endpoint(),
@@ -24,10 +24,9 @@ pub struct Or<E1, E2> {
 impl<E1, E2> Endpoint for Or<E1, E2>
 where
     E1: Endpoint,
-    E2: Endpoint<Item = E1::Item, Error = E1::Error>,
+    E2: Endpoint<Item = E1::Item>,
 {
     type Item = E1::Item;
-    type Error = E1::Error;
     type Result = OrResult<E1::Result, E2::Result>;
 
     fn apply(&self, ctx2: &mut EndpointContext) -> Option<Self::Result> {
@@ -74,10 +73,9 @@ pub struct OrResult<T1, T2> {
 impl<T1, T2> EndpointResult for OrResult<T1, T2>
 where
     T1: EndpointResult,
-    T2: EndpointResult<Item = T1::Item, Error = T1::Error>,
+    T2: EndpointResult<Item = T1::Item>,
 {
     type Item = T1::Item;
-    type Error = T1::Error;
     type Future = OrFuture<T1::Future, T2::Future>;
 
     fn into_future(self, request: &mut Request) -> Self::Future {
@@ -123,7 +121,7 @@ mod tests {
     #[test]
     fn test_or_1() {
         let endpoint = endpoint("foo")
-            .with(ok::<_, ()>("foo"))
+            .with(ok("foo"))
             .or(endpoint("bar").with(ok("bar")));
         let mut runner = TestRunner::new(endpoint).unwrap();
 
@@ -143,7 +141,7 @@ mod tests {
     #[test]
     fn test_or_choose_longer_segments() {
         let e1 = endpoint("foo").with(ok("foo"));
-        let e2 = endpoint("foo/bar").with(ok::<_, ()>("foobar"));
+        let e2 = endpoint("foo/bar").with(ok("foobar"));
         let endpoint = e1.or(e2);
         let mut runner = TestRunner::new(endpoint).unwrap();
 

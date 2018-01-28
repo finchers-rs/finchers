@@ -12,7 +12,6 @@ pub struct MatchMethod<E: Endpoint> {
 
 impl<E: Endpoint> Endpoint for MatchMethod<E> {
     type Item = E::Item;
-    type Error = E::Error;
     type Result = E::Result;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
@@ -25,10 +24,7 @@ impl<E: Endpoint> Endpoint for MatchMethod<E> {
 }
 
 #[allow(missing_docs)]
-pub fn method<E, A, B>(method: Method, endpoint: E) -> MatchMethod<E::Endpoint>
-where
-    E: IntoEndpoint<A, B>,
-{
+pub fn method<E: IntoEndpoint>(method: Method, endpoint: E) -> MatchMethod<E::Endpoint> {
     MatchMethod {
         method,
         endpoint: endpoint.into_endpoint(),
@@ -40,10 +36,7 @@ macro_rules! define_method {
         ($name:ident, $method:ident, $Endpoint:ident),
     )*) => {$(
         #[allow(missing_docs)]
-        pub fn $name<E, A, B>(endpoint: E) -> $Endpoint<E::Endpoint>
-        where
-            E: IntoEndpoint<A, B>,
-        {
+        pub fn $name<E: IntoEndpoint>(endpoint: E) -> $Endpoint<E::Endpoint> {
             $Endpoint {
                 endpoint: endpoint.into_endpoint(),
             }
@@ -57,7 +50,6 @@ macro_rules! define_method {
 
         impl<E: Endpoint> Endpoint for $Endpoint<E> {
             type Item = E::Item;
-            type Error = E::Error;
             type Result = E::Result;
 
             fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {

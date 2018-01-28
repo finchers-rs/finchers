@@ -6,10 +6,10 @@ use futures::{Future, Poll};
 use http::Request;
 use super::{Endpoint, EndpointContext, EndpointResult, IntoEndpoint};
 
-pub fn map<E, F, R, A, B>(endpoint: E, f: F) -> Map<E::Endpoint, F>
+pub fn map<E, F, R>(endpoint: E, f: F) -> Map<E::Endpoint, F>
 where
-    E: IntoEndpoint<A, B>,
-    F: Fn(A) -> R,
+    E: IntoEndpoint,
+    F: Fn(E::Item) -> R,
 {
     Map {
         endpoint: endpoint.into_endpoint(),
@@ -54,7 +54,6 @@ where
     F: Fn(E::Item) -> R,
 {
     type Item = R;
-    type Error = E::Error;
     type Result = MapResult<E::Result, F>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
@@ -78,7 +77,6 @@ where
     F: Fn(T::Item) -> R,
 {
     type Item = R;
-    type Error = T::Error;
     type Future = MapFuture<T::Future, F>;
 
     fn into_future(self, request: &mut Request) -> Self::Future {
