@@ -12,24 +12,14 @@ use handler::{DefaultHandler, Handler};
 use responder::{DefaultResponder, Responder};
 
 /// An HTTP service which wraps a `Endpoint`, `Handler` and `Responder`.
-#[derive(Debug)]
-pub struct FinchersService<E, H, R>
-where
-    E: Endpoint,
-    H: Handler<E::Item> + Clone,
-    R: Responder + Clone,
-{
+#[derive(Debug, Copy, Clone)]
+pub struct FinchersService<E, H, R> {
     endpoint: E,
     handler: H,
     responder: R,
 }
 
-impl<E, H, R> FinchersService<E, H, R>
-where
-    E: Endpoint,
-    H: Handler<E::Item> + Clone,
-    R: Responder + Clone,
-{
+impl<E, H, R> FinchersService<E, H, R> {
     /// Create an instance of `FinchersService` from components
     pub fn new(endpoint: E, handler: H, responder: R) -> Self {
         Self {
@@ -40,34 +30,11 @@ where
     }
 }
 
-impl<E, H, R> Copy for FinchersService<E, H, R>
-where
-    E: Endpoint + Copy,
-    H: Handler<E::Item> + Copy,
-    R: Responder + Copy,
-{
-}
-
-impl<E, H, R> Clone for FinchersService<E, H, R>
-where
-    E: Endpoint + Clone,
-    H: Handler<E::Item> + Clone,
-    R: Responder + Clone,
-{
-    fn clone(&self) -> Self {
-        Self {
-            endpoint: self.endpoint.clone(),
-            handler: self.handler.clone(),
-            responder: self.responder.clone(),
-        }
-    }
-}
-
 impl<E, H, R> Service for FinchersService<E, H, R>
 where
     E: Endpoint,
     H: Handler<E::Item> + Clone,
-    R: Responder + Clone,
+    R: Responder<Item = H::Item> + Clone,
 {
     type Request = Request;
     type Response = Response;
@@ -75,14 +42,15 @@ where
     type Future = FinchersServiceFuture<E, H, R>;
 
     fn call(&self, req: Self::Request) -> Self::Future {
-        FinchersServiceFuture {
-            state: match self.endpoint.apply_request(req) {
-                Some(input) => State::PollingInput {
-                    input,
-                    handler: self.handler.clone(),
-                },
-                None => State::NoRoute,
+        let state = match self.endpoint.apply_request(req) {
+            Some(input) => State::PollingInput {
+                input,
+                handler: self.handler.clone(),
             },
+            None => State::NoRoute,
+        };
+        FinchersServiceFuture {
+            state,
             responder: self.responder.clone(),
         }
     }
@@ -123,7 +91,7 @@ where
     H: Handler<E::Item>,
     R: Responder,
 {
-    fn poll_state(&mut self) -> Poll<Result<Option<Response>, Box<HttpError>>, Error> {
+    fn poll_state(&mut self) -> Poll<Result<Option<H::Item>, Box<HttpError>>, Error> {
         use self::State::*;
         loop {
             match mem::replace(&mut self.state, Done) {
@@ -160,14 +128,14 @@ impl<E, H, R> Future for FinchersServiceFuture<E, H, R>
 where
     E: Endpoint,
     H: Handler<E::Item>,
-    R: Responder,
+    R: Responder<Item = H::Item>,
 {
     type Item = Response;
     type Error = Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         let mut response = match try_ready!(self.poll_state()) {
-            Ok(Some(item)) => item,
+            Ok(Some(item)) => self.responder.respond_ok(item),
             Ok(None) => self.responder.respond_noroute(),
             Err(err) => self.responder.respond_err(&*err),
         };
@@ -181,11 +149,11 @@ pub trait EndpointServiceExt: Endpoint + sealed::Sealed
 where
     Self::Item: IntoResponse,
 {
-    fn into_service(self) -> FinchersService<Self, DefaultHandler, DefaultResponder>
+    fn into_service(self) -> FinchersService<Self, DefaultHandler, DefaultResponder<Self::Item>>
     where
         Self: Sized;
 
-    fn with_handler<H>(self, handler: H) -> FinchersService<Self, H, DefaultResponder>
+    fn with_handler<H>(self, handler: H) -> FinchersService<Self, H, DefaultResponder<H::Item>>
     where
         H: Handler<Self::Item> + Clone,
         Self: Sized;
@@ -195,11 +163,11 @@ impl<E: Endpoint> EndpointServiceExt for E
 where
     E::Item: IntoResponse,
 {
-    fn into_service(self) -> FinchersService<Self, DefaultHandler, DefaultResponder> {
+    fn into_service(self) -> FinchersService<Self, DefaultHandler, DefaultResponder<Self::Item>> {
         FinchersService::new(self, DefaultHandler::default(), Default::default())
     }
 
-    fn with_handler<H>(self, handler: H) -> FinchersService<Self, H, DefaultResponder>
+    fn with_handler<H>(self, handler: H) -> FinchersService<Self, H, DefaultResponder<H::Item>>
     where
         H: Handler<Self::Item> + Clone,
     {

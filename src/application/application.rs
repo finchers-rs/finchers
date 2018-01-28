@@ -83,7 +83,7 @@ where
     }
 }
 
-impl<E> Application<ConstService<FinchersService<E, DefaultHandler, DefaultResponder>>, DefaultBackend>
+impl<E> Application<ConstService<FinchersService<E, DefaultHandler, DefaultResponder<E::Item>>>, DefaultBackend>
 where
     E: Endpoint,
     E::Item: IntoResponse,
