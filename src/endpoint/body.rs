@@ -16,13 +16,12 @@
 
 use std::fmt;
 use std::error::Error;
-use std::mem;
 use std::marker::PhantomData;
-use futures::{stream, Async, Future, Poll, Stream};
+use futures::{Future, Poll};
 use futures::future::{self, FutureResult};
 use endpoint::{Endpoint, EndpointContext, EndpointError, EndpointResult};
-use http::{self, FromBody, HttpError, Request, StatusCode};
-use http::header::ContentLength;
+use errors::BadRequest;
+use http::{self, FromBody, HttpError, Request, RequestParts};
 
 /// Creates an endpoint for parsing the incoming request body into the value of `T`
 pub fn body<T: FromBody>() -> Body<T> {
@@ -82,25 +81,21 @@ where
     type Future = BodyFuture<T>;
 
     fn into_future(self, request: &mut Request) -> Self::Future {
-        let body = request.body().expect("cannot take the request body twice");
-        if T::validate(request) {
-            let len = request
-                .headers()
-                .get()
-                .map_or(0, |&ContentLength(len)| len as usize);
-            BodyFuture::Receiving(body, Vec::with_capacity(len))
-        } else {
-            BodyFuture::InvalidRequest(body.for_each(|_| Ok(())))
+        let (request, body) = request.shared_parts();
+        BodyFuture {
+            request,
+            body,
+            _marker: PhantomData,
         }
     }
 }
 
 #[doc(hidden)]
 #[allow(missing_debug_implementations)]
-pub enum BodyFuture<T> {
-    InvalidRequest(stream::ForEach<http::Body, fn(http::Chunk) -> Result<(), http::Error>, Result<(), http::Error>>),
-    Receiving(http::Body, Vec<u8>),
-    Done(PhantomData<fn() -> T>),
+pub struct BodyFuture<T> {
+    request: RequestParts,
+    body: http::Body,
+    _marker: PhantomData<fn() -> T>,
 }
 
 impl<T: FromBody> Future for BodyFuture<T>
@@ -111,106 +106,9 @@ where
     type Error = EndpointError;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        use self::BodyFuture::*;
-        match mem::replace(self, BodyFuture::Done(PhantomData)) {
-            InvalidRequest(mut f) => match f.poll()? {
-                Async::Ready(()) => Err((BodyError::InvalidRequest as BodyError<T>).into()),
-                Async::NotReady => {
-                    *self = BodyFuture::InvalidRequest(f);
-                    Ok(Async::NotReady)
-                }
-            },
-            Receiving(mut body, mut buf) => loop {
-                match body.poll()? {
-                    Async::Ready(Some(item)) => {
-                        buf.extend_from_slice(&item);
-                        continue;
-                    }
-                    Async::Ready(None) => {
-                        let body = T::from_body(buf).map_err(|e| BodyError::FromBody(e) as BodyError<T>)?;
-                        break Ok(Async::Ready(body));
-                    }
-                    Async::NotReady => {
-                        *self = Receiving(body, buf);
-                        break Ok(Async::NotReady);
-                    }
-                }
-            },
-            Done(..) => panic!("cannot resolve twice"),
-        }
-    }
-}
-
-/// The error type returned from `Body<T>`
-pub enum BodyError<T: FromBody> {
-    /// Something wrong in the incoming request
-    InvalidRequest,
-    /// An error during parsing the received body
-    FromBody(T::Error),
-}
-
-impl<T: FromBody> fmt::Debug for BodyError<T>
-where
-    T::Error: fmt::Debug,
-{
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            BodyError::InvalidRequest => f.debug_struct("InvalidRequest").finish(),
-            BodyError::FromBody(ref e) => e.fmt(f),
-        }
-    }
-}
-
-impl<T: FromBody> fmt::Display for BodyError<T>
-where
-    T::Error: fmt::Display,
-{
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            BodyError::InvalidRequest => f.write_str("invalid request"),
-            BodyError::FromBody(ref e) => e.fmt(f),
-        }
-    }
-}
-
-impl<T: FromBody> Error for BodyError<T>
-where
-    T::Error: Error,
-{
-    fn description(&self) -> &str {
-        match *self {
-            BodyError::InvalidRequest => "invalid request",
-            BodyError::FromBody(ref e) => e.description(),
-        }
-    }
-
-    fn cause(&self) -> Option<&Error> {
-        match *self {
-            BodyError::InvalidRequest => None,
-            BodyError::FromBody(ref e) => Some(e),
-        }
-    }
-}
-
-impl<T: FromBody> HttpError for BodyError<T>
-where
-    T::Error: Error,
-{
-    fn status_code(&self) -> StatusCode {
-        StatusCode::BadRequest
-    }
-}
-
-impl<T: FromBody> PartialEq for BodyError<T>
-where
-    T::Error: PartialEq,
-{
-    fn eq(&self, rhs: &Self) -> bool {
-        match (self, rhs) {
-            (&BodyError::InvalidRequest, &BodyError::InvalidRequest) => true,
-            (&BodyError::FromBody(ref l), &BodyError::FromBody(ref r)) => l.eq(r),
-            _ => false,
-        }
+        let buf = try_ready!(self.body.poll());
+        let body = T::from_body(&self.request, &*buf).map_err(BadRequest::new)?;
+        Ok(body.into())
     }
 }
 
@@ -245,7 +143,7 @@ impl<E> Endpoint for BodyStream<E>
 where
     E: HttpError,
 {
-    type Item = http::Body;
+    type Item = http::BodyStream;
     type Result = BodyStreamResult<E>;
 
     fn apply(&self, _: &mut EndpointContext) -> Option<Self::Result> {
@@ -265,11 +163,11 @@ impl<E> EndpointResult for BodyStreamResult<E>
 where
     E: HttpError,
 {
-    type Item = http::Body;
+    type Item = http::BodyStream;
     type Future = FutureResult<Self::Item, EndpointError>;
 
     fn into_future(self, request: &mut Request) -> Self::Future {
-        let body = request.body().expect("cannot take a body twice");
-        future::ok(body)
+        let body = request.body_stream().expect("cannot take a body twice");
+        future::ok(body.into())
     }
 }

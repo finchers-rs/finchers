@@ -1,4 +1,5 @@
-use super::{header, Body, HttpResponse, Response, StatusCode};
+use super::{header, HttpResponse, Response, StatusCode};
+use hyper::Body;
 
 #[allow(missing_docs)]
 pub trait IntoResponse {

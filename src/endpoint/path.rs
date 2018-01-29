@@ -22,9 +22,10 @@ use std::borrow::Cow;
 use std::fmt;
 use std::error::Error;
 use std::marker::PhantomData;
-use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
-use errors::NeverReturn;
-use http::{FromSegment, FromSegments, HttpError, StatusCode};
+use futures::future;
+use endpoint::{Endpoint, EndpointContext, EndpointError, EndpointResult, IntoEndpoint};
+use errors::{BadRequest, NeverReturn, NotPresent};
+use http::{FromSegment, FromSegments, Request};
 
 #[allow(missing_docs)]
 pub struct MatchPath {
@@ -209,66 +210,33 @@ where
     T::Err: Error + 'static,
 {
     type Item = T;
-    type Result = Result<Self::Item, ExtractPathError<T>>;
+    type Result = ExtractPathRequiredResult<T>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
-        ctx.segments()
-            .next()
-            .map(|s| T::from_segment(&s).map_err(ExtractPathError))
+        let inner = ctx.segments().next().map(|s| T::from_segment(&s));
+        Some(ExtractPathRequiredResult { inner })
     }
 }
 
-#[allow(missing_docs)]
-pub struct ExtractPathError<T: FromSegment>(pub T::Err);
-
-impl<T: FromSegment> fmt::Debug for ExtractPathError<T>
-where
-    T::Err: fmt::Debug,
-{
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_tuple("PathError").field(&self.0).finish()
-    }
+#[doc(hidden)]
+#[allow(missing_debug_implementations)]
+pub struct ExtractPathRequiredResult<T: FromSegment> {
+    inner: Option<Result<T, T::Err>>,
 }
 
-impl<T: FromSegment> fmt::Display for ExtractPathError<T>
+impl<T: FromSegment> EndpointResult for ExtractPathRequiredResult<T>
 where
-    T::Err: fmt::Display,
+    T::Err: Error + 'static,
 {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.0.fmt(f)
-    }
-}
+    type Item = T;
+    type Future = future::FutureResult<T, EndpointError>;
 
-impl<T: FromSegment> Error for ExtractPathError<T>
-where
-    T::Err: Error,
-{
-    #[inline]
-    fn description(&self) -> &str {
-        self.0.description()
-    }
-
-    #[inline]
-    fn cause(&self) -> Option<&Error> {
-        self.0.cause()
-    }
-}
-
-impl<T: FromSegment> HttpError for ExtractPathError<T>
-where
-    T::Err: Error,
-{
-    fn status_code(&self) -> StatusCode {
-        StatusCode::BadRequest
-    }
-}
-
-impl<T: FromSegment> PartialEq for ExtractPathError<T>
-where
-    T::Err: PartialEq,
-{
-    fn eq(&self, rhs: &Self) -> bool {
-        self.0.eq(&rhs.0)
+    fn into_future(self, _: &mut Request) -> Self::Future {
+        match self.inner {
+            Some(Ok(val)) => future::ok(val),
+            Some(Err(e)) => future::err(BadRequest::new(e).into()),
+            None => future::err(NotPresent::new("The number of path segments is insufficient").into()),
+        }
     }
 }
 
@@ -304,7 +272,9 @@ impl<T: FromSegment> Endpoint for ExtractPathOptional<T> {
     type Result = Result<Self::Item, NeverReturn>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
-        ctx.segments().next().map(|s| Ok(T::from_segment(&s).ok()))
+        Some(Ok(ctx.segments()
+            .next()
+            .and_then(|s| T::from_segment(&s).ok())))
     }
 }
 
@@ -376,62 +346,10 @@ where
     T::Err: Error,
 {
     type Item = T;
-    type Result = Result<Self::Item, ExtractPathsError<T>>;
+    type Result = Result<Self::Item, BadRequest<T::Err>>;
 
     fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
-        Some(T::from_segments(ctx.segments()).map_err(ExtractPathsError))
-    }
-}
-
-#[allow(missing_docs)]
-pub struct ExtractPathsError<T: FromSegments>(pub T::Err);
-
-impl<T: FromSegments> fmt::Debug for ExtractPathsError<T>
-where
-    T::Err: fmt::Debug,
-{
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_tuple("PathError").field(&self.0).finish()
-    }
-}
-
-impl<T: FromSegments> fmt::Display for ExtractPathsError<T>
-where
-    T::Err: fmt::Display,
-{
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
-impl<T: FromSegments> Error for ExtractPathsError<T>
-where
-    T::Err: Error,
-{
-    fn description(&self) -> &str {
-        self.0.description()
-    }
-
-    fn cause(&self) -> Option<&Error> {
-        Some(&self.0)
-    }
-}
-
-impl<T: FromSegments> HttpError for ExtractPathsError<T>
-where
-    T::Err: Error,
-{
-    fn status_code(&self) -> StatusCode {
-        StatusCode::BadRequest
-    }
-}
-
-impl<T: FromSegments> PartialEq for ExtractPathsError<T>
-where
-    T::Err: PartialEq,
-{
-    fn eq(&self, rhs: &Self) -> bool {
-        self.0.eq(&rhs.0)
+        Some(T::from_segments(ctx.segments()).map_err(BadRequest::new))
     }
 }
 

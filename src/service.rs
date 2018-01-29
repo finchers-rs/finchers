@@ -1,6 +1,7 @@
 //! Components of lower-level HTTP services
 
 use std::mem;
+use std::io;
 use futures::{Future, IntoFuture, Poll};
 use futures::Async::*;
 use hyper::{Error, Request, Response};
@@ -109,6 +110,10 @@ where
                     }
                     Err(EndpointError::Endpoint(err)) => break Ok(Ready(Err(err))),
                     Err(EndpointError::Http(err)) => break Err(err),
+                    Err(EndpointError::BodyReceiving(err)) => {
+                        // TODO: appropriate error handling
+                        break Err(io::Error::new(io::ErrorKind::Other, err.to_string()).into());
+                    }
                 },
                 PollingOutput { mut output } => match output.poll() {
                     Ok(Ready(item)) => break Ok(Ready(Ok(item))),
