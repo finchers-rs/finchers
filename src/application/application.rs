@@ -5,8 +5,7 @@ use hyper::server::{NewService, Service};
 
 use endpoint::Endpoint;
 use handler::DefaultHandler;
-use http::IntoResponse;
-use responder::DefaultResponder;
+use responder::{DefaultResponder, IntoResponse};
 use service::{EndpointServiceExt, FinchersService};
 
 use super::{Http, Tcp, TcpBackend, Worker};

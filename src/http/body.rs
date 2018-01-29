@@ -1,3 +1,4 @@
+use std::error::Error;
 use std::mem;
 use std::string::FromUtf8Error;
 use futures::{Future, Poll, Stream};
@@ -79,7 +80,7 @@ impl Future for BodyState {
 /// The conversion from received request body.
 pub trait FromBody: 'static + Sized {
     /// The type of error value returned from `from_body`.
-    type Error;
+    type Error: Error + 'static;
 
     /// Returns whether the incoming request matches to this type or not.
     ///

@@ -36,6 +36,9 @@ pub use application::Application;
 pub use endpoint::{Endpoint, EndpointResult, IntoEndpoint};
 
 #[doc(inline)]
+pub use errors::{Error, HttpError};
+
+#[doc(inline)]
 pub use handler::Handler;
 
 #[doc(inline)]

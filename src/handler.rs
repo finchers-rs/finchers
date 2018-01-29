@@ -1,28 +1,34 @@
-#![allow(missing_docs)]
+//! The declaration of `Handler` and its implementors
 
 use std::fmt;
 use std::rc::Rc;
 use std::sync::Arc;
 use futures::IntoFuture;
-use http::Error;
+use errors::{HttpError, NeverReturn};
 
 /// A trait which represents the server-side processes.
 pub trait Handler<In> {
-    /// The type of value *on success*.
+    /// The type of returned value *on success*
     type Item;
 
-    /// The type of value returned from `call`
-    type Result: IntoFuture<Item = Option<Self::Item>, Error = Error>;
+    /// The type of returned value *on failure*
+    type Error: HttpError;
 
+    /// The type of value returned from `call`
+    type Result: IntoFuture<Item = Option<Self::Item>, Error = Self::Error>;
+
+    /// Applies this handler to an input and returns a future.
     fn call(&self, input: In) -> Self::Result;
 }
 
 impl<F, In, R, T> Handler<In> for F
 where
     F: Fn(In) -> R,
-    R: IntoFuture<Item = Option<T>, Error = Error>,
+    R: IntoFuture<Item = Option<T>>,
+    R::Error: HttpError,
 {
     type Item = T;
+    type Error = R::Error;
     type Result = R;
 
     fn call(&self, input: In) -> Self::Result {
@@ -35,6 +41,7 @@ where
     H: Handler<In>,
 {
     type Item = H::Item;
+    type Error = H::Error;
     type Result = H::Result;
 
     fn call(&self, input: In) -> Self::Result {
@@ -47,6 +54,7 @@ where
     H: Handler<In>,
 {
     type Item = H::Item;
+    type Error = H::Error;
     type Result = H::Result;
 
     fn call(&self, input: In) -> Self::Result {
@@ -54,6 +62,7 @@ where
     }
 }
 
+/// A predefined handler to pass the input values directly
 #[derive(Copy, Clone)]
 pub struct DefaultHandler {
     _priv: (),
@@ -73,10 +82,40 @@ impl Default for DefaultHandler {
 
 impl<T> Handler<T> for DefaultHandler {
     type Item = T;
-    type Result = Result<Option<T>, Error>;
+    type Error = NeverReturn;
+    type Result = Result<Option<T>, Self::Error>;
 
     #[inline]
     fn call(&self, input: T) -> Self::Result {
         Ok(Some(input))
+    }
+}
+
+/// A predefined handler to pass optional values.
+#[derive(Copy, Clone)]
+pub struct OptionalHandler {
+    _priv: (),
+}
+
+impl fmt::Debug for OptionalHandler {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("OptionalHandler").finish()
+    }
+}
+
+impl Default for OptionalHandler {
+    fn default() -> Self {
+        OptionalHandler { _priv: () }
+    }
+}
+
+impl<T> Handler<Option<T>> for OptionalHandler {
+    type Item = T;
+    type Error = NeverReturn;
+    type Result = Result<Option<T>, Self::Error>;
+
+    #[inline]
+    fn call(&self, input: Option<T>) -> Self::Result {
+        Ok(input)
     }
 }

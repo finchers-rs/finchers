@@ -15,13 +15,13 @@
 //! [from_body]: ../../http/trait.FromBody.html
 
 use std::fmt;
-use std::error::Error;
 use std::marker::PhantomData;
 use futures::{Future, Poll};
 use futures::future::{self, FutureResult};
-use endpoint::{Endpoint, EndpointContext, EndpointError, EndpointResult};
+use endpoint::{Endpoint, EndpointContext, EndpointResult};
+use errors::Error;
 use errors::BadRequest;
-use http::{self, FromBody, HttpError, Request, RequestParts};
+use http::{self, FromBody, Request, RequestParts};
 
 /// Creates an endpoint for parsing the incoming request body into the value of `T`
 pub fn body<T: FromBody>() -> Body<T> {
@@ -50,10 +50,7 @@ impl<T> fmt::Debug for Body<T> {
     }
 }
 
-impl<T: FromBody> Endpoint for Body<T>
-where
-    T::Error: Error + 'static,
-{
+impl<T: FromBody> Endpoint for Body<T> {
     type Item = T;
     type Result = BodyResult<T>;
 
@@ -73,10 +70,7 @@ pub struct BodyResult<T> {
     _marker: PhantomData<fn() -> T>,
 }
 
-impl<T: FromBody> EndpointResult for BodyResult<T>
-where
-    T::Error: Error + 'static,
-{
+impl<T: FromBody> EndpointResult for BodyResult<T> {
     type Item = T;
     type Future = BodyFuture<T>;
 
@@ -98,12 +92,9 @@ pub struct BodyFuture<T> {
     _marker: PhantomData<fn() -> T>,
 }
 
-impl<T: FromBody> Future for BodyFuture<T>
-where
-    T::Error: Error + 'static,
-{
+impl<T: FromBody> Future for BodyFuture<T> {
     type Item = T;
-    type Error = EndpointError;
+    type Error = Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         let buf = try_ready!(self.body.poll());
@@ -113,58 +104,48 @@ where
 }
 
 /// Creates an endpoint for taking the instance of `hyper::Body`
-pub fn body_stream<E>() -> BodyStream<E> {
-    BodyStream {
-        _marker: PhantomData,
-    }
+pub fn body_stream() -> BodyStream {
+    BodyStream { _priv: () }
 }
 
 #[allow(missing_docs)]
-pub struct BodyStream<E> {
-    _marker: PhantomData<fn() -> E>,
+pub struct BodyStream {
+    _priv: (),
 }
 
-impl<E> Copy for BodyStream<E> {}
+impl Copy for BodyStream {}
 
-impl<E> Clone for BodyStream<E> {
+impl Clone for BodyStream {
     #[inline]
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<E> fmt::Debug for BodyStream<E> {
+impl fmt::Debug for BodyStream {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("BodyStream").finish()
     }
 }
 
-impl<E> Endpoint for BodyStream<E>
-where
-    E: HttpError,
-{
+impl Endpoint for BodyStream {
     type Item = http::BodyStream;
-    type Result = BodyStreamResult<E>;
+    type Result = BodyStreamResult;
 
     fn apply(&self, _: &mut EndpointContext) -> Option<Self::Result> {
-        Some(BodyStreamResult {
-            _marker: PhantomData,
-        })
+        Some(BodyStreamResult { _priv: () })
     }
 }
 
 #[doc(hidden)]
 #[derive(Debug)]
-pub struct BodyStreamResult<E> {
-    _marker: PhantomData<fn() -> E>,
+pub struct BodyStreamResult {
+    _priv: (),
 }
 
-impl<E> EndpointResult for BodyStreamResult<E>
-where
-    E: HttpError,
-{
+impl EndpointResult for BodyStreamResult {
     type Item = http::BodyStream;
-    type Future = FutureResult<Self::Item, EndpointError>;
+    type Future = FutureResult<Self::Item, Error>;
 
     fn into_future(self, request: &mut Request) -> Self::Future {
         let body = request.body_stream().expect("cannot take a body twice");
