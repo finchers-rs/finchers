@@ -24,7 +24,7 @@ use std::marker::PhantomData;
 use futures::future;
 use endpoint::{Endpoint, EndpointContext, EndpointResult, Input, IntoEndpoint};
 use errors::{BadRequest, Error, NeverReturn, NotPresent};
-use http::{FromSegment, FromSegments};
+use core::{FromSegment, FromSegments};
 
 #[allow(missing_docs)]
 pub struct MatchPath {
@@ -383,7 +383,7 @@ impl<T: FromSegments> Endpoint for ExtractPathsOptional<T> {
 mod tests {
     use super::*;
     use endpoint::endpoint;
-    use http_crate::Request as HttpRequest;
+    use http::Request;
     use test::EndpointTestExt;
 
     #[test]
@@ -425,61 +425,55 @@ mod tests {
 
     #[test]
     fn test_endpoint_match_path() {
-        let request = HttpRequest::get("/foo").body(Default::default()).unwrap();
+        let request = Request::get("/foo").body(Default::default()).unwrap();
         assert_eq!(endpoint("foo").run(request), Some(Ok(())),);
     }
 
     #[test]
     fn test_endpoint_reject_path() {
-        let request = HttpRequest::get("/foo").body(Default::default()).unwrap();
+        let request = Request::get("/foo").body(Default::default()).unwrap();
         assert!(endpoint("bar").run(request).is_none());
     }
 
     #[test]
     fn test_endpoint_match_multi_segments() {
-        let request = HttpRequest::get("/foo/bar")
-            .body(Default::default())
-            .unwrap();
+        let request = Request::get("/foo/bar").body(Default::default()).unwrap();
         assert_eq!(endpoint("/foo/bar").run(request), Some(Ok(())));
     }
 
     #[test]
     fn test_endpoint_reject_multi_segments() {
-        let request = HttpRequest::get("/foo/baz")
-            .body(Default::default())
-            .unwrap();
+        let request = Request::get("/foo/baz").body(Default::default()).unwrap();
         assert!(endpoint("/foo/bar").run(request).is_none());
     }
 
     #[test]
     fn test_endpoint_reject_short_path() {
-        let request = HttpRequest::get("/foo/bar")
-            .body(Default::default())
-            .unwrap();
+        let request = Request::get("/foo/bar").body(Default::default()).unwrap();
         assert!(endpoint("/foo/bar/baz").run(request).is_none());
     }
 
     #[test]
     fn test_endpoint_match_all_path() {
-        let request = HttpRequest::get("/foo").body(Default::default()).unwrap();
+        let request = Request::get("/foo").body(Default::default()).unwrap();
         assert_eq!(endpoint("*").run(request), Some(Ok(())));
     }
 
     #[test]
     fn test_endpoint_extract_integer() {
-        let request = HttpRequest::get("/42").body(Default::default()).unwrap();
+        let request = Request::get("/42").body(Default::default()).unwrap();
         assert_eq!(path().run(request), Some(Ok(42i32)));
     }
 
     #[test]
     fn test_endpoint_extract_wrong_integer() {
-        let request = HttpRequest::get("/foo").body(Default::default()).unwrap();
+        let request = Request::get("/foo").body(Default::default()).unwrap();
         assert_eq!(path::<i32>().run(request), None);
     }
 
     #[test]
     fn test_endpoint_extract_wrong_integer_result() {
-        let request = HttpRequest::get("/foo").body(Default::default()).unwrap();
+        let request = Request::get("/foo").body(Default::default()).unwrap();
         match path::<Result<i32, _>>().run(request) {
             Some(Ok(Err(..))) => (),
             _ => panic!("assertion failed"),
@@ -488,7 +482,7 @@ mod tests {
 
     #[test]
     fn test_endpoint_extract_wrong_integer_required() {
-        let request = HttpRequest::get("/foo").body(Default::default()).unwrap();
+        let request = Request::get("/foo").body(Default::default()).unwrap();
         assert_eq!(
             path_req::<i32>().run(request).map(|r| r.is_err()),
             Some(true)
@@ -497,9 +491,7 @@ mod tests {
 
     #[test]
     fn test_endpoint_extract_strings() {
-        let request = HttpRequest::get("/foo/bar")
-            .body(Default::default())
-            .unwrap();
+        let request = Request::get("/foo/bar").body(Default::default()).unwrap();
         assert_eq!(
             paths::<Vec<String>>().run(request),
             Some(Ok(vec!["foo".to_string(), "bar".to_string()]))

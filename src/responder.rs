@@ -7,7 +7,7 @@ use std::sync::Arc;
 use hyper::Body;
 use errors::HttpError;
 use hyper::{header, Response, StatusCode};
-use http_crate::Response as HttpResponse;
+use http::Response as HttpResponse;
 
 #[allow(missing_docs)]
 pub trait Responder {

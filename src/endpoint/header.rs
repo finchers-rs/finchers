@@ -11,7 +11,7 @@ use std::marker::PhantomData;
 use futures::future::{err, ok, FutureResult};
 use endpoint::{Endpoint, EndpointContext, EndpointResult, Input};
 use errors::{Error, NotPresent};
-use http::FromHeader;
+use core::FromHeader;
 
 #[allow(missing_docs)]
 pub fn header<H: FromHeader>() -> Header<H> {

@@ -21,7 +21,7 @@ use futures::future::{self, FutureResult};
 use endpoint::{Endpoint, EndpointContext, EndpointResult, Input};
 use errors::Error;
 use errors::BadRequest;
-use http::{self, FromBody, RequestParts};
+use core::{self, FromBody, RequestParts};
 
 /// Creates an endpoint for parsing the incoming request body into the value of `T`
 pub fn body<T: FromBody>() -> Body<T> {
@@ -88,7 +88,7 @@ impl<T: FromBody> EndpointResult for BodyResult<T> {
 #[allow(missing_debug_implementations)]
 pub struct BodyFuture<T> {
     request: RequestParts,
-    body: http::Body,
+    body: core::Body,
     _marker: PhantomData<fn() -> T>,
 }
 
@@ -129,7 +129,7 @@ impl fmt::Debug for BodyStream {
 }
 
 impl Endpoint for BodyStream {
-    type Item = http::BodyStream;
+    type Item = core::BodyStream;
     type Result = BodyStreamResult;
 
     fn apply(&self, _: &Input, _: &mut EndpointContext) -> Option<Self::Result> {
@@ -144,7 +144,7 @@ pub struct BodyStreamResult {
 }
 
 impl EndpointResult for BodyStreamResult {
-    type Item = http::BodyStream;
+    type Item = core::BodyStream;
     type Future = FutureResult<Self::Item, Error>;
 
     fn into_future(self, input: &mut Input) -> Self::Future {

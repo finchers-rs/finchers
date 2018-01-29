@@ -1,4 +1,4 @@
-use http::Segments;
+use core::Segments;
 use super::Input;
 
 /// A context during the routing.

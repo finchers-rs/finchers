@@ -1,8 +1,8 @@
 use hyper::{self, Headers, Method};
 use hyper::header;
 use hyper::mime::Mime;
-use http_crate::{self, Extensions};
-use http::{Body, BodyStream, RequestParts};
+use http::{self, Extensions};
+use core::{Body, BodyStream, RequestParts};
 
 /// The value of incoming HTTP request
 #[derive(Debug)]
@@ -23,8 +23,8 @@ impl From<hyper::Request> for Input {
     }
 }
 
-impl From<http_crate::Request<hyper::Body>> for Input {
-    fn from(request: http_crate::Request<hyper::Body>) -> Self {
+impl From<http::Request<hyper::Body>> for Input {
+    fn from(request: http::Request<hyper::Body>) -> Self {
         let (parts, body) = request.into_parts();
         Input {
             shared: RequestParts::new(
