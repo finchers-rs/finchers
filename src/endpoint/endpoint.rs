@@ -1,7 +1,8 @@
 use std::rc::Rc;
 use std::sync::Arc;
 use futures::{future, Future, IntoFuture};
-use http::{self, HttpError, Request};
+use errors::{Error, HttpError};
+use http::Request;
 use super::*;
 
 /// Abstruction of an endpoint.
@@ -74,7 +75,7 @@ pub trait Endpoint {
         Self: Sized,
         F: Fn(Self::Item) -> R,
         R: IntoFuture,
-        R::Error: Into<EndpointError>,
+        R::Error: Into<Error>,
     {
         assert_endpoint::<_, R::Item>(and_then::and_then(self, f))
     }
@@ -124,46 +125,13 @@ impl<E: Endpoint> Endpoint for Arc<E> {
     }
 }
 
-#[allow(missing_docs)]
-#[derive(Debug)]
-pub enum EndpointError {
-    Endpoint(Box<HttpError>),
-    Http(http::Error),
-    BodyReceiving(::futures::future::SharedError<::hyper::Error>),
-}
-
-impl<E: HttpError + 'static> From<E> for EndpointError {
-    fn from(err: E) -> Self {
-        EndpointError::Endpoint(Box::new(err))
-    }
-}
-
-impl From<http::Error> for EndpointError {
-    fn from(err: http::Error) -> Self {
-        EndpointError::Http(err)
-    }
-}
-
-impl From<::futures::future::SharedError<::hyper::Error>> for EndpointError {
-    fn from(err: ::futures::future::SharedError<::hyper::Error>) -> Self {
-        EndpointError::BodyReceiving(err)
-    }
-}
-
-#[cfg(test)]
-impl PartialEq for EndpointError {
-    fn eq(&self, _other: &Self) -> bool {
-        panic!("not supported")
-    }
-}
-
 /// Abstruction of returned value from an `Endpoint`.
 pub trait EndpointResult {
     /// The type *on success*.
     type Item;
 
     /// The type of value returned from `launch`.
-    type Future: Future<Item = Self::Item, Error = EndpointError>;
+    type Future: Future<Item = Self::Item, Error = Error>;
 
     /// Launches itself and construct a `Future`, and then return it.
     ///
@@ -176,7 +144,7 @@ where
     F::Error: HttpError + 'static,
 {
     type Item = F::Item;
-    type Future = future::FromErr<F::Future, EndpointError>;
+    type Future = future::FromErr<F::Future, Error>;
 
     fn into_future(self, _: &mut Request) -> Self::Future {
         self.into_future().from_err()

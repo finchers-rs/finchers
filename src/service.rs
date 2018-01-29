@@ -1,14 +1,14 @@
 //! Components of lower-level HTTP services
 
 use std::mem;
-use std::io;
 use futures::{Future, IntoFuture, Poll};
 use futures::Async::*;
-use hyper::{Error, Request, Response};
+use hyper::{self, Request, Response};
 use hyper::server::Service;
 
-use endpoint::{Endpoint, EndpointError, EndpointResult};
-use http::{HttpError, IntoResponse};
+use endpoint::{Endpoint, EndpointResult};
+use errors::Error;
+use http::IntoResponse;
 use handler::{DefaultHandler, Handler};
 use responder::{DefaultResponder, Responder};
 
@@ -39,7 +39,7 @@ where
 {
     type Request = Request;
     type Response = Response;
-    type Error = Error;
+    type Error = hyper::Error;
     type Future = FinchersServiceFuture<E, H, R>;
 
     fn call(&self, req: Self::Request) -> Self::Future {
@@ -92,36 +92,29 @@ where
     H: Handler<E::Item>,
     R: Responder,
 {
-    fn poll_state(&mut self) -> Poll<Result<Option<H::Item>, Box<HttpError>>, Error> {
+    fn poll_state(&mut self) -> Poll<Option<H::Item>, Error> {
         use self::State::*;
         loop {
             match mem::replace(&mut self.state, Done) {
-                NoRoute => break Ok(Ready(Ok(None))),
-                PollingInput { mut input, handler } => match input.poll() {
-                    Ok(Ready(input)) => {
+                NoRoute => break Ok(Ready(None)),
+                PollingInput { mut input, handler } => match input.poll()? {
+                    Ready(input) => {
                         self.state = PollingOutput {
                             output: IntoFuture::into_future(handler.call(input)),
                         };
                         continue;
                     }
-                    Ok(NotReady) => {
+                    NotReady => {
                         self.state = PollingInput { input, handler };
                         break Ok(NotReady);
                     }
-                    Err(EndpointError::Endpoint(err)) => break Ok(Ready(Err(err))),
-                    Err(EndpointError::Http(err)) => break Err(err),
-                    Err(EndpointError::BodyReceiving(err)) => {
-                        // TODO: appropriate error handling
-                        break Err(io::Error::new(io::ErrorKind::Other, err.to_string()).into());
-                    }
                 },
-                PollingOutput { mut output } => match output.poll() {
-                    Ok(Ready(item)) => break Ok(Ready(Ok(item))),
-                    Ok(NotReady) => {
+                PollingOutput { mut output } => match output.poll()? {
+                    Ready(item) => break Ok(Ready(item)),
+                    NotReady => {
                         self.state = PollingOutput { output };
                         break Ok(NotReady);
                     }
-                    Err(err) => break Ok(Ready(Err(Box::new(err)))),
                 },
                 Done => panic!(),
             }
@@ -136,12 +129,13 @@ where
     R: Responder<Item = H::Item>,
 {
     type Item = Response;
-    type Error = Error;
+    type Error = hyper::Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let mut response = match try_ready!(self.poll_state()) {
-            Ok(Some(item)) => self.responder.respond_ok(item),
-            Ok(None) => self.responder.respond_noroute(),
+        let mut response = match self.poll_state() {
+            Ok(NotReady) => return Ok(NotReady),
+            Ok(Ready(Some(item))) => self.responder.respond_ok(item),
+            Ok(Ready(None)) => self.responder.respond_noroute(),
             Err(err) => self.responder.respond_err(&*err),
         };
         self.responder.after_respond(&mut response);

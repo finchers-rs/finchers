@@ -5,7 +5,8 @@ use std::mem;
 use std::sync::Arc;
 use futures::{Future, IntoFuture, Poll};
 use futures::Async::*;
-use endpoint::{Endpoint, EndpointContext, EndpointError, EndpointResult};
+use endpoint::{Endpoint, EndpointContext, EndpointResult};
+use errors::Error;
 use http::Request;
 use self::Chain::*;
 
@@ -14,7 +15,7 @@ where
     E: Endpoint,
     F: Fn(E::Item) -> R,
     R: IntoFuture,
-    R::Error: Into<EndpointError>,
+    R::Error: Into<Error>,
 {
     AndThen {
         endpoint,
@@ -32,7 +33,7 @@ where
     E: Endpoint + Clone,
     F: Fn(E::Item) -> R,
     R: IntoFuture,
-    R::Error: Into<EndpointError>,
+    R::Error: Into<Error>,
 {
     fn clone(&self) -> Self {
         AndThen {
@@ -47,7 +48,7 @@ where
     E: Endpoint + fmt::Debug,
     F: Fn(E::Item) -> R + fmt::Debug,
     R: IntoFuture,
-    R::Error: Into<EndpointError>,
+    R::Error: Into<Error>,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("AndThen")
@@ -62,7 +63,7 @@ where
     E: Endpoint,
     F: Fn(E::Item) -> R,
     R: IntoFuture,
-    R::Error: Into<EndpointError>,
+    R::Error: Into<Error>,
 {
     type Item = R::Item;
     type Result = AndThenResult<E::Result, F>;
@@ -87,7 +88,7 @@ where
     T: EndpointResult,
     F: Fn(T::Item) -> R,
     R: IntoFuture,
-    R::Error: Into<EndpointError>,
+    R::Error: Into<Error>,
 {
     type Item = R::Item;
     type Future = AndThenFuture<T::Future, F, R>;
@@ -103,23 +104,23 @@ where
 #[derive(Debug)]
 pub struct AndThenFuture<T, F, R>
 where
-    T: Future<Error = EndpointError>,
+    T: Future<Error = Error>,
     F: Fn(T::Item) -> R,
     R: IntoFuture,
-    R::Error: Into<EndpointError>,
+    R::Error: Into<Error>,
 {
     inner: Chain<T, R::Future, Arc<F>>,
 }
 
 impl<T, F, R> Future for AndThenFuture<T, F, R>
 where
-    T: Future<Error = EndpointError>,
+    T: Future<Error = Error>,
     F: Fn(T::Item) -> R,
     R: IntoFuture,
-    R::Error: Into<EndpointError>,
+    R::Error: Into<Error>,
 {
     type Item = R::Item;
-    type Error = EndpointError;
+    type Error = Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         self.inner.poll(|result, f| match result {
@@ -138,17 +139,17 @@ pub enum Chain<A, B, C> {
 
 impl<A, B, C> Chain<A, B, C>
 where
-    A: Future<Error = EndpointError>,
+    A: Future<Error = Error>,
     B: Future,
-    B::Error: Into<EndpointError>,
+    B::Error: Into<Error>,
 {
     pub fn new(a: A, c: C) -> Self {
         Chain::First(a, c)
     }
 
-    pub fn poll<F>(&mut self, f: F) -> Poll<B::Item, EndpointError>
+    pub fn poll<F>(&mut self, f: F) -> Poll<B::Item, Error>
     where
-        F: FnOnce(Result<A::Item, EndpointError>, C) -> Result<Result<B::Item, B>, EndpointError>,
+        F: FnOnce(Result<A::Item, Error>, C) -> Result<Result<B::Item, B>, Error>,
     {
         let a_result = match *self {
             First(ref mut a, ..) => match a.poll() {

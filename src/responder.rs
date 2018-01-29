@@ -4,7 +4,8 @@ use std::fmt;
 use std::marker::PhantomData;
 use std::rc::Rc;
 use std::sync::Arc;
-use http::{header, HttpError, IntoResponse, Response, StatusCode};
+use errors::HttpError;
+use http::{header, IntoResponse, Response, StatusCode};
 
 #[allow(missing_docs)]
 pub trait Responder {

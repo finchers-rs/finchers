@@ -20,11 +20,10 @@
 
 use std::borrow::Cow;
 use std::fmt;
-use std::error::Error;
 use std::marker::PhantomData;
 use futures::future;
-use endpoint::{Endpoint, EndpointContext, EndpointError, EndpointResult, IntoEndpoint};
-use errors::{BadRequest, NeverReturn, NotPresent};
+use endpoint::{Endpoint, EndpointContext, EndpointResult, IntoEndpoint};
+use errors::{BadRequest, Error, NeverReturn, NotPresent};
 use http::{FromSegment, FromSegments, Request};
 
 #[allow(missing_docs)]
@@ -205,10 +204,7 @@ impl<T> fmt::Debug for ExtractPathRequired<T> {
     }
 }
 
-impl<T: FromSegment + 'static> Endpoint for ExtractPathRequired<T>
-where
-    T::Err: Error + 'static,
-{
+impl<T: FromSegment> Endpoint for ExtractPathRequired<T> {
     type Item = T;
     type Result = ExtractPathRequiredResult<T>;
 
@@ -224,12 +220,9 @@ pub struct ExtractPathRequiredResult<T: FromSegment> {
     inner: Option<Result<T, T::Err>>,
 }
 
-impl<T: FromSegment> EndpointResult for ExtractPathRequiredResult<T>
-where
-    T::Err: Error + 'static,
-{
+impl<T: FromSegment> EndpointResult for ExtractPathRequiredResult<T> {
     type Item = T;
-    type Future = future::FutureResult<T, EndpointError>;
+    type Future = future::FutureResult<T, Error>;
 
     fn into_future(self, _: &mut Request) -> Self::Future {
         match self.inner {
@@ -341,10 +334,7 @@ impl<T> fmt::Debug for ExtractPathsRequired<T> {
     }
 }
 
-impl<T: FromSegments + 'static> Endpoint for ExtractPathsRequired<T>
-where
-    T::Err: Error,
-{
+impl<T: FromSegments> Endpoint for ExtractPathsRequired<T> {
     type Item = T;
     type Result = Result<Self::Item, BadRequest<T::Err>>;
 

@@ -9,8 +9,8 @@
 use std::fmt;
 use std::marker::PhantomData;
 use futures::future::{err, ok, FutureResult};
-use endpoint::{Endpoint, EndpointContext, EndpointError, EndpointResult};
-use errors::NotPresent;
+use endpoint::{Endpoint, EndpointContext, EndpointResult};
+use errors::{Error, NotPresent};
 use http::{header, Request};
 
 #[allow(missing_docs)]
@@ -63,7 +63,7 @@ pub struct HeaderResult<H> {
 
 impl<H: header::Header + Clone> EndpointResult for HeaderResult<H> {
     type Item = H;
-    type Future = FutureResult<H, EndpointError>;
+    type Future = FutureResult<H, Error>;
 
     fn into_future(self, request: &mut Request) -> Self::Future {
         ok(request.headers().get().cloned().expect(&format!(
@@ -119,7 +119,7 @@ pub struct HeaderRequiredResult<H> {
 
 impl<H: header::Header + Clone> EndpointResult for HeaderRequiredResult<H> {
     type Item = H;
-    type Future = FutureResult<H, EndpointError>;
+    type Future = FutureResult<H, Error>;
 
     fn into_future(self, request: &mut Request) -> Self::Future {
         match request.headers().get().cloned() {
@@ -178,7 +178,7 @@ pub struct HeaderOptionalResult<H> {
 
 impl<H: header::Header + Clone> EndpointResult for HeaderOptionalResult<H> {
     type Item = Option<H>;
-    type Future = FutureResult<Option<H>, EndpointError>;
+    type Future = FutureResult<Option<H>, Error>;
 
     fn into_future(self, request: &mut Request) -> Self::Future {
         ok(request.headers().get().cloned())

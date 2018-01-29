@@ -20,7 +20,7 @@ pub(crate) mod with;
 // re-exports
 pub use self::and_then::AndThen;
 pub use self::context::EndpointContext;
-pub use self::endpoint::{endpoint, Endpoint, EndpointError, EndpointResult, IntoEndpoint};
+pub use self::endpoint::{endpoint, Endpoint, EndpointResult, IntoEndpoint};
 pub use self::join::{Join, Join3, Join4, Join5};
 pub use self::join_all::{join_all, JoinAll};
 pub use self::map::Map;
