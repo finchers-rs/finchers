@@ -71,7 +71,7 @@ impl<E: Error> Error for BadRequest<E> {
     }
 }
 
-impl<E: Error> HttpError for BadRequest<E> {
+impl<E: Error + 'static> HttpError for BadRequest<E> {
     fn status_code(&self) -> StatusCode {
         StatusCode::BadRequest
     }

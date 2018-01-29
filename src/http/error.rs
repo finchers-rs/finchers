@@ -2,7 +2,7 @@ use std::error::Error as StdError;
 use super::StatusCode;
 
 #[allow(missing_docs)]
-pub trait HttpError: StdError {
+pub trait HttpError: StdError + 'static {
     fn status_code(&self) -> StatusCode;
 }
 

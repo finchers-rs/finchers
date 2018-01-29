@@ -121,7 +121,7 @@ where
                         self.state = PollingOutput { output };
                         break Ok(NotReady);
                     }
-                    Err(err) => break Err(err),
+                    Err(err) => break Ok(Ready(Err(Box::new(err)))),
                 },
                 Done => panic!(),
             }
