@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 
-use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
+use endpoint::{Endpoint, EndpointContext, Input, IntoEndpoint};
 
 pub fn skip<E1, E2>(e1: E1, e2: E2) -> Skip<E1::Endpoint, E2::Endpoint>
 where
@@ -27,9 +27,9 @@ where
     type Item = E1::Item;
     type Result = E1::Result;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
-        let f1 = try_opt!(self.e1.apply(ctx));
-        let _f2 = try_opt!(self.e2.apply(ctx));
+    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Result> {
+        let f1 = try_opt!(self.e1.apply(input, ctx));
+        let _f2 = try_opt!(self.e2.apply(input, ctx));
         Some(f1)
     }
 }

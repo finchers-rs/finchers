@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 
-use super::{Endpoint, EndpointContext};
+use super::{Endpoint, EndpointContext, Input};
 use errors::NeverReturn;
 
 pub fn ok<T: Clone>(x: T) -> EndpointOk<T> {
@@ -16,7 +16,7 @@ impl<T: Clone> Endpoint for EndpointOk<T> {
     type Item = T;
     type Result = Result<T, NeverReturn>;
 
-    fn apply(&self, _: &mut EndpointContext) -> Option<Self::Result> {
+    fn apply(&self, _: &Input, _: &mut EndpointContext) -> Option<Self::Result> {
         Some(Ok(self.x.clone()))
     }
 }

@@ -3,8 +3,7 @@
 use std::fmt;
 use std::sync::Arc;
 use futures::{Future, Poll};
-use http::Request;
-use super::{Endpoint, EndpointContext, EndpointResult, IntoEndpoint};
+use super::{Endpoint, EndpointContext, EndpointResult, Input, IntoEndpoint};
 
 pub fn map<E, F, R>(endpoint: E, f: F) -> Map<E::Endpoint, F>
 where
@@ -56,8 +55,8 @@ where
     type Item = R;
     type Result = MapResult<E::Result, F>;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
-        let result = try_opt!(self.endpoint.apply(ctx));
+    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Result> {
+        let result = try_opt!(self.endpoint.apply(input, ctx));
         Some(MapResult {
             result,
             f: self.f.clone(),
@@ -79,8 +78,8 @@ where
     type Item = R;
     type Future = MapFuture<T::Future, F>;
 
-    fn into_future(self, request: &mut Request) -> Self::Future {
-        let fut = self.result.into_future(request);
+    fn into_future(self, input: &mut Input) -> Self::Future {
+        let fut = self.result.into_future(input);
         MapFuture {
             fut,
             f: Some(self.f),

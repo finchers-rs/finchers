@@ -3,8 +3,7 @@
 
 use std::fmt;
 use futures::{future, IntoFuture};
-use http::Request;
-use super::{Endpoint, EndpointContext, EndpointResult, IntoEndpoint};
+use super::{Endpoint, EndpointContext, EndpointResult, Input, IntoEndpoint};
 
 macro_rules! generate {
     ($(
@@ -63,9 +62,9 @@ macro_rules! generate {
             type Item = ($($T::Item),*);
             type Result = $JoinResult<$($T::Result),*>;
 
-            fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
+            fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Result> {
                 $(
-                    let $T = try_opt!(self.$T.apply(ctx));
+                    let $T = try_opt!(self.$T.apply(input, ctx));
                 )*
                 Some($JoinResult { inner: ($($T),*) })
             }
@@ -90,10 +89,10 @@ macro_rules! generate {
             type Item = ($($T::Item),*);
             type Future = future::$Join<$($T::Future),*>;
 
-            fn into_future(self, request: &mut Request) -> Self::Future {
+            fn into_future(self, input: &mut Input) -> Self::Future {
                 let ($($T),*) = self.inner;
                 $(
-                    let $T = $T.into_future(request);
+                    let $T = $T.into_future(input);
                 )*
                 IntoFuture::into_future(($($T),*))
             }

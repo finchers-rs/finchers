@@ -7,7 +7,7 @@
 
 #[macro_use]
 extern crate futures;
-extern crate http as http_crate;
+extern crate http;
 extern crate hyper;
 #[cfg(feature = "tls")]
 extern crate native_tls;
@@ -21,9 +21,9 @@ extern crate tokio_tls;
 mod macros;
 
 pub mod application;
+pub mod core;
 pub mod endpoint;
 pub mod errors;
-pub mod http;
 pub mod handler;
 pub mod responder;
 pub mod service;
