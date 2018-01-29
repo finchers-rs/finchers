@@ -8,9 +8,8 @@ use hyper::server::Service;
 
 use endpoint::{Endpoint, EndpointResult};
 use errors::Error;
-use http::IntoResponse;
 use handler::{DefaultHandler, Handler};
-use responder::{DefaultResponder, Responder};
+use responder::{DefaultResponder, IntoResponse, Responder};
 
 /// An HTTP service which wraps a `Endpoint`, `Handler` and `Responder`.
 #[derive(Debug, Copy, Clone)]

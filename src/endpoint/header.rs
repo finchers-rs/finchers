@@ -11,10 +11,10 @@ use std::marker::PhantomData;
 use futures::future::{err, ok, FutureResult};
 use endpoint::{Endpoint, EndpointContext, EndpointResult};
 use errors::{Error, NotPresent};
-use http::{header, Request};
+use http::{FromHeader, Request};
 
 #[allow(missing_docs)]
-pub fn header<H: header::Header + Clone>() -> Header<H> {
+pub fn header<H: FromHeader>() -> Header<H> {
     Header {
         _marker: PhantomData,
     }
@@ -40,7 +40,7 @@ impl<H> fmt::Debug for Header<H> {
     }
 }
 
-impl<H: header::Header + Clone> Endpoint for Header<H> {
+impl<H: FromHeader> Endpoint for Header<H> {
     type Item = H;
     type Result = HeaderResult<H>;
 
@@ -61,7 +61,7 @@ pub struct HeaderResult<H> {
     _marker: PhantomData<fn() -> H>,
 }
 
-impl<H: header::Header + Clone> EndpointResult for HeaderResult<H> {
+impl<H: FromHeader> EndpointResult for HeaderResult<H> {
     type Item = H;
     type Future = FutureResult<H, Error>;
 
@@ -74,7 +74,7 @@ impl<H: header::Header + Clone> EndpointResult for HeaderResult<H> {
 }
 
 #[allow(missing_docs)]
-pub fn header_req<H: header::Header + Clone>() -> HeaderRequired<H> {
+pub fn header_req<H: FromHeader>() -> HeaderRequired<H> {
     HeaderRequired {
         _marker: PhantomData,
     }
@@ -100,7 +100,7 @@ impl<H> fmt::Debug for HeaderRequired<H> {
     }
 }
 
-impl<H: header::Header + Clone> Endpoint for HeaderRequired<H> {
+impl<H: FromHeader> Endpoint for HeaderRequired<H> {
     type Item = H;
     type Result = HeaderRequiredResult<H>;
 
@@ -117,7 +117,7 @@ pub struct HeaderRequiredResult<H> {
     _marker: PhantomData<fn() -> H>,
 }
 
-impl<H: header::Header + Clone> EndpointResult for HeaderRequiredResult<H> {
+impl<H: FromHeader> EndpointResult for HeaderRequiredResult<H> {
     type Item = H;
     type Future = FutureResult<H, Error>;
 
@@ -133,7 +133,7 @@ impl<H: header::Header + Clone> EndpointResult for HeaderRequiredResult<H> {
 }
 
 #[allow(missing_docs)]
-pub fn header_opt<H: header::Header + Clone>() -> HeaderOptional<H> {
+pub fn header_opt<H: FromHeader>() -> HeaderOptional<H> {
     HeaderOptional {
         _marker: PhantomData,
     }
@@ -159,7 +159,7 @@ impl<H> fmt::Debug for HeaderOptional<H> {
     }
 }
 
-impl<H: header::Header + Clone> Endpoint for HeaderOptional<H> {
+impl<H: FromHeader> Endpoint for HeaderOptional<H> {
     type Item = Option<H>;
     type Result = HeaderOptionalResult<H>;
 
@@ -176,7 +176,7 @@ pub struct HeaderOptionalResult<H> {
     _marker: PhantomData<fn() -> H>,
 }
 
-impl<H: header::Header + Clone> EndpointResult for HeaderOptionalResult<H> {
+impl<H: FromHeader> EndpointResult for HeaderOptionalResult<H> {
     type Item = Option<H>;
     type Future = FutureResult<Option<H>, Error>;
 

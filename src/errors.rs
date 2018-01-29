@@ -4,7 +4,7 @@ use std::borrow::Cow;
 use std::fmt;
 use std::error::Error as StdError;
 use std::ops::Deref;
-use http::StatusCode;
+use hyper::StatusCode;
 
 #[allow(missing_docs)]
 pub trait HttpError: StdError + 'static {

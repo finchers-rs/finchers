@@ -383,7 +383,7 @@ impl<T: FromSegments> Endpoint for ExtractPathsOptional<T> {
 mod tests {
     use super::*;
     use endpoint::endpoint;
-    use http::HttpRequest;
+    use http_crate::Request as HttpRequest;
     use test::EndpointTestExt;
 
     #[test]

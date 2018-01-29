@@ -1,7 +1,7 @@
 //! Components for checking the HTTP method
 
 use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
-use http::Method;
+use hyper::Method;
 
 #[allow(missing_docs)]
 #[derive(Debug, Clone)]
