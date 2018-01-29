@@ -32,6 +32,7 @@ impl Input {
         }
     }
 
+    #[allow(missing_docs)]
     pub fn parts(&self) -> &RequestParts {
         &self.shared
     }
