@@ -5,7 +5,7 @@ use hyper::mime::Mime;
 use http_crate::{self, Extensions};
 use super::{Body, BodyStream};
 
-#[allow(missing_docs)]
+/// Clonable, shared parts in the incoming HTTP request
 #[derive(Debug, Clone)]
 pub struct RequestParts {
     inner: Rc<Inner>,

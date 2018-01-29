@@ -63,30 +63,22 @@ impl Future for BodyState {
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         use self::BodyState::*;
-        match mem::replace(self, Done) {
-            Receiving(mut body, mut buf) => loop {
-                match body.poll()? {
-                    Ready(Some(item)) => {
-                        buf.extend_from_slice(&*item);
-                        continue;
-                    }
-                    Ready(None) => {
-                        break Ok(Ready(buf));
-                    }
-                    NotReady => {
-                        *self = Receiving(body, buf);
-                        break Ok(NotReady);
-                    }
-                }
+        match *self {
+            Receiving(ref mut body, ref mut buf) => while let Some(item) = try_ready!(body.poll()) {
+                buf.extend_from_slice(&*item);
             },
             Done => panic!("cannot resolve twice"),
+        }
+        match mem::replace(self, Done) {
+            Receiving(_, buf) => Ok(Ready(buf)),
+            Done => panic!(),
         }
     }
 }
 
 /// The conversion from received request body.
 pub trait FromBody: 'static + Sized {
-    /// The type of error value during `validate` and `from_body`.
+    /// The type of error value returned from `from_body`.
     type Error;
 
     /// Returns whether the incoming request matches to this type or not.
