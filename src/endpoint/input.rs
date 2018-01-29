@@ -32,6 +32,10 @@ impl Input {
         }
     }
 
+    pub fn parts(&self) -> &RequestParts {
+        &self.shared
+    }
+
     /// Return the reference of HTTP method
     pub fn method(&self) -> &Method {
         self.shared.method()

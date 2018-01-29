@@ -55,7 +55,7 @@ impl<T: FromBody> Endpoint for Body<T> {
     type Result = BodyResult<T>;
 
     fn apply(&self, input: &Input, _: &mut EndpointContext) -> Option<Self::Result> {
-        match T::is_match(input) {
+        match T::is_match(input.parts()) {
             true => Some(BodyResult {
                 _marker: PhantomData,
             }),
