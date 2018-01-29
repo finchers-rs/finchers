@@ -1,7 +1,6 @@
-use hyper::{self, Headers, Method};
-use hyper::header;
-use hyper::mime::Mime;
-use http::{self, Extensions};
+use http::{header, Extensions, HeaderMap, Method, Request};
+use http::request::Parts;
+use hyper::{self, mime};
 use core::{Body, BodyStream, RequestParts};
 
 /// The value of incoming HTTP request
@@ -12,34 +11,27 @@ pub struct Input {
     extensions: Extensions,
 }
 
-impl From<hyper::Request> for Input {
-    fn from(request: hyper::Request) -> Self {
-        let (method, uri, version, headers, body) = request.deconstruct();
+impl Input {
+    #[allow(missing_docs)]
+    pub fn from_request<R: Into<Request<hyper::Body>>>(request: R) -> Self {
+        let (
+            Parts {
+                method,
+                uri,
+                version,
+                headers,
+                extensions,
+                ..
+            },
+            body,
+        ) = request.into().into_parts();
         Input {
             shared: RequestParts::new(method, uri, version, headers),
             body: Some(body),
-            extensions: Extensions::new(),
+            extensions: extensions,
         }
     }
-}
 
-impl From<http::Request<hyper::Body>> for Input {
-    fn from(request: http::Request<hyper::Body>) -> Self {
-        let (parts, body) = request.into_parts();
-        Input {
-            shared: RequestParts::new(
-                parts.method.into(),
-                parts.uri.into(),
-                parts.version.into(),
-                parts.headers.into(),
-            ),
-            body: Some(body),
-            extensions: parts.extensions,
-        }
-    }
-}
-
-impl Input {
     /// Return the reference of HTTP method
     pub fn method(&self) -> &Method {
         self.shared.method()
@@ -56,7 +48,7 @@ impl Input {
     }
 
     /// Returns the shared reference of header map
-    pub fn headers(&self) -> &Headers {
+    pub fn headers(&self) -> &HeaderMap {
         self.shared.headers()
     }
 
@@ -84,11 +76,11 @@ impl Input {
     }
 
     #[allow(missing_docs)]
-    pub fn media_type(&self) -> Option<&Mime> {
+    pub fn media_type(&self) -> Option<mime::Mime> {
         self.shared
             .headers()
-            .get()
-            .map(|&header::ContentType(ref m)| m)
+            .get(header::CONTENT_TYPE)
+            .and_then(|s| s.to_str().ok().and_then(|s| s.parse().ok()))
     }
 
     #[allow(missing_docs)]

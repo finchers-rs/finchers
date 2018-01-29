@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use hyper::{Headers, HttpVersion, Method, Uri};
+use http::{HeaderMap, Method, Uri, Version};
 
 /// Clonable, shared parts in the incoming HTTP request
 #[derive(Debug, Clone)]
@@ -11,13 +11,13 @@ pub struct RequestParts {
 struct Inner {
     method: Method,
     uri: Uri,
-    version: HttpVersion,
-    headers: Headers,
+    version: Version,
+    headers: HeaderMap,
 }
 
 #[allow(missing_docs)]
 impl RequestParts {
-    pub(crate) fn new(method: Method, uri: Uri, version: HttpVersion, headers: Headers) -> Self {
+    pub(crate) fn new(method: Method, uri: Uri, version: Version, headers: HeaderMap) -> Self {
         RequestParts {
             inner: Rc::new(Inner {
                 method,
@@ -36,11 +36,11 @@ impl RequestParts {
         &self.inner.uri
     }
 
-    pub fn version(&self) -> &HttpVersion {
+    pub fn version(&self) -> &Version {
         &self.inner.version
     }
 
-    pub fn headers(&self) -> &Headers {
+    pub fn headers(&self) -> &HeaderMap {
         &self.inner.headers
     }
 }

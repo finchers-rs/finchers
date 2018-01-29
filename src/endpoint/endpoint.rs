@@ -1,6 +1,8 @@
 use std::rc::Rc;
 use std::sync::Arc;
 use futures::{future, Future, IntoFuture};
+use http::Request;
+use hyper;
 use errors::{Error, HttpError};
 use super::*;
 
@@ -17,8 +19,11 @@ pub trait Endpoint {
     fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Result>;
 
     #[allow(missing_docs)]
-    fn apply_request<I: Into<Input>>(&self, input: I) -> Option<<Self::Result as EndpointResult>::Future> {
-        let mut input = input.into();
+    fn apply_request<R>(&self, request: R) -> Option<<Self::Result as EndpointResult>::Future>
+    where
+        R: Into<Request<hyper::Body>>,
+    {
+        let mut input = Input::from_request(request);
         self.apply(&input, &mut EndpointContext::new(&input))
             .map(|result| result.into_future(&mut input))
     }

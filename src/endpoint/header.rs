@@ -8,9 +8,9 @@
 
 use std::fmt;
 use std::marker::PhantomData;
-use futures::future::{err, ok, FutureResult};
+use futures::future::{err, ok, result, FutureResult};
 use endpoint::{Endpoint, EndpointContext, EndpointResult, Input};
-use errors::{Error, NotPresent};
+use errors::{BadRequest, Error, NotPresent};
 use core::FromHeader;
 
 #[allow(missing_docs)]
@@ -45,7 +45,7 @@ impl<H: FromHeader> Endpoint for Header<H> {
     type Result = HeaderResult<H>;
 
     fn apply(&self, input: &Input, _: &mut EndpointContext) -> Option<Self::Result> {
-        if input.headers().has::<H>() {
+        if input.headers().contains_key(H::header_name()) {
             Some(HeaderResult {
                 _marker: PhantomData,
             })
@@ -66,10 +66,11 @@ impl<H: FromHeader> EndpointResult for HeaderResult<H> {
     type Future = FutureResult<H, Error>;
 
     fn into_future(self, input: &mut Input) -> Self::Future {
-        ok(input.headers().get().cloned().expect(&format!(
+        let value = input.headers().get(H::header_name()).expect(&format!(
             "The value of header {} has already taken",
             H::header_name()
-        )))
+        ));
+        result(H::from_header(value.as_bytes()).map_err(|e| BadRequest::new(e).into()))
     }
 }
 
@@ -122,8 +123,8 @@ impl<H: FromHeader> EndpointResult for HeaderRequiredResult<H> {
     type Future = FutureResult<H, Error>;
 
     fn into_future(self, input: &mut Input) -> Self::Future {
-        match input.headers().get().cloned() {
-            Some(h) => ok(h),
+        match input.headers().get(H::header_name()) {
+            Some(h) => result(H::from_header(h.as_bytes()).map_err(|e| BadRequest::new(e).into())),
             None => err(NotPresent::new(format!(
                 "The header `{}' does not exist in the request",
                 H::header_name()
@@ -181,6 +182,9 @@ impl<H: FromHeader> EndpointResult for HeaderOptionalResult<H> {
     type Future = FutureResult<Option<H>, Error>;
 
     fn into_future(self, input: &mut Input) -> Self::Future {
-        ok(input.headers().get().cloned())
+        ok(input
+            .headers()
+            .get(H::header_name())
+            .and_then(|h| H::from_header(h.as_bytes()).ok()))
     }
 }
