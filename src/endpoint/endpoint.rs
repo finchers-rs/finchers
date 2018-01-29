@@ -2,7 +2,6 @@ use std::rc::Rc;
 use std::sync::Arc;
 use futures::{future, Future, IntoFuture};
 use errors::{Error, HttpError};
-use http::Request;
 use super::*;
 
 /// Abstruction of an endpoint.
@@ -15,13 +14,13 @@ pub trait Endpoint {
 
     /// Validates the incoming HTTP request,
     /// and returns the instance of `Task` if matched.
-    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result>;
+    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Result>;
 
     #[allow(missing_docs)]
-    fn apply_request<R: Into<Request>>(&self, request: R) -> Option<<Self::Result as EndpointResult>::Future> {
-        let mut request = request.into();
-        self.apply(&mut EndpointContext::new(&request))
-            .map(|result| result.into_future(&mut request))
+    fn apply_request<I: Into<Input>>(&self, input: I) -> Option<<Self::Result as EndpointResult>::Future> {
+        let mut input = input.into();
+        self.apply(&input, &mut EndpointContext::new(&input))
+            .map(|result| result.into_future(&mut input))
     }
 
     #[allow(missing_docs)]
@@ -93,8 +92,8 @@ impl<'a, E: Endpoint> Endpoint for &'a E {
     type Item = E::Item;
     type Result = E::Result;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
-        (*self).apply(ctx)
+    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Result> {
+        (*self).apply(input, ctx)
     }
 }
 
@@ -102,8 +101,8 @@ impl<E: Endpoint> Endpoint for Box<E> {
     type Item = E::Item;
     type Result = E::Result;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
-        (**self).apply(ctx)
+    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Result> {
+        (**self).apply(input, ctx)
     }
 }
 
@@ -111,8 +110,8 @@ impl<E: Endpoint> Endpoint for Rc<E> {
     type Item = E::Item;
     type Result = E::Result;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
-        (**self).apply(ctx)
+    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Result> {
+        (**self).apply(input, ctx)
     }
 }
 
@@ -120,8 +119,8 @@ impl<E: Endpoint> Endpoint for Arc<E> {
     type Item = E::Item;
     type Result = E::Result;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
-        (**self).apply(ctx)
+    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Result> {
+        (**self).apply(input, ctx)
     }
 }
 
@@ -136,7 +135,7 @@ pub trait EndpointResult {
     /// Launches itself and construct a `Future`, and then return it.
     ///
     /// This method will be called *after* the routing is completed.
-    fn into_future(self, request: &mut Request) -> Self::Future;
+    fn into_future(self, input: &mut Input) -> Self::Future;
 }
 
 impl<F: IntoFuture> EndpointResult for F
@@ -146,7 +145,7 @@ where
     type Item = F::Item;
     type Future = future::FromErr<F::Future, Error>;
 
-    fn into_future(self, _: &mut Request) -> Self::Future {
+    fn into_future(self, _: &mut Input) -> Self::Future {
         self.into_future().from_err()
     }
 }

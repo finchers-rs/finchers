@@ -1,8 +1,7 @@
 #![allow(missing_docs)]
 
 use futures::{Future, Poll};
-use http::Request;
-use super::{Endpoint, EndpointContext, EndpointResult, IntoEndpoint};
+use super::{Endpoint, EndpointContext, EndpointResult, Input, IntoEndpoint};
 
 pub fn or<E1, E2>(e1: E1, e2: E2) -> Or<E1::Endpoint, E2::Endpoint>
 where
@@ -29,10 +28,10 @@ where
     type Item = E1::Item;
     type Result = OrResult<E1::Result, E2::Result>;
 
-    fn apply(&self, ctx2: &mut EndpointContext) -> Option<Self::Result> {
+    fn apply(&self, input: &Input, ctx2: &mut EndpointContext) -> Option<Self::Result> {
         let mut ctx1 = ctx2.clone();
-        let t1 = self.e1.apply(&mut ctx1);
-        let t2 = self.e2.apply(ctx2);
+        let t1 = self.e1.apply(input, &mut ctx1);
+        let t2 = self.e2.apply(input, ctx2);
         match (t1, t2) {
             (Some(t1), Some(t2)) => {
                 // If both endpoints are matched, the one with the larger number of
@@ -78,13 +77,13 @@ where
     type Item = T1::Item;
     type Future = OrFuture<T1::Future, T2::Future>;
 
-    fn into_future(self, request: &mut Request) -> Self::Future {
+    fn into_future(self, input: &mut Input) -> Self::Future {
         match self.inner {
             Either::Left(t) => OrFuture {
-                inner: Either::Left(t.into_future(request)),
+                inner: Either::Left(t.into_future(input)),
             },
             Either::Right(t) => OrFuture {
-                inner: Either::Right(t.into_future(request)),
+                inner: Either::Right(t.into_future(input)),
             },
         }
     }

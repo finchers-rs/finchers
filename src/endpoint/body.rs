@@ -18,10 +18,10 @@ use std::fmt;
 use std::marker::PhantomData;
 use futures::{Future, Poll};
 use futures::future::{self, FutureResult};
-use endpoint::{Endpoint, EndpointContext, EndpointResult};
+use endpoint::{Endpoint, EndpointContext, EndpointResult, Input};
 use errors::Error;
 use errors::BadRequest;
-use http::{self, FromBody, Request, RequestParts};
+use http::{self, FromBody, RequestParts};
 
 /// Creates an endpoint for parsing the incoming request body into the value of `T`
 pub fn body<T: FromBody>() -> Body<T> {
@@ -54,8 +54,8 @@ impl<T: FromBody> Endpoint for Body<T> {
     type Item = T;
     type Result = BodyResult<T>;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
-        match T::is_match(ctx.request()) {
+    fn apply(&self, input: &Input, _: &mut EndpointContext) -> Option<Self::Result> {
+        match T::is_match(input) {
             true => Some(BodyResult {
                 _marker: PhantomData,
             }),
@@ -74,8 +74,8 @@ impl<T: FromBody> EndpointResult for BodyResult<T> {
     type Item = T;
     type Future = BodyFuture<T>;
 
-    fn into_future(self, request: &mut Request) -> Self::Future {
-        let (request, body) = request.shared_parts();
+    fn into_future(self, input: &mut Input) -> Self::Future {
+        let (request, body) = input.shared_parts();
         BodyFuture {
             request,
             body,
@@ -132,7 +132,7 @@ impl Endpoint for BodyStream {
     type Item = http::BodyStream;
     type Result = BodyStreamResult;
 
-    fn apply(&self, _: &mut EndpointContext) -> Option<Self::Result> {
+    fn apply(&self, _: &Input, _: &mut EndpointContext) -> Option<Self::Result> {
         Some(BodyStreamResult { _priv: () })
     }
 }
@@ -147,8 +147,8 @@ impl EndpointResult for BodyStreamResult {
     type Item = http::BodyStream;
     type Future = FutureResult<Self::Item, Error>;
 
-    fn into_future(self, request: &mut Request) -> Self::Future {
-        let body = request.body_stream().expect("cannot take a body twice");
+    fn into_future(self, input: &mut Input) -> Self::Future {
+        let body = input.body_stream().expect("cannot take a body twice");
         future::ok(body.into())
     }
 }

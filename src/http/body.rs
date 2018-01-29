@@ -5,8 +5,9 @@ use futures::{Future, Poll, Stream};
 use futures::future;
 use futures::Async::*;
 use hyper;
-use super::{Request, RequestParts};
+use endpoint::Input;
 use errors::NeverReturn;
+use super::RequestParts;
 
 /// A raw `Stream` to receive the incoming request body
 #[derive(Debug)]
@@ -87,7 +88,7 @@ pub trait FromBody: 'static + Sized {
     /// This method is used only for the purpose of changing the result of routing.
     /// Otherwise, use `validate` instead.
     #[allow(unused_variables)]
-    fn is_match(req: &Request) -> bool {
+    fn is_match(req: &Input) -> bool {
         true
     }
 

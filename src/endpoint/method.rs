@@ -1,6 +1,6 @@
 //! Components for checking the HTTP method
 
-use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
+use endpoint::{Endpoint, EndpointContext, Input, IntoEndpoint};
 use hyper::Method;
 
 #[allow(missing_docs)]
@@ -14,9 +14,9 @@ impl<E: Endpoint> Endpoint for MatchMethod<E> {
     type Item = E::Item;
     type Result = E::Result;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
-        if *ctx.method() == self.method {
-            self.endpoint.apply(ctx)
+    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Result> {
+        if *input.method() == self.method {
+            self.endpoint.apply(input, ctx)
         } else {
             None
         }
@@ -52,9 +52,9 @@ macro_rules! define_method {
             type Item = E::Item;
             type Result = E::Result;
 
-            fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
-                if *ctx.method() == Method::$method {
-                    self.endpoint.apply(ctx)
+            fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Result> {
+                if *input.method() == Method::$method {
+                    self.endpoint.apply(input, ctx)
                 } else {
                     None
                 }

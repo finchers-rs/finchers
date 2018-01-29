@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 
-use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
+use endpoint::{Endpoint, EndpointContext, Input, IntoEndpoint};
 use errors::NeverReturn;
 
 pub fn skip_all<I>(iter: I) -> SkipAll<<I::Item as IntoEndpoint>::Endpoint>
@@ -22,9 +22,9 @@ impl<E: Endpoint> Endpoint for SkipAll<E> {
     type Item = ();
     type Result = Result<(), NeverReturn>;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
+    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Result> {
         for endpoint in &self.endpoints {
-            let _ = try_opt!(endpoint.apply(ctx));
+            let _ = try_opt!(endpoint.apply(input, ctx));
         }
         Some(Ok(()))
     }

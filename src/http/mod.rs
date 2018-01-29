@@ -7,7 +7,7 @@ mod request;
 pub use http_crate::Extensions;
 
 pub use self::body::{Body, BodyStream, FromBody};
-pub use self::request::{Request, RequestParts};
+pub use self::request::RequestParts;
 pub use self::segments::{FromSegment, FromSegments, Segment, Segments};
 
 #[allow(missing_docs)]

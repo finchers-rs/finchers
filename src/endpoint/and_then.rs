@@ -5,9 +5,8 @@ use std::mem;
 use std::sync::Arc;
 use futures::{Future, IntoFuture, Poll};
 use futures::Async::*;
-use endpoint::{Endpoint, EndpointContext, EndpointResult};
+use endpoint::{Endpoint, EndpointContext, EndpointResult, Input};
 use errors::Error;
-use http::Request;
 use self::Chain::*;
 
 pub fn and_then<E, F, R>(endpoint: E, f: F) -> AndThen<E, F>
@@ -68,8 +67,8 @@ where
     type Item = R::Item;
     type Result = AndThenResult<E::Result, F>;
 
-    fn apply(&self, ctx: &mut EndpointContext) -> Option<Self::Result> {
-        let result = try_opt!(self.endpoint.apply(ctx));
+    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Result> {
+        let result = try_opt!(self.endpoint.apply(input, ctx));
         Some(AndThenResult {
             result,
             f: self.f.clone(),
@@ -93,8 +92,8 @@ where
     type Item = R::Item;
     type Future = AndThenFuture<T::Future, F, R>;
 
-    fn into_future(self, request: &mut Request) -> Self::Future {
-        let future = self.result.into_future(request);
+    fn into_future(self, input: &mut Input) -> Self::Future {
+        let future = self.result.into_future(input);
         AndThenFuture {
             inner: Chain::new(future, self.f),
         }
