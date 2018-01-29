@@ -1,5 +1,6 @@
 use std::rc::Rc;
-use http::{HeaderMap, Method, Uri, Version};
+use http::{header, HeaderMap, Method, Uri, Version};
+use hyper::mime;
 
 /// Clonable, shared parts in the incoming HTTP request
 #[derive(Debug, Clone)]
@@ -36,11 +37,25 @@ impl RequestParts {
         &self.inner.uri
     }
 
+    pub fn path(&self) -> &str {
+        self.uri().path()
+    }
+
+    pub fn query(&self) -> Option<&str> {
+        self.uri().query()
+    }
+
     pub fn version(&self) -> &Version {
         &self.inner.version
     }
 
     pub fn headers(&self) -> &HeaderMap {
         &self.inner.headers
+    }
+
+    pub fn media_type(&self) -> Option<mime::Mime> {
+        self.headers()
+            .get(header::CONTENT_TYPE)
+            .and_then(|s| s.to_str().ok().and_then(|s| s.parse().ok()))
     }
 }
