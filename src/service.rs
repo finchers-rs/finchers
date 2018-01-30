@@ -1,15 +1,17 @@
 //! Components of lower-level HTTP services
 
+use std::fmt;
 use std::mem;
 use futures::{Future, IntoFuture, Poll};
 use futures::Async::*;
+use http::header;
 use hyper::{self, Request, Response};
 use hyper::server::Service;
 
 use endpoint::{Endpoint, EndpointResult};
 use errors::Error;
 use handler::{DefaultHandler, Handler};
-use responder::{DefaultResponder, IntoResponse, Responder};
+use responder::{DefaultResponder, Responder};
 
 /// An HTTP service which wraps a `Endpoint`, `Handler` and `Responder`.
 #[derive(Debug, Copy, Clone)]
@@ -41,8 +43,8 @@ where
     type Error = hyper::Error;
     type Future = FinchersServiceFuture<E, H, R>;
 
-    fn call(&self, req: Self::Request) -> Self::Future {
-        let state = match self.endpoint.apply_request(req) {
+    fn call(&self, request: Self::Request) -> Self::Future {
+        let state = match self.endpoint.apply_request(request) {
             Some(input) => State::PollingInput {
                 input,
                 handler: self.handler.clone(),
@@ -137,7 +139,12 @@ where
             Ok(Ready(None)) => self.responder.respond_noroute(),
             Err(err) => self.responder.respond_err(&*err),
         };
-        self.responder.after_respond(&mut response);
+        if !response.headers().contains_key(header::SERVER) {
+            response
+                .headers_mut()
+                .insert(header::SERVER, "Finchers".parse().unwrap());
+        }
+        let response = response.map(Into::into).into();
         Ok(Ready(response))
     }
 }
@@ -145,7 +152,7 @@ where
 #[allow(missing_docs)]
 pub trait EndpointServiceExt: Endpoint + sealed::Sealed
 where
-    Self::Item: IntoResponse,
+    Self::Item: fmt::Display,
 {
     fn into_service(self) -> FinchersService<Self, DefaultHandler, DefaultResponder<Self::Item>>
     where
@@ -159,7 +166,7 @@ where
 
 impl<E: Endpoint> EndpointServiceExt for E
 where
-    E::Item: IntoResponse,
+    E::Item: fmt::Display,
 {
     fn into_service(self) -> FinchersService<Self, DefaultHandler, DefaultResponder<Self::Item>> {
         FinchersService::new(self, DefaultHandler::default(), Default::default())

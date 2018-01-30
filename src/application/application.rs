@@ -1,3 +1,4 @@
+use std::fmt;
 use std::io;
 use std::sync::Arc;
 use hyper;
@@ -5,7 +6,7 @@ use hyper::server::{NewService, Service};
 
 use endpoint::Endpoint;
 use handler::DefaultHandler;
-use responder::{DefaultResponder, IntoResponse};
+use responder::DefaultResponder;
 use service::{EndpointServiceExt, FinchersService};
 
 use super::{Http, Tcp, TcpBackend, Worker};
@@ -85,7 +86,7 @@ where
 impl<E> Application<ConstService<FinchersService<E, DefaultHandler, DefaultResponder<E::Item>>>, DefaultBackend>
 where
     E: Endpoint,
-    E::Item: IntoResponse,
+    E::Item: fmt::Display,
 {
     #[allow(missing_docs)]
     pub fn from_endpoint(endpoint: E) -> Self {

@@ -9,6 +9,7 @@
 extern crate futures;
 extern crate http;
 extern crate hyper;
+extern crate mime;
 #[cfg(feature = "tls")]
 extern crate native_tls;
 extern crate net2;

@@ -1,6 +1,6 @@
 use std::rc::Rc;
 use http::{header, HeaderMap, Method, Uri, Version};
-use hyper::mime;
+use mime;
 
 /// Clonable, shared parts in the incoming HTTP request
 #[derive(Debug, Clone)]

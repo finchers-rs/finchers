@@ -9,14 +9,30 @@ use errors::NeverReturn;
 use super::RequestParts;
 
 /// A raw `Stream` to receive the incoming request body
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct BodyStream {
     inner: hyper::Body,
 }
 
+impl From<()> for BodyStream {
+    fn from(_: ()) -> Self {
+        BodyStream {
+            inner: Default::default(),
+        }
+    }
+}
+
 impl From<hyper::Body> for BodyStream {
     fn from(inner: hyper::Body) -> Self {
-        BodyStream { inner }
+        BodyStream {
+            inner: inner.into(),
+        }
+    }
+}
+
+impl Into<hyper::Body> for BodyStream {
+    fn into(self) -> hyper::Body {
+        self.inner
     }
 }
 
@@ -40,6 +56,12 @@ impl From<hyper::Body> for Body {
         Body {
             inner: BodyState::Receiving(body, vec![]).shared(),
         }
+    }
+}
+
+impl From<BodyStream> for Body {
+    fn from(body: BodyStream) -> Self {
+        Self::from(body.inner)
     }
 }
 
