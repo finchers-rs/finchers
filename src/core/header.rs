@@ -5,7 +5,7 @@ use std::error::Error;
 use std::str::FromStr;
 use hyper;
 use hyper::header::{self, Header};
-use errors::NeverReturn;
+use super::NeverReturn;
 
 pub trait FromHeader: 'static + Sized {
     type Error: Error + 'static;

@@ -8,10 +8,10 @@ use http::header;
 use hyper::{self, Request, Response};
 use hyper::server::Service;
 
-use core::HttpResponse;
+use core::{HttpResponse, Outcome};
 use endpoint::{Endpoint, EndpointResult};
 use handler::{DefaultHandler, Handler};
-use responder::{DefaultResponder, Outcome, Responder};
+use responder::{DefaultResponder, Responder};
 
 /// An HTTP service which wraps a `Endpoint`, `Handler` and `Responder`.
 #[derive(Debug, Copy, Clone)]

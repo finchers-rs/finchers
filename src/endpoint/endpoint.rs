@@ -2,8 +2,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 use futures::{future, Future, IntoFuture};
 use http::Request;
-use core::BodyStream;
-use errors::{Error, HttpError};
+use core::{BodyStream, Error, HttpError};
 use endpoint::{self, EndpointContext, Input};
 
 /// Abstruction of an endpoint.

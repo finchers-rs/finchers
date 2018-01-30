@@ -4,7 +4,7 @@ use std::fmt;
 use std::rc::Rc;
 use std::sync::Arc;
 use futures::IntoFuture;
-use errors::{HttpError, NeverReturn};
+use core::{HttpError, NeverReturn};
 
 /// A trait which represents the server-side processes.
 pub trait Handler<In> {

@@ -24,7 +24,6 @@ mod macros;
 pub mod application;
 pub mod core;
 pub mod endpoint;
-pub mod errors;
 pub mod handler;
 pub mod responder;
 pub mod service;
@@ -35,9 +34,6 @@ pub use application::Application;
 
 #[doc(inline)]
 pub use endpoint::{Endpoint, EndpointResult, IntoEndpoint};
-
-#[doc(inline)]
-pub use errors::{Error, HttpError};
 
 #[doc(inline)]
 pub use handler::Handler;

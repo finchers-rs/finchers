@@ -4,11 +4,15 @@ mod body;
 mod header;
 mod segments;
 mod request;
+mod error;
+mod outcome;
 
 pub use self::body::{Body, BodyStream, FromBody};
 pub use self::header::{FromHeader, HyperHeader};
 pub use self::request::RequestParts;
 pub use self::segments::{FromSegment, FromSegments, Segment, Segments};
+pub use self::error::{BadRequest, Error, HttpError, NeverReturn, NotPresent};
+pub use self::outcome::Outcome;
 
 use http::StatusCode;
 

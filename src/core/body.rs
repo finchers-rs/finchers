@@ -5,8 +5,7 @@ use futures::{Future, Poll, Stream};
 use futures::future;
 use futures::Async::*;
 use hyper;
-use errors::NeverReturn;
-use super::RequestParts;
+use super::{NeverReturn, RequestParts};
 
 /// A raw `Stream` to receive the incoming request body
 #[derive(Debug, Default)]

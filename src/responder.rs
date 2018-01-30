@@ -5,101 +5,49 @@ use std::string::ToString;
 use std::sync::Arc;
 use http::{Response, StatusCode};
 use http::header;
-use core::{BodyStream, HttpResponse};
-use errors::Error;
+use core::{BodyStream, HttpResponse, Outcome};
 
-#[allow(missing_docs)]
-#[derive(Debug)]
-pub enum Outcome<T> {
-    Ok(T),
-    Err(Error),
-    NoRoute,
-}
-
-#[allow(missing_docs)]
-impl<T> Outcome<T> {
-    #[inline]
-    pub fn is_ok(&self) -> bool {
-        match *self {
-            Outcome::Ok(..) => true,
-            _ => false,
-        }
-    }
-
-    #[inline]
-    pub fn is_err(&self) -> bool {
-        match *self {
-            Outcome::Err(..) => true,
-            _ => false,
-        }
-    }
-
-    #[inline]
-    pub fn is_noroute(&self) -> bool {
-        match *self {
-            Outcome::NoRoute => true,
-            _ => false,
-        }
-    }
-
-    #[inline]
-    pub fn ok(self) -> Option<T> {
-        match self {
-            Outcome::Ok(item) => Some(item),
-            _ => None,
-        }
-    }
-
-    #[inline]
-    pub fn err(self) -> Option<Error> {
-        match self {
-            Outcome::Err(err) => Some(err),
-            _ => None,
-        }
-    }
-}
-
-#[allow(missing_docs)]
+/// A trait to represents the conversion from outcome to an HTTP response.
 pub trait Responder<T> {
-    fn respond(&self, output: Outcome<T>) -> Response<BodyStream>;
+    /// Convert an outcome into an HTTP response
+    fn respond(&self, outcome: Outcome<T>) -> Response<BodyStream>;
+}
+
+impl<F, T> Responder<T> for F
+where
+    F: Fn(Outcome<T>) -> Response<BodyStream>,
+{
+    fn respond(&self, outcome: Outcome<T>) -> Response<BodyStream> {
+        (*self)(outcome)
+    }
 }
 
 impl<R: Responder<T>, T> Responder<T> for Rc<R> {
-    fn respond(&self, output: Outcome<T>) -> Response<BodyStream> {
-        (**self).respond(output)
+    fn respond(&self, outcome: Outcome<T>) -> Response<BodyStream> {
+        (**self).respond(outcome)
     }
 }
 
 impl<R: Responder<T>, T> Responder<T> for Arc<R> {
-    fn respond(&self, output: Outcome<T>) -> Response<BodyStream> {
-        (**self).respond(output)
+    fn respond(&self, outcome: Outcome<T>) -> Response<BodyStream> {
+        (**self).respond(outcome)
     }
 }
 
-#[allow(missing_docs)]
+/// A pre-defined responder for creating an HTTP response by using `ToString::to_string`.
 #[derive(Copy, Clone, Default, Debug)]
 pub struct DefaultResponder {
     _priv: (),
 }
 
 impl DefaultResponder {
-    fn respond_ok<T>(&self, item: T) -> Response<BodyStream>
+    fn respond_item<T>(&self, item: &T) -> Response<BodyStream>
     where
-        T: ToString + HttpResponse,
+        T: ?Sized + ToString + HttpResponse,
     {
         let body = item.to_string();
         Response::builder()
             .status(item.status_code())
-            .header(header::CONTENT_TYPE, "text/plain; charset=utf-8")
-            .header(header::CONTENT_LENGTH, body.len().to_string().as_str())
-            .body(body.into())
-            .unwrap()
-    }
-
-    fn respond_err(&self, err: &Error) -> Response<BodyStream> {
-        let body = err.to_string();
-        Response::builder()
-            .status(err.status_code())
             .header(header::CONTENT_TYPE, "text/plain; charset=utf-8")
             .header(header::CONTENT_LENGTH, body.len().to_string().as_str())
             .body(body.into())
@@ -120,9 +68,9 @@ where
 {
     fn respond(&self, output: Outcome<T>) -> Response<BodyStream> {
         match output {
-            Outcome::Ok(item) => self.respond_ok(item).map(Into::into),
-            Outcome::NoRoute => self.respond_noroute().map(Into::into),
-            Outcome::Err(err) => self.respond_err(&err).map(Into::into),
+            Outcome::Ok(item) => self.respond_item(&item),
+            Outcome::NoRoute => self.respond_noroute(),
+            Outcome::Err(err) => self.respond_item(&*err),
         }
     }
 }

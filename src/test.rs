@@ -5,9 +5,8 @@
 use std::io;
 use tokio_core::reactor::Core;
 use http::Request;
-use core::BodyStream;
+use core::{BodyStream, Error};
 use endpoint::Endpoint;
-use errors::Error;
 
 #[derive(Debug)]
 pub struct TestRunner<E: Endpoint> {
