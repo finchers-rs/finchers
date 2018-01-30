@@ -1,15 +1,15 @@
 //! Components of lower-level HTTP services
 
-use std::fmt;
 use std::mem;
+use std::string::ToString;
 use futures::{Future, IntoFuture, Poll};
 use futures::Async::*;
 use http::header;
 use hyper::{self, Request, Response};
 use hyper::server::Service;
 
+use core::{HttpResponse, Outcome};
 use endpoint::{Endpoint, EndpointResult};
-use errors::Error;
 use handler::{DefaultHandler, Handler};
 use responder::{DefaultResponder, Responder};
 
@@ -36,7 +36,7 @@ impl<E, H, R> Service for FinchersService<E, H, R>
 where
     E: Endpoint,
     H: Handler<E::Item> + Clone,
-    R: Responder<Item = H::Item> + Clone,
+    R: Responder<H::Item> + Clone,
 {
     type Request = Request;
     type Response = Response;
@@ -64,7 +64,7 @@ pub struct FinchersServiceFuture<E, H, R>
 where
     E: Endpoint,
     H: Handler<E::Item>,
-    R: Responder,
+    R: Responder<H::Item>,
 {
     state: State<E, H>,
     responder: R,
@@ -91,31 +91,34 @@ impl<E, H, R> FinchersServiceFuture<E, H, R>
 where
     E: Endpoint,
     H: Handler<E::Item>,
-    R: Responder,
+    R: Responder<H::Item>,
 {
-    fn poll_state(&mut self) -> Poll<Option<H::Item>, Error> {
+    fn poll_state(&mut self) -> Poll<Outcome<H::Item>, hyper::Error> {
         use self::State::*;
         loop {
             match mem::replace(&mut self.state, Done) {
-                NoRoute => break Ok(Ready(None)),
-                PollingInput { mut input, handler } => match input.poll()? {
-                    Ready(input) => {
+                NoRoute => break Ok(Ready(Outcome::NoRoute)),
+                PollingInput { mut input, handler } => match input.poll() {
+                    Ok(Ready(input)) => {
                         self.state = PollingOutput {
                             output: IntoFuture::into_future(handler.call(input)),
                         };
                         continue;
                     }
-                    NotReady => {
+                    Ok(NotReady) => {
                         self.state = PollingInput { input, handler };
                         break Ok(NotReady);
                     }
+                    Err(err) => break Ok(Ready(Outcome::Err(err))),
                 },
-                PollingOutput { mut output } => match output.poll()? {
-                    Ready(item) => break Ok(Ready(item)),
-                    NotReady => {
+                PollingOutput { mut output } => match output.poll() {
+                    Ok(Ready(Some(item))) => break Ok(Ready(Outcome::Ok(item))),
+                    Ok(Ready(None)) => break Ok(Ready(Outcome::NoRoute)),
+                    Ok(NotReady) => {
                         self.state = PollingOutput { output };
                         break Ok(NotReady);
                     }
+                    Err(err) => break Ok(Ready(Outcome::Err(err.into()))),
                 },
                 Done => panic!(),
             }
@@ -127,18 +130,14 @@ impl<E, H, R> Future for FinchersServiceFuture<E, H, R>
 where
     E: Endpoint,
     H: Handler<E::Item>,
-    R: Responder<Item = H::Item>,
+    R: Responder<H::Item>,
 {
     type Item = Response;
     type Error = hyper::Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let mut response = match self.poll_state() {
-            Ok(NotReady) => return Ok(NotReady),
-            Ok(Ready(Some(item))) => self.responder.respond_ok(item),
-            Ok(Ready(None)) => self.responder.respond_noroute(),
-            Err(err) => self.responder.respond_err(&*err),
-        };
+        let output = try_ready!(self.poll_state());
+        let mut response = self.responder.respond(output);
         if !response.headers().contains_key(header::SERVER) {
             response
                 .headers_mut()
@@ -152,13 +151,13 @@ where
 #[allow(missing_docs)]
 pub trait EndpointServiceExt: Endpoint + sealed::Sealed
 where
-    Self::Item: fmt::Display,
+    Self::Item: ToString + HttpResponse,
 {
-    fn into_service(self) -> FinchersService<Self, DefaultHandler, DefaultResponder<Self::Item>>
+    fn into_service(self) -> FinchersService<Self, DefaultHandler, DefaultResponder>
     where
         Self: Sized;
 
-    fn with_handler<H>(self, handler: H) -> FinchersService<Self, H, DefaultResponder<H::Item>>
+    fn with_handler<H>(self, handler: H) -> FinchersService<Self, H, DefaultResponder>
     where
         H: Handler<Self::Item> + Clone,
         Self: Sized;
@@ -166,13 +165,13 @@ where
 
 impl<E: Endpoint> EndpointServiceExt for E
 where
-    E::Item: fmt::Display,
+    E::Item: ToString + HttpResponse,
 {
-    fn into_service(self) -> FinchersService<Self, DefaultHandler, DefaultResponder<Self::Item>> {
+    fn into_service(self) -> FinchersService<Self, DefaultHandler, DefaultResponder> {
         FinchersService::new(self, DefaultHandler::default(), Default::default())
     }
 
-    fn with_handler<H>(self, handler: H) -> FinchersService<Self, H, DefaultResponder<H::Item>>
+    fn with_handler<H>(self, handler: H) -> FinchersService<Self, H, DefaultResponder>
     where
         H: Handler<Self::Item> + Clone,
     {

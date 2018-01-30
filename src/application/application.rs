@@ -1,9 +1,10 @@
-use std::fmt;
 use std::io;
+use std::string::ToString;
 use std::sync::Arc;
 use hyper;
 use hyper::server::{NewService, Service};
 
+use core::HttpResponse;
 use endpoint::Endpoint;
 use handler::DefaultHandler;
 use responder::DefaultResponder;
@@ -83,10 +84,10 @@ where
     }
 }
 
-impl<E> Application<ConstService<FinchersService<E, DefaultHandler, DefaultResponder<E::Item>>>, DefaultBackend>
+impl<E> Application<ConstService<FinchersService<E, DefaultHandler, DefaultResponder>>, DefaultBackend>
 where
     E: Endpoint,
-    E::Item: fmt::Display,
+    E::Item: HttpResponse + ToString,
 {
     #[allow(missing_docs)]
     pub fn from_endpoint(endpoint: E) -> Self {

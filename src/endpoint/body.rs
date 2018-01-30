@@ -18,9 +18,8 @@ use std::fmt;
 use std::marker::PhantomData;
 use futures::{Future, Poll};
 use futures::future::{self, FutureResult};
+use core::{BadRequest, Error};
 use endpoint::{Endpoint, EndpointContext, EndpointResult, Input};
-use errors::Error;
-use errors::BadRequest;
 use core::{self, FromBody, RequestParts};
 
 /// Creates an endpoint for parsing the incoming request body into the value of `T`

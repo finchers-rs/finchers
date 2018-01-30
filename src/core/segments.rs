@@ -2,7 +2,7 @@ use std::error::Error;
 use std::ops::Deref;
 use std::path::PathBuf;
 use std::str::FromStr;
-use errors::NeverReturn;
+use super::NeverReturn;
 
 /// An iterator of remaning path segments.
 #[derive(Debug, Copy, Clone)]

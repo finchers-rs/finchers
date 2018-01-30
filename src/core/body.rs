@@ -5,8 +5,7 @@ use futures::{Future, Poll, Stream};
 use futures::future;
 use futures::Async::*;
 use hyper;
-use errors::NeverReturn;
-use super::RequestParts;
+use super::{NeverReturn, RequestParts};
 
 /// A raw `Stream` to receive the incoming request body
 #[derive(Debug, Default)]
@@ -22,12 +21,29 @@ impl From<()> for BodyStream {
     }
 }
 
-impl From<hyper::Body> for BodyStream {
-    fn from(inner: hyper::Body) -> Self {
-        BodyStream {
-            inner: inner.into(),
+macro_rules! impl_from_for_stream {
+    ($($t:ty;)*) => {$(
+        impl From<$t> for BodyStream {
+            fn from(body: $t) -> Self {
+                BodyStream {
+                    inner: body.into(),
+                }
+            }
         }
-    }
+    )*};
+}
+
+impl_from_for_stream! {
+    Vec<u8>;
+    &'static [u8];
+    ::std::borrow::Cow<'static, [u8]>;
+    String;
+    &'static str;
+    ::std::borrow::Cow<'static, str>;
+    hyper::Chunk;
+    hyper::Body;
+    Option<hyper::Body>;
+    ::futures::sync::mpsc::Receiver<Result<hyper::Chunk, hyper::Error>>;
 }
 
 impl Into<hyper::Body> for BodyStream {

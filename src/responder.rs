@@ -1,105 +1,56 @@
 //! `Responder` layer
 
-use std::fmt;
-use std::marker::PhantomData;
 use std::rc::Rc;
+use std::string::ToString;
 use std::sync::Arc;
-use http::{header, Response, StatusCode};
-use core::BodyStream;
-use errors::HttpError;
+use http::{Response, StatusCode};
+use http::header;
+use core::{BodyStream, HttpResponse, Outcome};
 
-#[allow(missing_docs)]
-pub trait Responder {
-    type Item;
-
-    fn respond_ok(&self, item: Self::Item) -> Response<BodyStream>;
-
-    fn respond_err(&self, &HttpError) -> Response<BodyStream>;
-
-    fn respond_noroute(&self) -> Response<BodyStream>;
+/// A trait to represents the conversion from outcome to an HTTP response.
+pub trait Responder<T> {
+    /// Convert an outcome into an HTTP response
+    fn respond(&self, outcome: Outcome<T>) -> Response<BodyStream>;
 }
 
-impl<R: Responder> Responder for Rc<R> {
-    type Item = R::Item;
-
-    fn respond_ok(&self, item: Self::Item) -> Response<BodyStream> {
-        (**self).respond_ok(item)
-    }
-
-    fn respond_err(&self, err: &HttpError) -> Response<BodyStream> {
-        (**self).respond_err(err)
-    }
-
-    fn respond_noroute(&self) -> Response<BodyStream> {
-        (**self).respond_noroute()
+impl<F, T> Responder<T> for F
+where
+    F: Fn(Outcome<T>) -> Response<BodyStream>,
+{
+    fn respond(&self, outcome: Outcome<T>) -> Response<BodyStream> {
+        (*self)(outcome)
     }
 }
 
-impl<R: Responder> Responder for Arc<R> {
-    type Item = R::Item;
-
-    fn respond_ok(&self, item: Self::Item) -> Response<BodyStream> {
-        (**self).respond_ok(item)
-    }
-
-    fn respond_err(&self, err: &HttpError) -> Response<BodyStream> {
-        (**self).respond_err(err)
-    }
-
-    fn respond_noroute(&self) -> Response<BodyStream> {
-        (**self).respond_noroute()
+impl<R: Responder<T>, T> Responder<T> for Rc<R> {
+    fn respond(&self, outcome: Outcome<T>) -> Response<BodyStream> {
+        (**self).respond(outcome)
     }
 }
 
-#[allow(missing_docs)]
-pub struct DefaultResponder<T> {
-    _marker: PhantomData<fn(T) -> ()>,
-}
-
-impl<T> Copy for DefaultResponder<T> {}
-
-impl<T> Clone for DefaultResponder<T> {
-    #[inline]
-    fn clone(&self) -> Self {
-        *self
+impl<R: Responder<T>, T> Responder<T> for Arc<R> {
+    fn respond(&self, outcome: Outcome<T>) -> Response<BodyStream> {
+        (**self).respond(outcome)
     }
 }
 
-impl<T> Default for DefaultResponder<T> {
-    #[inline]
-    fn default() -> Self {
-        DefaultResponder {
-            _marker: PhantomData,
-        }
-    }
+/// A pre-defined responder for creating an HTTP response by using `ToString::to_string`.
+#[derive(Copy, Clone, Default, Debug)]
+pub struct DefaultResponder {
+    _priv: (),
 }
 
-impl<T> fmt::Debug for DefaultResponder<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("DefaultResponder").finish()
-    }
-}
-
-impl<T: fmt::Display> Responder for DefaultResponder<T> {
-    type Item = T;
-
-    fn respond_ok(&self, item: Self::Item) -> Response<BodyStream> {
-        let message = item.to_string();
+impl DefaultResponder {
+    fn respond_item<T>(&self, item: &T) -> Response<BodyStream>
+    where
+        T: ?Sized + ToString + HttpResponse,
+    {
+        let body = item.to_string();
         Response::builder()
-            .status(StatusCode::OK)
-            .header(header::CONTENT_TYPE, "text/plain")
-            .header(header::CONTENT_LENGTH, message.len().to_string().as_str())
-            .body(::hyper::Body::from(message).into())
-            .unwrap()
-    }
-
-    fn respond_err(&self, err: &HttpError) -> Response<BodyStream> {
-        let message = err.to_string();
-        Response::builder()
-            .status(err.status_code())
-            .header(header::CONTENT_TYPE, "text/plain")
-            .header(header::CONTENT_LENGTH, message.len().to_string().as_str())
-            .body(::hyper::Body::from(message).into())
+            .status(item.status_code())
+            .header(header::CONTENT_TYPE, "text/plain; charset=utf-8")
+            .header(header::CONTENT_LENGTH, body.len().to_string().as_str())
+            .body(body.into())
             .unwrap()
     }
 
@@ -108,5 +59,18 @@ impl<T: fmt::Display> Responder for DefaultResponder<T> {
             .status(StatusCode::NOT_FOUND)
             .body(Default::default())
             .unwrap()
+    }
+}
+
+impl<T> Responder<T> for DefaultResponder
+where
+    T: HttpResponse + ToString,
+{
+    fn respond(&self, output: Outcome<T>) -> Response<BodyStream> {
+        match output {
+            Outcome::Ok(item) => self.respond_item(&item),
+            Outcome::NoRoute => self.respond_noroute(),
+            Outcome::Err(err) => self.respond_item(&*err),
+        }
     }
 }

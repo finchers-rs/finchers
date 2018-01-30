@@ -4,19 +4,20 @@ use std::borrow::Cow;
 use std::fmt;
 use std::error::Error as StdError;
 use std::ops::Deref;
+use core::HttpResponse;
 use http::StatusCode;
 
 #[allow(missing_docs)]
-pub trait HttpError: StdError + 'static {
-    fn status_code(&self) -> StatusCode;
-}
+pub trait HttpError: StdError + HttpResponse {}
+
+impl<E: StdError + HttpResponse> HttpError for E {}
 
 macro_rules! impl_http_error {
     (@bad_request) => { StatusCode::BAD_REQUEST };
     (@server_error) => { StatusCode::INTERNAL_SERVER_ERROR };
 
     ($( @$i:ident $t:ty; )*) => {$(
-        impl HttpError for $t {
+        impl HttpResponse for $t {
             #[inline]
             fn status_code(&self) -> StatusCode {
                 impl_http_error!(@$i)
@@ -63,6 +64,12 @@ impl<E: HttpError + 'static> From<E> for Error {
     }
 }
 
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.inner.fmt(f)
+    }
+}
+
 impl Deref for Error {
     type Target = HttpError;
 
@@ -101,7 +108,7 @@ impl StdError for NeverReturn {
     }
 }
 
-impl HttpError for NeverReturn {
+impl HttpResponse for NeverReturn {
     fn status_code(&self) -> StatusCode {
         unreachable!()
     }
@@ -145,7 +152,7 @@ impl<E: StdError> StdError for BadRequest<E> {
     }
 }
 
-impl<E: StdError + 'static> HttpError for BadRequest<E> {
+impl<E: StdError + 'static> HttpResponse for BadRequest<E> {
     fn status_code(&self) -> StatusCode {
         StatusCode::BAD_REQUEST
     }
@@ -178,7 +185,7 @@ impl StdError for NotPresent {
     }
 }
 
-impl HttpError for NotPresent {
+impl HttpResponse for NotPresent {
     fn status_code(&self) -> StatusCode {
         StatusCode::BAD_REQUEST
     }

@@ -22,9 +22,8 @@ use std::borrow::Cow;
 use std::fmt;
 use std::marker::PhantomData;
 use futures::future;
+use core::{BadRequest, Error, FromSegment, FromSegments, NeverReturn, NotPresent};
 use endpoint::{Endpoint, EndpointContext, EndpointResult, Input, IntoEndpoint};
-use errors::{BadRequest, Error, NeverReturn, NotPresent};
-use core::{FromSegment, FromSegments};
 
 #[allow(missing_docs)]
 pub struct MatchPath {

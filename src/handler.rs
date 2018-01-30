@@ -4,7 +4,7 @@ use std::fmt;
 use std::rc::Rc;
 use std::sync::Arc;
 use futures::IntoFuture;
-use errors::{HttpError, NeverReturn};
+use core::{HttpError, NeverReturn};
 
 /// A trait which represents the server-side processes.
 pub trait Handler<In> {
@@ -12,7 +12,7 @@ pub trait Handler<In> {
     type Item;
 
     /// The type of returned value *on failure*
-    type Error: HttpError;
+    type Error: HttpError + 'static;
 
     /// The type of value returned from `call`
     type Result: IntoFuture<Item = Option<Self::Item>, Error = Self::Error>;
@@ -25,7 +25,7 @@ impl<F, In, R, T> Handler<In> for F
 where
     F: Fn(In) -> R,
     R: IntoFuture<Item = Option<T>>,
-    R::Error: HttpError,
+    R::Error: HttpError + 'static,
 {
     type Item = T;
     type Error = R::Error;
