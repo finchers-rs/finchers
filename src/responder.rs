@@ -1,105 +1,108 @@
 //! `Responder` layer
 
-use std::fmt;
-use std::marker::PhantomData;
 use std::rc::Rc;
+use std::string::ToString;
 use std::sync::Arc;
-use http::{header, Response, StatusCode};
-use core::BodyStream;
-use errors::HttpError;
+use http::{Response, StatusCode};
+use http::header;
+use core::{BodyStream, HttpResponse};
+use errors::Error;
 
 #[allow(missing_docs)]
-pub trait Responder {
-    type Item;
-
-    fn respond_ok(&self, item: Self::Item) -> Response<BodyStream>;
-
-    fn respond_err(&self, &HttpError) -> Response<BodyStream>;
-
-    fn respond_noroute(&self) -> Response<BodyStream>;
-}
-
-impl<R: Responder> Responder for Rc<R> {
-    type Item = R::Item;
-
-    fn respond_ok(&self, item: Self::Item) -> Response<BodyStream> {
-        (**self).respond_ok(item)
-    }
-
-    fn respond_err(&self, err: &HttpError) -> Response<BodyStream> {
-        (**self).respond_err(err)
-    }
-
-    fn respond_noroute(&self) -> Response<BodyStream> {
-        (**self).respond_noroute()
-    }
-}
-
-impl<R: Responder> Responder for Arc<R> {
-    type Item = R::Item;
-
-    fn respond_ok(&self, item: Self::Item) -> Response<BodyStream> {
-        (**self).respond_ok(item)
-    }
-
-    fn respond_err(&self, err: &HttpError) -> Response<BodyStream> {
-        (**self).respond_err(err)
-    }
-
-    fn respond_noroute(&self) -> Response<BodyStream> {
-        (**self).respond_noroute()
-    }
+#[derive(Debug)]
+pub enum Outcome<T> {
+    Ok(T),
+    Err(Error),
+    NoRoute,
 }
 
 #[allow(missing_docs)]
-pub struct DefaultResponder<T> {
-    _marker: PhantomData<fn(T) -> ()>,
-}
-
-impl<T> Copy for DefaultResponder<T> {}
-
-impl<T> Clone for DefaultResponder<T> {
+impl<T> Outcome<T> {
     #[inline]
-    fn clone(&self) -> Self {
-        *self
+    pub fn is_ok(&self) -> bool {
+        match *self {
+            Outcome::Ok(..) => true,
+            _ => false,
+        }
     }
-}
 
-impl<T> Default for DefaultResponder<T> {
     #[inline]
-    fn default() -> Self {
-        DefaultResponder {
-            _marker: PhantomData,
+    pub fn is_err(&self) -> bool {
+        match *self {
+            Outcome::Err(..) => true,
+            _ => false,
+        }
+    }
+
+    #[inline]
+    pub fn is_noroute(&self) -> bool {
+        match *self {
+            Outcome::NoRoute => true,
+            _ => false,
+        }
+    }
+
+    #[inline]
+    pub fn ok(self) -> Option<T> {
+        match self {
+            Outcome::Ok(item) => Some(item),
+            _ => None,
+        }
+    }
+
+    #[inline]
+    pub fn err(self) -> Option<Error> {
+        match self {
+            Outcome::Err(err) => Some(err),
+            _ => None,
         }
     }
 }
 
-impl<T> fmt::Debug for DefaultResponder<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("DefaultResponder").finish()
+#[allow(missing_docs)]
+pub trait Responder<T> {
+    fn respond(&self, output: Outcome<T>) -> Response<BodyStream>;
+}
+
+impl<R: Responder<T>, T> Responder<T> for Rc<R> {
+    fn respond(&self, output: Outcome<T>) -> Response<BodyStream> {
+        (**self).respond(output)
     }
 }
 
-impl<T: fmt::Display> Responder for DefaultResponder<T> {
-    type Item = T;
+impl<R: Responder<T>, T> Responder<T> for Arc<R> {
+    fn respond(&self, output: Outcome<T>) -> Response<BodyStream> {
+        (**self).respond(output)
+    }
+}
 
-    fn respond_ok(&self, item: Self::Item) -> Response<BodyStream> {
-        let message = item.to_string();
+#[allow(missing_docs)]
+#[derive(Copy, Clone, Default, Debug)]
+pub struct DefaultResponder {
+    _priv: (),
+}
+
+impl DefaultResponder {
+    fn respond_ok<T>(&self, item: T) -> Response<BodyStream>
+    where
+        T: ToString + HttpResponse,
+    {
+        let body = item.to_string();
         Response::builder()
-            .status(StatusCode::OK)
-            .header(header::CONTENT_TYPE, "text/plain")
-            .header(header::CONTENT_LENGTH, message.len().to_string().as_str())
-            .body(::hyper::Body::from(message).into())
+            .status(item.status_code())
+            .header(header::CONTENT_TYPE, "text/plain; charset=utf-8")
+            .header(header::CONTENT_LENGTH, body.len().to_string().as_str())
+            .body(body.into())
             .unwrap()
     }
 
-    fn respond_err(&self, err: &HttpError) -> Response<BodyStream> {
-        let message = err.to_string();
+    fn respond_err(&self, err: &Error) -> Response<BodyStream> {
+        let body = err.to_string();
         Response::builder()
             .status(err.status_code())
-            .header(header::CONTENT_TYPE, "text/plain")
-            .header(header::CONTENT_LENGTH, message.len().to_string().as_str())
-            .body(::hyper::Body::from(message).into())
+            .header(header::CONTENT_TYPE, "text/plain; charset=utf-8")
+            .header(header::CONTENT_LENGTH, body.len().to_string().as_str())
+            .body(body.into())
             .unwrap()
     }
 
@@ -108,5 +111,18 @@ impl<T: fmt::Display> Responder for DefaultResponder<T> {
             .status(StatusCode::NOT_FOUND)
             .body(Default::default())
             .unwrap()
+    }
+}
+
+impl<T> Responder<T> for DefaultResponder
+where
+    T: HttpResponse + ToString,
+{
+    fn respond(&self, output: Outcome<T>) -> Response<BodyStream> {
+        match output {
+            Outcome::Ok(item) => self.respond_ok(item).map(Into::into),
+            Outcome::NoRoute => self.respond_noroute().map(Into::into),
+            Outcome::Err(err) => self.respond_err(&err).map(Into::into),
+        }
     }
 }
