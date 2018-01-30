@@ -124,13 +124,13 @@ mod tests {
             .or(endpoint("bar").with(ok("bar")));
         let mut runner = TestRunner::new(endpoint).unwrap();
 
-        let request = Request::get("/foo").body(Default::default()).unwrap();
+        let request = Request::get("/foo").body(()).unwrap();
         match runner.run(request) {
             Some(Ok("foo")) => (),
             _ => panic!("does not match"),
         }
 
-        let request = Request::get("/bar").body(Default::default()).unwrap();
+        let request = Request::get("/bar").body(()).unwrap();
         match runner.run(request) {
             Some(Ok("bar")) => (),
             _ => panic!("does not match"),
@@ -144,13 +144,13 @@ mod tests {
         let endpoint = e1.or(e2);
         let mut runner = TestRunner::new(endpoint).unwrap();
 
-        let request = Request::get("/foo").body(Default::default()).unwrap();
+        let request = Request::get("/foo").body(()).unwrap();
         match runner.run(request) {
             Some(Ok("foo")) => (),
             _ => panic!("does not match"),
         }
 
-        let request = Request::get("/foo/bar").body(Default::default()).unwrap();
+        let request = Request::get("/foo/bar").body(()).unwrap();
         match runner.run(request) {
             Some(Ok("foobar")) => (),
             _ => panic!("does not match"),

@@ -31,7 +31,7 @@ mod tests {
     fn test_ok() {
         let endpoint = ok("Alice");
         let mut runner = TestRunner::new(endpoint).unwrap();
-        let request = Request::get("/").body(Default::default()).unwrap();
+        let request = Request::get("/").body(()).unwrap();
         let result: Option<Result<&str, _>> = runner.run(request);
         assert_eq!(result, Some(Ok("Alice")));
     }

@@ -1,20 +1,24 @@
 use std::ops::Deref;
 use http::{Extensions, Request};
 use http::request::Parts;
-use hyper;
 use core::{Body, BodyStream, RequestParts};
 
 /// The value of incoming HTTP request
 #[derive(Debug)]
 pub struct Input {
     parts: RequestParts,
-    body: Option<hyper::Body>,
+    body: Option<BodyStream>,
     extensions: Extensions,
 }
 
 impl Input {
     #[allow(missing_docs)]
-    pub fn from_request<R: Into<Request<hyper::Body>>>(request: R) -> Self {
+    pub fn from_request<R, B>(request: R) -> Self
+    where
+        R: Into<Request<B>>,
+        B: Into<BodyStream>,
+    {
+        let request = request.into().map(Into::into);
         let (
             Parts {
                 method,
@@ -25,7 +29,7 @@ impl Input {
                 ..
             },
             body,
-        ) = request.into().into_parts();
+        ) = request.into_parts();
         Input {
             parts: RequestParts::new(method, uri, version, headers),
             body: Some(body),

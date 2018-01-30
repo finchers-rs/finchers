@@ -4,7 +4,7 @@ use std::borrow::Cow;
 use std::fmt;
 use std::error::Error as StdError;
 use std::ops::Deref;
-use hyper::StatusCode;
+use http::StatusCode;
 
 #[allow(missing_docs)]
 pub trait HttpError: StdError + 'static {
@@ -12,8 +12,8 @@ pub trait HttpError: StdError + 'static {
 }
 
 macro_rules! impl_http_error {
-    (@bad_request) => { StatusCode::BadRequest };
-    (@server_error) => { StatusCode::InternalServerError };
+    (@bad_request) => { StatusCode::BAD_REQUEST };
+    (@server_error) => { StatusCode::INTERNAL_SERVER_ERROR };
 
     ($( @$i:ident $t:ty; )*) => {$(
         impl HttpError for $t {
@@ -147,7 +147,7 @@ impl<E: StdError> StdError for BadRequest<E> {
 
 impl<E: StdError + 'static> HttpError for BadRequest<E> {
     fn status_code(&self) -> StatusCode {
-        StatusCode::BadRequest
+        StatusCode::BAD_REQUEST
     }
 }
 
@@ -180,6 +180,6 @@ impl StdError for NotPresent {
 
 impl HttpError for NotPresent {
     fn status_code(&self) -> StatusCode {
-        StatusCode::BadRequest
+        StatusCode::BAD_REQUEST
     }
 }
