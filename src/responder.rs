@@ -17,8 +17,6 @@ pub trait Responder {
     fn respond_err(&self, &HttpError) -> Response<BodyStream>;
 
     fn respond_noroute(&self) -> Response<BodyStream>;
-
-    fn after_respond(&self, response: &mut Response<BodyStream>);
 }
 
 impl<R: Responder> Responder for Rc<R> {
@@ -35,10 +33,6 @@ impl<R: Responder> Responder for Rc<R> {
     fn respond_noroute(&self) -> Response<BodyStream> {
         (**self).respond_noroute()
     }
-
-    fn after_respond(&self, response: &mut Response<BodyStream>) {
-        (**self).after_respond(response)
-    }
 }
 
 impl<R: Responder> Responder for Arc<R> {
@@ -54,10 +48,6 @@ impl<R: Responder> Responder for Arc<R> {
 
     fn respond_noroute(&self) -> Response<BodyStream> {
         (**self).respond_noroute()
-    }
-
-    fn after_respond(&self, response: &mut Response<BodyStream>) {
-        (**self).after_respond(response)
     }
 }
 
@@ -118,13 +108,5 @@ impl<T: fmt::Display> Responder for DefaultResponder<T> {
             .status(StatusCode::NOT_FOUND)
             .body(Default::default())
             .unwrap()
-    }
-
-    fn after_respond(&self, response: &mut Response<BodyStream>) {
-        if !response.headers().contains_key(header::SERVER) {
-            response
-                .headers_mut()
-                .insert(header::SERVER, "Finchers".parse().unwrap());
-        }
     }
 }

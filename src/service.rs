@@ -4,6 +4,7 @@ use std::fmt;
 use std::mem;
 use futures::{Future, IntoFuture, Poll};
 use futures::Async::*;
+use http::header;
 use hyper::{self, Request, Response};
 use hyper::server::Service;
 
@@ -138,7 +139,11 @@ where
             Ok(Ready(None)) => self.responder.respond_noroute(),
             Err(err) => self.responder.respond_err(&*err),
         };
-        self.responder.after_respond(&mut response);
+        if !response.headers().contains_key(header::SERVER) {
+            response
+                .headers_mut()
+                .insert(header::SERVER, "Finchers".parse().unwrap());
+        }
         let response = response.map(Into::into).into();
         Ok(Ready(response))
     }
