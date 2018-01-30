@@ -103,7 +103,7 @@ impl<T: FromBody> Future for BodyFuture<T> {
     }
 }
 
-/// Creates an endpoint for taking the instance of `hyper::Body`
+/// Creates an endpoint for taking the instance of `BodyStream`
 pub fn body_stream() -> BodyStream {
     BodyStream { _priv: () }
 }

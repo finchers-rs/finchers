@@ -25,13 +25,13 @@ impl<T: Clone> Endpoint for EndpointOk<T> {
 mod tests {
     use super::*;
     use test::TestRunner;
-    use hyper::{Method, Request};
+    use http::Request;
 
     #[test]
     fn test_ok() {
         let endpoint = ok("Alice");
         let mut runner = TestRunner::new(endpoint).unwrap();
-        let request = Request::new(Method::Get, "/".parse().unwrap());
+        let request = Request::get("/").body(Default::default()).unwrap();
         let result: Option<Result<&str, _>> = runner.run(request);
         assert_eq!(result, Some(Ok("Alice")));
     }
