@@ -105,7 +105,7 @@ where
     /// Start the HTTP server with given configurations
     #[inline]
     pub fn run(self) {
-        super::worker::start_multi_threaded(self)
+        super::worker::start_multi_threaded(self).expect("error from hyper")
     }
 }
 
