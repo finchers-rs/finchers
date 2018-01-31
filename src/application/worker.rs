@@ -1,5 +1,6 @@
 use std::sync::Arc;
-use futures::{Future, Stream};
+use std::thread;
+use futures::{future, Future, Stream};
 use hyper;
 use hyper::server::NewService;
 use tokio_core::reactor::{Core, Handle};
@@ -34,7 +35,7 @@ where
     S: NewService<Request = hyper::Request, Response = hyper::Response, Error = hyper::Error> + Clone + 'static,
     B: TcpBackend,
 {
-    fn spawn(&self, handle: &Handle) -> Result<(), ::hyper::Error> {
+    fn spawn(&self, handle: &Handle) -> Result<(), hyper::Error> {
         for addr in &self.tcp.addrs {
             let incoming = self.tcp.backend.incoming(addr, &handle)?;
             let serve = self.http
@@ -49,7 +50,7 @@ where
     }
 }
 
-pub fn start_multi_threaded<S, B>(application: Application<S, B>)
+pub fn start_multi_threaded<S, B>(application: Application<S, B>) -> Result<(), hyper::Error>
 where
     S: NewService<Request = hyper::Request, Response = hyper::Response, Error = hyper::Error> + Clone + 'static,
     B: TcpBackend,
@@ -66,19 +67,32 @@ where
         tcp,
     });
 
+    let spawn = || {
+        let ctx = ctx.clone();
+        thread::spawn(move || -> Result<(), hyper::Error> {
+            let mut core = Core::new()?;
+            let _ = ctx.spawn(&core.handle());
+            core.run(future::empty())
+        })
+    };
+
     let mut handles = vec![];
     for _ in 0..worker.num_workers {
-        let ctx = ctx.clone();
-        handles.push(::std::thread::spawn(
-            move || -> Result<(), ::hyper::Error> {
-                let mut core = Core::new()?;
-                let _ = ctx.spawn(&core.handle());
-                core.run(::futures::future::empty())
-            },
-        ));
+        handles.push(spawn());
     }
 
-    for handle in handles {
-        let _ = handle.join();
+    while !handles.is_empty() {
+        let mut respawn = 0;
+        for handle in handles.drain(..) {
+            match handle.join() {
+                Ok(result) => result?,
+                Err(_e) => respawn += 1,
+            }
+        }
+        for _ in 0..respawn {
+            handles.push(spawn());
+        }
     }
+
+    Ok(())
 }

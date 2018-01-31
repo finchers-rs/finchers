@@ -1,4 +1,6 @@
+use std::collections::HashSet;
 use std::io;
+use std::mem;
 use std::net::{SocketAddr, ToSocketAddrs};
 use super::backend::DefaultBackend;
 
@@ -43,13 +45,9 @@ impl<B> Tcp<B> {
 
     pub(super) fn normalize_addrs(&mut self) {
         if self.addrs.is_empty() {
-            println!("[info] Use default listener addresses.");
             self.addrs.push("0.0.0.0:4000".parse().unwrap());
-            self.addrs.push("[::0]:4000".parse().unwrap());
         } else {
-            let set: ::std::collections::HashSet<_> = ::std::mem::replace(&mut self.addrs, vec![])
-                .into_iter()
-                .collect();
+            let set: HashSet<_> = mem::replace(&mut self.addrs, vec![]).into_iter().collect();
             self.addrs = set.into_iter().collect();
         }
     }
