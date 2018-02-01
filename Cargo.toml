@@ -1,34 +1,7 @@
-[package]
-name = "finchers"
-version = "0.11.0-dev" # don't forget to update html_root_url in lib.rs
-description = "A combinator library for builidng asynchronous HTTP services"
-authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
-license = "MIT/Apache-2.0"
-readme = "README.md"
-homepage = "https://finchers-rs.github.io/"
-repository = "https://github.com/finchers-rs/finchers.git"
-documentation = "https://docs.rs/finchers"
-keywords = ["finchers", "web", "framework", "server"]
-categories = ["web-programming::http-server"]
+[workspace]
+members = [
+  "src/*",
+  "examples/*",
+]
 
-[badges]
-travis-ci = { repository = "finchers-rs/finchers" }
-coveralls = { repository = "finchers-rs/finchers" }
-maintenance = { status = "actively-developed" }
-
-[dependencies]
-hyper = { version = "0.11", features = ["compat"] }
-mime = "0.3"
-http = "0.1"
-futures = "0.1"
-tokio-core = "0.1"
-tokio-io = "0.1"
-net2 = "0.2"
-
-native-tls = { version = "0.1", optional = true }
-tokio-tls = { version = "0.1", optional = true }
-
-[features]
-default = []
-tls = ["native-tls", "tokio-tls"]
-unstable = []
+[replace]

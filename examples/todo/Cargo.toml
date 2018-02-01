@@ -1,0 +1,15 @@
+[package]
+name = "example-todo"
+version = "0.1.0"
+authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
+
+[[bin]]
+name = "todo"
+path = "src/main.rs"
+doc = false
+
+[dependencies]
+finchers = { path = "../../src/finchers" }
+finchers-json = { path = "../../src/finchers-json" }
+
+http = "0.1"
