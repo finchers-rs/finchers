@@ -5,11 +5,7 @@
 #![deny(missing_debug_implementations)]
 #![deny(warnings)]
 
-#[macro_use]
-extern crate futures;
-extern crate http;
 extern crate hyper;
-extern crate mime;
 #[cfg(feature = "tls")]
 extern crate native_tls;
 extern crate net2;
@@ -17,6 +13,10 @@ extern crate tokio_core;
 extern crate tokio_io;
 #[cfg(feature = "tls")]
 extern crate tokio_tls;
+#[macro_use]
+pub extern crate futures;
+pub extern crate http;
+pub extern crate mime;
 
 #[macro_use]
 mod macros;
