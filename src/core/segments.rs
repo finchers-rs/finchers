@@ -130,7 +130,7 @@ pub trait FromSegment: 'static + Sized {
     type Err: Error + 'static;
 
     /// Create the instance of `Self` from a path segment
-    fn from_segment(segment: &Segment) -> Result<Self, Self::Err>;
+    fn from_segment(segment: Segment) -> Result<Self, Self::Err>;
 }
 
 macro_rules! impl_from_segment_from_str {
@@ -139,7 +139,7 @@ macro_rules! impl_from_segment_from_str {
             type Err = <$t as FromStr>::Err;
 
             #[inline]
-            fn from_segment(segment: &Segment) -> Result<Self, Self::Err> {
+            fn from_segment(segment: Segment) -> Result<Self, Self::Err> {
                 FromStr::from_str(&*segment)
             }
         }
@@ -162,8 +162,8 @@ impl<T: FromSegment> FromSegment for Option<T> {
     type Err = NeverReturn;
 
     #[inline]
-    fn from_segment(segment: &Segment) -> Result<Self, Self::Err> {
-        Ok(FromSegment::from_segment(&*segment).ok())
+    fn from_segment(segment: Segment) -> Result<Self, Self::Err> {
+        Ok(FromSegment::from_segment(segment).ok())
     }
 }
 
@@ -171,8 +171,8 @@ impl<T: FromSegment> FromSegment for Result<T, T::Err> {
     type Err = NeverReturn;
 
     #[inline]
-    fn from_segment(segment: &Segment) -> Result<Self, Self::Err> {
-        Ok(FromSegment::from_segment(&*segment))
+    fn from_segment(segment: Segment) -> Result<Self, Self::Err> {
+        Ok(FromSegment::from_segment(segment))
     }
 }
 
@@ -185,15 +185,11 @@ pub trait FromSegments: 'static + Sized {
     fn from_segments(segments: &mut Segments) -> Result<Self, Self::Err>;
 }
 
-impl<T> FromSegments for Vec<T>
-where
-    T: FromStr + 'static,
-    T::Err: Error + 'static,
-{
+impl<T: FromSegment> FromSegments for Vec<T> {
     type Err = T::Err;
 
     fn from_segments(segments: &mut Segments) -> Result<Self, Self::Err> {
-        segments.into_iter().map(|s| s.parse()).collect()
+        segments.into_iter().map(|s| T::from_segment(s)).collect()
     }
 }
 
