@@ -185,15 +185,11 @@ pub trait FromSegments: 'static + Sized {
     fn from_segments(segments: &mut Segments) -> Result<Self, Self::Err>;
 }
 
-impl<T> FromSegments for Vec<T>
-where
-    T: FromStr + 'static,
-    T::Err: Error + 'static,
-{
+impl<T: FromSegment> FromSegments for Vec<T> {
     type Err = T::Err;
 
     fn from_segments(segments: &mut Segments) -> Result<Self, Self::Err> {
-        segments.into_iter().map(|s| s.parse()).collect()
+        segments.into_iter().map(|s| T::from_segment(s)).collect()
     }
 }
 
