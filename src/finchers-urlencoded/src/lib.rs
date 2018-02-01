@@ -31,18 +31,16 @@
 #![deny(warnings)]
 
 extern crate finchers;
-extern crate futures;
-extern crate mime;
 extern crate serde;
 extern crate serde_qs;
-extern crate url;
 
 use std::fmt;
 use std::error::Error as StdError;
 use std::marker::PhantomData;
 use std::iter::FromIterator;
-use futures::future::{self, Future, FutureResult, IntoFuture};
 use serde::de::{self, IntoDeserializer};
+use finchers::futures::future::{self, Future, FutureResult, IntoFuture};
+use finchers::mime;
 
 use finchers::core::{BadRequest, Error as FinchersError, FromBody, RequestParts};
 use finchers::endpoint::{self, Endpoint, EndpointContext, EndpointResult, Input};

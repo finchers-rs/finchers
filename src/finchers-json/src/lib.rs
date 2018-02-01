@@ -11,9 +11,6 @@
 #![deny(warnings)]
 
 extern crate finchers;
-extern crate futures;
-extern crate http;
-extern crate mime;
 extern crate serde;
 #[macro_use]
 extern crate serde_json;
@@ -21,10 +18,11 @@ extern crate serde_json;
 use std::error;
 use std::fmt;
 use std::ops::{Deref, DerefMut};
-use futures::{future, Future};
-use http::{header, Response, StatusCode};
 use serde::ser::Serialize;
 use serde::de::DeserializeOwned;
+use finchers::futures::{future, Future};
+use finchers::http::{header, Response, StatusCode};
+use finchers::mime;
 
 use finchers::core::{BadRequest, BodyStream, FromBody, HttpError, HttpResponse, Outcome, RequestParts};
 use finchers::endpoint::{self, Endpoint, EndpointContext, EndpointResult, Input};
