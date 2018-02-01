@@ -130,7 +130,7 @@ pub trait FromSegment: 'static + Sized {
     type Err: Error + 'static;
 
     /// Create the instance of `Self` from a path segment
-    fn from_segment(segment: &Segment) -> Result<Self, Self::Err>;
+    fn from_segment(segment: Segment) -> Result<Self, Self::Err>;
 }
 
 macro_rules! impl_from_segment_from_str {
@@ -139,7 +139,7 @@ macro_rules! impl_from_segment_from_str {
             type Err = <$t as FromStr>::Err;
 
             #[inline]
-            fn from_segment(segment: &Segment) -> Result<Self, Self::Err> {
+            fn from_segment(segment: Segment) -> Result<Self, Self::Err> {
                 FromStr::from_str(&*segment)
             }
         }
@@ -162,8 +162,8 @@ impl<T: FromSegment> FromSegment for Option<T> {
     type Err = NeverReturn;
 
     #[inline]
-    fn from_segment(segment: &Segment) -> Result<Self, Self::Err> {
-        Ok(FromSegment::from_segment(&*segment).ok())
+    fn from_segment(segment: Segment) -> Result<Self, Self::Err> {
+        Ok(FromSegment::from_segment(segment).ok())
     }
 }
 
@@ -171,8 +171,8 @@ impl<T: FromSegment> FromSegment for Result<T, T::Err> {
     type Err = NeverReturn;
 
     #[inline]
-    fn from_segment(segment: &Segment) -> Result<Self, Self::Err> {
-        Ok(FromSegment::from_segment(&*segment))
+    fn from_segment(segment: Segment) -> Result<Self, Self::Err> {
+        Ok(FromSegment::from_segment(segment))
     }
 }
 

@@ -172,7 +172,7 @@ impl<T: FromSegment> Endpoint for ExtractPath<T> {
     fn apply(&self, _: &Input, ctx: &mut EndpointContext) -> Option<Self::Result> {
         ctx.segments()
             .next()
-            .and_then(|s| T::from_segment(&s).map(Ok).ok())
+            .and_then(|s| T::from_segment(s).map(Ok).ok())
     }
 }
 
@@ -208,7 +208,7 @@ impl<T: FromSegment> Endpoint for ExtractPathRequired<T> {
     type Result = ExtractPathRequiredResult<T>;
 
     fn apply(&self, _: &Input, ctx: &mut EndpointContext) -> Option<Self::Result> {
-        let inner = ctx.segments().next().map(|s| T::from_segment(&s));
+        let inner = ctx.segments().next().map(|s| T::from_segment(s));
         Some(ExtractPathRequiredResult { inner })
     }
 }
@@ -266,7 +266,7 @@ impl<T: FromSegment> Endpoint for ExtractPathOptional<T> {
     fn apply(&self, _: &Input, ctx: &mut EndpointContext) -> Option<Self::Result> {
         Some(Ok(ctx.segments()
             .next()
-            .and_then(|s| T::from_segment(&s).ok())))
+            .and_then(|s| T::from_segment(s).ok())))
     }
 }
 
