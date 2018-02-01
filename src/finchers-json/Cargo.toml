@@ -1,0 +1,28 @@
+[package]
+name = "finchers-json"
+version = "0.11.0-dev"
+description = "JSON support for finchers"
+authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
+license = "MIT/Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/finchers-rs/json.git"
+documentation = "https://docs.rs/finchers-json"
+
+[badges]
+travis-ci = { repository = "finchers-rs/json" }
+maintenance = { status = "actively-developed" }
+
+[dependencies]
+finchers = { version = "0.11.0-dev", path = "../finchers" }
+futures = "0.1"
+http = "0.1"
+mime = "0.3"
+serde = "1.0"
+serde_json = "1.0"
+
+[dev-dependencies]
+serde_derive = "1.0"
+
+[features]
+default = []
+unstable = []

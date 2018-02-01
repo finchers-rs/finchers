@@ -1,0 +1,12 @@
+[package]
+name = "example-form"
+version = "0.1.0"
+authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
+
+[dependencies]
+finchers = { path = "../../src/finchers" }
+finchers-urlencoded = { path = "../../src/finchers-urlencoded" }
+
+http = "0.1"
+serde = "1.0"
+serde_derive = "1.0"
