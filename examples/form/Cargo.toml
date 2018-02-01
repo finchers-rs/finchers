@@ -3,6 +3,11 @@ name = "example-form"
 version = "0.1.0"
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 
+[[bin]]
+name = "form"
+path = "src/main.rs"
+doc = false
+
 [dependencies]
 finchers = { path = "../../src/finchers" }
 finchers-urlencoded = { path = "../../src/finchers-urlencoded" }
