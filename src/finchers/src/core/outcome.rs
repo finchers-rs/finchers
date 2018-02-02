@@ -9,6 +9,12 @@ pub enum Outcome<T> {
     NoRoute,
 }
 
+impl<T> From<T> for Outcome<T> {
+    fn from(input: T) -> Outcome<T> {
+        Outcome::Ok(input)
+    }
+}
+
 impl<T> From<Option<T>> for Outcome<T> {
     fn from(input: Option<T>) -> Outcome<T> {
         match input {

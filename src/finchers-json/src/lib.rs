@@ -17,6 +17,7 @@ extern crate serde_json;
 
 use std::error;
 use std::fmt;
+use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use serde::ser::Serialize;
 use serde::de::DeserializeOwned;
@@ -26,9 +27,7 @@ use finchers::mime;
 
 use finchers::core::{BadRequest, BodyStream, FromBody, HttpError, HttpStatus, Outcome, RequestParts};
 use finchers::endpoint::{self, Endpoint, EndpointContext, EndpointResult, Input};
-use finchers::handler::DefaultHandler;
 use finchers::responder::Responder;
-use finchers::service::FinchersService;
 
 /// The error type from serde_json
 #[derive(Debug)]
@@ -175,12 +174,34 @@ impl<T: DeserializeOwned + 'static> EndpointResult for JsonBodyResult<T> {
 }
 
 #[allow(missing_docs)]
-#[derive(Copy, Clone, Default, Debug)]
-pub struct JsonResponder {
-    _priv: (),
+pub struct JsonResponder<T> {
+    _marker: PhantomData<fn() -> T>,
 }
 
-impl<T: Serialize + HttpStatus> Responder<T> for JsonResponder {
+impl<T> Copy for JsonResponder<T> {}
+
+impl<T> Clone for JsonResponder<T> {
+    #[inline]
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<T> Default for JsonResponder<T> {
+    fn default() -> Self {
+        JsonResponder {
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<T> fmt::Debug for JsonResponder<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("JsonResponder").finish()
+    }
+}
+
+impl<T: Serialize + HttpStatus> Responder<T> for JsonResponder<T> {
     fn respond(&self, outcome: Outcome<T>) -> Response<BodyStream> {
         match outcome {
             Outcome::Ok(item) => json_response(&item),
@@ -222,30 +243,4 @@ fn make_json_response(status: StatusCode, body: String) -> Response<BodyStream> 
         .header(header::CONTENT_LENGTH, body.len().to_string().as_str())
         .body(body.into())
         .unwrap()
-}
-
-#[allow(missing_docs)]
-pub trait EndpointServiceExt: Endpoint + sealed::Sealed {
-    fn into_service(self) -> FinchersService<Self, DefaultHandler, JsonResponder>
-    where
-        Self: Sized,
-        Self::Item: Serialize + HttpStatus;
-}
-
-impl<E: Endpoint> EndpointServiceExt for E {
-    fn into_service(self) -> FinchersService<Self, DefaultHandler, JsonResponder>
-    where
-        Self: Sized,
-        Self::Item: Serialize + HttpStatus,
-    {
-        FinchersService::new(self, DefaultHandler::default(), JsonResponder::default())
-    }
-}
-
-mod sealed {
-    use finchers::Endpoint;
-
-    pub trait Sealed {}
-
-    impl<E: Endpoint> Sealed for E {}
 }
