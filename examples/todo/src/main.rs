@@ -9,9 +9,7 @@ extern crate serde;
 mod model;
 mod service;
 
-use finchers::{Application, Endpoint};
-use finchers::handler::OptionalHandler;
-use finchers::service::FinchersService;
+use finchers::{Application, Endpoint, EndpointServiceExt};
 use finchers_json::{json_body, JsonResponder};
 use self::model::*;
 use self::service::*;
@@ -64,9 +62,5 @@ fn main() {
     let service = new_service();
     let endpoint = build_endpoint(service);
 
-    Application::from_service(FinchersService::new(
-        endpoint,
-        OptionalHandler::default(),
-        JsonResponder::default(),
-    )).run();
+    Application::from_service(endpoint.with_responder(JsonResponder::<Response>::default())).run();
 }
