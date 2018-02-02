@@ -1,8 +1,7 @@
 //! Components of lower-level HTTP services
 
-use std::mem;
 use std::string::ToString;
-use futures::{Future, IntoFuture, Poll};
+use futures::{Future, Poll};
 use futures::Async::*;
 use http::header;
 use hyper::{self, Request, Response};
@@ -45,10 +44,7 @@ where
 
     fn call(&self, request: Self::Request) -> Self::Future {
         let state = match self.endpoint.apply_request(request) {
-            Some(input) => State::PollingInput {
-                input,
-                handler: self.handler.clone(),
-            },
+            Some(input) => State::Polling(input, self.handler.clone()),
             None => State::NoRoute,
         };
         FinchersServiceFuture {
@@ -77,14 +73,7 @@ where
     H: Handler<E::Item>,
 {
     NoRoute,
-    PollingInput {
-        input: <E::Result as EndpointResult>::Future,
-        handler: H,
-    },
-    PollingOutput {
-        output: <H::Result as IntoFuture>::Future,
-    },
-    Done,
+    Polling(<E::Result as EndpointResult>::Future, H),
 }
 
 impl<E, H, R> FinchersServiceFuture<E, H, R>
@@ -95,34 +84,15 @@ where
 {
     fn poll_state(&mut self) -> Poll<Outcome<H::Item>, hyper::Error> {
         use self::State::*;
-        loop {
-            match mem::replace(&mut self.state, Done) {
-                NoRoute => break Ok(Ready(Outcome::NoRoute)),
-                PollingInput { mut input, handler } => match input.poll() {
-                    Ok(Ready(input)) => {
-                        self.state = PollingOutput {
-                            output: IntoFuture::into_future(handler.call(input)),
-                        };
-                        continue;
-                    }
-                    Ok(NotReady) => {
-                        self.state = PollingInput { input, handler };
-                        break Ok(NotReady);
-                    }
-                    Err(err) => break Ok(Ready(Outcome::Err(err))),
-                },
-                PollingOutput { mut output } => match output.poll() {
-                    Ok(Ready(Some(item))) => break Ok(Ready(Outcome::Ok(item))),
-                    Ok(Ready(None)) => break Ok(Ready(Outcome::NoRoute)),
-                    Ok(NotReady) => {
-                        self.state = PollingOutput { output };
-                        break Ok(NotReady);
-                    }
-                    Err(err) => break Ok(Ready(Outcome::Err(err.into()))),
-                },
-                Done => panic!(),
-            }
-        }
+        let outcome = match self.state {
+            NoRoute => Outcome::NoRoute,
+            Polling(ref mut input, ref handler) => match input.poll() {
+                Ok(Ready(input)) => handler.call(input),
+                Ok(NotReady) => return Ok(NotReady),
+                Err(err) => Outcome::Err(err),
+            },
+        };
+        Ok(Ready(outcome))
     }
 }
 

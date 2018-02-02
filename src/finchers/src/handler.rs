@@ -3,35 +3,24 @@
 use std::fmt;
 use std::rc::Rc;
 use std::sync::Arc;
-use futures::IntoFuture;
-use core::{HttpError, NeverReturn};
+use core::Outcome;
 
 /// A trait which represents the server-side processes.
 pub trait Handler<In> {
     /// The type of returned value *on success*
     type Item;
 
-    /// The type of returned value *on failure*
-    type Error: HttpError + 'static;
-
-    /// The type of value returned from `call`
-    type Result: IntoFuture<Item = Option<Self::Item>, Error = Self::Error>;
-
     /// Applies this handler to an input and returns a future.
-    fn call(&self, input: In) -> Self::Result;
+    fn call(&self, input: In) -> Outcome<Self::Item>;
 }
 
-impl<F, In, R, T> Handler<In> for F
+impl<F, In, T> Handler<In> for F
 where
-    F: Fn(In) -> R,
-    R: IntoFuture<Item = Option<T>>,
-    R::Error: HttpError + 'static,
+    F: Fn(In) -> Outcome<T>,
 {
     type Item = T;
-    type Error = R::Error;
-    type Result = R;
 
-    fn call(&self, input: In) -> Self::Result {
+    fn call(&self, input: In) -> Outcome<T> {
         (*self)(input)
     }
 }
@@ -41,10 +30,8 @@ where
     H: Handler<In>,
 {
     type Item = H::Item;
-    type Error = H::Error;
-    type Result = H::Result;
 
-    fn call(&self, input: In) -> Self::Result {
+    fn call(&self, input: In) -> Outcome<Self::Item> {
         (**self).call(input)
     }
 }
@@ -54,10 +41,8 @@ where
     H: Handler<In>,
 {
     type Item = H::Item;
-    type Error = H::Error;
-    type Result = H::Result;
 
-    fn call(&self, input: In) -> Self::Result {
+    fn call(&self, input: In) -> Outcome<Self::Item> {
         (**self).call(input)
     }
 }
@@ -82,12 +67,10 @@ impl Default for DefaultHandler {
 
 impl<T> Handler<T> for DefaultHandler {
     type Item = T;
-    type Error = NeverReturn;
-    type Result = Result<Option<T>, Self::Error>;
 
     #[inline]
-    fn call(&self, input: T) -> Self::Result {
-        Ok(Some(input))
+    fn call(&self, input: T) -> Outcome<T> {
+        Outcome::Ok(input)
     }
 }
 
@@ -111,11 +94,12 @@ impl Default for OptionalHandler {
 
 impl<T> Handler<Option<T>> for OptionalHandler {
     type Item = T;
-    type Error = NeverReturn;
-    type Result = Result<Option<T>, Self::Error>;
 
     #[inline]
-    fn call(&self, input: Option<T>) -> Self::Result {
-        Ok(input)
+    fn call(&self, input: Option<T>) -> Outcome<T> {
+        match input {
+            Some(input) => Outcome::Ok(input),
+            None => Outcome::NoRoute,
+        }
     }
 }
