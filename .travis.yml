@@ -29,13 +29,14 @@ addons:
       - cmake
 
 before_script:
-  - export PATH=$HOME/.local/bin:$PATH
-  - [[ -z "$RUSTFMT_VERSION" ]] || bash .travis/install-rustfmt.sh
+  - 'export PATH=$HOME/.local/bin:$PATH'
+  - '[[ -z "$RUSTFMT_VERSION" ]] || bash .travis/install-rustfmt.sh'
 
 script:
-  - [[ -n "$RUSTFMT_VERSION" ]] || bash .travis/script.sh
-  - [[ -z "$RUSTFMT_VERSION" ]] || cargo fmt -- --write-mode=diff
+  - '[[ -n "$RUSTFMT_VERSION" ]] || bash .travis/script.sh'
+  - '[[ -z "$RUSTFMT_VERSION" ]] || cargo fmt -- --write-mode=diff'
 
 after_success:
-  - [[ -n "$RUSTFMT_VERSION" ]] || bash .travis/upload-doc.sh
+  - '[[ -n "$RUSTFMT_VERSION" ]] || bash .travis/upload-doc.sh'
 #  - travis-cargo --only stable coveralls --no-sudo
+
