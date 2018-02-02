@@ -8,7 +8,7 @@ use http::header;
 use hyper::{self, Request, Response};
 use hyper::server::Service;
 
-use core::{HttpResponse, Outcome};
+use core::{HttpStatus, Outcome};
 use endpoint::{Endpoint, EndpointResult};
 use handler::{DefaultHandler, Handler};
 use responder::{DefaultResponder, Responder};
@@ -151,7 +151,7 @@ where
 #[allow(missing_docs)]
 pub trait EndpointServiceExt: Endpoint + sealed::Sealed
 where
-    Self::Item: ToString + HttpResponse,
+    Self::Item: ToString + HttpStatus,
 {
     fn into_service(self) -> FinchersService<Self, DefaultHandler, DefaultResponder>
     where
@@ -165,7 +165,7 @@ where
 
 impl<E: Endpoint> EndpointServiceExt for E
 where
-    E::Item: ToString + HttpResponse,
+    E::Item: ToString + HttpStatus,
 {
     fn into_service(self) -> FinchersService<Self, DefaultHandler, DefaultResponder> {
         FinchersService::new(self, DefaultHandler::default(), Default::default())

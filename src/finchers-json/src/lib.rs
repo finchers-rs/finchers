@@ -24,7 +24,7 @@ use finchers::futures::{future, Future};
 use finchers::http::{header, Response, StatusCode};
 use finchers::mime;
 
-use finchers::core::{BadRequest, BodyStream, FromBody, HttpError, HttpResponse, Outcome, RequestParts};
+use finchers::core::{BadRequest, BodyStream, FromBody, HttpError, HttpStatus, Outcome, RequestParts};
 use finchers::endpoint::{self, Endpoint, EndpointContext, EndpointResult, Input};
 use finchers::handler::DefaultHandler;
 use finchers::responder::Responder;
@@ -180,7 +180,7 @@ pub struct JsonResponder {
     _priv: (),
 }
 
-impl<T: Serialize + HttpResponse> Responder<T> for JsonResponder {
+impl<T: Serialize + HttpStatus> Responder<T> for JsonResponder {
     fn respond(&self, outcome: Outcome<T>) -> Response<BodyStream> {
         match outcome {
             Outcome::Ok(item) => json_response(&item),
@@ -190,7 +190,7 @@ impl<T: Serialize + HttpResponse> Responder<T> for JsonResponder {
     }
 }
 
-fn json_response<T: Serialize + HttpResponse>(item: &T) -> Response<BodyStream> {
+fn json_response<T: Serialize + HttpStatus>(item: &T) -> Response<BodyStream> {
     let body = serde_json::to_string(item).expect("failed to serialize a JSON body");
     make_json_response(item.status_code(), body)
 }
@@ -229,14 +229,14 @@ pub trait EndpointServiceExt: Endpoint + sealed::Sealed {
     fn into_service(self) -> FinchersService<Self, DefaultHandler, JsonResponder>
     where
         Self: Sized,
-        Self::Item: Serialize + HttpResponse;
+        Self::Item: Serialize + HttpStatus;
 }
 
 impl<E: Endpoint> EndpointServiceExt for E {
     fn into_service(self) -> FinchersService<Self, DefaultHandler, JsonResponder>
     where
         Self: Sized,
-        Self::Item: Serialize + HttpResponse,
+        Self::Item: Serialize + HttpStatus,
     {
         FinchersService::new(self, DefaultHandler::default(), JsonResponder::default())
     }

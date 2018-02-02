@@ -10,7 +10,7 @@ use finchers::endpoint::prelude::*;
 use finchers_urlencoded::{form_body, from_csv, queries};
 use std::fmt;
 
-#[derive(Debug, Deserialize, HttpResponse)]
+#[derive(Debug, Deserialize, HttpStatus)]
 pub struct FormParam {
     query: String,
     count: Option<usize>,

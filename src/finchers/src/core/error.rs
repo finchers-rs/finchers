@@ -4,20 +4,20 @@ use std::borrow::Cow;
 use std::fmt;
 use std::error::Error as StdError;
 use std::ops::Deref;
-use core::HttpResponse;
+use core::HttpStatus;
 use http::StatusCode;
 
 #[allow(missing_docs)]
-pub trait HttpError: StdError + HttpResponse {}
+pub trait HttpError: StdError + HttpStatus {}
 
-impl<E: StdError + HttpResponse> HttpError for E {}
+impl<E: StdError + HttpStatus> HttpError for E {}
 
 macro_rules! impl_http_error {
     (@bad_request) => { StatusCode::BAD_REQUEST };
     (@server_error) => { StatusCode::INTERNAL_SERVER_ERROR };
 
     ($( @$i:ident $t:ty; )*) => {$(
-        impl HttpResponse for $t {
+        impl HttpStatus for $t {
             #[inline]
             fn status_code(&self) -> StatusCode {
                 impl_http_error!(@$i)
@@ -108,7 +108,7 @@ impl StdError for NeverReturn {
     }
 }
 
-impl HttpResponse for NeverReturn {
+impl HttpStatus for NeverReturn {
     fn status_code(&self) -> StatusCode {
         unreachable!()
     }
@@ -152,7 +152,7 @@ impl<E: StdError> StdError for BadRequest<E> {
     }
 }
 
-impl<E: StdError + 'static> HttpResponse for BadRequest<E> {
+impl<E: StdError + 'static> HttpStatus for BadRequest<E> {
     fn status_code(&self) -> StatusCode {
         StatusCode::BAD_REQUEST
     }
@@ -185,7 +185,7 @@ impl StdError for NotPresent {
     }
 }
 
-impl HttpResponse for NotPresent {
+impl HttpStatus for NotPresent {
     fn status_code(&self) -> StatusCode {
         StatusCode::BAD_REQUEST
     }
