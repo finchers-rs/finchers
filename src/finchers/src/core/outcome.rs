@@ -9,6 +9,34 @@ pub enum Outcome<T> {
     NoRoute,
 }
 
+impl<T> From<Option<T>> for Outcome<T> {
+    fn from(input: Option<T>) -> Outcome<T> {
+        match input {
+            Some(item) => Outcome::Ok(item),
+            None => Outcome::NoRoute,
+        }
+    }
+}
+
+impl<T, E: Into<Error>> From<Result<T, E>> for Outcome<T> {
+    fn from(input: Result<T, E>) -> Outcome<T> {
+        match input {
+            Ok(item) => Outcome::Ok(item),
+            Err(err) => Outcome::Err(err.into()),
+        }
+    }
+}
+
+impl<T, E: Into<Error>> From<Result<Option<T>, E>> for Outcome<T> {
+    fn from(input: Result<Option<T>, E>) -> Outcome<T> {
+        match input {
+            Ok(Some(item)) => Outcome::Ok(item),
+            Ok(None) => Outcome::NoRoute,
+            Err(err) => Outcome::Err(err.into()),
+        }
+    }
+}
+
 impl<T> Outcome<T> {
     #[inline]
     pub fn is_ok(&self) -> bool {
