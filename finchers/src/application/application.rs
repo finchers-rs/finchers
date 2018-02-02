@@ -4,9 +4,8 @@ use std::sync::Arc;
 use hyper;
 use hyper::server::{NewService, Service};
 
-use core::{HttpStatus, Outcome};
-use endpoint::Endpoint;
-use responder::DefaultResponder;
+use endpoint::{Endpoint, Outcome};
+use response::{DefaultResponder, HttpStatus};
 use service::{EndpointServiceExt, FinchersService};
 
 use super::{Http, Tcp, TcpBackend, Worker};

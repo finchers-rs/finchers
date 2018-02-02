@@ -4,8 +4,9 @@ use std::borrow::Cow;
 use std::fmt;
 use std::error::Error as StdError;
 use std::ops::Deref;
-use core::HttpStatus;
 use http::StatusCode;
+
+use response::HttpStatus;
 
 #[allow(missing_docs)]
 pub trait HttpError: StdError + HttpStatus {}
@@ -47,7 +48,6 @@ impl_http_error! {
     @server_error ::std::sync::mpsc::TryRecvError;
     @server_error ::std::sync::mpsc::RecvTimeoutError;
     @server_error ::hyper::Error;
-    @server_error ::futures::future::SharedError<::hyper::Error>;
 }
 
 #[allow(missing_docs)]

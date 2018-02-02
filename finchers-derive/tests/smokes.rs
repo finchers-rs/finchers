@@ -2,8 +2,8 @@ extern crate finchers;
 #[macro_use]
 extern crate finchers_derive;
 
-use finchers::core::HttpStatus;
 use finchers::http::StatusCode;
+use finchers::response::HttpStatus;
 
 fn assert_impl_http_response<T: HttpStatus>(t: T) -> T {
     t

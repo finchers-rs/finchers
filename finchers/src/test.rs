@@ -5,8 +5,10 @@
 use std::io;
 use tokio_core::reactor::Core;
 use http::Request;
-use core::{BodyStream, Error};
+
+use body::BodyStream;
 use endpoint::Endpoint;
+use errors::Error;
 
 #[derive(Debug)]
 pub struct TestRunner<E: Endpoint> {
@@ -26,28 +28,25 @@ impl<E: Endpoint> TestRunner<E> {
     ///
     /// # Panics
     /// This method will panic if an unexpected HTTP error will be occurred.
-    pub fn run<R, B>(&mut self, request: R) -> Option<Result<E::Item, Error>>
+    pub fn run<B>(&mut self, request: Request<B>) -> Option<Result<E::Item, Error>>
     where
-        R: Into<Request<B>>,
         B: Into<BodyStream>,
     {
         self.endpoint
-            .apply_request(request)
+            .apply_input(::http::Request::from(request).into())
             .map(|fut| self.core.run(fut))
     }
 }
 
 pub trait EndpointTestExt: Endpoint + sealed::Sealed {
-    fn run<R, B>(&self, request: R) -> Option<Result<Self::Item, Error>>
+    fn run<B>(&self, request: Request<B>) -> Option<Result<Self::Item, Error>>
     where
-        R: Into<Request<B>>,
         B: Into<BodyStream>;
 }
 
 impl<E: Endpoint> EndpointTestExt for E {
-    fn run<R, B>(&self, request: R) -> Option<Result<Self::Item, Error>>
+    fn run<B>(&self, request: Request<B>) -> Option<Result<Self::Item, Error>>
     where
-        R: Into<Request<B>>,
         B: Into<BodyStream>,
     {
         let mut runner = TestRunner::new(self).unwrap();

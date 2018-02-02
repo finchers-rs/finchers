@@ -42,8 +42,10 @@ use serde::de::{self, IntoDeserializer};
 use finchers::futures::future::{self, Future, FutureResult, IntoFuture};
 use finchers::mime;
 
-use finchers::core::{BadRequest, Error as FinchersError, FromBody, RequestParts};
+use finchers::body::FromBody;
 use finchers::endpoint::{self, Endpoint, EndpointContext, EndpointResult, Input};
+use finchers::errors::{BadRequest, Error as FinchersError};
+use finchers::request::RequestParts;
 
 #[allow(missing_docs)]
 pub fn queries<T: de::DeserializeOwned>() -> Queries<T> {

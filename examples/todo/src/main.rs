@@ -9,7 +9,8 @@ extern crate serde;
 mod model;
 mod service;
 
-use finchers::{Application, Endpoint, EndpointServiceExt};
+use finchers::{Endpoint, EndpointServiceExt};
+use finchers::application::Application;
 use finchers_json::{json_body, JsonResponder};
 use self::model::*;
 use self::service::*;

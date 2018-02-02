@@ -25,9 +25,11 @@ use finchers::futures::{future, Future};
 use finchers::http::{header, Response, StatusCode};
 use finchers::mime;
 
-use finchers::core::{BadRequest, BodyStream, FromBody, HttpError, HttpStatus, Outcome, RequestParts};
-use finchers::endpoint::{self, Endpoint, EndpointContext, EndpointResult, Input};
-use finchers::responder::Responder;
+use finchers::body::{BodyStream, FromBody};
+use finchers::endpoint::{self, Endpoint, EndpointContext, EndpointResult, Input, Outcome};
+use finchers::errors::{BadRequest, HttpError};
+use finchers::request::RequestParts;
+use finchers::response::{HttpStatus, Responder};
 
 /// The error type from serde_json
 #[derive(Debug)]

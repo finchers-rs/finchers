@@ -5,7 +5,10 @@ use std::string::ToString;
 use std::sync::Arc;
 use http::{Response, StatusCode};
 use http::header;
-use core::{BodyStream, HttpStatus, Outcome};
+
+use body::BodyStream;
+use endpoint::Outcome;
+use response::HttpStatus;
 
 /// A trait to represents the conversion from outcome to an HTTP response.
 pub trait Responder<T> {

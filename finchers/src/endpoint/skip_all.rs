@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 
-use core::NeverReturn;
 use endpoint::{Endpoint, EndpointContext, Input, IntoEndpoint};
+use errors::NeverReturn;
 
 pub fn skip_all<I>(iter: I) -> SkipAll<<I::Item as IntoEndpoint>::Endpoint>
 where

@@ -1,9 +1,9 @@
 use std::rc::Rc;
 use std::sync::Arc;
 use futures::{future, Future, IntoFuture};
-use http::Request;
-use core::{BodyStream, Error, HttpError};
+
 use endpoint::{self, EndpointContext, Input};
+use errors::{Error, HttpError};
 
 /// Abstruction of an endpoint.
 pub trait Endpoint {
@@ -18,12 +18,7 @@ pub trait Endpoint {
     fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Result>;
 
     #[allow(missing_docs)]
-    fn apply_request<R, B>(&self, request: R) -> Option<<Self::Result as EndpointResult>::Future>
-    where
-        R: Into<Request<B>>,
-        B: Into<BodyStream>,
-    {
-        let mut input = Input::from_request(request);
+    fn apply_input(&self, mut input: Input) -> Option<<Self::Result as EndpointResult>::Future> {
         self.apply(&input, &mut EndpointContext::new(&input))
             .map(|result| result.into_future(&mut input))
     }

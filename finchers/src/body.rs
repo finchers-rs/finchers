@@ -1,11 +1,18 @@
+#![allow(missing_docs)]
+
+use std::fmt;
 use std::error::Error;
 use std::mem;
 use std::string::FromUtf8Error;
 use futures::{Future, Poll, Stream};
 use futures::future;
 use futures::Async::*;
+use http::StatusCode;
 use hyper;
-use super::{NeverReturn, RequestParts};
+
+use errors::NeverReturn;
+use request::RequestParts;
+use response::HttpStatus;
 
 /// A raw `Stream` to receive the incoming request body
 #[derive(Debug, Default)]
@@ -53,11 +60,30 @@ impl Into<hyper::Body> for BodyStream {
 }
 
 impl Stream for BodyStream {
-    type Item = hyper::Chunk;
-    type Error = hyper::Error;
+    type Item = BodyStreamItem;
+    type Error = BodyStreamError;
 
     fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
-        self.inner.poll()
+        let inner = try_ready!(self.inner.poll());
+        Ok(Ready(inner.map(|inner| BodyStreamItem { inner })))
+    }
+}
+
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct BodyStreamItem {
+    inner: hyper::Chunk,
+}
+
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct BodyStreamError {
+    inner: hyper::Error,
+}
+
+impl From<hyper::Error> for BodyStreamError {
+    fn from(inner: hyper::Error) -> Self {
+        BodyStreamError { inner }
     }
 }
 
@@ -82,16 +108,17 @@ impl From<BodyStream> for Body {
 }
 
 impl Future for Body {
-    type Item = future::SharedItem<Vec<u8>>;
-    type Error = future::SharedError<hyper::Error>;
+    type Item = BodyItem;
+    type Error = BodyError;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        self.inner.poll()
+        let inner = try_ready!(self.inner.poll());
+        Ok(Ready(BodyItem { inner }))
     }
 }
 
 #[derive(Debug)]
-pub enum BodyState {
+enum BodyState {
     Receiving(hyper::Body, Vec<u8>),
     Done,
 }
@@ -112,6 +139,54 @@ impl Future for BodyState {
             Receiving(_, buf) => Ok(Ready(buf)),
             Done => panic!(),
         }
+    }
+}
+
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct BodyItem {
+    inner: future::SharedItem<Vec<u8>>,
+}
+
+impl ::std::ops::Deref for BodyItem {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        &**self.inner
+    }
+}
+
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct BodyError {
+    inner: future::SharedError<hyper::Error>,
+}
+
+impl fmt::Display for BodyError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        (*self.inner).fmt(f)
+    }
+}
+
+impl Error for BodyError {
+    fn description(&self) -> &str {
+        (*self.inner).description()
+    }
+
+    fn cause(&self) -> Option<&Error> {
+        (*self.inner).cause()
+    }
+}
+
+impl From<future::SharedError<hyper::Error>> for BodyError {
+    fn from(inner: future::SharedError<hyper::Error>) -> Self {
+        BodyError { inner }
+    }
+}
+
+impl HttpStatus for BodyError {
+    fn status_code(&self) -> StatusCode {
+        StatusCode::INTERNAL_SERVER_ERROR
     }
 }
 

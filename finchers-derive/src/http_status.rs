@@ -290,8 +290,9 @@ impl ToTokens for Context {
         tokens.append_all(quote! {
             #[allow(non_snake_case)]
             mod #dummy_mod {
-                use finchers::core::HttpStatus;
-                use finchers::http::StatusCode;
+                extern crate finchers as _finchers;
+                use self::_finchers::http::StatusCode;
+                use self::_finchers::response::HttpStatus;
 
                 impl #impl_generics HttpStatus for #ident #ty_generics #where_clause {
                     fn status_code(&self) -> StatusCode {

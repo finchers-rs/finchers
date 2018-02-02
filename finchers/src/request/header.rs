@@ -5,7 +5,7 @@ use std::error::Error;
 use std::str::FromStr;
 use hyper;
 use hyper::header::{self, Header};
-use super::NeverReturn;
+use errors::NeverReturn;
 
 pub trait FromHeader: 'static + Sized {
     type Error: Error + 'static;
@@ -154,22 +154,5 @@ where
     #[inline]
     fn from_header(s: &[u8]) -> Result<Self, Self::Error> {
         <Self as Header>::parse_header(&s.into())
-    }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Hash, Eq)]
-pub struct HyperHeader<H>(pub H);
-
-impl<H: Header + Clone> FromHeader for HyperHeader<H> {
-    type Error = hyper::Error;
-
-    #[inline]
-    fn header_name() -> &'static str {
-        <H as Header>::header_name()
-    }
-
-    #[inline]
-    fn from_header(s: &[u8]) -> Result<Self, Self::Error> {
-        <H as Header>::parse_header(&s.into()).map(HyperHeader)
     }
 }

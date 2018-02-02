@@ -9,9 +9,8 @@ use http::header;
 use hyper::{self, Request, Response};
 use hyper::server::Service;
 
-use core::{HttpStatus, Outcome};
-use endpoint::{Endpoint, EndpointResult};
-use responder::{DefaultResponder, Responder};
+use endpoint::{Endpoint, EndpointResult, Outcome};
+use response::{DefaultResponder, HttpStatus, Responder};
 
 /// An HTTP service which wraps a `Endpoint`, `Handler` and `Responder`.
 #[derive(Debug, Copy, Clone)]
@@ -44,8 +43,9 @@ where
     type Future = FinchersServiceFuture<E, R, T>;
 
     fn call(&self, request: Self::Request) -> Self::Future {
+        let input = ::http::Request::from(request);
         FinchersServiceFuture {
-            state: self.endpoint.apply_request(request),
+            state: self.endpoint.apply_input(input.into()),
             responder: self.responder.clone(),
             _marker: PhantomData,
         }

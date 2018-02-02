@@ -18,9 +18,11 @@ use std::fmt;
 use std::marker::PhantomData;
 use futures::{Future, Poll};
 use futures::future::{self, FutureResult};
-use core::{BadRequest, Error};
+
+use body::{self as body_mod, FromBody};
 use endpoint::{Endpoint, EndpointContext, EndpointResult, Input};
-use core::{self, FromBody, RequestParts};
+use errors::{BadRequest, Error};
+use request::RequestParts;
 
 /// Creates an endpoint for parsing the incoming request body into the value of `T`
 pub fn body<T: FromBody>() -> Body<T> {
@@ -87,7 +89,7 @@ impl<T: FromBody> EndpointResult for BodyResult<T> {
 #[allow(missing_debug_implementations)]
 pub struct BodyFuture<T> {
     request: RequestParts,
-    body: core::Body,
+    body: body_mod::Body,
     _marker: PhantomData<fn() -> T>,
 }
 
@@ -128,7 +130,7 @@ impl fmt::Debug for BodyStream {
 }
 
 impl Endpoint for BodyStream {
-    type Item = core::BodyStream;
+    type Item = body_mod::BodyStream;
     type Result = BodyStreamResult;
 
     fn apply(&self, _: &Input, _: &mut EndpointContext) -> Option<Self::Result> {
@@ -143,7 +145,7 @@ pub struct BodyStreamResult {
 }
 
 impl EndpointResult for BodyStreamResult {
-    type Item = core::BodyStream;
+    type Item = body_mod::BodyStream;
     type Future = FutureResult<Self::Item, Error>;
 
     fn into_future(self, input: &mut Input) -> Self::Future {

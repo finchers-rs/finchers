@@ -5,8 +5,8 @@ use std::mem;
 use std::sync::Arc;
 use futures::{Future, IntoFuture, Poll};
 use futures::Async::*;
-use core::Error;
 use endpoint::{Endpoint, EndpointContext, EndpointResult, Input};
+use errors::Error;
 use self::Chain::*;
 
 pub fn and_then<E, F, R>(endpoint: E, f: F) -> AndThen<E, F>

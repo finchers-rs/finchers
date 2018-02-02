@@ -9,8 +9,10 @@
 use std::fmt;
 use std::marker::PhantomData;
 use futures::future::{err, ok, result, FutureResult};
-use core::{BadRequest, Error, FromHeader, NotPresent};
+
 use endpoint::{Endpoint, EndpointContext, EndpointResult, Input};
+use errors::{BadRequest, Error, NotPresent};
+use request::FromHeader;
 
 #[allow(missing_docs)]
 pub fn header<H: FromHeader>() -> Header<H> {

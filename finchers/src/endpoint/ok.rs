@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 
-use core::NeverReturn;
+use errors::NeverReturn;
 use super::{Endpoint, EndpointContext, Input};
 
 pub fn ok<T: Clone>(x: T) -> EndpointOk<T> {

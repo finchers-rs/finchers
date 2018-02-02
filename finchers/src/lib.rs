@@ -21,26 +21,39 @@ extern crate tokio_tls;
 #[allow(unused_imports)]
 #[macro_use]
 extern crate finchers_derive;
+#[doc(hidden)]
 pub use finchers_derive::*;
 
 #[macro_use]
 mod macros;
 
 pub mod application;
-pub mod core;
+pub mod body;
 pub mod endpoint;
-pub mod responder;
+pub mod errors;
+pub mod request;
+pub mod response;
 pub mod service;
 pub mod test;
-
-#[doc(inline)]
-pub use application::Application;
 
 #[doc(inline)]
 pub use endpoint::{Endpoint, EndpointResult, IntoEndpoint};
 
 #[doc(inline)]
-pub use responder::Responder;
+pub use errors::{Error, HttpError};
+
+#[doc(inline)]
+pub use response::{HttpStatus, Responder};
 
 #[doc(inline)]
 pub use service::EndpointServiceExt;
+
+#[allow(missing_docs)]
+pub mod prelude {
+    pub use body::FromBody;
+    pub use endpoint::{Endpoint, IntoEndpoint};
+    pub use errors::HttpError;
+    pub use request::{FromHeader, FromSegment, FromSegments};
+    pub use response::{HttpStatus, Responder};
+    pub use service::EndpointServiceExt;
+}

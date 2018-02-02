@@ -5,24 +5,28 @@ pub mod method;
 pub mod header;
 pub mod path;
 
-pub(crate) mod and_then;
-pub(crate) mod context;
-pub(crate) mod endpoint;
-pub(crate) mod input;
-pub(crate) mod join;
-pub(crate) mod join_all;
-pub(crate) mod map;
-pub(crate) mod or;
-pub(crate) mod ok;
-pub(crate) mod skip;
-pub(crate) mod skip_all;
-pub(crate) mod with;
+mod context;
+mod endpoint;
+mod input;
+mod outcome;
+
+mod and_then;
+mod join;
+mod join_all;
+mod map;
+mod or;
+mod ok;
+mod skip;
+mod skip_all;
+mod with;
 
 // re-exports
-pub use self::and_then::AndThen;
 pub use self::context::EndpointContext;
 pub use self::endpoint::{endpoint, Endpoint, EndpointResult, IntoEndpoint};
 pub use self::input::Input;
+pub use self::outcome::Outcome;
+
+pub use self::and_then::AndThen;
 pub use self::join::{Join, Join3, Join4, Join5};
 pub use self::join_all::{join_all, JoinAll};
 pub use self::map::Map;
