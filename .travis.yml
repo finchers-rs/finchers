@@ -30,14 +30,12 @@ addons:
 
 before_script:
   - export PATH=$HOME/.local/bin:$PATH
-  - bash .travis/install-rustfmt.sh
+  - [[ -z "$RUSTFMT_VERSION" ]] || bash .travis/install-rustfmt.sh
 
 script:
-  - if [[ -z "$RUSTFMT_VERSION" ]]; then cargo build; fi
-  - if [[ -z "$RUSTFMT_VERSION" ]]; then cargo test; fi
-  - if [[ -z "$RUSTFMT_VERSION" && "$TRAVIS_RUST_VERSION" == "stable" ]]; then cargo doc --no-deps; fi
-  - if [[ -n "$RUSTFMT_VERSION" ]]; then cargo fmt -- --write-mode=diff; fi
+  - [[ -n "$RUSTFMT_VERSION" ]] || bash .travis/script.sh
+  - [[ -z "$RUSTFMT_VERSION" ]] || cargo fmt -- --write-mode=diff
 
 after_success:
-  - if [[ "$TRAVIS_RUST_VERSION" == "stable" ]]; then bash .travis/upload-doc.sh; fi
+  - [[ -n "$RUSTFMT_VERSION" ]] || bash .travis/upload-doc.sh
 #  - travis-cargo --only stable coveralls --no-sudo

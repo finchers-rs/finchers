@@ -2,6 +2,11 @@
 
 set -euo pipefail
 
+if [[ "$TRAVIS_RUST_VERSION" != "stable" ]]; then
+    echo "This script should be running only on stable channel"
+    exit 1
+fi
+
 get-branch() {
     if [[ "${TRAVIS_PULL_REQUEST:-}" == false ]]; then
         echo "${TRAVIS_BRANCH}"

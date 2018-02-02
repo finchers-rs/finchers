@@ -34,12 +34,16 @@ fn derive_http_response_for_enum() {
     enum Param {
         #[status_code = "FOUND"]
         A,
-        B,
+        B(u32),
+        #[allow(dead_code)]
+        C {
+            id: u32,
+        },
     }
 
     let param = assert_impl_http_response(Param::A);
     assert_eq!(param.status_code(), StatusCode::FOUND);
 
-    let param = assert_impl_http_response(Param::B);
+    let param = assert_impl_http_response(Param::B(0));
     assert_eq!(param.status_code(), StatusCode::OK);
 }

@@ -3,6 +3,13 @@ use syn::{self, DeriveInput, Generics, Ident, Lit, Meta};
 use quote::{ToTokens, Tokens};
 
 #[derive(Debug)]
+pub enum FieldKind {
+    Unit,
+    Named,
+    Unnamed,
+}
+
+#[derive(Debug)]
 pub struct Attr {
     status_code: Ident,
 }
@@ -34,7 +41,7 @@ impl Attr {
 #[derive(Debug)]
 pub enum Body {
     Struct(Attr),
-    Enum(Vec<(Ident, Attr)>),
+    Enum(Vec<(Ident, FieldKind, Attr)>),
 }
 
 impl Body {
@@ -48,7 +55,12 @@ impl Body {
                 let mut variants = vec![];
                 for variant in data.variants {
                     let attr = Attr::from_attributes(&variant.attrs);
-                    variants.push((variant.ident, attr));
+                    let field_kind = match variant.fields {
+                        syn::Fields::Unit => FieldKind::Unit,
+                        syn::Fields::Named(..) => FieldKind::Named,
+                        syn::Fields::Unnamed(..) => FieldKind::Unnamed,
+                    };
+                    variants.push((variant.ident, field_kind, attr));
                 }
                 Body::Enum(variants)
             }
@@ -63,9 +75,14 @@ impl Body {
                 quote!(StatusCode::#status_code)
             }
             Body::Enum(ref variants) => {
-                let inner = variants.into_iter().map(|&(variant, ref attr)| {
+                let inner = variants.into_iter().map(|&(variant, ref kind, ref attr)| {
+                    let args = match *kind {
+                        FieldKind::Unit => quote!(),
+                        FieldKind::Named => quote!({ .. }),
+                        FieldKind::Unnamed => quote!((..)),
+                    };
                     let status_code = &attr.status_code;
-                    quote!(#ident :: #variant => StatusCode::#status_code)
+                    quote!(#ident :: #variant #args => StatusCode::#status_code)
                 });
                 quote!(
                     match *self {
