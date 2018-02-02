@@ -1,11 +1,10 @@
 use std::fmt;
 use std::error::Error;
 use std::sync::{Arc, RwLock};
-use http::StatusCode;
-use finchers::core::HttpResponse;
 use super::model::{NewTodo, PatchTodo, Todo, TodoRepository};
 
-#[derive(Debug)]
+#[derive(Debug, HttpStatus)]
+#[status_code = "INTERNAL_SERVER_ERROR"]
 pub enum ServiceError {
     Poisoned,
 }
@@ -27,12 +26,6 @@ impl fmt::Display for ServiceError {
 impl Error for ServiceError {
     fn description(&self) -> &str {
         "server error"
-    }
-}
-
-impl HttpResponse for ServiceError {
-    fn status_code(&self) -> StatusCode {
-        StatusCode::INTERNAL_SERVER_ERROR
     }
 }
 

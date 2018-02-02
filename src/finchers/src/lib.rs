@@ -18,6 +18,11 @@ extern crate tokio_io;
 #[cfg(feature = "tls")]
 extern crate tokio_tls;
 
+#[allow(unused_imports)]
+#[macro_use]
+extern crate finchers_derive;
+pub use finchers_derive::*;
+
 #[macro_use]
 mod macros;
 

@@ -4,7 +4,7 @@ use std::sync::Arc;
 use hyper;
 use hyper::server::{NewService, Service};
 
-use core::HttpResponse;
+use core::HttpStatus;
 use endpoint::Endpoint;
 use handler::DefaultHandler;
 use responder::DefaultResponder;
@@ -87,7 +87,7 @@ where
 impl<E> Application<ConstService<FinchersService<E, DefaultHandler, DefaultResponder>>, DefaultBackend>
 where
     E: Endpoint,
-    E::Item: HttpResponse + ToString,
+    E::Item: HttpStatus + ToString,
 {
     #[allow(missing_docs)]
     pub fn from_endpoint(endpoint: E) -> Self {

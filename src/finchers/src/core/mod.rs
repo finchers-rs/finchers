@@ -17,14 +17,14 @@ pub use self::outcome::Outcome;
 use http::StatusCode;
 
 /// A trait for constructing an HTTP response from the value.
-pub trait HttpResponse {
+pub trait HttpStatus {
     /// Returns a HTTP status code associated with this type
     fn status_code(&self) -> StatusCode;
 }
 
 macro_rules! impl_http_response_for_types {
     ($($t:ty;)*) => {$(
-        impl HttpResponse for $t {
+        impl HttpStatus for $t {
             fn status_code(&self) -> StatusCode {
                 StatusCode::OK
             }

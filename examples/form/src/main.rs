@@ -10,18 +10,12 @@ use finchers::endpoint::prelude::*;
 use finchers_urlencoded::{form_body, from_csv, queries};
 use std::fmt;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, HttpStatus)]
 pub struct FormParam {
     query: String,
     count: Option<usize>,
     #[serde(deserialize_with = "from_csv")]
     tags: Option<Vec<String>>,
-}
-
-impl finchers::core::HttpResponse for FormParam {
-    fn status_code(&self) -> http::StatusCode {
-        http::StatusCode::OK
-    }
 }
 
 impl fmt::Display for FormParam {

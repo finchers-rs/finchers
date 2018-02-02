@@ -5,7 +5,7 @@ use std::string::ToString;
 use std::sync::Arc;
 use http::{Response, StatusCode};
 use http::header;
-use core::{BodyStream, HttpResponse, Outcome};
+use core::{BodyStream, HttpStatus, Outcome};
 
 /// A trait to represents the conversion from outcome to an HTTP response.
 pub trait Responder<T> {
@@ -43,7 +43,7 @@ pub struct DefaultResponder {
 impl DefaultResponder {
     fn respond_item<T>(&self, item: &T) -> Response<BodyStream>
     where
-        T: ?Sized + ToString + HttpResponse,
+        T: ?Sized + ToString + HttpStatus,
     {
         let body = item.to_string();
         Response::builder()
@@ -64,7 +64,7 @@ impl DefaultResponder {
 
 impl<T> Responder<T> for DefaultResponder
 where
-    T: HttpResponse + ToString,
+    T: HttpStatus + ToString,
 {
     fn respond(&self, output: Outcome<T>) -> Response<BodyStream> {
         match output {
