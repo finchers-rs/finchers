@@ -82,7 +82,7 @@ where
     }
 }
 
-impl<E, T> Application<ConstService<FinchersService<E, DefaultResponder, T>>, DefaultBackend>
+impl<E, T> Application<ConstService<FinchersService<E, DefaultResponder<T>>>, DefaultBackend>
 where
     E: Endpoint,
     E::Item: Into<Outcome<T>>,

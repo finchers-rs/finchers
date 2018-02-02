@@ -203,7 +203,9 @@ impl<T> fmt::Debug for JsonResponder<T> {
     }
 }
 
-impl<T: Serialize + HttpStatus> Responder<T> for JsonResponder<T> {
+impl<T: Serialize + HttpStatus> Responder for JsonResponder<T> {
+    type Item = T;
+
     fn respond(&self, outcome: Outcome<T>) -> Response<BodyStream> {
         match outcome {
             Outcome::Ok(item) => json_response(&item),
