@@ -1,7 +1,12 @@
 [workspace]
 members = [
-  "src/*",
-  "examples/*",
+  "finchers",
+  "finchers-derive",
+  "finchers-json",
+  "finchers-urlencoded",
+
+  "examples/form",
+  "examples/todo",
 ]
 
 [replace]
