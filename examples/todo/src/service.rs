@@ -4,8 +4,8 @@ use std::sync::{Arc, RwLock};
 use super::model::{NewTodo, PatchTodo, Todo, TodoRepository};
 
 #[derive(Debug, HttpStatus)]
+#[status_code = "INTERNAL_SERVER_ERROR"]
 pub enum ServiceError {
-    #[status_code = "INTERNAL_SERVER_ERROR"]
     Poisoned,
 }
 

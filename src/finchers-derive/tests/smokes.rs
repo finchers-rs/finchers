@@ -31,19 +31,22 @@ fn derive_http_response_for_generic_struct() {
 #[test]
 fn derive_http_response_for_enum() {
     #[derive(HttpStatus)]
+    #[status_code = "CREATED"]
     enum Param {
-        #[status_code = "FOUND"]
-        A,
-        B(u32),
-        #[allow(dead_code)]
-        C {
-            id: u32,
+        A(u32),
+        B {
+            _id: u32,
         },
+        #[status_code = "FOUND"]
+        C,
     }
 
-    let param = assert_impl_http_response(Param::A);
-    assert_eq!(param.status_code(), StatusCode::FOUND);
+    let param = assert_impl_http_response(Param::A(0));
+    assert_eq!(param.status_code(), StatusCode::CREATED);
 
-    let param = assert_impl_http_response(Param::B(0));
-    assert_eq!(param.status_code(), StatusCode::OK);
+    let param = assert_impl_http_response(Param::B { _id: 0 });
+    assert_eq!(param.status_code(), StatusCode::CREATED);
+
+    let param = assert_impl_http_response(Param::C);
+    assert_eq!(param.status_code(), StatusCode::FOUND);
 }
