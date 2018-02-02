@@ -1,0 +1,14 @@
+[package]
+name = "finchers-derive"
+version = "0.11.0-dev"
+authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = "0.12"
+quote = "0.4"
+
+[dev-dependencies]
+finchers = { path = "../finchers" }

@@ -4,7 +4,6 @@
 #[cfg_attr(feature = "unstable", macro_use)]
 extern crate finchers;
 extern crate finchers_json;
-extern crate http;
 #[cfg(feature = "unstable")]
 #[macro_use]
 extern crate serde_derive;

@@ -2,33 +2,22 @@ mod model;
 mod service;
 
 use finchers::{Application, Endpoint};
-use finchers::core::HttpResponse;
 use finchers::handler::OptionalHandler;
 use finchers::service::FinchersService;
 use finchers_json::{json_body, JsonResponder};
-use http::StatusCode;
 use self::model::*;
 use self::service::*;
 use self::Response::*;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, HttpResponse)]
 #[serde(untagged)]
 enum Response {
     TheTodo(Todo),
     Todos(Vec<Todo>),
+    #[status_code = "CREATED"]
     Created(Todo),
+    #[status_code = "NO_CONTENT"]
     Deleted,
-}
-
-// TODO: code generation
-impl HttpResponse for Response {
-    fn status_code(&self) -> StatusCode {
-        match *self {
-            TheTodo(..) | Todos(..) => StatusCode::OK,
-            Created(..) => StatusCode::CREATED,
-            Deleted => StatusCode::NO_CONTENT,
-        }
-    }
 }
 
 fn build_endpoint(service: Service) -> impl Endpoint<Item = Response> + 'static {
