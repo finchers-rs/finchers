@@ -37,6 +37,16 @@ impl<T, E: Into<Error>> From<Result<Option<T>, E>> for Outcome<T> {
     }
 }
 
+impl<T, E: Into<Error>> From<Option<Result<T, E>>> for Outcome<T> {
+    fn from(input: Option<Result<T, E>>) -> Outcome<T> {
+        match input {
+            Some(Ok(item)) => Outcome::Ok(item),
+            Some(Err(err)) => Outcome::Err(err.into()),
+            None => Outcome::NoRoute,
+        }
+    }
+}
+
 impl<T> Outcome<T> {
     #[inline]
     pub fn is_ok(&self) -> bool {

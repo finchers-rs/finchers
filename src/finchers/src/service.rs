@@ -1,5 +1,6 @@
 //! Components of lower-level HTTP services
 
+use std::io;
 use std::string::ToString;
 use std::marker::PhantomData;
 use futures::{Future, Poll};
@@ -43,12 +44,8 @@ where
     type Future = FinchersServiceFuture<E, R, T>;
 
     fn call(&self, request: Self::Request) -> Self::Future {
-        let state = match self.endpoint.apply_request(request) {
-            Some(input) => State::Polling(input),
-            None => State::NoRoute,
-        };
         FinchersServiceFuture {
-            state,
+            state: self.endpoint.apply_request(request),
             responder: self.responder.clone(),
             _marker: PhantomData,
         }
@@ -63,18 +60,9 @@ where
     E::Item: Into<Outcome<T>>,
     R: Responder<T>,
 {
-    state: State<E>,
+    state: Option<<E::Result as EndpointResult>::Future>,
     responder: R,
     _marker: PhantomData<fn() -> T>,
-}
-
-#[allow(missing_debug_implementations)]
-enum State<E>
-where
-    E: Endpoint,
-{
-    NoRoute,
-    Polling(<E::Result as EndpointResult>::Future),
 }
 
 impl<E, R, T> FinchersServiceFuture<E, R, T>
@@ -83,15 +71,14 @@ where
     E::Item: Into<Outcome<T>>,
     R: Responder<T>,
 {
-    fn poll_state(&mut self) -> Poll<Outcome<T>, hyper::Error> {
-        use self::State::*;
+    fn poll_state(&mut self) -> Poll<Outcome<T>, io::Error> {
         let outcome = match self.state {
-            NoRoute => Outcome::NoRoute,
-            Polling(ref mut f) => match f.poll() {
+            Some(ref mut f) => match f.poll() {
                 Ok(Ready(outcome)) => outcome.into(),
                 Ok(NotReady) => return Ok(NotReady),
                 Err(err) => Outcome::Err(err),
             },
+            None => Outcome::NoRoute,
         };
         Ok(Ready(outcome))
     }
