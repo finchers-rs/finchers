@@ -9,6 +9,6 @@ path = "src/main.rs"
 doc = false
 
 [dependencies]
-finchers = { path = "../../src/finchers" }
-finchers-json = { path = "../../src/finchers-json" }
+finchers = { path = "../../finchers" }
+finchers-json = { path = "../../finchers-json" }
 serde = { version = "1.0", features = ["derive"] }

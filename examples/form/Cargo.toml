@@ -9,8 +9,8 @@ path = "src/main.rs"
 doc = false
 
 [dependencies]
-finchers = { path = "../../src/finchers" }
-finchers-urlencoded = { path = "../../src/finchers-urlencoded" }
+finchers = { path = "../../finchers" }
+finchers-urlencoded = { path = "../../finchers-urlencoded" }
 
 http = "0.1"
 serde = "1.0"
