@@ -88,7 +88,7 @@ impl<T: FromBody> EndpointResult for BodyResult<T> {
 #[allow(missing_debug_implementations)]
 pub struct BodyFuture<T> {
     request: RequestParts,
-    body: request::Body,
+    body: request::body::Body,
     _marker: PhantomData<fn() -> T>,
 }
 
@@ -129,7 +129,7 @@ impl fmt::Debug for BodyStream {
 }
 
 impl Endpoint for BodyStream {
-    type Item = request::BodyStream;
+    type Item = request::body::BodyStream;
     type Result = BodyStreamResult;
 
     fn apply(&self, _: &Input, _: &mut EndpointContext) -> Option<Self::Result> {
@@ -144,7 +144,7 @@ pub struct BodyStreamResult {
 }
 
 impl EndpointResult for BodyStreamResult {
-    type Item = request::BodyStream;
+    type Item = request::body::BodyStream;
     type Future = FutureResult<Self::Item, Error>;
 
     fn into_future(self, input: &mut Input) -> Self::Future {

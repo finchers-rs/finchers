@@ -7,7 +7,7 @@ use tokio_core::reactor::Core;
 use http::Request;
 
 use endpoint::{Endpoint, Outcome};
-use request::BodyStream;
+use request::body::BodyStream;
 
 #[derive(Debug)]
 pub struct TestRunner<E: Endpoint> {
