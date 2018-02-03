@@ -427,56 +427,56 @@ mod tests {
     #[test]
     fn test_endpoint_match_path() {
         let request = Request::get("/foo").body(()).unwrap();
-        assert_eq!(endpoint("foo").run(request), Some(Ok(())),);
+        assert_eq!(endpoint("foo").run(request).ok(), Some(()));
     }
 
     #[test]
     fn test_endpoint_reject_path() {
         let request = Request::get("/foo").body(()).unwrap();
-        assert!(endpoint("bar").run(request).is_none());
+        assert!(endpoint("bar").run(request).is_noroute());
     }
 
     #[test]
     fn test_endpoint_match_multi_segments() {
         let request = Request::get("/foo/bar").body(()).unwrap();
-        assert_eq!(endpoint("/foo/bar").run(request), Some(Ok(())));
+        assert_eq!(endpoint("/foo/bar").run(request).ok(), Some(()));
     }
 
     #[test]
     fn test_endpoint_reject_multi_segments() {
         let request = Request::get("/foo/baz").body(()).unwrap();
-        assert!(endpoint("/foo/bar").run(request).is_none());
+        assert!(endpoint("/foo/bar").run(request).is_noroute());
     }
 
     #[test]
     fn test_endpoint_reject_short_path() {
         let request = Request::get("/foo/bar").body(()).unwrap();
-        assert!(endpoint("/foo/bar/baz").run(request).is_none());
+        assert!(endpoint("/foo/bar/baz").run(request).is_noroute());
     }
 
     #[test]
     fn test_endpoint_match_all_path() {
         let request = Request::get("/foo").body(()).unwrap();
-        assert_eq!(endpoint("*").run(request), Some(Ok(())));
+        assert_eq!(endpoint("*").run(request).ok(), Some(()));
     }
 
     #[test]
     fn test_endpoint_extract_integer() {
         let request = Request::get("/42").body(()).unwrap();
-        assert_eq!(path().run(request), Some(Ok(42i32)));
+        assert_eq!(path().run(request).ok(), Some(42i32));
     }
 
     #[test]
     fn test_endpoint_extract_wrong_integer() {
         let request = Request::get("/foo").body(()).unwrap();
-        assert_eq!(path::<i32>().run(request), None);
+        assert!(path::<i32>().run(request).is_noroute());
     }
 
     #[test]
     fn test_endpoint_extract_wrong_integer_result() {
         let request = Request::get("/foo").body(()).unwrap();
-        match path::<Result<i32, _>>().run(request) {
-            Some(Ok(Err(..))) => (),
+        match path::<Result<i32, _>>().run(request).ok() {
+            Some(Err(..)) => (),
             _ => panic!("assertion failed"),
         }
     }
@@ -484,18 +484,15 @@ mod tests {
     #[test]
     fn test_endpoint_extract_wrong_integer_required() {
         let request = Request::get("/foo").body(()).unwrap();
-        assert_eq!(
-            path_req::<i32>().run(request).map(|r| r.is_err()),
-            Some(true)
-        );
+        assert!(path_req::<i32>().run(request).is_err());
     }
 
     #[test]
     fn test_endpoint_extract_strings() {
         let request = Request::get("/foo/bar").body(()).unwrap();
         assert_eq!(
-            paths::<Vec<String>>().run(request),
-            Some(Ok(vec!["foo".to_string(), "bar".to_string()]))
+            paths::<Vec<String>>().run(request).ok(),
+            Some(vec!["foo".to_string(), "bar".to_string()])
         );
     }
 }

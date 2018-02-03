@@ -125,16 +125,10 @@ mod tests {
         let mut runner = TestRunner::new(endpoint).unwrap();
 
         let request = Request::get("/foo").body(()).unwrap();
-        match runner.run(request) {
-            Some(Ok("foo")) => (),
-            _ => panic!("does not match"),
-        }
+        assert_eq!(runner.run(request).ok(), Some("foo"));
 
         let request = Request::get("/bar").body(()).unwrap();
-        match runner.run(request) {
-            Some(Ok("bar")) => (),
-            _ => panic!("does not match"),
-        }
+        assert_eq!(runner.run(request).ok(), Some("bar"));
     }
 
     #[test]
@@ -145,15 +139,9 @@ mod tests {
         let mut runner = TestRunner::new(endpoint).unwrap();
 
         let request = Request::get("/foo").body(()).unwrap();
-        match runner.run(request) {
-            Some(Ok("foo")) => (),
-            _ => panic!("does not match"),
-        }
+        assert_eq!(runner.run(request).ok(), Some("foo"));
 
         let request = Request::get("/foo/bar").body(()).unwrap();
-        match runner.run(request) {
-            Some(Ok("foobar")) => (),
-            _ => panic!("does not match"),
-        }
+        assert_eq!(runner.run(request).ok(), Some("foobar"));
     }
 }

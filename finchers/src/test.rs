@@ -7,8 +7,7 @@ use tokio_core::reactor::Core;
 use http::Request;
 
 use body::BodyStream;
-use endpoint::Endpoint;
-use errors::Error;
+use endpoint::{Endpoint, Outcome};
 
 #[derive(Debug)]
 pub struct TestRunner<E: Endpoint> {
@@ -28,24 +27,24 @@ impl<E: Endpoint> TestRunner<E> {
     ///
     /// # Panics
     /// This method will panic if an unexpected HTTP error will be occurred.
-    pub fn run<B>(&mut self, request: Request<B>) -> Option<Result<E::Item, Error>>
+    pub fn run<B>(&mut self, request: Request<B>) -> Outcome<E::Item>
     where
         B: Into<BodyStream>,
     {
-        self.endpoint
-            .apply_input(::http::Request::from(request).into())
-            .map(|fut| self.core.run(fut))
+        let outcome = self.endpoint
+            .apply_input(::http::Request::from(request).into());
+        self.core.run(outcome).unwrap()
     }
 }
 
 pub trait EndpointTestExt: Endpoint + sealed::Sealed {
-    fn run<B>(&self, request: Request<B>) -> Option<Result<Self::Item, Error>>
+    fn run<B>(&self, request: Request<B>) -> Outcome<Self::Item>
     where
         B: Into<BodyStream>;
 }
 
 impl<E: Endpoint> EndpointTestExt for E {
-    fn run<B>(&self, request: Request<B>) -> Option<Result<Self::Item, Error>>
+    fn run<B>(&self, request: Request<B>) -> Outcome<Self::Item>
     where
         B: Into<BodyStream>,
     {

@@ -22,7 +22,7 @@ mod with;
 
 // re-exports
 pub use self::context::EndpointContext;
-pub use self::endpoint::{endpoint, Endpoint, EndpointResult, IntoEndpoint};
+pub use self::endpoint::{endpoint, Endpoint, EndpointFuture, EndpointResult, IntoEndpoint};
 pub use self::input::Input;
 pub use self::outcome::Outcome;
 

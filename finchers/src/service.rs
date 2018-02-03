@@ -1,6 +1,5 @@
 //! Components of lower-level HTTP services
 
-use std::io;
 use std::string::ToString;
 use futures::{Future, Poll};
 use futures::Async::*;
@@ -8,7 +7,7 @@ use http::header;
 use hyper::{self, Request, Response};
 use hyper::server::Service;
 
-use endpoint::{Endpoint, EndpointResult, Outcome};
+use endpoint::{Endpoint, EndpointFuture, Outcome};
 use response::{DefaultResponder, HttpStatus, Responder};
 
 /// An HTTP service which wraps a `Endpoint`, `Handler` and `Responder`.
@@ -40,9 +39,9 @@ where
     type Future = FinchersServiceFuture<E, R>;
 
     fn call(&self, request: Self::Request) -> Self::Future {
-        let input = ::http::Request::from(request);
+        let input = ::http::Request::from(request).into();
         FinchersServiceFuture {
-            state: self.endpoint.apply_input(input.into()),
+            outcome: self.endpoint.apply_input(input),
             responder: self.responder.clone(),
         }
     }
@@ -56,27 +55,8 @@ where
     E::Item: Into<Outcome<R::Item>>,
     R: Responder,
 {
-    state: Option<<E::Result as EndpointResult>::Future>,
+    outcome: EndpointFuture<E::Result, R::Item>,
     responder: R,
-}
-
-impl<E, R> FinchersServiceFuture<E, R>
-where
-    E: Endpoint,
-    E::Item: Into<Outcome<R::Item>>,
-    R: Responder,
-{
-    fn poll_state(&mut self) -> Poll<Outcome<R::Item>, io::Error> {
-        let outcome = match self.state {
-            Some(ref mut f) => match f.poll() {
-                Ok(Ready(outcome)) => outcome.into(),
-                Ok(NotReady) => return Ok(NotReady),
-                Err(err) => Outcome::Err(err),
-            },
-            None => Outcome::NoRoute,
-        };
-        Ok(Ready(outcome))
-    }
 }
 
 impl<E, R> Future for FinchersServiceFuture<E, R>
@@ -89,8 +69,8 @@ where
     type Error = hyper::Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let output = try_ready!(self.poll_state());
-        let mut response = self.responder.respond(output);
+        let outcome = try_ready!(self.outcome.poll().map_err(Into::<hyper::Error>::into));
+        let mut response = self.responder.respond(outcome);
         if !response.headers().contains_key(header::SERVER) {
             response
                 .headers_mut()

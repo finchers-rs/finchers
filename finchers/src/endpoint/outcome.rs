@@ -93,4 +93,19 @@ impl<T> Outcome<T> {
             _ => None,
         }
     }
+
+    #[inline]
+    pub fn into_result(self) -> Result<Option<T>, Error> {
+        match self {
+            Outcome::Ok(item) => Ok(Some(item)),
+            Outcome::Err(err) => Err(err),
+            Outcome::NoRoute => Ok(None),
+        }
+    }
+}
+
+impl<T> Into<Result<Option<T>, Error>> for Outcome<T> {
+    fn into(self) -> Result<Option<T>, Error> {
+        self.into_result()
+    }
 }
