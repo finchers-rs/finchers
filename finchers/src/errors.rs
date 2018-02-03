@@ -5,6 +5,7 @@ use std::fmt;
 use std::error::Error as StdError;
 use std::ops::Deref;
 use http::StatusCode;
+use hyper;
 
 use response::HttpStatus;
 
@@ -110,6 +111,12 @@ impl StdError for NeverReturn {
 
 impl HttpStatus for NeverReturn {
     fn status_code(&self) -> StatusCode {
+        unreachable!()
+    }
+}
+
+impl Into<hyper::Error> for NeverReturn {
+    fn into(self) -> hyper::Error {
         unreachable!()
     }
 }

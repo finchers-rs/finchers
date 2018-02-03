@@ -1,9 +1,11 @@
+use std::marker::PhantomData;
 use std::rc::Rc;
 use std::sync::Arc;
-use futures::{future, Future, IntoFuture};
+use futures::{future, Future, IntoFuture, Poll};
+use futures::Async::*;
 
-use endpoint::{self, EndpointContext, Input};
-use errors::{Error, HttpError};
+use endpoint::{self, EndpointContext, Input, Outcome};
+use errors::{Error, HttpError, NeverReturn};
 
 /// Abstruction of an endpoint.
 pub trait Endpoint {
@@ -18,9 +20,15 @@ pub trait Endpoint {
     fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Result>;
 
     #[allow(missing_docs)]
-    fn apply_input(&self, mut input: Input) -> Option<<Self::Result as EndpointResult>::Future> {
-        self.apply(&input, &mut EndpointContext::new(&input))
-            .map(|result| result.into_future(&mut input))
+    fn apply_input<T>(&self, mut input: Input) -> EndpointFuture<Self::Result, T>
+    where
+        Self::Item: Into<Outcome<T>>,
+    {
+        EndpointFuture {
+            inner: self.apply(&input, &mut EndpointContext::new(&input))
+                .map(|result| result.into_future(&mut input)),
+            _marker: PhantomData,
+        }
     }
 
     #[allow(missing_docs)]
@@ -147,6 +155,38 @@ where
 
     fn into_future(self, _: &mut Input) -> Self::Future {
         self.into_future().from_err()
+    }
+}
+
+#[allow(missing_docs)]
+#[allow(missing_debug_implementations)]
+pub struct EndpointFuture<E, T>
+where
+    E: EndpointResult,
+    E::Item: Into<Outcome<T>>,
+{
+    inner: Option<E::Future>,
+    _marker: PhantomData<fn() -> T>,
+}
+
+impl<E, T> Future for EndpointFuture<E, T>
+where
+    E: EndpointResult,
+    E::Item: Into<Outcome<T>>,
+{
+    type Item = Outcome<T>;
+    type Error = NeverReturn;
+
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        let outcome = match self.inner {
+            Some(ref mut f) => match f.poll() {
+                Ok(Ready(outcome)) => outcome.into(),
+                Ok(NotReady) => return Ok(NotReady),
+                Err(err) => Outcome::Err(err),
+            },
+            None => Outcome::NoRoute,
+        };
+        Ok(Ready(outcome))
     }
 }
 
