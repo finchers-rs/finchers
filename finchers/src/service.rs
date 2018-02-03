@@ -1,13 +1,14 @@
 //! Components of lower-level HTTP services
 
+use std::io;
 use std::string::ToString;
-use futures::{Future, Poll, Stream};
+use futures::{Future, Poll};
 use futures::Async::*;
-use http::header;
-use hyper::{self, Request, Response};
-use hyper::server::Service;
+use http::{header, Request, Response};
+use tokio_service::Service;
 
-use endpoint::{Endpoint, EndpointFuture, Outcome};
+use endpoint::{Endpoint, EndpointFuture, Input, Outcome};
+use request::body::BodyStream;
 use response::{DefaultResponder, HttpStatus, Responder};
 
 /// An HTTP service which wraps a `Endpoint`, `Handler` and `Responder`.
@@ -33,13 +34,13 @@ where
     E::Item: Into<Outcome<R::Item>>,
     R: Responder + Clone,
 {
-    type Request = Request;
-    type Response = Response<BodyStream<R::Body>>;
-    type Error = hyper::Error;
+    type Request = Request<BodyStream>;
+    type Response = Response<R::Body>;
+    type Error = io::Error;
     type Future = FinchersServiceFuture<E, R>;
 
     fn call(&self, request: Self::Request) -> Self::Future {
-        let input = ::http::Request::from(request).into();
+        let input = Input::from(request);
         FinchersServiceFuture {
             outcome: self.endpoint.apply_input(input),
             responder: self.responder.clone(),
@@ -65,37 +66,18 @@ where
     E::Item: Into<Outcome<R::Item>>,
     R: Responder,
 {
-    type Item = Response<BodyStream<R::Body>>;
-    type Error = hyper::Error;
+    type Item = Response<R::Body>;
+    type Error = io::Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let outcome = try_ready!(self.outcome.poll().map_err(Into::<hyper::Error>::into));
+        let outcome = try_ready!(self.outcome.poll().map_err(Into::<io::Error>::into));
         let mut response = self.responder.respond(outcome);
         if !response.headers().contains_key(header::SERVER) {
             response
                 .headers_mut()
                 .insert(header::SERVER, "Finchers".parse().unwrap());
         }
-        let response = response.map(BodyStream).into();
         Ok(Ready(response))
-    }
-}
-
-#[allow(missing_debug_implementations)]
-#[doc(hidden)]
-pub struct BodyStream<T>(T);
-
-impl<T> Stream for BodyStream<T>
-where
-    T: Stream,
-    T::Item: AsRef<[u8]> + 'static,
-    T::Error: Into<hyper::Error>,
-{
-    type Item = T::Item;
-    type Error = hyper::Error;
-
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
-        self.0.poll().map_err(Into::into)
     }
 }
 

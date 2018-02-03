@@ -15,6 +15,7 @@ extern crate native_tls;
 extern crate net2;
 extern crate tokio_core;
 extern crate tokio_io;
+extern crate tokio_service;
 #[cfg(feature = "tls")]
 extern crate tokio_tls;
 
