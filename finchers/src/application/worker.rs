@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::thread;
 use futures::{future, Future, Stream};
 use hyper;
-use hyper::server::NewService;
+use hyper::server::{self, NewService};
 use tokio_core::reactor::{Core, Handle};
 
 use super::{Application, Http, Tcp, TcpBackend};
@@ -20,27 +20,27 @@ impl Default for Worker {
     }
 }
 
-pub struct WorkerContext<S, B>
-where
-    S: NewService<Request = hyper::Request, Response = hyper::Response, Error = hyper::Error> + Clone + 'static,
-    B: TcpBackend,
-{
+pub struct WorkerContext<S, B> {
     new_service: S,
     http: Http,
     tcp: Tcp<B>,
 }
 
-impl<S, B> WorkerContext<S, B>
+impl<S, Bd, B> WorkerContext<S, B>
 where
-    S: NewService<Request = hyper::Request, Response = hyper::Response, Error = hyper::Error> + Clone + 'static,
+    S: NewService<Request = hyper::Request, Response = hyper::Response<Bd>, Error = hyper::Error> + Clone + 'static,
+    Bd: Stream<Error = hyper::Error> + 'static,
+    Bd::Item: AsRef<[u8]> + 'static,
     B: TcpBackend,
 {
     fn spawn(&self, handle: &Handle) -> Result<(), hyper::Error> {
+        let mut http = server::Http::new();
+        http.pipeline(self.http.pipeline);
+        http.keep_alive(self.http.keep_alive);
+
         for addr in &self.tcp.addrs {
             let incoming = self.tcp.backend.incoming(addr, &handle)?;
-            let serve = self.http
-                .inner()
-                .serve_incoming(incoming, self.new_service.clone())
+            let serve = http.serve_incoming(incoming, self.new_service.clone())
                 .for_each(|conn| conn.map(|_| ()))
                 .map_err(|_| ());
             handle.spawn(serve);
@@ -50,9 +50,11 @@ where
     }
 }
 
-pub fn start_multi_threaded<S, B>(application: Application<S, B>) -> Result<(), hyper::Error>
+pub fn start_multi_threaded<S, Bd, B>(application: Application<S, B>) -> Result<(), hyper::Error>
 where
-    S: NewService<Request = hyper::Request, Response = hyper::Response, Error = hyper::Error> + Clone + 'static,
+    S: NewService<Request = hyper::Request, Response = hyper::Response<Bd>, Error = hyper::Error> + Clone + 'static,
+    Bd: Stream<Error = hyper::Error> + 'static,
+    Bd::Item: AsRef<[u8]> + 'static,
     B: TcpBackend,
     // additional trait bounds in the case of multi-threaded condition
     S: Send + Sync,

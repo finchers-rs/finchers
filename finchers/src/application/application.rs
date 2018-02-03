@@ -1,6 +1,7 @@
 use std::io;
 use std::string::ToString;
 use std::sync::Arc;
+use futures::Stream;
 use hyper;
 use hyper::server::{NewService, Service};
 
@@ -13,20 +14,18 @@ use super::backend::DefaultBackend;
 
 /// The launcher of HTTP application.
 #[derive(Debug)]
-pub struct Application<S, B>
-where
-    S: NewService<Request = hyper::Request, Response = hyper::Response, Error = hyper::Error> + Clone + 'static,
-    B: TcpBackend,
-{
+pub struct Application<S, B> {
     new_service: S,
     http: Http,
     tcp: Tcp<B>,
     worker: Worker,
 }
 
-impl<S, B> Application<S, B>
+impl<S, Bd, B> Application<S, B>
 where
-    S: NewService<Request = hyper::Request, Response = hyper::Response, Error = hyper::Error> + Clone + 'static,
+    S: NewService<Request = hyper::Request, Response = hyper::Response<Bd>, Error = hyper::Error> + Clone + 'static,
+    Bd: Stream<Error = hyper::Error> + 'static,
+    Bd::Item: AsRef<[u8]> + 'static,
     B: TcpBackend,
 {
     /// Create a new launcher from given service and TCP backend.
@@ -67,9 +66,11 @@ where
     }
 }
 
-impl<S> Application<ConstService<S>, DefaultBackend>
+impl<S, Bd> Application<ConstService<S>, DefaultBackend>
 where
-    S: Service<Request = hyper::Request, Response = hyper::Response, Error = hyper::Error>,
+    S: Service<Request = hyper::Request, Response = hyper::Response<Bd>, Error = hyper::Error> + 'static,
+    Bd: Stream<Error = hyper::Error> + 'static,
+    Bd::Item: AsRef<[u8]> + 'static,
 {
     #[allow(missing_docs)]
     pub fn from_service(service: S) -> Self {
@@ -84,9 +85,9 @@ where
 
 impl<E, T> Application<ConstService<FinchersService<E, DefaultResponder<T>>>, DefaultBackend>
 where
-    E: Endpoint,
+    E: Endpoint + 'static,
     E::Item: Into<Outcome<T>>,
-    T: HttpStatus + ToString,
+    T: HttpStatus + ToString + 'static,
 {
     #[allow(missing_docs)]
     pub fn from_endpoint(endpoint: E) -> Self {
@@ -94,9 +95,11 @@ where
     }
 }
 
-impl<S, B> Application<S, B>
+impl<S, Bd, B> Application<S, B>
 where
-    S: NewService<Request = hyper::Request, Response = hyper::Response, Error = hyper::Error> + Clone + 'static,
+    S: NewService<Request = hyper::Request, Response = hyper::Response<Bd>, Error = hyper::Error> + Clone + 'static,
+    Bd: Stream<Error = hyper::Error> + 'static,
+    Bd::Item: AsRef<[u8]> + 'static,
     B: TcpBackend,
     S: Send + Sync,
     B: Send + Sync + 'static,

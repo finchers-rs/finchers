@@ -1,35 +1,42 @@
 use std::fmt;
+use std::io;
 use std::marker::PhantomData;
 use std::rc::Rc;
 use std::string::ToString;
 use std::sync::Arc;
+use futures::{Poll, Stream};
 use http::{Response, StatusCode};
 use http::header;
 
-use body::BodyStream;
 use endpoint::Outcome;
 use response::HttpStatus;
 
 /// A trait to represents the conversion from outcome to an HTTP response.
 pub trait Responder {
     type Item;
+    type BodyItem: AsRef<[u8]> + 'static;
+    type Body: Stream<Item = Self::BodyItem, Error = io::Error> + 'static;
 
     /// Convert an outcome into an HTTP response
-    fn respond(&self, outcome: Outcome<Self::Item>) -> Response<BodyStream>;
+    fn respond(&self, outcome: Outcome<Self::Item>) -> Response<Self::Body>;
 }
 
 impl<R: Responder> Responder for Rc<R> {
     type Item = R::Item;
+    type BodyItem = R::BodyItem;
+    type Body = R::Body;
 
-    fn respond(&self, outcome: Outcome<Self::Item>) -> Response<BodyStream> {
+    fn respond(&self, outcome: Outcome<Self::Item>) -> Response<Self::Body> {
         (**self).respond(outcome)
     }
 }
 
 impl<R: Responder> Responder for Arc<R> {
     type Item = R::Item;
+    type BodyItem = R::BodyItem;
+    type Body = R::Body;
 
-    fn respond(&self, outcome: Outcome<Self::Item>) -> Response<BodyStream> {
+    fn respond(&self, outcome: Outcome<Self::Item>) -> Response<Self::Body> {
         (**self).respond(outcome)
     }
 }
@@ -67,6 +74,8 @@ where
     T: HttpStatus + ToString,
 {
     type Item = T;
+    type BodyItem = String;
+    type Body = BodyStream;
 
     fn respond(&self, output: Outcome<T>) -> Response<BodyStream> {
         match output {
@@ -86,7 +95,7 @@ where
         .status(item.status_code())
         .header(header::CONTENT_TYPE, "text/plain; charset=utf-8")
         .header(header::CONTENT_LENGTH, body.len().to_string().as_str())
-        .body(body.into())
+        .body(BodyStream { inner: Some(body) })
         .unwrap()
 }
 
@@ -95,4 +104,18 @@ fn respond_noroute() -> Response<BodyStream> {
         .status(StatusCode::NOT_FOUND)
         .body(Default::default())
         .unwrap()
+}
+
+#[derive(Debug, Default)]
+pub struct BodyStream {
+    inner: Option<String>,
+}
+
+impl Stream for BodyStream {
+    type Item = String;
+    type Error = io::Error;
+
+    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+        Ok(self.inner.take().into())
+    }
 }

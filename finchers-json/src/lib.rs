@@ -17,15 +17,16 @@ extern crate serde_json;
 
 use std::error;
 use std::fmt;
+use std::io;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use serde::ser::Serialize;
 use serde::de::DeserializeOwned;
-use finchers::futures::{future, Future};
+use finchers::futures::{future, Future, Poll, Stream};
 use finchers::http::{header, Response, StatusCode};
 use finchers::mime;
 
-use finchers::body::{BodyStream, FromBody};
+use finchers::body::FromBody;
 use finchers::endpoint::{self, Endpoint, EndpointContext, EndpointResult, Input, Outcome};
 use finchers::errors::{BadRequest, HttpError};
 use finchers::request::RequestParts;
@@ -205,6 +206,8 @@ impl<T> fmt::Debug for JsonResponder<T> {
 
 impl<T: Serialize + HttpStatus> Responder for JsonResponder<T> {
     type Item = T;
+    type BodyItem = String;
+    type Body = BodyStream;
 
     fn respond(&self, outcome: Outcome<T>) -> Response<BodyStream> {
         match outcome {
@@ -240,11 +243,25 @@ fn no_route() -> Response<BodyStream> {
 }
 
 fn make_json_response(status: StatusCode, body: String) -> Response<BodyStream> {
-    let body = body.to_string();
     Response::builder()
         .status(status)
         .header(header::CONTENT_TYPE, "application/json")
         .header(header::CONTENT_LENGTH, body.len().to_string().as_str())
-        .body(body.into())
+        .body(BodyStream { inner: Some(body) })
         .unwrap()
+}
+
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct BodyStream {
+    inner: Option<String>,
+}
+
+impl Stream for BodyStream {
+    type Item = String;
+    type Error = io::Error;
+
+    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+        Ok(self.inner.take().into())
+    }
 }

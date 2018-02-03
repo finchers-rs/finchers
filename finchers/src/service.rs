@@ -1,7 +1,7 @@
 //! Components of lower-level HTTP services
 
 use std::string::ToString;
-use futures::{Future, Poll};
+use futures::{Future, Poll, Stream};
 use futures::Async::*;
 use http::header;
 use hyper::{self, Request, Response};
@@ -34,7 +34,7 @@ where
     R: Responder + Clone,
 {
     type Request = Request;
-    type Response = Response;
+    type Response = Response<BodyStream<R::Body>>;
     type Error = hyper::Error;
     type Future = FinchersServiceFuture<E, R>;
 
@@ -65,7 +65,7 @@ where
     E::Item: Into<Outcome<R::Item>>,
     R: Responder,
 {
-    type Item = Response;
+    type Item = Response<BodyStream<R::Body>>;
     type Error = hyper::Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
@@ -76,8 +76,26 @@ where
                 .headers_mut()
                 .insert(header::SERVER, "Finchers".parse().unwrap());
         }
-        let response = response.map(Into::into).into();
+        let response = response.map(BodyStream).into();
         Ok(Ready(response))
+    }
+}
+
+#[allow(missing_debug_implementations)]
+#[doc(hidden)]
+pub struct BodyStream<T>(T);
+
+impl<T> Stream for BodyStream<T>
+where
+    T: Stream,
+    T::Item: AsRef<[u8]> + 'static,
+    T::Error: Into<hyper::Error>,
+{
+    type Item = T::Item;
+    type Error = hyper::Error;
+
+    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+        self.0.poll().map_err(Into::into)
     }
 }
 
