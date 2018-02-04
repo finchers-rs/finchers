@@ -10,6 +10,7 @@ branches:
 matrix:
   include:
     - rust: stable
+      env: MDBOOK_VERSION="0.1.2"
     - rust: beta
     - rust: nightly
     - rust: nightly-2018-01-31
@@ -31,12 +32,13 @@ addons:
 before_script:
   - 'export PATH=$HOME/.local/bin:$PATH'
   - '[[ -z "$RUSTFMT_VERSION" ]] || bash .travis/install-rustfmt.sh'
+  - '[[ -z "$MDBOOK_VERSION" ]] || bash .travis/install-mdbook.sh'
 
 script:
   - '[[ -n "$RUSTFMT_VERSION" ]] || bash .travis/script.sh'
   - '[[ -z "$RUSTFMT_VERSION" ]] || cargo fmt -- --write-mode=diff'
 
 after_success:
-  - '[[ -n "$RUSTFMT_VERSION" ]] || bash .travis/upload-doc.sh'
+  - '[[ -n "$RUSTFMT_VERSION" ]] || bash .travis/deploy-doc.sh'
 #  - travis-cargo --only stable coveralls --no-sudo
 
