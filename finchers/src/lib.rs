@@ -37,22 +37,11 @@ pub mod service;
 pub mod test;
 
 #[doc(inline)]
-pub use endpoint::{Endpoint, EndpointResult, IntoEndpoint};
-
-#[doc(inline)]
-pub use errors::{Error, HttpError};
-
-#[doc(inline)]
-pub use response::{HttpStatus, Responder};
-
-#[doc(inline)]
-pub use service::EndpointServiceExt;
+pub use errors::Error;
 
 #[allow(missing_docs)]
 pub mod prelude {
-    pub use endpoint::{Endpoint, IntoEndpoint};
-    pub use errors::HttpError;
-    pub use request::{FromBody, FromHeader, FromSegment, FromSegments};
-    pub use response::{HttpStatus, Responder};
+    pub use endpoint::Endpoint;
     pub use service::EndpointServiceExt;
+    pub use test::EndpointTestExt;
 }
