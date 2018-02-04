@@ -7,6 +7,10 @@ use tokio_core::net::{TcpListener, TcpStream};
 use tokio_core::reactor::Handle;
 use tokio_io::{AsyncRead, AsyncWrite};
 
+pub fn default() -> DefaultBackend {
+    DefaultBackend::default()
+}
+
 /// A TCP backend.
 pub trait TcpBackend {
     /// The type of incoming streams.
@@ -35,7 +39,7 @@ impl TcpBackend for DefaultBackend {
 }
 
 #[cfg(feature = "tls")]
-pub use self::tls::TlsBackend;
+pub use self::tls::{tls, TlsBackend};
 
 #[cfg(feature = "tls")]
 mod tls {
@@ -44,6 +48,10 @@ mod tls {
     use futures::Future;
     use native_tls::{Pkcs12, TlsAcceptor};
     use tokio_tls::{TlsAcceptorExt, TlsStream};
+
+    pub fn tls(pkcs12: Pkcs12) -> Result<TlsBackend, ::native_tls::Error> {
+        TlsBackend::from_pkcs12(pkcs12)
+    }
 
     /// The TCP backend with TLS support.
     pub struct TlsBackend {

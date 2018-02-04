@@ -5,8 +5,9 @@ extern crate http;
 #[macro_use]
 extern crate serde_derive;
 
-use finchers::application::Application;
+use finchers::prelude::*;
 use finchers::endpoint::prelude::*;
+use finchers::service::{backend, Server};
 use finchers_urlencoded::{form_body, from_csv, queries};
 use std::fmt;
 
@@ -32,5 +33,6 @@ fn main() {
             param
         });
 
-    Application::from_endpoint(endpoint).run();
+    let service = endpoint.into_service::<FormParam>();
+    Server::from_service(service).run(backend::default());
 }

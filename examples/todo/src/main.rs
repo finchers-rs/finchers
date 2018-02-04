@@ -9,8 +9,8 @@ extern crate serde;
 mod model;
 mod service;
 
-use finchers::{Endpoint, EndpointServiceExt};
-use finchers::application::Application;
+use finchers::prelude::*;
+use finchers::service::{backend, Server};
 use finchers_json::{json_body, JsonResponder};
 use self::model::*;
 use self::service::*;
@@ -27,8 +27,10 @@ enum Response {
     Deleted,
 }
 
-fn build_endpoint(service: Service) -> impl Endpoint<Item = Option<Response>> + 'static {
+fn build_endpoint() -> impl Endpoint<Item = Option<Response>> + 'static {
     use finchers::endpoint::prelude::*;
+
+    let service = new_service();
 
     let find_todo = get(path())
         .and_then(service.find_todo())
@@ -60,8 +62,7 @@ fn build_endpoint(service: Service) -> impl Endpoint<Item = Option<Response>> + 
 }
 
 fn main() {
-    let service = new_service();
-    let endpoint = build_endpoint(service);
-
-    Application::from_service(endpoint.with_responder(JsonResponder::<Response>::default())).run();
+    let endpoint = build_endpoint();
+    let service = endpoint.with_responder(JsonResponder::<Response>::default());
+    Server::from_service(service).run(backend::default());
 }
