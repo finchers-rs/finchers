@@ -36,7 +36,7 @@ USERNAME="Yusuke Sasaki"
 EMAIL="yusuke.sasaki.nuem@gmail.com"
 
 echo "Commiting docs directory to gh-pages branch"
-cd target/doc
+cd target/doc-upload
 git init
 git remote add upstream "${UPSTREAM_URL}"
 git config user.name "${USERNAME}"
