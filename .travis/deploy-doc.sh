@@ -26,6 +26,10 @@ if [[ "${BRANCH}" != "master" ]]; then
     exit 1
 fi
 
+# =============================================================================
+DIR=$(cd $(dirname ${BASH_SOURCE[0]}) && pwd)
+bash $DIR/build-doc.sh
+
 REV="$(git rev-parse --short HEAD)"
 UPSTREAM_URL="https://${GH_TOKEN}@github.com/finchers-rs/finchers.git"
 USERNAME="Yusuke Sasaki"
