@@ -2,10 +2,11 @@ use std::io;
 use std::string::ToString;
 use std::sync::Arc;
 use futures::Stream;
-use hyper;
-use hyper::server::{NewService, Service};
+use http::{Request, Response};
+use tokio_service::{NewService, Service};
 
 use endpoint::{Endpoint, Outcome};
+use request::body::BodyStream;
 use response::{DefaultResponder, HttpStatus};
 use service::{EndpointServiceExt, FinchersService};
 
@@ -23,8 +24,8 @@ pub struct Application<S, B> {
 
 impl<S, Bd, B> Application<S, B>
 where
-    S: NewService<Request = hyper::Request, Response = hyper::Response<Bd>, Error = hyper::Error> + Clone + 'static,
-    Bd: Stream<Error = hyper::Error> + 'static,
+    S: NewService<Request = Request<BodyStream>, Response = Response<Bd>, Error = io::Error> + Clone + 'static,
+    Bd: Stream<Error = io::Error> + 'static,
     Bd::Item: AsRef<[u8]> + 'static,
     B: TcpBackend,
 {
@@ -68,8 +69,8 @@ where
 
 impl<S, Bd> Application<ConstService<S>, DefaultBackend>
 where
-    S: Service<Request = hyper::Request, Response = hyper::Response<Bd>, Error = hyper::Error> + 'static,
-    Bd: Stream<Error = hyper::Error> + 'static,
+    S: Service<Request = Request<BodyStream>, Response = Response<Bd>, Error = io::Error> + 'static,
+    Bd: Stream<Error = io::Error> + 'static,
     Bd::Item: AsRef<[u8]> + 'static,
 {
     #[allow(missing_docs)]
@@ -97,8 +98,8 @@ where
 
 impl<S, Bd, B> Application<S, B>
 where
-    S: NewService<Request = hyper::Request, Response = hyper::Response<Bd>, Error = hyper::Error> + Clone + 'static,
-    Bd: Stream<Error = hyper::Error> + 'static,
+    S: NewService<Request = Request<BodyStream>, Response = Response<Bd>, Error = io::Error> + Clone + 'static,
+    Bd: Stream<Error = io::Error> + 'static,
     Bd::Item: AsRef<[u8]> + 'static,
     B: TcpBackend,
     S: Send + Sync,
@@ -113,11 +114,11 @@ where
 
 #[doc(hidden)]
 #[derive(Debug)]
-pub struct ConstService<S: Service> {
+pub struct ConstService<S> {
     service: Arc<S>,
 }
 
-impl<S: Service> Clone for ConstService<S> {
+impl<S> Clone for ConstService<S> {
     fn clone(&self) -> Self {
         ConstService {
             service: self.service.clone(),

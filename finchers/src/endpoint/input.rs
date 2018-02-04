@@ -2,8 +2,8 @@ use std::ops::Deref;
 use http::{Extensions, Request};
 use http::request::Parts;
 
-use body::{Body, BodyStream};
 use request::RequestParts;
+use request::body::{Body, BodyStream};
 
 /// The value of incoming HTTP request
 #[derive(Debug)]

@@ -6,8 +6,8 @@ use std::io;
 use tokio_core::reactor::Core;
 use http::Request;
 
-use body::BodyStream;
 use endpoint::{Endpoint, Outcome};
+use request::body::BodyStream;
 
 #[derive(Debug)]
 pub struct TestRunner<E: Endpoint> {

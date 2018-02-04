@@ -3,10 +3,9 @@
 use std::borrow::Cow;
 use std::fmt;
 use std::error::Error as StdError;
+use std::io;
 use std::ops::Deref;
 use http::StatusCode;
-use hyper;
-
 use response::HttpStatus;
 
 #[allow(missing_docs)]
@@ -115,8 +114,8 @@ impl HttpStatus for NeverReturn {
     }
 }
 
-impl Into<hyper::Error> for NeverReturn {
-    fn into(self) -> hyper::Error {
+impl Into<io::Error> for NeverReturn {
+    fn into(self) -> io::Error {
         unreachable!()
     }
 }
