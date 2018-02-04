@@ -7,10 +7,6 @@ if [[ "$TRAVIS_RUST_VERSION" != "stable" ]]; then
     exit 1
 fi
 
-echo "Running build-doc.sh"
-DIR=$(cd $(dirname ${BASH_SOURCE[0]}) && pwd)
-bash $DIR/build-doc.sh
-
 # =============================================================================
 if [[ -z "${TRAVIS_BRANCH:-}" ]]; then
     echo "This script may only be running from Travis CI."

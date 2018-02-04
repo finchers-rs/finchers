@@ -17,7 +17,7 @@ popd > /dev/null
 
 # API doc
 rm -rf target/doc
-cargo doc --all --no-deps --features tls
+cargo doc --all --no-deps --features "$STABLE_FEATURES"
 cp -a target/doc target/doc-upload/api
 
 # users guide

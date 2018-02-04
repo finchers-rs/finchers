@@ -1,20 +1,28 @@
 dist: trusty
 sudo: false
 language: rust
-cache: cargo
+
+cache:
+  - cargo
+  - bundler
 
 branches:
   only:
     - master
 
+env:
+  global:
+    - STABLE_FEATURES="tls"
+    - MDBOOK_VERSION="0.1.2"
+    - RUSTFMT_VERSION="0.3.7"
+
 matrix:
   include:
     - rust: stable
-      env: MDBOOK_VERSION="0.1.2"
     - rust: beta
     - rust: nightly
     - rust: nightly-2018-01-31
-      env: RUSTFMT_VERSION="0.3.7"
+      env: RUSTFMT="true"
 
   allow_failures:
     - rust: nightly
@@ -31,14 +39,15 @@ addons:
 
 before_script:
   - 'export PATH=$HOME/.local/bin:$PATH'
-  - '[[ -z "$RUSTFMT_VERSION" ]] || bash .travis/install-rustfmt.sh'
-  - '[[ -z "$MDBOOK_VERSION" ]] || bash .travis/install-mdbook.sh'
+  - '[[ -z "$RUSTFMT" ]] || bash .travis/install-rustfmt.sh'
+  - '[[ -n "$RUSTFMT" ]] || bash .travis/install-mdbook.sh'
 
 script:
-  - '[[ -n "$RUSTFMT_VERSION" ]] || bash .travis/script.sh'
-  - '[[ -z "$RUSTFMT_VERSION" ]] || cargo fmt -- --write-mode=diff'
+  - '[[ -n "$RUSTFMT" ]] || bash .travis/script.sh'
+  - '[[ -z "$RUSTFMT" ]] || cargo fmt -- --write-mode=diff'
 
 after_success:
-  - '[[ -n "$RUSTFMT_VERSION" ]] || bash .travis/deploy-doc.sh'
+  - '[[ -n "$RUSTFMT" ]] || bash .travis/build-doc.sh'
+  - '[[ -n "$RUSTFMT" ]] || bash .travis/deploy-doc.sh'
 #  - travis-cargo --only stable coveralls --no-sudo
 
