@@ -6,5 +6,5 @@ multilingual = false
 src = "src"
 
 [build]
-build-dir = "../target/doc/guide"
+build-dir = "../target/doc-upload/guide"
 create-missing = false

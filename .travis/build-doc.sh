@@ -2,14 +2,25 @@
 
 set -eux
 
-rm -rf target/doc
+DIR=$(cd $(dirname ${BASH_SOURCE[0]}) && pwd)
+cd "${DIR}/.."
 
-# rustdoc
-cargo doc --all --no-deps --features tls
+# remove all contents at destination directory
+rm -rf target/doc-upload
+mkdir -p target/doc-upload
 
 # homepage
-cp site/index.html target/doc/
+pushd site/ > /dev/null
+bundle install
+bundle exec jekyll build -d ../target/doc-upload
+popd > /dev/null
 
-# mdbook
-cd guide/
+# API doc
+rm -rf target/doc
+cargo doc --all --no-deps --features "$STABLE_FEATURES"
+cp -a target/doc target/doc-upload/api
+
+# users guide
+pushd guide/ > /dev/null
 mdbook build
+popd > /dev/null
