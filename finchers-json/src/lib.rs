@@ -17,12 +17,11 @@ extern crate serde_json;
 
 use std::error;
 use std::fmt;
-use std::io;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use serde::ser::Serialize;
 use serde::de::DeserializeOwned;
-use finchers::futures::{future, Future, Poll, Stream};
+use finchers::futures::{future, Future};
 use finchers::http::{header, Response, StatusCode};
 use finchers::mime;
 
@@ -205,10 +204,9 @@ impl<T> fmt::Debug for JsonResponder<T> {
 
 impl<T: Serialize + HttpStatus> Responder for JsonResponder<T> {
     type Item = T;
-    type BodyItem = String;
-    type Body = BodyStream;
+    type Body = String;
 
-    fn respond(&self, outcome: Outcome<T>) -> Response<BodyStream> {
+    fn respond(&self, outcome: Outcome<T>) -> Response<String> {
         match outcome {
             Outcome::Ok(item) => json_response(&item),
             Outcome::Err(err) => json_error_response(&*err),
@@ -217,12 +215,12 @@ impl<T: Serialize + HttpStatus> Responder for JsonResponder<T> {
     }
 }
 
-fn json_response<T: Serialize + HttpStatus>(item: &T) -> Response<BodyStream> {
+fn json_response<T: Serialize + HttpStatus>(item: &T) -> Response<String> {
     let body = serde_json::to_string(item).expect("failed to serialize a JSON body");
     make_json_response(item.status_code(), body)
 }
 
-fn json_error_response(err: &HttpError) -> Response<BodyStream> {
+fn json_error_response(err: &HttpError) -> Response<String> {
     make_json_response(
         err.status_code(),
         json!({
@@ -232,7 +230,7 @@ fn json_error_response(err: &HttpError) -> Response<BodyStream> {
     )
 }
 
-fn no_route() -> Response<BodyStream> {
+fn no_route() -> Response<String> {
     make_json_response(
         StatusCode::NOT_FOUND,
         json!({
@@ -241,26 +239,11 @@ fn no_route() -> Response<BodyStream> {
     )
 }
 
-fn make_json_response(status: StatusCode, body: String) -> Response<BodyStream> {
+fn make_json_response(status: StatusCode, body: String) -> Response<String> {
     Response::builder()
         .status(status)
         .header(header::CONTENT_TYPE, "application/json")
         .header(header::CONTENT_LENGTH, body.len().to_string().as_str())
-        .body(BodyStream { inner: Some(body) })
+        .body(body)
         .unwrap()
-}
-
-#[allow(missing_docs)]
-#[derive(Debug)]
-pub struct BodyStream {
-    inner: Option<String>,
-}
-
-impl Stream for BodyStream {
-    type Item = String;
-    type Error = io::Error;
-
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
-        Ok(self.inner.take().into())
-    }
 }

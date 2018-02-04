@@ -9,7 +9,7 @@ use tokio_service::Service;
 
 use endpoint::{Endpoint, EndpointFuture, Input, Outcome};
 use request::body::BodyStream;
-use response::{DefaultResponder, HttpStatus, Responder};
+use response::{DefaultResponder, HttpStatus, Responder, ResponseBody};
 
 /// An HTTP service which wraps a `Endpoint`, `Handler` and `Responder`.
 #[derive(Debug, Copy, Clone)]
@@ -35,7 +35,7 @@ where
     R: Responder + Clone,
 {
     type Request = Request<BodyStream>;
-    type Response = Response<R::Body>;
+    type Response = Response<<R::Body as ResponseBody>::Stream>;
     type Error = io::Error;
     type Future = FinchersServiceFuture<E, R>;
 
@@ -66,7 +66,7 @@ where
     E::Item: Into<Outcome<R::Item>>,
     R: Responder,
 {
-    type Item = Response<R::Body>;
+    type Item = Response<<R::Body as ResponseBody>::Stream>;
     type Error = io::Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
@@ -77,7 +77,7 @@ where
                 .headers_mut()
                 .insert(header::SERVER, "Finchers".parse().unwrap());
         }
-        Ok(Ready(response))
+        Ok(Ready(response.map(ResponseBody::into_stream)))
     }
 }
 
