@@ -2,14 +2,82 @@
 
 use std::io;
 use std::string::ToString;
+use std::rc::Rc;
+use std::sync::Arc;
 use futures::{Future, Poll};
 use futures::Async::*;
 use http::{header, Request, Response};
-use tokio_service::Service;
 
 use endpoint::{Endpoint, EndpointFuture, Input, Outcome};
 use request::body::BodyStream;
 use response::{DefaultResponder, HttpStatus, Responder, ResponseBody};
+
+#[allow(missing_docs)]
+pub trait HttpService {
+    type RequestBody;
+    type ResponseBody: ResponseBody;
+    type Future: Future<Item = Response<Self::ResponseBody>, Error = io::Error>;
+
+    fn call(&self, request: Request<Self::RequestBody>) -> Self::Future;
+}
+
+impl<S: HttpService> HttpService for Rc<S> {
+    type RequestBody = S::RequestBody;
+    type ResponseBody = S::ResponseBody;
+    type Future = S::Future;
+
+    fn call(&self, request: Request<Self::RequestBody>) -> Self::Future {
+        (**self).call(request)
+    }
+}
+
+impl<S: HttpService> HttpService for Arc<S> {
+    type RequestBody = S::RequestBody;
+    type ResponseBody = S::ResponseBody;
+    type Future = S::Future;
+
+    fn call(&self, request: Request<Self::RequestBody>) -> Self::Future {
+        (**self).call(request)
+    }
+}
+
+#[allow(missing_docs)]
+pub trait NewHttpService {
+    type RequestBody;
+    type ResponseBody: ResponseBody;
+    type Service: HttpService<RequestBody = Self::RequestBody, ResponseBody = Self::ResponseBody>;
+
+    fn new_service(&self) -> io::Result<Self::Service>;
+}
+
+pub fn const_service<S>(service: S) -> ConstService<S> {
+    ConstService {
+        service: Arc::new(service),
+    }
+}
+
+#[derive(Debug)]
+pub struct ConstService<S> {
+    service: Arc<S>,
+}
+
+impl<S> Clone for ConstService<S> {
+    fn clone(&self) -> Self {
+        ConstService {
+            service: self.service.clone(),
+        }
+    }
+}
+
+impl<S: HttpService> NewHttpService for ConstService<S> {
+    type RequestBody = S::RequestBody;
+    type ResponseBody = S::ResponseBody;
+    type Service = Arc<S>;
+
+    fn new_service(&self) -> io::Result<Self::Service> {
+        Ok(self.service.clone())
+    }
+}
 
 /// An HTTP service which wraps a `Endpoint`, `Handler` and `Responder`.
 #[derive(Debug, Copy, Clone)]
@@ -28,18 +96,17 @@ impl<E, R> FinchersService<E, R> {
     }
 }
 
-impl<E, R> Service for FinchersService<E, R>
+impl<E, R> HttpService for FinchersService<E, R>
 where
     E: Endpoint,
     E::Item: Into<Outcome<R::Item>>,
     R: Responder + Clone,
 {
-    type Request = Request<BodyStream>;
-    type Response = Response<<R::Body as ResponseBody>::Stream>;
-    type Error = io::Error;
+    type RequestBody = BodyStream;
+    type ResponseBody = R::Body;
     type Future = FinchersServiceFuture<E, R>;
 
-    fn call(&self, request: Self::Request) -> Self::Future {
+    fn call(&self, request: Request<BodyStream>) -> Self::Future {
         let input = Input::from(request);
         FinchersServiceFuture {
             outcome: self.endpoint.apply_input(input),
@@ -66,7 +133,7 @@ where
     E::Item: Into<Outcome<R::Item>>,
     R: Responder,
 {
-    type Item = Response<<R::Body as ResponseBody>::Stream>;
+    type Item = Response<R::Body>;
     type Error = io::Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
@@ -77,7 +144,7 @@ where
                 .headers_mut()
                 .insert(header::SERVER, "Finchers".parse().unwrap());
         }
-        Ok(Ready(response.map(ResponseBody::into_stream)))
+        Ok(Ready(response))
     }
 }
 

@@ -13,9 +13,9 @@ pub extern crate mime;
 #[cfg(feature = "tls")]
 extern crate native_tls;
 extern crate net2;
+extern crate num_cpus;
 extern crate tokio_core;
 extern crate tokio_io;
-extern crate tokio_service;
 #[cfg(feature = "tls")]
 extern crate tokio_tls;
 
@@ -28,7 +28,6 @@ pub use finchers_derive::*;
 #[macro_use]
 mod macros;
 
-pub mod application;
 pub mod endpoint;
 pub mod errors;
 pub mod request;
@@ -41,7 +40,10 @@ pub use errors::Error;
 
 #[allow(missing_docs)]
 pub mod prelude {
+    #[doc(hidden)]
     pub use endpoint::Endpoint;
+    #[doc(hidden)]
     pub use service::EndpointServiceExt;
+    #[doc(hidden)]
     pub use test::EndpointTestExt;
 }
