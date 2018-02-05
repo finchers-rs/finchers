@@ -81,6 +81,16 @@ pub struct Segment<'a> {
     end: usize,
 }
 
+impl<'a> From<&'a str> for Segment<'a> {
+    fn from(s: &'a str) -> Self {
+        Segment {
+            s,
+            start: 0,
+            end: s.len(),
+        }
+    }
+}
+
 impl<'a> Segment<'a> {
     /// Yields the underlying `str` slice.
     #[inline]
