@@ -3,29 +3,24 @@ extern crate skeptic;
 use std::path::{Path, PathBuf};
 use skeptic::*;
 
-fn from_workspace_dir<S: AsRef<str>>(s: S) -> Vec<PathBuf> {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join(s.as_ref())
-        .canonicalize();
-    let path = match path {
-        Ok(path) => path,
-        Err(..) => return vec![],
-    };
-    markdown_files_of_directory(path.to_str().unwrap())
+fn path_string(s: &str) -> Option<String> {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join(s)
+        .canonicalize()
+        .ok()
+        .and_then(|path| path.to_str().map(ToOwned::to_owned))
 }
 
-fn guide() -> Vec<PathBuf> {
-    from_workspace_dir("guide/src/")
-}
-
-fn site() -> Vec<PathBuf> {
-    from_workspace_dir("site")
+fn from_workspace_dir(s: &str) -> Vec<PathBuf> {
+    path_string(s)
+        .map(|path| markdown_files_of_directory(&path))
+        .unwrap_or_default()
 }
 
 fn main() {
     let mut md_files = vec![];
-    md_files.extend(guide());
-    md_files.extend(site());
-
+    md_files.extend(from_workspace_dir("guide/src/"));
+    md_files.extend(from_workspace_dir("site"));
+    md_files.push(path_string("../README.md").unwrap().into());
     generate_doc_tests(&md_files);
 }
