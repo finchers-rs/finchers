@@ -32,7 +32,7 @@ channel doc --no-deps
 cd "$DIR/finchers-json"
 channel build
 channel test
-channel doc
+channel doc --no-deps
 
 cd "$DIR/finchers-urlencoded"
 channel build
@@ -61,7 +61,7 @@ channel doc --no-deps
 cd "$DIR/finchers-json"
 channel build
 channel test
-channel doc
+channel doc --no-deps
 
 cd "$DIR/finchers-urlencoded"
 channel build
@@ -92,7 +92,7 @@ channel doc --no-deps
 cd "$DIR/finchers-json"
 channel build
 channel test
-channel doc
+channel doc --no-deps
 
 cd "$DIR/finchers-urlencoded"
 channel build
