@@ -14,4 +14,3 @@ if [[ -n "${RUSTFMT:-}" ]]; then
 else
     ensure_installed mdbook "${MDBOOK_VERSION}"
 fi
-

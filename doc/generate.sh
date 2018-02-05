@@ -15,13 +15,6 @@ cd "${DIR}/doc/site"
 bundle install
 bundle exec jekyll build
 
-# API doc
-cd "${DIR}"
-rm -rf ./target/doc
-cargo doc --all --no-deps --features "$STABLE_FEATURES"
-cp -a ./target/doc ./target/doc-upload/api
-rm -f ./target/doc-upload/api/.lock
-
 # users guide
 cd "${DIR}/doc/guide"
 mdbook build
