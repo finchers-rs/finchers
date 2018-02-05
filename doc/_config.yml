@@ -3,8 +3,13 @@ url: "https://github.com/finchers-rs/"
 baseurl: ""
 theme: jekyll-theme-minimal
 
-source: ./
-destination: ../../target/doc-upload/
+exclude:
+  - tests/
+  - build.rs
+  - Cargo.toml
+  - Cargo.lock
+  - generate.sh
+  - lib.rs
 
 markdown: kramdown
 kramdown:

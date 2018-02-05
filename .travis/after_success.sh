@@ -3,6 +3,8 @@
 set -e
 
 DIR=$(cd "$(dirname ${BASH_SOURCE[0]})"/../ && pwd)
+DEST="${DIR}/doc-upload"
+
 UPSTREAM_URL="https://${GH_TOKEN}@github.com/finchers-rs/finchers-rs.github.io.git"
 REV="$(git rev-parse --short HEAD)"
 USERNAME="Yusuke Sasaki"
@@ -28,15 +30,28 @@ if [[ "${BRANCH}" != "master" ]]; then
     exit 1
 fi
 
-cd "${DIR}/target/doc-upload"
+rungit() {
+    (set -x; git "$@")
+}
+
+echo "[Copying the documentation to the upstream repository...]"
+rungit clone "${UPSTREAM_URL}" "${DEST}" --branch master --depth 10
+
+# TODO: run generate.sh only on release tags
+bash "${DIR}/doc/generate.sh" "$DEST"
+
+rm -rf "${DEST}/api"
+cp -a "${DIR}/target/doc" "${DEST}/api"
+rm -f "${DEST}/api/.lock"
 
 echo "[Committing...]"
-git init
+cd "${DEST}"
+echo ">> $(pwd)"
 git config user.name "${USERNAME}"
 git config user.email "${EMAIL}"
-git add -A .
-git commit -qm "Build documentation at ${TRAVIS_REPO_SLUG}@${REV}"
+rungit add -A .
+rungit commit -qm "Build documentation at ${TRAVIS_REPO_SLUG}@${REV}"
 
 echo "[Pushing to GitHub...]"
-git remote add upstream "${UPSTREAM_URL}"
-git push -q upstream HEAD:refs/heads/master --force
+rungit remote add upstream "${UPSTREAM_URL}"
+rungit push -q upstream HEAD:refs/heads/master --force
