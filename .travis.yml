@@ -38,16 +38,11 @@ addons:
       - cmake
 
 before_script:
-  - 'export PATH=$HOME/.local/bin:$PATH'
-  - '[[ -z "$RUSTFMT" ]] || bash .travis/install-rustfmt.sh'
-  - '[[ -n "$RUSTFMT" ]] || bash .travis/install-mdbook.sh'
+  - bash .travis/before_script.sh
+  - export PATH=$HOME/.local/bin:$PATH
 
 script:
-  - '[[ -n "$RUSTFMT" ]] || bash .travis/script.sh'
-  - '[[ -z "$RUSTFMT" ]] || cargo fmt -- --write-mode=diff'
+  - bash .travis/script.sh
 
 after_success:
-  - '[[ -n "$RUSTFMT" ]] || bash .travis/build-doc.sh'
-  - '[[ -n "$RUSTFMT" ]] || bash .travis/deploy-doc.sh'
-#  - travis-cargo --only stable coveralls --no-sudo
-
+  - bash .travis/after_success.sh

@@ -1,0 +1,22 @@
+[package]
+name = "doctest"
+version = "0.1.0"
+authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
+build = "build.rs"
+
+[lib]
+path = "lib.rs"
+
+[dependencies]
+finchers            = { version = "0.11.0-dev", path = "../finchers" }
+finchers-derive     = { version = "0.11.0-dev", path = "../finchers-derive" }
+finchers-json       = { version = "0.11.0-dev", path = "../finchers-json" }
+finchers-urlencoded = { version = "0.11.0-dev", path = "../finchers-urlencoded" }
+
+serde = { version = "1.0" }
+
+[build-dependencies]
+skeptic = "0.13"
+
+[dev-dependencies]
+skeptic = "0.13"
