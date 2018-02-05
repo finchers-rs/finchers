@@ -37,7 +37,6 @@ addons:
 before_script:
   - 'if [[ -n $RUSTFMT_VERSION ]]; then bash .travis/install-rustfmt.sh; fi'
   - 'if [[ -n $MDBOOK_VERSION ]]; then bash .travis/install-mdbook.sh; fi'
-  - 'if [[ -n $MDBOOK_VERSION ]]; then bundle install; fi'
   - export PATH=$HOME/.local/bin:$PATH
 
 script:
