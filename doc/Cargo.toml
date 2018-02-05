@@ -1,11 +1,12 @@
 [package]
-name = "doctest"
+name = "finchers-doctest"
 version = "0.1.0"
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 build = "build.rs"
 
 [lib]
 path = "lib.rs"
+doc = false
 
 [dependencies]
 finchers            = { version = "0.11.0-dev", path = "../finchers" }
