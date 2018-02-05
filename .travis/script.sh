@@ -1,30 +1,124 @@
 #!/bin/bash
 
-set -eux
+set -e
 
 DIR=$(cd "$(dirname ${BASH_SOURCE[0]})"/../ && pwd)
 
-if [[ -n "${RUSTFMT:-}" ]]; then
+if [[ -n "${RUSTFMT_VERSION:-}" ]]; then
     cargo fmt -- --write-mode=diff
     exit 0
 fi
 
-case "${TRAVIS_RUST_VERSION:-}" in
-"nightly")
-    cargo build --all --all-features
-    cargo test --all --all-features
-    cargo doc --all --all-features --no-deps
-    ;;
-*)
-    cargo build --all --exclude example-todo --features "$STABLE_FEATURES"
-    cargo test --all --exclude example-todo --features "$STABLE_FEATURES"
-    cargo doc --all --features "$STABLE_FEATURES" --no-deps
-    ;;
-esac
+channel() {
+    if [[ "${TRAVIS_RUST_VERSION}" == "${CHANNEL}" ]]; then
+        (set -x; cargo "$@")
+    fi
+}
 
-# doctest
-cargo test --manifest-path "$DIR/doc/Cargo.toml"
+# ===================================================================
+CHANNEL="stable"
+cd "$DIR/finchers"
+channel build
+channel test
+channel build --features "tls"
+channel test  --features "tls"
+channel doc   --features "tls" --no-deps
 
-bash "${DIR}/doc/generate.sh"
-cp -a "${DIR}/target/doc" "${DIR}/target/doc-upload/api"
-rm -f "${DIR}/target/doc-upload/api/.lock"
+cd "$DIR/finchers-derive"
+channel build
+channel test
+channel doc --no-deps
+
+cd "$DIR/finchers-json"
+channel build
+channel test
+channel doc
+
+cd "$DIR/finchers-urlencoded"
+channel build
+channel test
+channel doc --no-deps
+
+cd "$DIR/examples/form"
+channel build
+channel test
+
+
+# ===================================================================
+CHANNEL="beta"
+cd "$DIR/finchers"
+channel build
+channel test
+channel build --features "tls"
+channel test  --features "tls"
+channel doc   --features "tls" --no-deps
+
+cd "$DIR/finchers-derive"
+channel build
+channel test
+channel doc --no-deps
+
+cd "$DIR/finchers-json"
+channel build
+channel test
+channel doc
+
+cd "$DIR/finchers-urlencoded"
+channel build
+channel test
+channel doc --no-deps
+
+cd "$DIR/examples/form"
+channel build
+channel test
+channel doc --no-deps
+
+
+# ===================================================================
+CHANNEL="nightly"
+
+cd "$DIR/finchers"
+channel build
+channel test
+channel build --all-features
+channel test --all-features
+channel doc --all-features --no-deps
+
+cd "$DIR/finchers-derive"
+channel build
+channel test
+channel doc --no-deps
+
+cd "$DIR/finchers-json"
+channel build
+channel test
+channel doc
+
+cd "$DIR/finchers-urlencoded"
+channel build
+channel test
+channel doc --no-deps
+
+cd "$DIR/examples/form"
+channel build
+channel test
+channel doc --no-deps
+
+cd "$DIR/examples/todo"
+channel build
+channel test
+channel doc --no-deps
+
+
+# ===================================================================
+
+# run doctest
+cd "$DIR/doc"
+(set -x; cargo build)
+(set -x; cargo test)
+
+if [[ ${TRAVIS_RUST_VERSION} == "stable" ]]; then
+    bash "${DIR}/doc/generate.sh"
+    cp -a "${DIR}/target/doc" "${DIR}/target/doc-upload/api"
+    rm -f "${DIR}/target/doc-upload/api/.lock"
+fi
