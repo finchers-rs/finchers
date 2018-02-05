@@ -1,7 +1,7 @@
 use std::fmt;
 use syn::{self, DeriveInput, Generics, Ident, Meta};
 use quote::{ToTokens, Tokens};
-use proc_macro2::{Span, Term, TokenNode, TokenTree};
+use proc_macro2::{Span, Term, TokenNode, TokenStream, TokenTree};
 
 const SUPPORTED_STATUSES: &[(u16, &str)] = &[
     (100, "CONTINUE"),
@@ -145,21 +145,21 @@ impl ToTokens for StatusCode {
 }
 
 #[derive(Debug)]
-pub struct Variant {
+struct Variant {
     ident: Ident,
     kind: FieldKind,
     status_code: Option<StatusCode>,
 }
 
 #[derive(Debug)]
-pub enum FieldKind {
+enum FieldKind {
     Unit,
     Named,
     Unnamed,
 }
 
 #[derive(Debug)]
-pub enum Body {
+enum Body {
     Struct(Option<StatusCode>),
     Enum {
         status_code: Option<StatusCode>,
@@ -249,7 +249,7 @@ fn parse_status_code(attrs: &[syn::Attribute]) -> Option<StatusCode> {
     status_code
 }
 
-pub struct Context {
+struct Context {
     ident: Ident,
     generics: Generics,
     body: Body,
@@ -265,17 +265,15 @@ impl fmt::Debug for Context {
     }
 }
 
-impl From<DeriveInput> for Context {
-    fn from(input: DeriveInput) -> Self {
+impl Context {
+    fn new(input: DeriveInput) -> Self {
         Context {
             ident: input.ident,
             generics: input.generics,
             body: Body::from_data(input.data, input.attrs),
         }
     }
-}
 
-impl Context {
     fn dummy_module_ident(&self) -> Ident {
         format!("__impl_http_status_for_{}", self.ident).into()
     }
@@ -302,4 +300,10 @@ impl ToTokens for Context {
             }
         });
     }
+}
+
+pub fn derive(input: TokenStream) -> TokenStream {
+    let input = syn::parse2(input).unwrap();
+    let context = Context::new(input);
+    context.into_tokens().into()
 }
