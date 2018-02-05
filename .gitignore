@@ -4,3 +4,7 @@ Cargo.lock
 
 /kcov/
 /master.zip
+
+.sass-cache/
+Gemfile.lock
+doc-upload/

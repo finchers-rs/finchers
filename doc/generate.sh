@@ -1,20 +1,12 @@
 #!/bin/bash
 
-set -eux
+set -e
 
 DIR=$(cd "$(dirname ${BASH_SOURCE[0]})"/../ && pwd)
-STABLE_FEATURES="${STABLE_FEATURES:-}"
+DEST="${1:-"$DIR/doc-upload"}"
 
-# remove all contents at destination directory
-cd "${DIR}"
-rm -rf target/doc-upload
-mkdir -p target/doc-upload
-
-# homepage
-cd "${DIR}/doc/site"
-bundle install
-bundle exec jekyll build
-
-# users guide
-cd "${DIR}/doc/guide"
-mdbook build
+cd "${DIR}/doc"
+echo ">> $(pwd)"
+set -x
+bundle exec jekyll build -d "$DEST"
+mdbook build -d "$DEST/guide" ./guide/

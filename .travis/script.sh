@@ -9,11 +9,20 @@ if [[ -n "${RUSTFMT_VERSION:-}" ]]; then
     exit 0
 fi
 
+# imported from serde-rs/serde/travis.sh
 channel() {
-    if [[ "${TRAVIS_RUST_VERSION}" == "${CHANNEL}" ]]; then
-        (set -x; cargo "$@")
+    if [[ -n "${TRAVIS}" ]]; then
+        if [[ "${TRAVIS_RUST_VERSION}" == "${CHANNEL}" ]]; then
+            pwd
+            (set -x; cargo "$@")
+        fi
+    else
+        pwd
+        (set -x; cargo "+${CHANNEL}" "$@")
     fi
 }
+
+rm -rf "$DIR/target/doc"
 
 # ===================================================================
 CHANNEL="stable"
@@ -116,9 +125,3 @@ channel doc --no-deps
 cd "$DIR/doc"
 (set -x; cargo build)
 (set -x; cargo test)
-
-if [[ ${TRAVIS_RUST_VERSION} == "stable" ]]; then
-    bash "${DIR}/doc/generate.sh"
-    cp -a "${DIR}/target/doc" "${DIR}/target/doc-upload/api"
-    rm -f "${DIR}/target/doc-upload/api/.lock"
-fi
