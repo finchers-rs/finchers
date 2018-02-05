@@ -38,7 +38,8 @@ addons:
       - cmake
 
 before_script:
-  - bash .travis/before_script.sh
+  - 'if [[ -n $RUSTFMT ]]; then bash .travis/install-rustfmt.sh; fi'
+  - 'if [[ -z $RUSTFMT ]]; then bash .travis/install-mdbook.sh; fi'
   - export PATH=$HOME/.local/bin:$PATH
 
 script:

@@ -1,0 +1,8 @@
+#!/bin/bash
+
+set -eux
+
+INSTALLED="$(cargo install --list | grep \"$1\" | wc -l)"
+if [[ "${installed}" == 0 ]]; then
+    cargo install rustfmt-nightly --version "$RUSTFMT_VERSION" --force
+fi
