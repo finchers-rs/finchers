@@ -1,9 +1,16 @@
-#!/bin/sh
+#!/bin/bash
 
-set -euo pipefail
+set -eux
 
 DIR=$(cd "$(dirname ${BASH_SOURCE[0]})"/../ && pwd)
 UPSTREAM_URL="https://${GH_TOKEN}@github.com/finchers-rs/finchers-rs.github.io.git"
+REV="$(git rev-parse --short HEAD)"
+USERNAME="Yusuke Sasaki"
+EMAIL="yusuke.sasaki.nuem@gmail.com"
+
+if [[ -n "${RUSTFMT:-}" ]]; then
+    exit 1
+fi
 
 if [[ -z "${TRAVIS_BRANCH:-}" ]]; then
     echo "[This script may only be running from Travis CI]"
@@ -25,7 +32,15 @@ if [[ "${BRANCH}" != "master" ]]; then
     exit 1
 fi
 
-echo "[Pushing to GitHub...]"
 cd "${DIR}/target/doc-upload"
+
+echo "[Committing...]"
+git init
+git config user.name "${USERNAME}"
+git config user.email "${EMAIL}"
+git add -A .
+git commit -qm "Build documentation at ${TRAVIS_REPO_SLUG}@${REV}"
+
+echo "[Pushing to GitHub...]"
 git remote add upstream "${UPSTREAM_URL}"
 git push -q upstream HEAD:refs/heads/master --force

@@ -1,6 +1,6 @@
 # `finchers`
 [![Build Status](https://travis-ci.org/finchers-rs/finchers.svg?branch=master)](https://travis-ci.org/finchers-rs/finchers)
-[![Coverage Status](https://coveralls.io/repos/github/finchers-rs/finchers/badge.svg?branch=master)](https://coveralls.io/github/finchers-rs/finchers?branch=master)
+<!--[![Coverage Status](https://coveralls.io/repos/github/finchers-rs/finchers/badge.svg?branch=master)](https://coveralls.io/github/finchers-rs/finchers?branch=master) -->
 [![crates.io](https://img.shields.io/crates/v/finchers.svg)](https://crates.io/crates/finchers)
 [![docs-rs](https://docs.rs/finchers/badge.svg)](https://docs.rs/finchers)
 

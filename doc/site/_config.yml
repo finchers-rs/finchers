@@ -1,0 +1,12 @@
+title: finchers
+url: "https://github.com/finchers-rs/"
+baseurl: ""
+theme: jekyll-theme-minimal
+
+source: ./
+destination: ../../target/doc-upload/
+
+markdown: kramdown
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
