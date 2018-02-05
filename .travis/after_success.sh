@@ -1,16 +1,12 @@
 #!/bin/bash
 
-set -eux
+set -e
 
 DIR=$(cd "$(dirname ${BASH_SOURCE[0]})"/../ && pwd)
 UPSTREAM_URL="https://${GH_TOKEN}@github.com/finchers-rs/finchers-rs.github.io.git"
 REV="$(git rev-parse --short HEAD)"
 USERNAME="Yusuke Sasaki"
 EMAIL="yusuke.sasaki.nuem@gmail.com"
-
-if [[ -n "${RUSTFMT:-}" ]]; then
-    exit 1
-fi
 
 if [[ -z "${TRAVIS_BRANCH:-}" ]]; then
     echo "[This script may only be running from Travis CI]"
