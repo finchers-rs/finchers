@@ -4,6 +4,7 @@ baseurl: ""
 theme: jekyll-theme-minimal
 
 exclude:
+  - target/
   - tests/
   - build.rs
   - Cargo.toml
