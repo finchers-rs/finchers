@@ -3,6 +3,7 @@ name = "finchers-doctest"
 version = "0.1.0"
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 build = "build.rs"
+publish = false
 
 [lib]
 path = "lib.rs"

@@ -3,8 +3,10 @@ sudo: false
 language: rust
 
 cache:
-  - cargo
-  - bundler
+  cargo: true
+  bundler: true
+  directories:
+  - doc/target
 
 branches:
   only:

@@ -7,7 +7,9 @@ members = [
 
   "examples/form",
   "examples/todo",
+]
 
+exclude = [
   "doc",
 ]
 

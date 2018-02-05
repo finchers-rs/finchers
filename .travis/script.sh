@@ -22,6 +22,9 @@ case "${TRAVIS_RUST_VERSION:-}" in
     ;;
 esac
 
+# doctest
+cargo test --manifest-path "$DIR/doc/Cargo.toml"
+
 bash "${DIR}/doc/generate.sh"
 cp -a "${DIR}/target/doc" "${DIR}/target/doc-upload/api"
 rm -f "${DIR}/target/doc-upload/api/.lock"
