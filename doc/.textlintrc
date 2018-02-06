@@ -1,0 +1,11 @@
+{
+  "filters": {},
+  "rules": {
+    "unexpanded-acronym": true,
+    "rousseau": true,
+    "alex": true,
+    "common-misspellings": true,
+    "ginger": true,
+    "write-good": true
+  }
+}

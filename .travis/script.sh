@@ -52,6 +52,10 @@ cd "$DIR/examples/form"
 channel build
 channel test
 
+cd "$DIR/examples/todo"
+channel build
+channel test
+
 
 # ===================================================================
 CHANNEL="beta"
@@ -80,7 +84,10 @@ channel doc --no-deps
 cd "$DIR/examples/form"
 channel build
 channel test
-channel doc --no-deps
+
+cd "$DIR/examples/todo"
+channel build
+channel test
 
 
 # ===================================================================
@@ -111,13 +118,10 @@ channel doc --no-deps
 cd "$DIR/examples/form"
 channel build
 channel test
-channel doc --no-deps
 
 cd "$DIR/examples/todo"
 channel build
 channel test
-channel doc --no-deps
-
 
 # ===================================================================
 
