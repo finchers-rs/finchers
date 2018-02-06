@@ -20,7 +20,6 @@ fn from_workspace_dir(s: &str) -> Vec<PathBuf> {
 fn main() {
     let mut md_files = vec![];
     md_files.extend(from_workspace_dir("guide/src/"));
-    md_files.extend(from_workspace_dir("site"));
     md_files.push(path_string("../README.md").unwrap().into());
     generate_doc_tests(&md_files);
 }

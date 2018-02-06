@@ -1,22 +1,41 @@
 ---
 ---
 
-Finchers is a combinator library of Rust, for building *asynchronous* HTTP services.
+Finchers is a combinator library written in Rust, for building asynchronous HTTP services in type-safe and declarative way.
 
 # Features
 
-* building an HTTP application in declarative way
-* type safe routing
-* asynchronous handling based on Hyper and Futures
+* Building an HTTP application in a declarative way
+* Type safe routing
+* Asynchronous handling based on Futures and Tokio
 
-# Resources
+# Example
 
-* [Repository][repository]
+```rust
+#[macro_use]
+extern crate finchers;
+
+use finchers::prelude::*;
+use finchers::endpoint::prelude::*;
+use finchers::service::{Server, backend};
+
+fn main() {
+    let endpoint = endpoint("api/v1").with(choice![
+        get(path()).map(|id: u64| format!("GET: id={}", id)),
+        post(body()).map(|body: String| format!("POST: body={}", body)),
+    ]);
+
+    let service = endpoint.into_service::<String>();
+    Server::from_service(service).run(backend::default());
+}
+```
+
+# Documentation
+
+* [Users Guide][users-guide]
 * [API Doc (released)][doc-released]
 * [API Doc (master)][doc-master]
-* [User Guide][user-guide]
 
-[repository]: https://github.com/finchers-rs/finchers
 [doc-released]: https://docs.rs/finchers
 [doc-master]: ./api/finchers/index.html
-[user-guide]: ./guide/index.html
+[users-guide]: ./guide/index.html

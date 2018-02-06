@@ -5,7 +5,7 @@
     "rousseau": true,
     "alex": true,
     "common-misspellings": true,
-    "ginger": true,
+    "ginger": false,
     "write-good": true
   }
 }
