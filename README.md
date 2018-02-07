@@ -2,6 +2,7 @@
 [![Build Status](https://travis-ci.org/finchers-rs/finchers.svg?branch=master)](https://travis-ci.org/finchers-rs/finchers)
 [![crates.io](https://img.shields.io/crates/v/finchers.svg)](https://crates.io/crates/finchers)
 [![docs-rs](https://docs.rs/finchers/badge.svg)](https://docs.rs/finchers)
+[![Gitter](https://badges.gitter.im/finchers-rs/finchers.svg)](https://gitter.im/finchers-rs/finchers?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 <!--[![Coverage Status](https://coveralls.io/repos/github/finchers-rs/finchers/badge.svg?branch=master)](https://coveralls.io/github/finchers-rs/finchers?branch=master) -->
 
 `finchers` is a combinator library for building asynchronous HTTP services.
