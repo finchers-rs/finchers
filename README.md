@@ -38,7 +38,7 @@ fn main() {
 
 ## Documentation
 * [API documentation (released)](https://docs.rs/finchers/)
-* [API documentation (master)](https://finchers-rs.github.io/finchers/finchers/index.html)
+* [API documentation (master)](https://finchers-rs.github.io/api/finchers/index.html)
 * [Users Guide](https://finchers-rs.github.io/guide)
 
 ## License
