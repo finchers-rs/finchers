@@ -8,3 +8,4 @@ Cargo.lock
 .sass-cache/
 Gemfile.lock
 doc-upload/
+doc/_site/

@@ -27,8 +27,8 @@ use finchers::service::{Server, backend};
 
 fn main() {
     let endpoint = endpoint("api/v1").with(choice![
-        get(path::<u64>()).map(|id| format!("GET: id={}", id)),
-        post(body::<String>()).map(|body| format!("POST: body={}", body)),
+        get(path()).map(|id: u64| format!("GET: id={}", id)),
+        post(body()).map(|body: String| format!("POST: body={}", body)),
     ]);
 
     let service = endpoint.into_service::<String>();
