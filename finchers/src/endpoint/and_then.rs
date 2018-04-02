@@ -1,13 +1,13 @@
 #![allow(missing_docs)]
 
+use self::Chain::*;
+use endpoint::{Endpoint, EndpointContext, Input};
+use errors::Error;
+use futures::Async::*;
+use futures::{Future, IntoFuture, Poll};
 use std::fmt;
 use std::mem;
 use std::sync::Arc;
-use futures::{Future, IntoFuture, Poll};
-use futures::Async::*;
-use endpoint::{Endpoint, EndpointContext, EndpointResult, Input};
-use errors::Error;
-use self::Chain::*;
 
 pub fn and_then<E, F, R>(endpoint: E, f: F) -> AndThen<E, F>
 where
@@ -65,38 +65,13 @@ where
     R::Error: Into<Error>,
 {
     type Item = R::Item;
-    type Result = AndThenResult<E::Result, F>;
+    type Future = AndThenFuture<E::Future, F, R>;
 
-    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Result> {
-        let result = try_opt!(self.endpoint.apply(input, ctx));
-        Some(AndThenResult {
-            result,
-            f: self.f.clone(),
+    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
+        let future = try_opt!(self.endpoint.apply(input, ctx));
+        Some(AndThenFuture {
+            inner: Chain::new(future, self.f.clone()),
         })
-    }
-}
-
-#[derive(Debug)]
-pub struct AndThenResult<T, F> {
-    result: T,
-    f: Arc<F>,
-}
-
-impl<T, F, R> EndpointResult for AndThenResult<T, F>
-where
-    T: EndpointResult,
-    F: Fn(T::Item) -> R,
-    R: IntoFuture,
-    R::Error: Into<Error>,
-{
-    type Item = R::Item;
-    type Future = AndThenFuture<T::Future, F, R>;
-
-    fn into_future(self, input: &mut Input) -> Self::Future {
-        let future = self.result.into_future(input);
-        AndThenFuture {
-            inner: Chain::new(future, self.f),
-        }
     }
 }
 

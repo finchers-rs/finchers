@@ -1,7 +1,8 @@
 #![allow(missing_docs)]
 
+use futures::future::{ok, FutureResult};
 use endpoint::{Endpoint, EndpointContext, Input, IntoEndpoint};
-use errors::NeverReturn;
+use errors::Error;
 
 pub fn skip_all<I>(iter: I) -> SkipAll<<I::Item as IntoEndpoint>::Endpoint>
 where
@@ -20,12 +21,12 @@ pub struct SkipAll<E: Endpoint> {
 
 impl<E: Endpoint> Endpoint for SkipAll<E> {
     type Item = ();
-    type Result = Result<(), NeverReturn>;
+    type Future = FutureResult<(), Error>;
 
-    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Result> {
+    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
         for endpoint in &self.endpoints {
             let _ = try_opt!(endpoint.apply(input, ctx));
         }
-        Some(Ok(()))
+        Some(ok(()))
     }
 }

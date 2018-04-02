@@ -1,11 +1,11 @@
-use std::rc::Rc;
 use http::{header, HeaderMap, Method, Uri, Version};
 use mime;
+use std::sync::Arc;
 
 /// Clonable, shared parts in the incoming HTTP request
 #[derive(Debug, Clone)]
 pub struct RequestParts {
-    inner: Rc<Inner>,
+    inner: Arc<Inner>,
 }
 
 #[derive(Debug)]
@@ -20,7 +20,7 @@ struct Inner {
 impl RequestParts {
     pub(crate) fn new(method: Method, uri: Uri, version: Version, headers: HeaderMap) -> Self {
         RequestParts {
-            inner: Rc::new(Inner {
+            inner: Arc::new(Inner {
                 method,
                 uri,
                 version,

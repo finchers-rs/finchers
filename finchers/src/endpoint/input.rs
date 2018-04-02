@@ -1,9 +1,44 @@
+use std::cell::RefCell;
 use std::ops::Deref;
-use http::{Extensions, Request};
+
+use futures::task::LocalKey;
 use http::request::Parts;
+use http::{Extensions, Request};
 
 use request::RequestParts;
 use request::body::{Body, BodyStream};
+
+task_local!(static INPUT: RefCell<Option<Input>> = RefCell::new(None));
+
+pub fn input_key() -> &'static LocalKey<RefCell<Option<Input>>> {
+    &INPUT
+}
+
+pub fn with_input<F, R>(f: F) -> R
+where
+    F: FnOnce(&Input) -> R,
+{
+    INPUT.with(|input| {
+        let input = input.borrow();
+        let input = input
+            .as_ref()
+            .expect("The instance of Input has not initialized yet.");
+        f(input)
+    })
+}
+
+pub fn with_input_mut<F, R>(f: F) -> R
+where
+    F: FnOnce(&mut Input) -> R,
+{
+    INPUT.with(|input| {
+        let mut input = input.borrow_mut();
+        let input = input
+            .as_mut()
+            .expect("The instance of Input has not initialized yet.");
+        f(input)
+    })
+}
 
 /// The value of incoming HTTP request
 #[derive(Debug)]

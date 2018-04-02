@@ -1,9 +1,9 @@
 #![allow(missing_docs)]
 #![allow(non_snake_case)]
 
-use std::fmt;
+use super::{Endpoint, EndpointContext, Input, IntoEndpoint};
 use futures::{future, IntoFuture};
-use super::{Endpoint, EndpointContext, EndpointResult, Input, IntoEndpoint};
+use std::fmt;
 
 macro_rules! generate {
     ($(
@@ -60,13 +60,13 @@ macro_rules! generate {
         )*
         {
             type Item = ($($T::Item),*);
-            type Result = $JoinResult<$($T::Result),*>;
+            type Future = future::$Join<$($T::Future),*>;
 
-            fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Result> {
+            fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
                 $(
                     let $T = try_opt!(self.$T.apply(input, ctx));
                 )*
-                Some($JoinResult { inner: ($($T),*) })
+                Some(IntoFuture::into_future(($($T),*)))
             }
         }
 
@@ -77,24 +77,6 @@ macro_rules! generate {
             fn into_endpoint(self) -> Self::Endpoint {
                 let ($($T),*) = self;
                 $new ($($T),*)
-            }
-        }
-
-        #[derive(Debug)]
-        pub struct $JoinResult<$($T),*> {
-            inner: ($($T),*),
-        }
-
-        impl<$($T: EndpointResult),*> EndpointResult for $JoinResult<$($T),*> {
-            type Item = ($($T::Item),*);
-            type Future = future::$Join<$($T::Future),*>;
-
-            fn into_future(self, input: &mut Input) -> Self::Future {
-                let ($($T),*) = self.inner;
-                $(
-                    let $T = $T.into_future(input);
-                )*
-                IntoFuture::into_future(($($T),*))
             }
         }
     )*};

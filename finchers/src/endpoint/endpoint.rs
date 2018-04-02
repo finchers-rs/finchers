@@ -1,11 +1,12 @@
+use futures::Async::*;
+use futures::{Future, IntoFuture, Poll};
 use std::marker::PhantomData;
 use std::rc::Rc;
 use std::sync::Arc;
-use futures::{future, Future, IntoFuture, Poll};
-use futures::Async::*;
 
+use endpoint::input::input_key;
 use endpoint::{self, EndpointContext, Input, Outcome};
-use errors::{Error, HttpError, NeverReturn};
+use errors::{Error, NeverReturn};
 
 /// Abstruction of an endpoint.
 pub trait Endpoint {
@@ -13,20 +14,21 @@ pub trait Endpoint {
     type Item;
 
     /// The type of returned value from `apply`.
-    type Result: EndpointResult<Item = Self::Item>;
+    type Future: Future<Item = Self::Item, Error = Error>;
 
     /// Validates the incoming HTTP request,
     /// and returns the instance of `Task` if matched.
-    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Result>;
+    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Future>;
 
     #[allow(missing_docs)]
-    fn apply_input<T>(&self, mut input: Input) -> EndpointFuture<Self::Result, T>
+    fn apply_input<T>(&self, input: Input) -> EndpointFuture<Self::Future, T>
     where
         Self::Item: Into<Outcome<T>>,
     {
+        let in_flight = self.apply(&input, &mut EndpointContext::new(&input));
         EndpointFuture {
-            inner: self.apply(&input, &mut EndpointContext::new(&input))
-                .map(|result| result.into_future(&mut input)),
+            input: Some(input),
+            in_flight,
             _marker: PhantomData,
         }
     }
@@ -98,87 +100,68 @@ where
 
 impl<'a, E: Endpoint> Endpoint for &'a E {
     type Item = E::Item;
-    type Result = E::Result;
+    type Future = E::Future;
 
-    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Result> {
+    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
         (*self).apply(input, ctx)
     }
 }
 
 impl<E: Endpoint> Endpoint for Box<E> {
     type Item = E::Item;
-    type Result = E::Result;
+    type Future = E::Future;
 
-    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Result> {
+    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
         (**self).apply(input, ctx)
     }
 }
 
 impl<E: Endpoint> Endpoint for Rc<E> {
     type Item = E::Item;
-    type Result = E::Result;
+    type Future = E::Future;
 
-    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Result> {
+    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
         (**self).apply(input, ctx)
     }
 }
 
 impl<E: Endpoint> Endpoint for Arc<E> {
     type Item = E::Item;
-    type Result = E::Result;
+    type Future = E::Future;
 
-    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Result> {
+    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
         (**self).apply(input, ctx)
-    }
-}
-
-/// Abstruction of returned value from an `Endpoint`.
-pub trait EndpointResult {
-    /// The type *on success*.
-    type Item;
-
-    /// The type of value returned from `launch`.
-    type Future: Future<Item = Self::Item, Error = Error>;
-
-    /// Launches itself and construct a `Future`, and then return it.
-    ///
-    /// This method will be called *after* the routing is completed.
-    fn into_future(self, input: &mut Input) -> Self::Future;
-}
-
-impl<F: IntoFuture> EndpointResult for F
-where
-    F::Error: HttpError + 'static,
-{
-    type Item = F::Item;
-    type Future = future::FromErr<F::Future, Error>;
-
-    fn into_future(self, _: &mut Input) -> Self::Future {
-        self.into_future().from_err()
     }
 }
 
 #[allow(missing_docs)]
 #[allow(missing_debug_implementations)]
-pub struct EndpointFuture<E, T>
+pub struct EndpointFuture<F, T>
 where
-    E: EndpointResult,
-    E::Item: Into<Outcome<T>>,
+    F: Future<Error = Error>,
+    F::Item: Into<Outcome<T>>,
 {
-    inner: Option<E::Future>,
+    input: Option<Input>,
+    in_flight: Option<F>,
     _marker: PhantomData<fn() -> T>,
 }
 
-impl<E, T> Future for EndpointFuture<E, T>
+impl<F, T> Future for EndpointFuture<F, T>
 where
-    E: EndpointResult,
-    E::Item: Into<Outcome<T>>,
+    F: Future<Error = Error>,
+    F::Item: Into<Outcome<T>>,
 {
     type Item = Outcome<T>;
     type Error = NeverReturn;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let outcome = match self.inner {
+        if let Some(input) = self.input.take() {
+            input_key().with(|i| {
+                i.borrow_mut().get_or_insert(input);
+            })
+        }
+
+        let outcome = match self.in_flight {
             Some(ref mut f) => match f.poll() {
                 Ok(Ready(outcome)) => outcome.into(),
                 Ok(NotReady) => return Ok(NotReady),

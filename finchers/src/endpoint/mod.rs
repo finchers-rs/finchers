@@ -1,8 +1,8 @@
 //! `Endpoint` layer
 
 pub mod body;
-pub mod method;
 pub mod header;
+pub mod method;
 pub mod path;
 
 mod context;
@@ -14,16 +14,16 @@ mod and_then;
 mod join;
 mod join_all;
 mod map;
-mod or;
 mod ok;
+mod or;
 mod skip;
 mod skip_all;
 mod with;
 
 // re-exports
 pub use self::context::EndpointContext;
-pub use self::endpoint::{endpoint, Endpoint, EndpointFuture, EndpointResult, IntoEndpoint};
-pub use self::input::Input;
+pub use self::endpoint::{endpoint, Endpoint, EndpointFuture, IntoEndpoint};
+pub use self::input::{with_input, with_input_mut, Input};
 pub use self::outcome::Outcome;
 
 pub use self::and_then::AndThen;
@@ -38,9 +38,9 @@ pub use self::with::With;
 
 /// The "prelude" for building endpoints
 pub mod prelude {
-    pub use super::endpoint::{endpoint, Endpoint, IntoEndpoint};
     pub use super::body::{body, body_stream};
+    pub use super::endpoint::{endpoint, Endpoint, IntoEndpoint};
     pub use super::header::{header, header_opt, header_req};
-    pub use super::path::{match_, path, paths};
     pub use super::method::{delete, get, head, patch, post, put};
+    pub use super::path::{match_, path, paths};
 }

@@ -1,12 +1,12 @@
 //! Components of lower-level HTTP services
 
-use std::io;
-use std::string::ToString;
-use std::rc::Rc;
-use std::sync::Arc;
-use futures::{Future, Poll};
 use futures::Async::*;
+use futures::{Future, Poll};
 use http::{header, Request, Response};
+use std::io;
+use std::rc::Rc;
+use std::string::ToString;
+use std::sync::Arc;
 
 use endpoint::{Endpoint, EndpointFuture, Input, Outcome};
 use request::body::BodyStream;
@@ -123,7 +123,7 @@ where
     E::Item: Into<Outcome<R::Item>>,
     R: Responder,
 {
-    outcome: EndpointFuture<E::Result, R::Item>,
+    outcome: EndpointFuture<E::Future, R::Item>,
     responder: R,
 }
 

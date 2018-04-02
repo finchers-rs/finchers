@@ -1,7 +1,8 @@
 #![allow(missing_docs)]
 
-use errors::NeverReturn;
+use futures::future::{self, FutureResult};
 use super::{Endpoint, EndpointContext, Input};
+use errors::Error;
 
 pub fn ok<T: Clone>(x: T) -> EndpointOk<T> {
     EndpointOk { x }
@@ -14,18 +15,18 @@ pub struct EndpointOk<T> {
 
 impl<T: Clone> Endpoint for EndpointOk<T> {
     type Item = T;
-    type Result = Result<T, NeverReturn>;
+    type Future = FutureResult<T, Error>;
 
-    fn apply(&self, _: &Input, _: &mut EndpointContext) -> Option<Self::Result> {
-        Some(Ok(self.x.clone()))
+    fn apply(&self, _: &Input, _: &mut EndpointContext) -> Option<Self::Future> {
+        Some(future::ok(self.x.clone()))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use test::TestRunner;
     use http::Request;
+    use test::TestRunner;
 
     #[test]
     fn test_ok() {
