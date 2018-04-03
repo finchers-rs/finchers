@@ -1,9 +1,10 @@
 #![allow(missing_docs)]
 
+use super::{Endpoint, EndpointContext, IntoEndpoint};
+use request::Input;
+use futures::{Future, Poll};
 use std::fmt;
 use std::sync::Arc;
-use futures::{Future, Poll};
-use super::{Endpoint, EndpointContext, EndpointResult, Input, IntoEndpoint};
 
 pub fn map<E, F, R>(endpoint: E, f: F) -> Map<E::Endpoint, F>
 where
@@ -53,37 +54,14 @@ where
     F: Fn(E::Item) -> R,
 {
     type Item = R;
-    type Result = MapResult<E::Result, F>;
+    type Future = MapFuture<E::Future, F>;
 
-    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Result> {
-        let result = try_opt!(self.endpoint.apply(input, ctx));
-        Some(MapResult {
-            result,
-            f: self.f.clone(),
-        })
-    }
-}
-
-#[derive(Debug)]
-pub struct MapResult<T, F> {
-    result: T,
-    f: Arc<F>,
-}
-
-impl<T, F, R> EndpointResult for MapResult<T, F>
-where
-    T: EndpointResult,
-    F: Fn(T::Item) -> R,
-{
-    type Item = R;
-    type Future = MapFuture<T::Future, F>;
-
-    fn into_future(self, input: &mut Input) -> Self::Future {
-        let fut = self.result.into_future(input);
-        MapFuture {
+    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
+        let fut = try_opt!(self.endpoint.apply(input, ctx));
+        Some(MapFuture {
             fut,
-            f: Some(self.f),
-        }
+            f: Some(self.f.clone()),
+        })
     }
 }
 

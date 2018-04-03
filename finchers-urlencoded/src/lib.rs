@@ -39,12 +39,12 @@ use std::error::Error as StdError;
 use std::marker::PhantomData;
 use std::iter::FromIterator;
 use serde::de::{self, IntoDeserializer};
-use finchers::futures::future::{self, Future, FutureResult, IntoFuture};
+use finchers::futures::{Future, Poll};
 use finchers::mime;
 
-use finchers::endpoint::{self, Endpoint, EndpointContext, EndpointResult, Input};
+use finchers::endpoint::{self, Endpoint, EndpointContext};
 use finchers::errors::{BadRequest, Error as FinchersError};
-use finchers::request::{FromBody, RequestParts};
+use finchers::request::{with_input, Bytes, FromBody, Input};
 
 #[allow(missing_docs)]
 pub fn queries<T: de::DeserializeOwned>() -> Queries<T> {
@@ -75,11 +75,11 @@ impl<T> fmt::Debug for Queries<T> {
 
 impl<T: de::DeserializeOwned> Endpoint for Queries<T> {
     type Item = T;
-    type Result = QueriesResult<T>;
+    type Future = QueriesFuture<T>;
 
-    fn apply(&self, input: &Input, _: &mut EndpointContext) -> Option<Self::Result> {
+    fn apply(&self, input: &Input, _: &mut EndpointContext) -> Option<Self::Future> {
         if input.query().is_some() {
-            Some(QueriesResult {
+            Some(QueriesFuture {
                 _marker: PhantomData,
             })
         } else {
@@ -90,17 +90,19 @@ impl<T: de::DeserializeOwned> Endpoint for Queries<T> {
 
 #[doc(hidden)]
 #[allow(missing_debug_implementations)]
-pub struct QueriesResult<T: de::DeserializeOwned> {
+pub struct QueriesFuture<T: de::DeserializeOwned> {
     _marker: PhantomData<fn() -> T>,
 }
 
-impl<T: de::DeserializeOwned> EndpointResult for QueriesResult<T> {
+impl<T: de::DeserializeOwned> Future for QueriesFuture<T> {
     type Item = T;
-    type Future = FutureResult<Self::Item, FinchersError>;
+    type Error = FinchersError;
 
-    fn into_future(self, input: &mut Input) -> Self::Future {
-        let result = serde_qs::from_str(input.query().unwrap()).map_err(Error::Parsing);
-        IntoFuture::into_future(result.map_err(|e| BadRequest::new(e).into()))
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        let result = with_input(|input| serde_qs::from_str::<T>(input.query().unwrap()).map_err(Error::Parsing));
+        result
+            .map(Into::into)
+            .map_err(|e| BadRequest::new(e).into())
     }
 }
 
@@ -133,10 +135,10 @@ impl<T> fmt::Debug for QueriesRequired<T> {
 
 impl<T: de::DeserializeOwned> Endpoint for QueriesRequired<T> {
     type Item = T;
-    type Result = QueriesRequiredResult<T>;
+    type Future = QueriesRequiredFuture<T>;
 
-    fn apply(&self, _: &Input, _: &mut EndpointContext) -> Option<Self::Result> {
-        Some(QueriesRequiredResult {
+    fn apply(&self, _: &Input, _: &mut EndpointContext) -> Option<Self::Future> {
+        Some(QueriesRequiredFuture {
             _marker: PhantomData,
         })
     }
@@ -144,20 +146,22 @@ impl<T: de::DeserializeOwned> Endpoint for QueriesRequired<T> {
 
 #[doc(hidden)]
 #[allow(missing_debug_implementations)]
-pub struct QueriesRequiredResult<T: de::DeserializeOwned> {
+pub struct QueriesRequiredFuture<T: de::DeserializeOwned> {
     _marker: PhantomData<fn() -> T>,
 }
 
-impl<T: de::DeserializeOwned> EndpointResult for QueriesRequiredResult<T> {
+impl<T: de::DeserializeOwned> Future for QueriesRequiredFuture<T> {
     type Item = T;
-    type Future = FutureResult<Self::Item, FinchersError>;
+    type Error = FinchersError;
 
-    fn into_future(self, input: &mut Input) -> Self::Future {
-        let result = match input.query() {
-            Some(s) => self::serde_qs::from_str(s).map_err(Error::Parsing),
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        let result = with_input(|input| match input.query() {
+            Some(s) => self::serde_qs::from_str::<T>(s).map_err(Error::Parsing),
             None => Err(Error::MissingQuery),
-        };
-        IntoFuture::into_future(result.map_err(|e| BadRequest::new(e).into()))
+        });
+        result
+            .map(Into::into)
+            .map_err(|e| BadRequest::new(e).into())
     }
 }
 
@@ -190,10 +194,10 @@ impl<T> fmt::Debug for QueriesOptional<T> {
 
 impl<T: de::DeserializeOwned> Endpoint for QueriesOptional<T> {
     type Item = Option<T>;
-    type Result = QueriesOptionalResult<T>;
+    type Future = QueriesOptionalFuture<T>;
 
-    fn apply(&self, _: &Input, _: &mut EndpointContext) -> Option<Self::Result> {
-        Some(QueriesOptionalResult {
+    fn apply(&self, _: &Input, _: &mut EndpointContext) -> Option<Self::Future> {
+        Some(QueriesOptionalFuture {
             _marker: PhantomData,
         })
     }
@@ -201,23 +205,23 @@ impl<T: de::DeserializeOwned> Endpoint for QueriesOptional<T> {
 
 #[doc(hidden)]
 #[allow(missing_debug_implementations)]
-pub struct QueriesOptionalResult<T: de::DeserializeOwned> {
+pub struct QueriesOptionalFuture<T: de::DeserializeOwned> {
     _marker: PhantomData<fn() -> T>,
 }
 
-impl<T: de::DeserializeOwned> EndpointResult for QueriesOptionalResult<T> {
+impl<T: de::DeserializeOwned> Future for QueriesOptionalFuture<T> {
     type Item = Option<T>;
-    type Future = FutureResult<Self::Item, FinchersError>;
+    type Error = FinchersError;
 
-    fn into_future(self, input: &mut Input) -> Self::Future {
-        let result = match input.query() {
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        let result = with_input(|input| match input.query() {
             Some(s) => match serde_qs::from_str(s) {
                 Ok(v) => Ok(Some(v)),
                 Err(e) => Err(BadRequest::new(Error::Parsing(e)).into()),
             },
             None => Ok(None),
-        };
-        IntoFuture::into_future(result)
+        });
+        result.map(Into::into)
     }
 }
 
@@ -251,12 +255,12 @@ impl<F> ::std::ops::DerefMut for Form<F> {
 impl<F: de::DeserializeOwned + 'static> FromBody for Form<F> {
     type Error = Error;
 
-    fn from_body(request: &RequestParts, body: &[u8]) -> Result<Self, Self::Error> {
-        if request
+    fn from_body(body: Bytes, input: &Input) -> Result<Self, Self::Error> {
+        if input
             .media_type()
             .map_or(true, |m| m == mime::APPLICATION_WWW_FORM_URLENCODED)
         {
-            serde_qs::from_bytes(&body).map(Form).map_err(Into::into)
+            serde_qs::from_bytes(&*body).map(Form).map_err(Into::into)
         } else {
             Err(Error::InvalidMediaType)
         }
@@ -292,10 +296,10 @@ impl<T> fmt::Debug for FormBody<T> {
 
 impl<T: de::DeserializeOwned + 'static> Endpoint for FormBody<T> {
     type Item = T;
-    type Result = FormBodyResult<T>;
+    type Future = FormBodyFuture<T>;
 
-    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Result> {
-        Some(FormBodyResult {
+    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
+        Some(FormBodyFuture {
             inner: match self.inner.apply(input, ctx) {
                 Some(inner) => inner,
                 None => return None,
@@ -306,16 +310,16 @@ impl<T: de::DeserializeOwned + 'static> Endpoint for FormBody<T> {
 
 #[doc(hidden)]
 #[allow(missing_debug_implementations)]
-pub struct FormBodyResult<T> {
-    inner: endpoint::body::BodyResult<Form<T>>,
+pub struct FormBodyFuture<T> {
+    inner: endpoint::body::BodyFuture<Form<T>>,
 }
 
-impl<T: de::DeserializeOwned + 'static> EndpointResult for FormBodyResult<T> {
+impl<T: de::DeserializeOwned + 'static> Future for FormBodyFuture<T> {
     type Item = T;
-    type Future = future::Map<endpoint::body::BodyFuture<Form<T>>, fn(Form<T>) -> T>;
+    type Error = FinchersError;
 
-    fn into_future(self, input: &mut Input) -> Self::Future {
-        self.inner.into_future(input).map(|Form(body)| body)
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        self.inner.poll().map(|async| async.map(|Form(body)| body))
     }
 }
 

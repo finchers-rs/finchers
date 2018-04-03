@@ -21,13 +21,13 @@ use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use serde::ser::Serialize;
 use serde::de::DeserializeOwned;
-use finchers::futures::{future, Future};
+use finchers::futures::{Future, Poll};
 use finchers::http::{header, Response, StatusCode};
 use finchers::mime;
 
-use finchers::endpoint::{self, Endpoint, EndpointContext, EndpointResult, Input, Outcome};
-use finchers::errors::{BadRequest, HttpError};
-use finchers::request::{FromBody, RequestParts};
+use finchers::endpoint::{self, Endpoint, EndpointContext, Outcome};
+use finchers::errors::{BadRequest, Error as FinchersError, HttpError};
+use finchers::request::{Bytes, FromBody, Input};
 use finchers::response::{HttpStatus, Responder};
 
 /// The error type from serde_json
@@ -104,12 +104,12 @@ impl<T> DerefMut for Json<T> {
 impl<T: DeserializeOwned + 'static> FromBody for Json<T> {
     type Error = BadRequest<Error>;
 
-    fn from_body(request: &RequestParts, body: &[u8]) -> Result<Self, Self::Error> {
-        if request
+    fn from_body(body: Bytes, input: &Input) -> Result<Self, Self::Error> {
+        if input
             .media_type()
             .map_or(true, |m| m == mime::APPLICATION_JSON)
         {
-            serde_json::from_slice(body)
+            serde_json::from_slice(&*body)
                 .map(Json)
                 .map_err(|e| BadRequest::new(Error::InvalidBody(e)))
         } else {
@@ -147,10 +147,10 @@ impl<T> fmt::Debug for JsonBody<T> {
 
 impl<T: DeserializeOwned + 'static> Endpoint for JsonBody<T> {
     type Item = T;
-    type Result = JsonBodyResult<T>;
+    type Future = JsonBodyFuture<T>;
 
-    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Result> {
-        Some(JsonBodyResult {
+    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
+        Some(JsonBodyFuture {
             inner: match self.inner.apply(input, ctx) {
                 Some(inner) => inner,
                 None => return None,
@@ -161,16 +161,16 @@ impl<T: DeserializeOwned + 'static> Endpoint for JsonBody<T> {
 
 #[doc(hidden)]
 #[allow(missing_debug_implementations)]
-pub struct JsonBodyResult<T> {
-    inner: endpoint::body::BodyResult<Json<T>>,
+pub struct JsonBodyFuture<T> {
+    inner: endpoint::body::BodyFuture<Json<T>>,
 }
 
-impl<T: DeserializeOwned + 'static> EndpointResult for JsonBodyResult<T> {
+impl<T: DeserializeOwned + 'static> Future for JsonBodyFuture<T> {
     type Item = T;
-    type Future = future::Map<endpoint::body::BodyFuture<Json<T>>, fn(Json<T>) -> T>;
+    type Error = FinchersError;
 
-    fn into_future(self, input: &mut Input) -> Self::Future {
-        self.inner.into_future(input).map(|Json(body)| body)
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        self.inner.poll().map(|async| async.map(|Json(body)| body))
     }
 }
 

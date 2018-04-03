@@ -1,5 +1,4 @@
-use request::Segments;
-use super::Input;
+use request::{Input, Segments};
 
 /// A context during the routing.
 #[derive(Debug, Clone)]

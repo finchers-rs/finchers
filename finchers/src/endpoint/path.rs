@@ -18,14 +18,14 @@
 //!     .assert_types::<i32, ExtractPathError<i32>>()
 //! ```
 
+use futures::future::{self, ok, FutureResult};
 use std::borrow::Cow;
 use std::fmt;
 use std::marker::PhantomData;
-use futures::future;
 
-use endpoint::{Endpoint, EndpointContext, EndpointResult, Input, IntoEndpoint};
-use errors::{BadRequest, Error, NeverReturn, NotPresent};
-use request::{FromSegment, FromSegments};
+use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
+use errors::{BadRequest, Error, NotPresent};
+use request::{FromSegment, FromSegments, Input};
 
 #[allow(missing_docs)]
 pub struct MatchPath {
@@ -65,9 +65,9 @@ use self::MatchPathKind::*;
 
 impl Endpoint for MatchPath {
     type Item = ();
-    type Result = Result<Self::Item, NeverReturn>;
+    type Future = FutureResult<Self::Item, Error>;
 
-    fn apply(&self, _: &Input, ctx: &mut EndpointContext) -> Option<Self::Result> {
+    fn apply(&self, _: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
         match self.kind {
             Segments(ref segments) => {
                 let mut matched = true;
@@ -75,14 +75,14 @@ impl Endpoint for MatchPath {
                     matched = matched && *try_opt!(ctx.segments().next()) == *segment;
                 }
                 if matched {
-                    Some(Ok(()))
+                    Some(ok(()))
                 } else {
                     None
                 }
             }
             AllSegments => {
                 let _ = ctx.segments().count();
-                Some(Ok(()))
+                Some(ok(()))
             }
         }
     }
@@ -169,12 +169,12 @@ impl<T> fmt::Debug for ExtractPath<T> {
 
 impl<T: FromSegment> Endpoint for ExtractPath<T> {
     type Item = T;
-    type Result = Result<Self::Item, NeverReturn>;
+    type Future = FutureResult<Self::Item, Error>;
 
-    fn apply(&self, _: &Input, ctx: &mut EndpointContext) -> Option<Self::Result> {
+    fn apply(&self, _: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
         ctx.segments()
             .next()
-            .and_then(|s| T::from_segment(s).map(Ok).ok())
+            .and_then(|s| T::from_segment(s).map(ok).ok())
     }
 }
 
@@ -207,30 +207,15 @@ impl<T> fmt::Debug for ExtractPathRequired<T> {
 
 impl<T: FromSegment> Endpoint for ExtractPathRequired<T> {
     type Item = T;
-    type Result = ExtractPathRequiredResult<T>;
+    type Future = FutureResult<T, Error>;
 
-    fn apply(&self, _: &Input, ctx: &mut EndpointContext) -> Option<Self::Result> {
-        let inner = ctx.segments().next().map(|s| T::from_segment(s));
-        Some(ExtractPathRequiredResult { inner })
-    }
-}
-
-#[doc(hidden)]
-#[allow(missing_debug_implementations)]
-pub struct ExtractPathRequiredResult<T: FromSegment> {
-    inner: Option<Result<T, T::Err>>,
-}
-
-impl<T: FromSegment> EndpointResult for ExtractPathRequiredResult<T> {
-    type Item = T;
-    type Future = future::FutureResult<T, Error>;
-
-    fn into_future(self, _: &mut Input) -> Self::Future {
-        match self.inner {
+    fn apply(&self, _: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
+        let fut = match ctx.segments().next().map(|s| T::from_segment(s)) {
             Some(Ok(val)) => future::ok(val),
             Some(Err(e)) => future::err(BadRequest::new(e).into()),
             None => future::err(NotPresent::new("The number of path segments is insufficient").into()),
-        }
+        };
+        Some(fut)
     }
 }
 
@@ -263,10 +248,10 @@ impl<T> fmt::Debug for ExtractPathOptional<T> {
 
 impl<T: FromSegment> Endpoint for ExtractPathOptional<T> {
     type Item = Option<T>;
-    type Result = Result<Self::Item, NeverReturn>;
+    type Future = FutureResult<Self::Item, Error>;
 
-    fn apply(&self, _: &Input, ctx: &mut EndpointContext) -> Option<Self::Result> {
-        Some(Ok(ctx.segments()
+    fn apply(&self, _: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
+        Some(ok(ctx.segments()
             .next()
             .and_then(|s| T::from_segment(s).ok())))
     }
@@ -301,10 +286,10 @@ impl<T> fmt::Debug for ExtractPaths<T> {
 
 impl<T: FromSegments> Endpoint for ExtractPaths<T> {
     type Item = T;
-    type Result = Result<Self::Item, NeverReturn>;
+    type Future = FutureResult<Self::Item, Error>;
 
-    fn apply(&self, _: &Input, ctx: &mut EndpointContext) -> Option<Self::Result> {
-        T::from_segments(ctx.segments()).map(Ok).ok()
+    fn apply(&self, _: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
+        T::from_segments(ctx.segments()).map(ok).ok()
     }
 }
 
@@ -337,10 +322,14 @@ impl<T> fmt::Debug for ExtractPathsRequired<T> {
 
 impl<T: FromSegments> Endpoint for ExtractPathsRequired<T> {
     type Item = T;
-    type Result = Result<Self::Item, BadRequest<T::Err>>;
+    type Future = FutureResult<Self::Item, Error>;
 
-    fn apply(&self, _: &Input, ctx: &mut EndpointContext) -> Option<Self::Result> {
-        Some(T::from_segments(ctx.segments()).map_err(BadRequest::new))
+    fn apply(&self, _: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
+        Some(future::result(
+            T::from_segments(ctx.segments())
+                .map_err(BadRequest::new)
+                .map_err(Into::into),
+        ))
     }
 }
 
@@ -373,10 +362,10 @@ impl<T> fmt::Debug for ExtractPathsOptional<T> {
 
 impl<T: FromSegments> Endpoint for ExtractPathsOptional<T> {
     type Item = Option<T>;
-    type Result = Result<Self::Item, NeverReturn>;
+    type Future = FutureResult<Self::Item, Error>;
 
-    fn apply(&self, _: &Input, ctx: &mut EndpointContext) -> Option<Self::Result> {
-        Some(Ok(T::from_segments(ctx.segments()).ok()))
+    fn apply(&self, _: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
+        Some(ok(T::from_segments(ctx.segments()).ok()))
     }
 }
 

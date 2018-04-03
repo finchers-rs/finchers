@@ -6,13 +6,13 @@
 //! * `HeaderRequired<H>` - Similar to `Header`, but always matches and returns an error if `H` is not found.
 //! * `HeaderOptional<H, E>` - Similar to `Header`, but always matches and returns a `None` if `H` is not found.
 
+use futures::{Future, Poll};
 use std::fmt;
 use std::marker::PhantomData;
-use futures::future::{err, ok, result, FutureResult};
 
-use endpoint::{Endpoint, EndpointContext, EndpointResult, Input};
+use endpoint::{Endpoint, EndpointContext};
 use errors::{BadRequest, Error, NotPresent};
-use request::FromHeader;
+use request::{with_input, FromHeader, Input};
 
 #[allow(missing_docs)]
 pub fn header<H: FromHeader>() -> Header<H> {
@@ -43,11 +43,11 @@ impl<H> fmt::Debug for Header<H> {
 
 impl<H: FromHeader> Endpoint for Header<H> {
     type Item = H;
-    type Result = HeaderResult<H>;
+    type Future = HeaderFuture<H>;
 
-    fn apply(&self, input: &Input, _: &mut EndpointContext) -> Option<Self::Result> {
+    fn apply(&self, input: &Input, _: &mut EndpointContext) -> Option<Self::Future> {
         if input.headers().contains_key(H::header_name()) {
-            Some(HeaderResult {
+            Some(HeaderFuture {
                 _marker: PhantomData,
             })
         } else {
@@ -58,20 +58,24 @@ impl<H: FromHeader> Endpoint for Header<H> {
 
 #[doc(hidden)]
 #[derive(Debug)]
-pub struct HeaderResult<H> {
+pub struct HeaderFuture<H> {
     _marker: PhantomData<fn() -> H>,
 }
 
-impl<H: FromHeader> EndpointResult for HeaderResult<H> {
+impl<H: FromHeader> Future for HeaderFuture<H> {
     type Item = H;
-    type Future = FutureResult<H, Error>;
+    type Error = Error;
 
-    fn into_future(self, input: &mut Input) -> Self::Future {
-        let value = input.headers().get(H::header_name()).expect(&format!(
-            "The value of header {} has already taken",
-            H::header_name()
-        ));
-        result(H::from_header(value.as_bytes()).map_err(|e| BadRequest::new(e).into()))
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        with_input(|input| {
+            let value = input.headers().get(H::header_name()).expect(&format!(
+                "The value of header {} has already taken",
+                H::header_name()
+            ));
+            H::from_header(value.as_bytes())
+                .map(Into::into)
+                .map_err(|e| BadRequest::new(e).into())
+        })
     }
 }
 
@@ -104,10 +108,10 @@ impl<H> fmt::Debug for HeaderRequired<H> {
 
 impl<H: FromHeader> Endpoint for HeaderRequired<H> {
     type Item = H;
-    type Result = HeaderRequiredResult<H>;
+    type Future = HeaderRequiredFuture<H>;
 
-    fn apply(&self, _: &Input, _: &mut EndpointContext) -> Option<Self::Result> {
-        Some(HeaderRequiredResult {
+    fn apply(&self, _: &Input, _: &mut EndpointContext) -> Option<Self::Future> {
+        Some(HeaderRequiredFuture {
             _marker: PhantomData,
         })
     }
@@ -115,22 +119,24 @@ impl<H: FromHeader> Endpoint for HeaderRequired<H> {
 
 #[doc(hidden)]
 #[derive(Debug)]
-pub struct HeaderRequiredResult<H> {
+pub struct HeaderRequiredFuture<H> {
     _marker: PhantomData<fn() -> H>,
 }
 
-impl<H: FromHeader> EndpointResult for HeaderRequiredResult<H> {
+impl<H: FromHeader> Future for HeaderRequiredFuture<H> {
     type Item = H;
-    type Future = FutureResult<H, Error>;
+    type Error = Error;
 
-    fn into_future(self, input: &mut Input) -> Self::Future {
-        match input.headers().get(H::header_name()) {
-            Some(h) => result(H::from_header(h.as_bytes()).map_err(|e| BadRequest::new(e).into())),
-            None => err(NotPresent::new(format!(
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        with_input(|input| match input.headers().get(H::header_name()) {
+            Some(h) => H::from_header(h.as_bytes())
+                .map(Into::into)
+                .map_err(|e| BadRequest::new(e).into()),
+            None => Err(NotPresent::new(format!(
                 "The header `{}' does not exist in the request",
                 H::header_name()
             )).into()),
-        }
+        })
     }
 }
 
@@ -163,10 +169,10 @@ impl<H> fmt::Debug for HeaderOptional<H> {
 
 impl<H: FromHeader> Endpoint for HeaderOptional<H> {
     type Item = Option<H>;
-    type Result = HeaderOptionalResult<H>;
+    type Future = HeaderOptionalFuture<H>;
 
-    fn apply(&self, _: &Input, _: &mut EndpointContext) -> Option<Self::Result> {
-        Some(HeaderOptionalResult {
+    fn apply(&self, _: &Input, _: &mut EndpointContext) -> Option<Self::Future> {
+        Some(HeaderOptionalFuture {
             _marker: PhantomData,
         })
     }
@@ -174,18 +180,21 @@ impl<H: FromHeader> Endpoint for HeaderOptional<H> {
 
 #[doc(hidden)]
 #[derive(Debug)]
-pub struct HeaderOptionalResult<H> {
+pub struct HeaderOptionalFuture<H> {
     _marker: PhantomData<fn() -> H>,
 }
 
-impl<H: FromHeader> EndpointResult for HeaderOptionalResult<H> {
+impl<H: FromHeader> Future for HeaderOptionalFuture<H> {
     type Item = Option<H>;
-    type Future = FutureResult<Option<H>, Error>;
+    type Error = Error;
 
-    fn into_future(self, input: &mut Input) -> Self::Future {
-        ok(input
-            .headers()
-            .get(H::header_name())
-            .and_then(|h| H::from_header(h.as_bytes()).ok()))
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        with_input(|input| {
+            Ok(input
+                .headers()
+                .get(H::header_name())
+                .and_then(|h| H::from_header(h.as_bytes()).ok())
+                .into())
+        })
     }
 }

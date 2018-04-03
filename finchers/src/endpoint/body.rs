@@ -14,14 +14,13 @@
 //!
 //! [from_body]: ../../http/trait.FromBody.html
 
-use std::fmt;
-use std::marker::PhantomData;
 use futures::{Future, Poll};
-use futures::future::{self, FutureResult};
+use std::marker::PhantomData;
+use std::fmt;
 
-use endpoint::{Endpoint, EndpointContext, EndpointResult, Input};
+use endpoint::{Endpoint, EndpointContext};
 use errors::{BadRequest, Error};
-use request::{self, FromBody, RequestParts};
+use request::{self, with_input, with_input_mut, FromBody, Input};
 
 /// Creates an endpoint for parsing the incoming request body into the value of `T`
 pub fn body<T: FromBody>() -> Body<T> {
@@ -52,44 +51,22 @@ impl<T> fmt::Debug for Body<T> {
 
 impl<T: FromBody> Endpoint for Body<T> {
     type Item = T;
-    type Result = BodyResult<T>;
+    type Future = BodyFuture<T>;
 
-    fn apply(&self, input: &Input, _: &mut EndpointContext) -> Option<Self::Result> {
-        match T::is_match(input.parts()) {
-            true => Some(BodyResult {
-                _marker: PhantomData,
-            }),
+    fn apply(&self, input: &Input, _: &mut EndpointContext) -> Option<Self::Future> {
+        match T::is_match(input) {
+            true => Some(BodyFuture::Init),
             false => None,
         }
     }
 }
 
 #[doc(hidden)]
-#[derive(Debug)]
-pub struct BodyResult<T> {
-    _marker: PhantomData<fn() -> T>,
-}
-
-impl<T: FromBody> EndpointResult for BodyResult<T> {
-    type Item = T;
-    type Future = BodyFuture<T>;
-
-    fn into_future(self, input: &mut Input) -> Self::Future {
-        let (request, body) = input.shared_parts();
-        BodyFuture {
-            request,
-            body,
-            _marker: PhantomData,
-        }
-    }
-}
-
-#[doc(hidden)]
 #[allow(missing_debug_implementations)]
-pub struct BodyFuture<T> {
-    request: RequestParts,
-    body: request::body::Body,
-    _marker: PhantomData<fn() -> T>,
+pub enum BodyFuture<T> {
+    Init,
+    Recv(request::body::Body),
+    Done(PhantomData<fn() -> T>),
 }
 
 impl<T: FromBody> Future for BodyFuture<T> {
@@ -97,9 +74,21 @@ impl<T: FromBody> Future for BodyFuture<T> {
     type Error = Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let buf = try_ready!(self.body.poll());
-        let body = T::from_body(&self.request, &*buf).map_err(BadRequest::new)?;
-        Ok(body.into())
+        'poll: loop {
+            let next = match *self {
+                BodyFuture::Init => {
+                    let body = with_input_mut(|input| input.body()).expect("The body has already taken");
+                    BodyFuture::Recv(body)
+                }
+                BodyFuture::Recv(ref mut body) => {
+                    let buf = try_ready!(body.poll());
+                    let body = with_input(|input| T::from_body(buf, input).map_err(BadRequest::new))?;
+                    return Ok(body.into());
+                }
+                _ => panic!("cannot resolve/reject twice"),
+            };
+            *self = next;
+        }
     }
 }
 
@@ -130,25 +119,27 @@ impl fmt::Debug for BodyStream {
 
 impl Endpoint for BodyStream {
     type Item = request::body::BodyStream;
-    type Result = BodyStreamResult;
+    type Future = BodyStreamFuture;
 
-    fn apply(&self, _: &Input, _: &mut EndpointContext) -> Option<Self::Result> {
-        Some(BodyStreamResult { _priv: () })
+    fn apply(&self, _: &Input, _: &mut EndpointContext) -> Option<Self::Future> {
+        Some(BodyStreamFuture { _priv: () })
     }
 }
 
 #[doc(hidden)]
 #[derive(Debug)]
-pub struct BodyStreamResult {
+pub struct BodyStreamFuture {
     _priv: (),
 }
 
-impl EndpointResult for BodyStreamResult {
+impl Future for BodyStreamFuture {
     type Item = request::body::BodyStream;
-    type Future = FutureResult<Self::Item, Error>;
+    type Error = Error;
 
-    fn into_future(self, input: &mut Input) -> Self::Future {
-        let body = input.body_stream().expect("cannot take a body twice");
-        future::ok(body.into())
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        with_input_mut(|input| {
+            let body = input.body_stream().expect("cannot take a body twice");
+            Ok(request::body::BodyStream::from(body).into())
+        })
     }
 }

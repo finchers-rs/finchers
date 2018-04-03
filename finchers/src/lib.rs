@@ -5,6 +5,7 @@
 #![deny(missing_debug_implementations)]
 #![deny(warnings)]
 
+extern crate bytes;
 #[macro_use]
 pub extern crate futures;
 pub extern crate http;

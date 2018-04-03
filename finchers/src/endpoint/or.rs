@@ -1,7 +1,8 @@
 #![allow(missing_docs)]
 
+use super::{Endpoint, EndpointContext, IntoEndpoint};
 use futures::{Future, Poll};
-use super::{Endpoint, EndpointContext, EndpointResult, Input, IntoEndpoint};
+use request::Input;
 
 pub fn or<E1, E2>(e1: E1, e2: E2) -> Or<E1::Endpoint, E2::Endpoint>
 where
@@ -26,9 +27,9 @@ where
     E2: Endpoint<Item = E1::Item>,
 {
     type Item = E1::Item;
-    type Result = OrResult<E1::Result, E2::Result>;
+    type Future = OrFuture<E1::Future, E2::Future>;
 
-    fn apply(&self, input: &Input, ctx2: &mut EndpointContext) -> Option<Self::Result> {
+    fn apply(&self, input: &Input, ctx2: &mut EndpointContext) -> Option<Self::Future> {
         let mut ctx1 = ctx2.clone();
         let t1 = self.e1.apply(input, &mut ctx1);
         let t2 = self.e2.apply(input, ctx2);
@@ -42,15 +43,15 @@ where
                 } else {
                     Either::Right(t2)
                 };
-                Some(OrResult { inner })
+                Some(OrFuture { inner })
             }
             (Some(t1), None) => {
                 *ctx2 = ctx1;
-                Some(OrResult {
+                Some(OrFuture {
                     inner: Either::Left(t1),
                 })
             }
-            (None, Some(t2)) => Some(OrResult {
+            (None, Some(t2)) => Some(OrFuture {
                 inner: Either::Right(t2),
             }),
             (None, None) => None,
@@ -62,31 +63,6 @@ where
 enum Either<T1, T2> {
     Left(T1),
     Right(T2),
-}
-
-#[derive(Debug)]
-pub struct OrResult<T1, T2> {
-    inner: Either<T1, T2>,
-}
-
-impl<T1, T2> EndpointResult for OrResult<T1, T2>
-where
-    T1: EndpointResult,
-    T2: EndpointResult<Item = T1::Item>,
-{
-    type Item = T1::Item;
-    type Future = OrFuture<T1::Future, T2::Future>;
-
-    fn into_future(self, input: &mut Input) -> Self::Future {
-        match self.inner {
-            Either::Left(t) => OrFuture {
-                inner: Either::Left(t.into_future(input)),
-            },
-            Either::Right(t) => OrFuture {
-                inner: Either::Right(t.into_future(input)),
-            },
-        }
-    }
 }
 
 #[derive(Debug)]
@@ -113,8 +89,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use http::Request;
     use endpoint::{endpoint, ok};
+    use http::Request;
     use test::TestRunner;
 
     #[test]

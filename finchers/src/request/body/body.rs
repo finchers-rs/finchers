@@ -1,5 +1,5 @@
 use std::mem;
-use std::ops::Deref;
+use bytes::{BufMut, Bytes, BytesMut};
 use futures::{future, Future, Poll, Stream};
 use futures::Async::*;
 use hyper;
@@ -13,65 +13,48 @@ pub struct Body {
 
 impl From<BodyStream> for Body {
     fn from(body: BodyStream) -> Self {
+        // TODO: reserve the capacity of content-length
         Body {
-            inner: BodyState::Receiving(body.into_inner(), vec![]).shared(),
+            inner: BodyState::Receiving(body.into_inner(), BytesMut::new()).shared(),
         }
     }
 }
 
 impl Future for Body {
-    type Item = BodyItem;
+    type Item = Bytes;
     type Error = Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         let inner = try_ready!(self.inner.poll());
-        Ok(BodyItem { inner }.into())
+        Ok((*inner).clone().into())
     }
 }
 
 #[derive(Debug)]
 enum BodyState {
-    Receiving(hyper::Body, Vec<u8>),
+    Receiving(hyper::Body, BytesMut),
     Done,
 }
 
 impl Future for BodyState {
-    type Item = Vec<u8>;
+    type Item = Bytes;
     type Error = hyper::Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         use self::BodyState::*;
         match *self {
             Receiving(ref mut body, ref mut buf) => while let Some(item) = try_ready!(body.poll()) {
-                buf.extend_from_slice(&*item);
+                buf.reserve(item.len());
+                unsafe {
+                    buf.bytes_mut().copy_from_slice(&*item);
+                    buf.advance_mut(item.len());
+                }
             },
             Done => panic!("cannot resolve twice"),
         }
         match mem::replace(self, Done) {
-            Receiving(_, buf) => Ok(Ready(buf)),
+            Receiving(_, buf) => Ok(Ready(buf.freeze())),
             Done => panic!(),
         }
-    }
-}
-
-#[allow(missing_docs)]
-#[derive(Debug)]
-pub struct BodyItem {
-    inner: future::SharedItem<Vec<u8>>,
-}
-
-impl Deref for BodyItem {
-    type Target = [u8];
-
-    #[inline]
-    fn deref(&self) -> &Self::Target {
-        self.as_ref()
-    }
-}
-
-impl AsRef<[u8]> for BodyItem {
-    #[inline]
-    fn as_ref(&self) -> &[u8] {
-        &**self.inner
     }
 }
