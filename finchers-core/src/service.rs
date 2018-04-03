@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 //! Components of lower-level HTTP services
 
 use futures::Async::*;

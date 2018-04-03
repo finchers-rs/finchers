@@ -21,6 +21,7 @@ members = [
   "finchers-core",
   "finchers-derive",
   "finchers-json",
+  "finchers-runtime",
   "finchers-urlencoded",
 
   "examples/form",
@@ -28,11 +29,13 @@ members = [
 ]
 
 [features]
-tls = ["finchers-core/tls"]
+tls = ["finchers-runtime/tls"]
 
 [dependencies]
 finchers-core = { version = "0.11.0-dev", path = "finchers-core" }
 finchers-derive = { version = "0.11.0-dev", path = "finchers-derive" }
+finchers-runtime = { version = "0.11.0-dev", path = "finchers-runtime" }
+
 finchers-json = { version = "0.11.0-dev", path = "finchers-json" }
 finchers-urlencoded = { version = "0.11.0-dev", path = "finchers-urlencoded" }
 

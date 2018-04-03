@@ -10,9 +10,10 @@ use hyper::server::{NewService, Service};
 use num_cpus;
 use tokio_core::reactor::{Core, Handle};
 
-use response::ResponseBody;
-use super::{const_service, ConstService, HttpService, NewHttpService};
-use super::backend::TcpBackend;
+use finchers_core::response::ResponseBody;
+use finchers_core::service::{const_service, ConstService, HttpService, NewHttpService};
+
+use backend::TcpBackend;
 
 #[derive(Debug)]
 pub struct Server<S> {

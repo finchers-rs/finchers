@@ -6,8 +6,8 @@ use std::io;
 use tokio_core::reactor::Core;
 use http::Request;
 
-use endpoint::{Endpoint, Outcome};
-use request::body::BodyStream;
+use finchers_core::endpoint::{Endpoint, Outcome};
+use finchers_core::request::body::BodyStream;
 
 #[derive(Debug)]
 pub struct TestRunner<E: Endpoint> {
@@ -54,7 +54,7 @@ impl<E: Endpoint> EndpointTestExt for E {
 }
 
 mod sealed {
-    use endpoint::Endpoint;
+    use finchers_core::endpoint::Endpoint;
 
     pub trait Sealed {}
 
