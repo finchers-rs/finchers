@@ -17,8 +17,7 @@ pub use finchers_core::{endpoint, errors, request, response, service};
 pub use finchers_core::errors::Error;
 
 pub mod runtime {
-    pub use finchers_runtime::{backend, test, Server};
-    pub use finchers_runtime::backend::TcpBackend;
+    pub use finchers_runtime::Server;
 }
 
 pub mod json {
@@ -33,7 +32,6 @@ pub mod urlencoded {
 pub mod prelude {
     pub use finchers_core::endpoint::Endpoint;
     pub use finchers_core::service::EndpointServiceExt;
-    pub use finchers_runtime::test::EndpointTestExt;
 }
 
 #[macro_use]

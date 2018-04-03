@@ -9,7 +9,7 @@ mod db;
 mod application;
 
 use finchers::prelude::*;
-use finchers::service::{backend, Server};
+use finchers::runtime::Server;
 use finchers::json::{json_body, JsonResponder};
 use self::db::*;
 use self::Response::*;
@@ -66,5 +66,5 @@ fn main() {
     };
 
     let service = endpoint.with_responder(JsonResponder::<Response>::default());
-    Server::from_service(service).run(backend::default());
+    Server::from_service(service).run();
 }

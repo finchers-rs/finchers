@@ -28,9 +28,6 @@ members = [
   "examples/todo",
 ]
 
-[features]
-tls = ["finchers-runtime/tls"]
-
 [dependencies]
 finchers-core = { version = "0.11.0-dev", path = "finchers-core" }
 finchers-derive = { version = "0.11.0-dev", path = "finchers-derive" }

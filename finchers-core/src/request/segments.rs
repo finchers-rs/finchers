@@ -137,7 +137,7 @@ impl<'a> Deref for Segment<'a> {
 /// Represents the conversion from `Segment`
 pub trait FromSegment: 'static + Sized {
     /// The error type returned from `from_segment`
-    type Err: Error + 'static;
+    type Err: Error + Send + 'static;
 
     /// Create the instance of `Self` from a path segment
     fn from_segment(segment: Segment) -> Result<Self, Self::Err>;
@@ -189,7 +189,7 @@ impl<T: FromSegment> FromSegment for Result<T, T::Err> {
 /// Represents the conversion from `Segments`
 pub trait FromSegments: 'static + Sized {
     /// The error type from `from_segments`
-    type Err: Error + 'static;
+    type Err: Error + Send + 'static;
 
     /// Create the instance of `Self` from the remaining path segments
     fn from_segments(segments: &mut Segments) -> Result<Self, Self::Err>;
