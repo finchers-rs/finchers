@@ -5,7 +5,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use endpoint::{self, EndpointContext, Outcome};
-use request::{input_key, Input};
+use request::{set_input, Input};
 use errors::{Error, NeverReturn};
 
 /// Abstruction of an endpoint.
@@ -156,9 +156,7 @@ where
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         if let Some(input) = self.input.take() {
-            input_key().with(|i| {
-                i.borrow_mut().get_or_insert(input);
-            })
+            set_input(input);
         }
 
         let outcome = match self.in_flight {

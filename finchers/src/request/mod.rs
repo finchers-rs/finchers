@@ -10,4 +10,4 @@ pub use self::header::FromHeader;
 pub use self::input::{with_input, with_input_mut, Input, RequestParts};
 pub use self::segments::{FromSegment, FromSegments, Segment, Segments};
 
-pub(crate) use self::input::input_key;
+pub(crate) use self::input::set_input;

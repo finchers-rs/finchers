@@ -1,7 +1,6 @@
 use std::cell::RefCell;
 use std::ops::Deref;
 
-use futures::task::LocalKey;
 use http::request::Parts;
 use http::{Extensions, Request};
 use http::{header, HeaderMap, Method, Uri, Version};
@@ -11,8 +10,10 @@ use request::body::{Body, BodyStream};
 
 task_local!(static INPUT: RefCell<Option<Input>> = RefCell::new(None));
 
-pub fn input_key() -> &'static LocalKey<RefCell<Option<Input>>> {
-    &INPUT
+pub fn set_input(input: Input) {
+    INPUT.with(|i| {
+        i.borrow_mut().get_or_insert(input);
+    })
 }
 
 #[allow(missing_docs)]
