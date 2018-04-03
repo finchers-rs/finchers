@@ -1,14 +1,3 @@
-//! Utility macros.
-
-macro_rules! try_opt {
-    ($e:expr) => {
-        match $e {
-            Some(e) => e,
-            None => return None,
-        }
-    };
-}
-
 /// A helper macro for creating the instance of`Endpoint` from multiple routes.
 ///
 /// # Example
@@ -40,7 +29,7 @@ macro_rules! choice {
 
 #[cfg(test)]
 mod tests {
-    use endpoint::endpoint;
+    use finchers_core::endpoint::endpoint;
 
     #[test]
     #[allow(unused_variables)]

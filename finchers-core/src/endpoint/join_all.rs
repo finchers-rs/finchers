@@ -38,12 +38,10 @@ impl<E: Endpoint> Endpoint for JoinAll<E> {
     type Future = future::JoinAll<Vec<E::Future>>;
 
     fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
-        let inner: Vec<_> = try_opt!(
-            self.inner
-                .iter()
-                .map(|e| e.apply(input, ctx))
-                .collect::<Option<_>>()
-        );
+        let inner: Vec<_> = self.inner
+            .iter()
+            .map(|e| e.apply(input, ctx))
+            .collect::<Option<_>>()?;
         Some(future::join_all(inner))
     }
 }

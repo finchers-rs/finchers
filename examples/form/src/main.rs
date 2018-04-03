@@ -1,6 +1,5 @@
 #[macro_use]
 extern crate finchers;
-extern crate finchers_urlencoded;
 extern crate http;
 #[macro_use]
 extern crate serde_derive;
@@ -8,7 +7,7 @@ extern crate serde_derive;
 use finchers::prelude::*;
 use finchers::endpoint::prelude::*;
 use finchers::service::{backend, Server};
-use finchers_urlencoded::{form_body, from_csv, queries};
+use finchers::urlencoded::{form_body, from_csv, queries};
 use std::fmt;
 
 #[derive(Debug, Deserialize, HttpStatus)]

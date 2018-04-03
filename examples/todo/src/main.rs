@@ -2,7 +2,6 @@
 extern crate error_chain;
 #[macro_use]
 extern crate finchers;
-extern crate finchers_json;
 #[macro_use]
 extern crate serde;
 
@@ -11,7 +10,7 @@ mod application;
 
 use finchers::prelude::*;
 use finchers::service::{backend, Server};
-use finchers_json::{json_body, JsonResponder};
+use finchers::json::{json_body, JsonResponder};
 use self::db::*;
 use self::Response::*;
 

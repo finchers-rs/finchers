@@ -65,7 +65,7 @@ macro_rules! generate {
 
             fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
                 $(
-                    let $T = try_opt!(self.$T.apply(input, ctx));
+                    let $T = self.$T.apply(input, ctx)?;
                 )*
                 Some(IntoFuture::into_future(($($T),*)))
             }

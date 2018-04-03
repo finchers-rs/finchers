@@ -46,6 +46,14 @@ impl FromBody for BytesString {
     }
 }
 
+impl FromBody for String {
+    type Error = Utf8Error;
+
+    fn from_body(body: Bytes, _: &Input) -> Result<Self, Self::Error> {
+        BytesString::from_shared(body).map(Into::into)
+    }
+}
+
 impl<T: FromBody> FromBody for Option<T> {
     type Error = NeverReturn;
 
