@@ -4,6 +4,8 @@ version = "0.11.0-dev"
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 
 [dependencies]
-finchers = { version = "0.11.0-dev", path = "../finchers" }
+finchers-core = { version = "0.11.0-dev", path = "../finchers-core" }
+futures = "0.1.20"
+mime = "0.3.0"
 serde = "1.0"
 serde_qs = "0.3"

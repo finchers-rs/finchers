@@ -10,7 +10,10 @@
 #![deny(missing_debug_implementations)]
 #![deny(warnings)]
 
-extern crate finchers;
+extern crate finchers_core;
+extern crate futures;
+extern crate http;
+extern crate mime;
 extern crate serde;
 #[macro_use]
 extern crate serde_json;
@@ -21,14 +24,13 @@ use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use serde::ser::Serialize;
 use serde::de::DeserializeOwned;
-use finchers::futures::{Future, Poll};
-use finchers::http::{header, Response, StatusCode};
-use finchers::mime;
+use futures::{Future, Poll};
+use http::{header, Response, StatusCode};
 
-use finchers::endpoint::{self, Endpoint, EndpointContext, Outcome};
-use finchers::errors::{BadRequest, Error as FinchersError, HttpError};
-use finchers::request::{Bytes, FromBody, Input};
-use finchers::response::{HttpStatus, Responder};
+use finchers_core::endpoint::{self, Endpoint, EndpointContext, Outcome};
+use finchers_core::errors::{BadRequest, Error as FinchersError, HttpError};
+use finchers_core::request::{Bytes, FromBody, Input};
+use finchers_core::response::{HttpStatus, Responder};
 
 /// The error type from serde_json
 #[derive(Debug)]

@@ -1,6 +1,5 @@
-extern crate finchers;
 #[macro_use]
-extern crate finchers_derive;
+extern crate finchers;
 
 use finchers::request::{FromSegment, Segment};
 

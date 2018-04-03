@@ -69,7 +69,7 @@ where
     type Future = AndThenFuture<E::Future, F, R>;
 
     fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
-        let future = try_opt!(self.endpoint.apply(input, ctx));
+        let future = self.endpoint.apply(input, ctx)?;
         Some(AndThenFuture {
             inner: Chain::new(future, self.f.clone()),
         })

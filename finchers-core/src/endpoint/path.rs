@@ -72,7 +72,7 @@ impl Endpoint for MatchPath {
             Segments(ref segments) => {
                 let mut matched = true;
                 for segment in segments {
-                    matched = matched && *try_opt!(ctx.segments().next()) == *segment;
+                    matched = matched && *ctx.segments().next()? == *segment;
                 }
                 if matched {
                     Some(ok(()))

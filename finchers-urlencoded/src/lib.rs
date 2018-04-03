@@ -30,7 +30,9 @@
 #![deny(missing_debug_implementations)]
 #![deny(warnings)]
 
-extern crate finchers;
+extern crate finchers_core;
+extern crate futures;
+extern crate mime;
 extern crate serde;
 extern crate serde_qs;
 
@@ -39,12 +41,11 @@ use std::error::Error as StdError;
 use std::marker::PhantomData;
 use std::iter::FromIterator;
 use serde::de::{self, IntoDeserializer};
-use finchers::futures::{Future, Poll};
-use finchers::mime;
+use futures::{Future, Poll};
 
-use finchers::endpoint::{self, Endpoint, EndpointContext};
-use finchers::errors::{BadRequest, Error as FinchersError};
-use finchers::request::{with_input, Bytes, FromBody, Input};
+use finchers_core::endpoint::{self, Endpoint, EndpointContext};
+use finchers_core::errors::{BadRequest, Error as FinchersError};
+use finchers_core::request::{with_input, Bytes, FromBody, Input};
 
 #[allow(missing_docs)]
 pub fn queries<T: de::DeserializeOwned>() -> Queries<T> {

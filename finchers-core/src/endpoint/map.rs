@@ -57,7 +57,7 @@ where
     type Future = MapFuture<E::Future, F>;
 
     fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
-        let fut = try_opt!(self.endpoint.apply(input, ctx));
+        let fut = self.endpoint.apply(input, ctx)?;
         Some(MapFuture {
             fut,
             f: Some(self.f.clone()),
