@@ -26,106 +26,19 @@ rm -rf "$DIR/target/doc"
 
 # ===================================================================
 CHANNEL="stable"
-cd "$DIR/finchers"
-channel build
-channel test
-channel build --features "tls"
-channel test  --features "tls"
-channel doc   --features "tls" --no-deps
-
-cd "$DIR/finchers-derive"
-channel build
-channel test
-channel doc --no-deps
-
-cd "$DIR/finchers-json"
-channel build
-channel test
-channel doc --no-deps
-
-cd "$DIR/finchers-urlencoded"
-channel build
-channel test
-channel doc --no-deps
-
-cd "$DIR/examples/form"
-channel build
-channel test
-
-cd "$DIR/examples/todo"
-channel build
-channel test
-
+channel test --all
+channel test --all --all-features
 
 # ===================================================================
 CHANNEL="beta"
-cd "$DIR/finchers"
-channel build
-channel test
-channel build --features "tls"
-channel test  --features "tls"
-channel doc   --features "tls" --no-deps
-
-cd "$DIR/finchers-derive"
-channel build
-channel test
-channel doc --no-deps
-
-cd "$DIR/finchers-json"
-channel build
-channel test
-channel doc --no-deps
-
-cd "$DIR/finchers-urlencoded"
-channel build
-channel test
-channel doc --no-deps
-
-cd "$DIR/examples/form"
-channel build
-channel test
-
-cd "$DIR/examples/todo"
-channel build
-channel test
-
+channel test --all
+channel test --all --all-features
 
 # ===================================================================
 CHANNEL="nightly"
-
-cd "$DIR/finchers"
-channel build
-channel test
-channel build --all-features
-channel test --all-features
-channel doc --all-features --no-deps
-
-cd "$DIR/finchers-derive"
-channel build
-channel test
-channel doc --no-deps
-
-cd "$DIR/finchers-json"
-channel build
-channel test
-channel doc --no-deps
-
-cd "$DIR/finchers-urlencoded"
-channel build
-channel test
-channel doc --no-deps
-
-cd "$DIR/examples/form"
-channel build
-channel test
-
-cd "$DIR/examples/todo"
-channel build
-channel test
+channel test --all
+channel test --all --all-features
 
 # ===================================================================
-
-# run doctest
-cd "$DIR/doc"
-(set -x; cargo build)
-(set -x; cargo test)
+CHANNEL="stable"
+channel doc --all-features --no-deps
