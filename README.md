@@ -1,5 +1,6 @@
 # `finchers`
-[![Build Status](https://travis-ci.org/finchers-rs/finchers.svg?branch=master)](https://travis-ci.org/finchers-rs/finchers)
+[![Travis Build Status](https://travis-ci.org/finchers-rs/finchers.svg?branch=master)](https://travis-ci.org/finchers-rs/finchers)
+[![Appveyor Build status](https://ci.appveyor.com/api/projects/status/76smoc919fni4n6l/branch/master?svg=true)](https://ci.appveyor.com/project/ubnt-intrepid/finchers/branch/master)
 [![crates.io](https://img.shields.io/crates/v/finchers.svg)](https://crates.io/crates/finchers)
 [![docs-rs](https://docs.rs/finchers/badge.svg)](https://docs.rs/finchers)
 [![Gitter](https://badges.gitter.im/finchers-rs/finchers.svg)](https://gitter.im/finchers-rs/finchers?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)

@@ -3,27 +3,15 @@ sudo: false
 language: rust
 
 cache:
-  cargo: true
-  bundler: true
-  directories:
-  - doc/target
+  - apt: true
+  - cargo: true
+  - bundler: true
+  - directories:
+    - doc/target
 
 branches:
   only:
     - master
-
-matrix:
-  include:
-    - rust: stable
-      env: MDBOOK_VERSION="0.1.2"
-    - rust: beta
-    - rust: nightly
-    - rust: nightly-2018-01-31
-      env: RUSTFMT_VERSION="0.3.7"
-
-  allow_failures:
-    - rust: nightly
-    - rust: nightly-2018-01-31
 
 addons:
   apt:
@@ -34,13 +22,48 @@ addons:
       - binutils-dev
       - cmake
 
-before_script:
-  - 'if [[ -n $RUSTFMT_VERSION ]]; then bash .travis/install-rustfmt.sh; fi'
-  - 'if [[ -n $MDBOOK_VERSION ]]; then bash .travis/install-mdbook.sh; fi'
-  - export PATH=$HOME/.local/bin:$PATH
+matrix:
+  allow_failures:
+    - rust: nightly
+  include:
+    - rust: stable
+      before_script:
+        - rustup component add rustfmt-preview
+        - cargo clean
+      script:
+        - cargo test --all
+        - cargo test --all --all-features
+      after_success:
+        - cargo fmt -- --write-mode=diff
+      before_deploy:
+        - cargo doc --all-features --no-deps
+        - cargo install mdbook -f --version 0.1.2
+        - bash doc/generate.sh
+        - cp -a target/doc doc-upload/api
+      deploy:
+        provider: pages
+        skip_cleanup: true
+        github_token: $GH_TOKEN
+        repo: finchers-rs/finchers-rs.github.io
+        target_branch: master
+        local_dir: doc-upload
+        on:
+          branch: master
 
-script:
-  - bash .travis/script.sh
+    - rust: beta
+      before_script:
+        - cargo clean
+      script:
+        - cargo test --all
+        - cargo test --all --all-features
+      after_success:
+        - cargo fmt -- --write-mode=diff
 
-after_success:
-  - bash .travis/after_success.sh
+    - rust: nightly
+      before_script:
+        - cargo clean
+      script:
+        - cargo test --all
+        - cargo test --all --all-features
+      after_success:
+        - cargo fmt -- --write-mode=diff
