@@ -54,7 +54,7 @@ impl<T: FromBody> Endpoint for Body<T> {
     type Future = BodyFuture<T>;
 
     fn apply(&self, input: &Input, _: &mut EndpointContext) -> Option<Self::Future> {
-        match T::is_match(input.parts()) {
+        match T::is_match(input) {
             true => Some(BodyFuture::Init),
             false => None,
         }
@@ -82,10 +82,7 @@ impl<T: FromBody> Future for BodyFuture<T> {
                 }
                 BodyFuture::Recv(ref mut body) => {
                     let buf = try_ready!(body.poll());
-                    let body = with_input(|input| {
-                        let request = input.parts();
-                        T::from_body(request, &*buf).map_err(BadRequest::new)
-                    })?;
+                    let body = with_input(|input| T::from_body(buf, input).map_err(BadRequest::new))?;
                     return Ok(body.into());
                 }
                 _ => panic!("cannot resolve/reject twice"),

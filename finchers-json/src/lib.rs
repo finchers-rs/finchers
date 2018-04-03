@@ -27,7 +27,7 @@ use finchers::mime;
 
 use finchers::endpoint::{self, Endpoint, EndpointContext, Outcome};
 use finchers::errors::{BadRequest, Error as FinchersError, HttpError};
-use finchers::request::{FromBody, Input, RequestParts};
+use finchers::request::{Bytes, FromBody, Input};
 use finchers::response::{HttpStatus, Responder};
 
 /// The error type from serde_json
@@ -104,12 +104,12 @@ impl<T> DerefMut for Json<T> {
 impl<T: DeserializeOwned + 'static> FromBody for Json<T> {
     type Error = BadRequest<Error>;
 
-    fn from_body(request: &RequestParts, body: &[u8]) -> Result<Self, Self::Error> {
-        if request
+    fn from_body(body: Bytes, input: &Input) -> Result<Self, Self::Error> {
+        if input
             .media_type()
             .map_or(true, |m| m == mime::APPLICATION_JSON)
         {
-            serde_json::from_slice(body)
+            serde_json::from_slice(&*body)
                 .map(Json)
                 .map_err(|e| BadRequest::new(Error::InvalidBody(e)))
         } else {

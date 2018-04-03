@@ -44,7 +44,7 @@ use finchers::mime;
 
 use finchers::endpoint::{self, Endpoint, EndpointContext};
 use finchers::errors::{BadRequest, Error as FinchersError};
-use finchers::request::{with_input, FromBody, Input, RequestParts};
+use finchers::request::{with_input, Bytes, FromBody, Input};
 
 #[allow(missing_docs)]
 pub fn queries<T: de::DeserializeOwned>() -> Queries<T> {
@@ -255,12 +255,12 @@ impl<F> ::std::ops::DerefMut for Form<F> {
 impl<F: de::DeserializeOwned + 'static> FromBody for Form<F> {
     type Error = Error;
 
-    fn from_body(request: &RequestParts, body: &[u8]) -> Result<Self, Self::Error> {
-        if request
+    fn from_body(body: Bytes, input: &Input) -> Result<Self, Self::Error> {
+        if input
             .media_type()
             .map_or(true, |m| m == mime::APPLICATION_WWW_FORM_URLENCODED)
         {
-            serde_qs::from_bytes(&body).map(Form).map_err(Into::into)
+            serde_qs::from_bytes(&*body).map(Form).map_err(Into::into)
         } else {
             Err(Error::InvalidMediaType)
         }

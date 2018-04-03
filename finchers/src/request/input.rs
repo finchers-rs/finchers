@@ -1,6 +1,4 @@
 use std::cell::RefCell;
-use std::ops::Deref;
-
 use http::request::Parts;
 use http::{Extensions, Request};
 use http::{header, HeaderMap, Method, Uri, Version};
@@ -47,9 +45,12 @@ where
 /// The value of incoming HTTP request
 #[derive(Debug)]
 pub struct Input {
-    parts: RequestParts,
-    body: Option<BodyStream>,
+    method: Method,
+    uri: Uri,
+    version: Version,
+    headers: HeaderMap,
     extensions: Extensions,
+    body: Option<BodyStream>,
 }
 
 impl<B> From<Request<B>> for Input
@@ -70,22 +71,62 @@ where
             body,
         ) = request.into_parts();
         Input {
-            parts: RequestParts {
-                method,
-                uri,
-                version,
-                headers,
-            },
+            method,
+            uri,
+            version,
+            headers,
+            extensions,
             body: Some(body),
-            extensions: extensions,
         }
     }
 }
 
 impl Input {
     #[allow(missing_docs)]
-    pub fn parts(&self) -> &RequestParts {
-        &self.parts
+    pub fn method(&self) -> &Method {
+        &self.method
+    }
+
+    #[allow(missing_docs)]
+    pub fn uri(&self) -> &Uri {
+        &self.uri
+    }
+
+    #[allow(missing_docs)]
+    pub fn path(&self) -> &str {
+        self.uri().path()
+    }
+
+    #[allow(missing_docs)]
+    pub fn query(&self) -> Option<&str> {
+        self.uri().query()
+    }
+
+    #[allow(missing_docs)]
+    pub fn version(&self) -> &Version {
+        &self.version
+    }
+
+    #[allow(missing_docs)]
+    pub fn headers(&self) -> &HeaderMap {
+        &self.headers
+    }
+
+    #[allow(missing_docs)]
+    pub fn media_type(&self) -> Option<mime::Mime> {
+        self.headers()
+            .get(header::CONTENT_TYPE)
+            .and_then(|s| s.to_str().ok().and_then(|s| s.parse().ok()))
+    }
+
+    #[allow(missing_docs)]
+    pub fn extensions(&self) -> &Extensions {
+        &self.extensions
+    }
+
+    #[allow(missing_docs)]
+    pub fn extensions_mut(&mut self) -> &mut Extensions {
+        &mut self.extensions
     }
 
     #[allow(missing_docs)]
@@ -99,66 +140,5 @@ impl Input {
     #[allow(missing_docs)]
     pub fn body_stream(&mut self) -> Option<BodyStream> {
         self.body.take().map(Into::into)
-    }
-
-    #[allow(missing_docs)]
-    pub fn extensions(&self) -> &Extensions {
-        &self.extensions
-    }
-
-    #[allow(missing_docs)]
-    pub fn extensions_mut(&mut self) -> &mut Extensions {
-        &mut self.extensions
-    }
-}
-
-impl Deref for Input {
-    type Target = RequestParts;
-
-    #[inline]
-    fn deref(&self) -> &Self::Target {
-        self.parts()
-    }
-}
-
-/// Clonable, shared parts in the incoming HTTP request
-#[derive(Debug)]
-pub struct RequestParts {
-    method: Method,
-    uri: Uri,
-    version: Version,
-    headers: HeaderMap,
-}
-
-#[allow(missing_docs)]
-impl RequestParts {
-    pub fn method(&self) -> &Method {
-        &self.method
-    }
-
-    pub fn uri(&self) -> &Uri {
-        &self.uri
-    }
-
-    pub fn path(&self) -> &str {
-        self.uri().path()
-    }
-
-    pub fn query(&self) -> Option<&str> {
-        self.uri().query()
-    }
-
-    pub fn version(&self) -> &Version {
-        &self.version
-    }
-
-    pub fn headers(&self) -> &HeaderMap {
-        &self.headers
-    }
-
-    pub fn media_type(&self) -> Option<mime::Mime> {
-        self.headers()
-            .get(header::CONTENT_TYPE)
-            .and_then(|s| s.to_str().ok().and_then(|s| s.parse().ok()))
     }
 }
