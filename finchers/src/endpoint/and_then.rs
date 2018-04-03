@@ -1,7 +1,8 @@
 #![allow(missing_docs)]
 
 use self::Chain::*;
-use endpoint::{Endpoint, EndpointContext, Input};
+use endpoint::{Endpoint, EndpointContext};
+use request::Input;
 use errors::Error;
 use futures::Async::*;
 use futures::{Future, IntoFuture, Poll};

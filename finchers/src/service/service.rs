@@ -8,7 +8,8 @@ use std::rc::Rc;
 use std::string::ToString;
 use std::sync::Arc;
 
-use endpoint::{Endpoint, EndpointFuture, Input, Outcome};
+use endpoint::{Endpoint, EndpointFuture, Outcome};
+use request::Input;
 use request::body::BodyStream;
 use response::{DefaultResponder, HttpStatus, Responder, ResponseBody};
 

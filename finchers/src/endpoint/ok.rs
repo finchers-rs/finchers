@@ -1,8 +1,9 @@
 #![allow(missing_docs)]
 
 use futures::future::{self, FutureResult};
-use super::{Endpoint, EndpointContext, Input};
+use super::{Endpoint, EndpointContext};
 use errors::Error;
+use request::Input;
 
 pub fn ok<T: Clone>(x: T) -> EndpointOk<T> {
     EndpointOk { x }

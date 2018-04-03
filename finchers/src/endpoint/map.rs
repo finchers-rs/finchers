@@ -1,6 +1,7 @@
 #![allow(missing_docs)]
 
-use super::{Endpoint, EndpointContext, Input, IntoEndpoint};
+use super::{Endpoint, EndpointContext, IntoEndpoint};
+use request::Input;
 use futures::{Future, Poll};
 use std::fmt;
 use std::sync::Arc;

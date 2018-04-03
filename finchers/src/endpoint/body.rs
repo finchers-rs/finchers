@@ -18,10 +18,9 @@ use futures::{Future, Poll};
 use std::marker::PhantomData;
 use std::fmt;
 
-use endpoint::input::with_input_mut;
-use endpoint::{Endpoint, EndpointContext, Input};
+use endpoint::{Endpoint, EndpointContext};
 use errors::{BadRequest, Error};
-use request::{self, FromBody, RequestParts};
+use request::{self, with_input, with_input_mut, FromBody, Input};
 
 /// Creates an endpoint for parsing the incoming request body into the value of `T`
 pub fn body<T: FromBody>() -> Body<T> {
@@ -66,10 +65,7 @@ impl<T: FromBody> Endpoint for Body<T> {
 #[allow(missing_debug_implementations)]
 pub enum BodyFuture<T> {
     Init,
-    Recv {
-        request: RequestParts,
-        body: request::body::Body,
-    },
+    Recv(request::body::Body),
     Done(PhantomData<fn() -> T>),
 }
 
@@ -81,15 +77,15 @@ impl<T: FromBody> Future for BodyFuture<T> {
         'poll: loop {
             let next = match *self {
                 BodyFuture::Init => {
-                    let (request, body) = with_input_mut(|input| input.shared_parts());
-                    BodyFuture::Recv { request, body }
+                    let body = with_input_mut(|input| input.body()).expect("The body has already taken");
+                    BodyFuture::Recv(body)
                 }
-                BodyFuture::Recv {
-                    ref request,
-                    ref mut body,
-                } => {
+                BodyFuture::Recv(ref mut body) => {
                     let buf = try_ready!(body.poll());
-                    let body = T::from_body(request, &*buf).map_err(BadRequest::new)?;
+                    let body = with_input(|input| {
+                        let request = input.parts();
+                        T::from_body(request, &*buf).map_err(BadRequest::new)
+                    })?;
                     return Ok(body.into());
                 }
                 _ => panic!("cannot resolve/reject twice"),

@@ -1,6 +1,7 @@
 #![allow(missing_docs)]
 
-use endpoint::{Endpoint, EndpointContext, Input, IntoEndpoint};
+use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
+use request::Input;
 
 pub fn with<E1, E2>(e1: E1, e2: E2) -> With<E1::Endpoint, E2::Endpoint>
 where

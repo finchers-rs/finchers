@@ -1,7 +1,8 @@
 #![allow(missing_docs)]
 #![allow(non_snake_case)]
 
-use super::{Endpoint, EndpointContext, Input, IntoEndpoint};
+use super::{Endpoint, EndpointContext, IntoEndpoint};
+use request::Input;
 use futures::{future, IntoFuture};
 use std::fmt;
 

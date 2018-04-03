@@ -4,8 +4,9 @@ use std::ops::Deref;
 use futures::task::LocalKey;
 use http::request::Parts;
 use http::{Extensions, Request};
+use http::{header, HeaderMap, Method, Uri, Version};
+use mime;
 
-use request::RequestParts;
 use request::body::{Body, BodyStream};
 
 task_local!(static INPUT: RefCell<Option<Input>> = RefCell::new(None));
@@ -14,6 +15,7 @@ pub fn input_key() -> &'static LocalKey<RefCell<Option<Input>>> {
     &INPUT
 }
 
+#[allow(missing_docs)]
 pub fn with_input<F, R>(f: F) -> R
 where
     F: FnOnce(&Input) -> R,
@@ -27,6 +29,7 @@ where
     })
 }
 
+#[allow(missing_docs)]
 pub fn with_input_mut<F, R>(f: F) -> R
 where
     F: FnOnce(&mut Input) -> R,
@@ -66,7 +69,12 @@ where
             body,
         ) = request.into_parts();
         Input {
-            parts: RequestParts::new(method, uri, version, headers),
+            parts: RequestParts {
+                method,
+                uri,
+                version,
+                headers,
+            },
             body: Some(body),
             extensions: extensions,
         }
@@ -101,13 +109,6 @@ impl Input {
     pub fn extensions_mut(&mut self) -> &mut Extensions {
         &mut self.extensions
     }
-
-    #[allow(missing_docs)]
-    pub fn shared_parts(&mut self) -> (RequestParts, Body) {
-        let parts = self.parts.clone();
-        let body = self.body().expect("cannot take the request body twice");
-        (parts, body)
-    }
 }
 
 impl Deref for Input {
@@ -116,5 +117,47 @@ impl Deref for Input {
     #[inline]
     fn deref(&self) -> &Self::Target {
         self.parts()
+    }
+}
+
+/// Clonable, shared parts in the incoming HTTP request
+#[derive(Debug)]
+pub struct RequestParts {
+    method: Method,
+    uri: Uri,
+    version: Version,
+    headers: HeaderMap,
+}
+
+#[allow(missing_docs)]
+impl RequestParts {
+    pub fn method(&self) -> &Method {
+        &self.method
+    }
+
+    pub fn uri(&self) -> &Uri {
+        &self.uri
+    }
+
+    pub fn path(&self) -> &str {
+        self.uri().path()
+    }
+
+    pub fn query(&self) -> Option<&str> {
+        self.uri().query()
+    }
+
+    pub fn version(&self) -> &Version {
+        &self.version
+    }
+
+    pub fn headers(&self) -> &HeaderMap {
+        &self.headers
+    }
+
+    pub fn media_type(&self) -> Option<mime::Mime> {
+        self.headers()
+            .get(header::CONTENT_TYPE)
+            .and_then(|s| s.to_str().ok().and_then(|s| s.parse().ok()))
     }
 }

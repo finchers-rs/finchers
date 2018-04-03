@@ -4,8 +4,8 @@ use std::marker::PhantomData;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use endpoint::input::input_key;
-use endpoint::{self, EndpointContext, Input, Outcome};
+use endpoint::{self, EndpointContext, Outcome};
+use request::{input_key, Input};
 use errors::{Error, NeverReturn};
 
 /// Abstruction of an endpoint.

@@ -7,7 +7,6 @@ pub mod path;
 
 mod context;
 mod endpoint;
-mod input;
 mod outcome;
 
 mod and_then;
@@ -23,7 +22,6 @@ mod with;
 // re-exports
 pub use self::context::EndpointContext;
 pub use self::endpoint::{endpoint, Endpoint, EndpointFuture, IntoEndpoint};
-pub use self::input::{with_input, with_input_mut, Input};
 pub use self::outcome::Outcome;
 
 pub use self::and_then::AndThen;

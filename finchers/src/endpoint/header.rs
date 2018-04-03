@@ -10,10 +10,9 @@ use futures::{Future, Poll};
 use std::fmt;
 use std::marker::PhantomData;
 
-use endpoint::input::with_input;
-use endpoint::{Endpoint, EndpointContext, Input};
+use endpoint::{Endpoint, EndpointContext};
 use errors::{BadRequest, Error, NotPresent};
-use request::FromHeader;
+use request::{with_input, FromHeader, Input};
 
 #[allow(missing_docs)]
 pub fn header<H: FromHeader>() -> Header<H> {

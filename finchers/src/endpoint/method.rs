@@ -1,6 +1,7 @@
 //! Components for checking the HTTP method
 
-use endpoint::{Endpoint, EndpointContext, Input, IntoEndpoint};
+use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
+use request::Input;
 use http::Method;
 
 #[allow(missing_docs)]
