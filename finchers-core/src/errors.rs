@@ -53,10 +53,10 @@ impl_http_error! {
 #[allow(missing_docs)]
 #[derive(Debug)]
 pub struct Error {
-    inner: Box<HttpError + 'static>,
+    inner: Box<HttpError + Send + 'static>,
 }
 
-impl<E: HttpError + 'static> From<E> for Error {
+impl<E: HttpError + Send + 'static> From<E> for Error {
     fn from(err: E) -> Self {
         Error {
             inner: Box::new(err),

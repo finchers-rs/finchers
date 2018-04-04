@@ -3,6 +3,7 @@ extern crate finchers_core;
 #[macro_use]
 extern crate finchers_derive;
 extern crate finchers_json;
+extern crate finchers_runtime;
 extern crate finchers_urlencoded;
 
 pub extern crate futures;
@@ -12,8 +13,12 @@ pub extern crate mime;
 #[doc(hidden)]
 pub use finchers_derive::*;
 
-pub use finchers_core::{endpoint, errors, request, response, service, test};
+pub use finchers_core::{endpoint, errors, request, response, service};
 pub use finchers_core::errors::Error;
+
+pub mod runtime {
+    pub use finchers_runtime::Server;
+}
 
 pub mod json {
     pub use finchers_json::{json_body, Error, Json, JsonBody, JsonResponder};
@@ -27,7 +32,6 @@ pub mod urlencoded {
 pub mod prelude {
     pub use finchers_core::endpoint::Endpoint;
     pub use finchers_core::service::EndpointServiceExt;
-    pub use finchers_core::test::EndpointTestExt;
 }
 
 #[macro_use]

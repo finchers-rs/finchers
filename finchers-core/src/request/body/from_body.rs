@@ -7,7 +7,7 @@ use request::{BytesString, Input};
 /// The conversion from received request body.
 pub trait FromBody: 'static + Sized {
     /// The type of error value returned from `from_body`.
-    type Error: Error + 'static;
+    type Error: Error + Send + 'static;
 
     /// Returns whether the incoming request matches to this type or not.
     ///

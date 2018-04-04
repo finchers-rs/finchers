@@ -90,21 +90,20 @@ where
 mod tests {
     use super::*;
     use endpoint::{endpoint, ok};
-    use http::Request;
-    use test::TestRunner;
+    use local::Client;
 
     #[test]
     fn test_or_1() {
         let endpoint = endpoint("foo")
             .with(ok("foo"))
             .or(endpoint("bar").with(ok("bar")));
-        let mut runner = TestRunner::new(endpoint).unwrap();
+        let client = Client::new(endpoint);
 
-        let request = Request::get("/foo").body(()).unwrap();
-        assert_eq!(runner.run(request).ok(), Some("foo"));
+        let outcome = client.get("/foo").run().unwrap();
+        assert_eq!(outcome.ok(), Some("foo"));
 
-        let request = Request::get("/bar").body(()).unwrap();
-        assert_eq!(runner.run(request).ok(), Some("bar"));
+        let outcome = client.get("/bar").run().unwrap();
+        assert_eq!(outcome.ok(), Some("bar"));
     }
 
     #[test]
@@ -112,12 +111,12 @@ mod tests {
         let e1 = endpoint("foo").with(ok("foo"));
         let e2 = endpoint("foo/bar").with(ok("foobar"));
         let endpoint = e1.or(e2);
-        let mut runner = TestRunner::new(endpoint).unwrap();
+        let client = Client::new(endpoint);
 
-        let request = Request::get("/foo").body(()).unwrap();
-        assert_eq!(runner.run(request).ok(), Some("foo"));
+        let outcome = client.get("/foo").run().unwrap();
+        assert_eq!(outcome.ok(), Some("foo"));
 
-        let request = Request::get("/foo/bar").body(()).unwrap();
-        assert_eq!(runner.run(request).ok(), Some("foobar"));
+        let outcome = client.get("/foo/bar").run().unwrap();
+        assert_eq!(outcome.ok(), Some("foobar"));
     }
 }

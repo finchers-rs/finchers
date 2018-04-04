@@ -8,7 +8,7 @@ use hyper::header::{self, Header};
 use errors::NeverReturn;
 
 pub trait FromHeader: 'static + Sized {
-    type Error: Error + 'static;
+    type Error: Error + Send + 'static;
 
     fn header_name() -> &'static str;
 

@@ -1,0 +1,99 @@
+#![allow(missing_docs)]
+
+use http::{self, HttpTryFrom, Method, Request, Uri};
+use futures::Future;
+
+use endpoint::{Endpoint, Outcome};
+use request::Input;
+use request::body::BodyStream;
+
+#[derive(Debug)]
+pub struct Client<E: Endpoint> {
+    endpoint: E,
+}
+
+macro_rules! impl_constructors {
+    ($($METHOD:ident => $name:ident,)*) => {$(
+        pub fn $name<'a, U>(&'a self, uri: U) -> ClientRequest<'a, E>
+        where
+            Uri: HttpTryFrom<U>,
+        {
+            self.request(Method::$METHOD, uri)
+        }
+    )*};
+}
+
+impl<E: Endpoint> Client<E> {
+    pub fn new(endpoint: E) -> Client<E> {
+        Client { endpoint }
+    }
+
+    pub fn request<'a, M, U>(&'a self, method: M, uri: U) -> ClientRequest<'a, E>
+    where
+        Method: HttpTryFrom<M>,
+        Uri: HttpTryFrom<U>,
+    {
+        let mut client = ClientRequest {
+            client: self,
+            request: Ok(Request::new(Default::default())),
+        };
+        client.modify(|request| {
+            Method::try_from(method).map(|method| {
+                *request.method_mut() = method;
+            })
+        });
+        client.modify(|request| {
+            Uri::try_from(uri).map(|uri| {
+                *request.uri_mut() = uri;
+            })
+        });
+        client
+    }
+
+    impl_constructors! {
+        GET => get,
+        POST => post,
+        PUT => put,
+        HEAD => head,
+        DELETE => delete,
+        PATCH => patch,
+    }
+}
+
+#[derive(Debug)]
+pub struct ClientRequest<'a, E: Endpoint + 'a> {
+    client: &'a Client<E>,
+    request: http::Result<Request<BodyStream>>,
+}
+
+impl<'a, E: Endpoint> ClientRequest<'a, E> {
+    fn modify<F, R>(&mut self, f: F)
+    where
+        F: FnOnce(&mut Request<BodyStream>) -> Result<(), R>,
+        R: Into<http::Error>,
+    {
+        if self.request.is_ok() {
+            if let Err(err) = f(self.request.as_mut().unwrap()) {
+                self.request = Err(err.into());
+            }
+        }
+    }
+
+    pub fn body<B>(mut self, body: B) -> ClientRequest<'a, E>
+    where
+        B: Into<BodyStream>,
+    {
+        if let Ok(ref mut request) = self.request {
+            *request.body_mut() = body.into();
+        }
+        self
+    }
+
+    pub fn run(self) -> http::Result<Outcome<E::Item>> {
+        let ClientRequest { client, request } = self;
+        let input: Input = request?.into();
+        let f = client.endpoint.apply_input(input);
+        // TODO: replace with futures::executor
+        Ok(f.wait().unwrap())
+    }
+}

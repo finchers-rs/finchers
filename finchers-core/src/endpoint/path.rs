@@ -373,8 +373,8 @@ impl<T: FromSegments> Endpoint for ExtractPathsOptional<T> {
 mod tests {
     use super::*;
     use endpoint::endpoint;
-    use http::Request;
-    use test::EndpointTestExt;
+    use endpoint::path::{path, paths};
+    use local::Client;
 
     #[test]
     fn test_match_single_segment() {
@@ -415,56 +415,65 @@ mod tests {
 
     #[test]
     fn test_endpoint_match_path() {
-        let request = Request::get("/foo").body(()).unwrap();
-        assert_eq!(endpoint("foo").run(request).ok(), Some(()));
+        let client = Client::new(endpoint("foo"));
+        let outcome = client.get("/foo").run().unwrap();
+        assert_eq!(outcome.ok(), Some(()));
     }
 
     #[test]
     fn test_endpoint_reject_path() {
-        let request = Request::get("/foo").body(()).unwrap();
-        assert!(endpoint("bar").run(request).is_noroute());
+        let client = Client::new(endpoint("bar"));
+        let outcome = client.get("/foo").run().unwrap();
+        assert!(outcome.is_noroute());
     }
 
     #[test]
     fn test_endpoint_match_multi_segments() {
-        let request = Request::get("/foo/bar").body(()).unwrap();
-        assert_eq!(endpoint("/foo/bar").run(request).ok(), Some(()));
+        let client = Client::new(endpoint("/foo/bar"));
+        let outcome = client.get("/foo/bar").run().unwrap();
+        assert_eq!(outcome.ok(), Some(()));
     }
 
     #[test]
     fn test_endpoint_reject_multi_segments() {
-        let request = Request::get("/foo/baz").body(()).unwrap();
-        assert!(endpoint("/foo/bar").run(request).is_noroute());
+        let client = Client::new(endpoint("/foo/bar"));
+        let outcome = client.get("/foo/baz").run().unwrap();
+        assert!(outcome.is_noroute());
     }
 
     #[test]
     fn test_endpoint_reject_short_path() {
-        let request = Request::get("/foo/bar").body(()).unwrap();
-        assert!(endpoint("/foo/bar/baz").run(request).is_noroute());
+        let client = Client::new(endpoint("/foo/bar/baz"));
+        let outcome = client.get("/foo/bar").run().unwrap();
+        assert!(outcome.is_noroute());
     }
 
     #[test]
     fn test_endpoint_match_all_path() {
-        let request = Request::get("/foo").body(()).unwrap();
-        assert_eq!(endpoint("*").run(request).ok(), Some(()));
+        let client = Client::new(endpoint("*"));
+        let outcome = client.get("/foo").run().unwrap();
+        assert_eq!(outcome.ok(), Some(()));
     }
 
     #[test]
     fn test_endpoint_extract_integer() {
-        let request = Request::get("/42").body(()).unwrap();
-        assert_eq!(path().run(request).ok(), Some(42i32));
+        let client = Client::new(path::<i32>());
+        let outcome = client.get("/42").run().unwrap();
+        assert_eq!(outcome.ok(), Some(42i32));
     }
 
     #[test]
     fn test_endpoint_extract_wrong_integer() {
-        let request = Request::get("/foo").body(()).unwrap();
-        assert!(path::<i32>().run(request).is_noroute());
+        let client = Client::new(path::<i32>());
+        let outcome = client.get("/foo").run().unwrap();
+        assert!(outcome.is_noroute());
     }
 
     #[test]
     fn test_endpoint_extract_wrong_integer_result() {
-        let request = Request::get("/foo").body(()).unwrap();
-        match path::<Result<i32, _>>().run(request).ok() {
+        let client = Client::new(path::<Result<i32, _>>());
+        let outcome = client.get("/foo").run().unwrap();
+        match outcome.ok() {
             Some(Err(..)) => (),
             _ => panic!("assertion failed"),
         }
@@ -472,16 +481,15 @@ mod tests {
 
     #[test]
     fn test_endpoint_extract_wrong_integer_required() {
-        let request = Request::get("/foo").body(()).unwrap();
-        assert!(path_req::<i32>().run(request).is_err());
+        let client = Client::new(path_req::<i32>());
+        let outcome = client.get("/foo").run().unwrap();
+        assert!(outcome.is_err());
     }
 
     #[test]
     fn test_endpoint_extract_strings() {
-        let request = Request::get("/foo/bar").body(()).unwrap();
-        assert_eq!(
-            paths::<Vec<String>>().run(request).ok(),
-            Some(vec!["foo".to_string(), "bar".to_string()])
-        );
+        let client = Client::new(paths::<Vec<String>>());
+        let outcome = client.get("/foo/bar").run().unwrap();
+        assert_eq!(outcome.ok(), Some(vec!["foo".into(), "bar".into()]));
     }
 }

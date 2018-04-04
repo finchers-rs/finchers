@@ -1,13 +1,16 @@
 [package]
-name = "finchers-core"
+name = "finchers-runtime"
 version = "0.11.0-dev"
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 
 [dependencies]
-mime = "0.3"
-http = "0.1"
-futures = "0.1"
-bytes = "0.4"
+futures = "0.1.20"
+http = "0.1.5"
+tokio = "0.1.5"
+
+[dependencies.finchers-core]
+version = "0.11.0-dev"
+path = "../finchers-core"
 
 [dependencies.hyper]
 version = "0.11.24"
