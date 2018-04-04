@@ -18,7 +18,7 @@ use futures::{Future, Poll};
 use std::marker::PhantomData;
 use std::fmt;
 
-use endpoint::{Endpoint, EndpointContext};
+use endpoint::{Context, Endpoint};
 use error::{BadRequest, Error};
 use request::{self, with_input, with_input_mut, FromBody, Input};
 
@@ -53,7 +53,7 @@ impl<T: FromBody> Endpoint for Body<T> {
     type Item = T;
     type Future = BodyFuture<T>;
 
-    fn apply(&self, input: &Input, _: &mut EndpointContext) -> Option<Self::Future> {
+    fn apply(&self, input: &Input, _: &mut Context) -> Option<Self::Future> {
         match T::is_match(input) {
             true => Some(BodyFuture::Init),
             false => None,
@@ -121,7 +121,7 @@ impl Endpoint for BodyStream {
     type Item = request::body::BodyStream;
     type Future = BodyStreamFuture;
 
-    fn apply(&self, _: &Input, _: &mut EndpointContext) -> Option<Self::Future> {
+    fn apply(&self, _: &Input, _: &mut Context) -> Option<Self::Future> {
         Some(BodyStreamFuture { _priv: () })
     }
 }

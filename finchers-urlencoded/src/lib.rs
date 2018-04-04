@@ -42,7 +42,7 @@ use std::iter::FromIterator;
 use serde::de::{self, IntoDeserializer};
 use futures::{Future, Poll};
 
-use finchers_core::endpoint::{self, Endpoint, EndpointContext};
+use finchers_core::endpoint::{self, Context, Endpoint};
 use finchers_core::error::{BadRequest, Error as FinchersError};
 use finchers_core::request::{with_input, Bytes, FromBody, Input};
 
@@ -77,7 +77,7 @@ impl<T: de::DeserializeOwned> Endpoint for Queries<T> {
     type Item = T;
     type Future = QueriesFuture<T>;
 
-    fn apply(&self, input: &Input, _: &mut EndpointContext) -> Option<Self::Future> {
+    fn apply(&self, input: &Input, _: &mut Context) -> Option<Self::Future> {
         if input.query().is_some() {
             Some(QueriesFuture {
                 _marker: PhantomData,
@@ -137,7 +137,7 @@ impl<T: de::DeserializeOwned> Endpoint for QueriesRequired<T> {
     type Item = T;
     type Future = QueriesRequiredFuture<T>;
 
-    fn apply(&self, _: &Input, _: &mut EndpointContext) -> Option<Self::Future> {
+    fn apply(&self, _: &Input, _: &mut Context) -> Option<Self::Future> {
         Some(QueriesRequiredFuture {
             _marker: PhantomData,
         })
@@ -196,7 +196,7 @@ impl<T: de::DeserializeOwned> Endpoint for QueriesOptional<T> {
     type Item = Option<T>;
     type Future = QueriesOptionalFuture<T>;
 
-    fn apply(&self, _: &Input, _: &mut EndpointContext) -> Option<Self::Future> {
+    fn apply(&self, _: &Input, _: &mut Context) -> Option<Self::Future> {
         Some(QueriesOptionalFuture {
             _marker: PhantomData,
         })
@@ -298,7 +298,7 @@ impl<T: de::DeserializeOwned + 'static> Endpoint for FormBody<T> {
     type Item = T;
     type Future = FormBodyFuture<T>;
 
-    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
+    fn apply(&self, input: &Input, ctx: &mut Context) -> Option<Self::Future> {
         Some(FormBodyFuture {
             inner: match self.inner.apply(input, ctx) {
                 Some(inner) => inner,

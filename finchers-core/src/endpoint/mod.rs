@@ -19,7 +19,7 @@ mod skip_all;
 mod with;
 
 // re-exports
-pub use self::context::EndpointContext;
+pub use self::context::Context;
 pub use self::endpoint::{endpoint, Endpoint, EndpointFuture, IntoEndpoint};
 
 pub use self::and_then::AndThen;

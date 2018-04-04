@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 
-use super::{Endpoint, EndpointContext, IntoEndpoint};
+use super::{Context, Endpoint, IntoEndpoint};
 use request::Input;
 use futures::{Future, Poll};
 use std::fmt;
@@ -56,7 +56,7 @@ where
     type Item = R;
     type Future = MapFuture<E::Future, F>;
 
-    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
+    fn apply(&self, input: &Input, ctx: &mut Context) -> Option<Self::Future> {
         let fut = self.endpoint.apply(input, ctx)?;
         Some(MapFuture {
             fut,

@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 
 use futures::future::{ok, FutureResult};
-use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
+use endpoint::{Context, Endpoint, IntoEndpoint};
 use error::Error;
 use request::Input;
 
@@ -24,7 +24,7 @@ impl<E: Endpoint> Endpoint for SkipAll<E> {
     type Item = ();
     type Future = FutureResult<(), Error>;
 
-    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
+    fn apply(&self, input: &Input, ctx: &mut Context) -> Option<Self::Future> {
         for endpoint in &self.endpoints {
             let _ = endpoint.apply(input, ctx)?;
         }

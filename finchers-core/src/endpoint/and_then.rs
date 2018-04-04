@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 
 use self::Chain::*;
-use endpoint::{Endpoint, EndpointContext};
+use endpoint::{Context, Endpoint};
 use request::Input;
 use error::Error;
 use futures::Async::*;
@@ -68,7 +68,7 @@ where
     type Item = R::Item;
     type Future = AndThenFuture<E::Future, F, R>;
 
-    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
+    fn apply(&self, input: &Input, ctx: &mut Context) -> Option<Self::Future> {
         let future = self.endpoint.apply(input, ctx)?;
         Some(AndThenFuture {
             inner: Chain::new(future, self.f.clone()),

@@ -10,7 +10,7 @@ use futures::{Future, Poll};
 use std::fmt;
 use std::marker::PhantomData;
 
-use endpoint::{Endpoint, EndpointContext};
+use endpoint::{Context, Endpoint};
 use error::{BadRequest, Error, NotPresent};
 use request::{with_input, FromHeader, Input};
 
@@ -45,7 +45,7 @@ impl<H: FromHeader> Endpoint for Header<H> {
     type Item = H;
     type Future = HeaderFuture<H>;
 
-    fn apply(&self, input: &Input, _: &mut EndpointContext) -> Option<Self::Future> {
+    fn apply(&self, input: &Input, _: &mut Context) -> Option<Self::Future> {
         if input.headers().contains_key(H::header_name()) {
             Some(HeaderFuture {
                 _marker: PhantomData,
@@ -110,7 +110,7 @@ impl<H: FromHeader> Endpoint for HeaderRequired<H> {
     type Item = H;
     type Future = HeaderRequiredFuture<H>;
 
-    fn apply(&self, _: &Input, _: &mut EndpointContext) -> Option<Self::Future> {
+    fn apply(&self, _: &Input, _: &mut Context) -> Option<Self::Future> {
         Some(HeaderRequiredFuture {
             _marker: PhantomData,
         })
@@ -171,7 +171,7 @@ impl<H: FromHeader> Endpoint for HeaderOptional<H> {
     type Item = Option<H>;
     type Future = HeaderOptionalFuture<H>;
 
-    fn apply(&self, _: &Input, _: &mut EndpointContext) -> Option<Self::Future> {
+    fn apply(&self, _: &Input, _: &mut Context) -> Option<Self::Future> {
         Some(HeaderOptionalFuture {
             _marker: PhantomData,
         })

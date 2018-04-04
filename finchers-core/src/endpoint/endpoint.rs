@@ -2,7 +2,7 @@ use futures::{Future, IntoFuture, Poll};
 use std::rc::Rc;
 use std::sync::Arc;
 
-use endpoint::{self, EndpointContext};
+use endpoint::{self, Context};
 use request::{set_input, Input};
 use error::{Error, NoRoute};
 
@@ -16,11 +16,11 @@ pub trait Endpoint {
 
     /// Validates the incoming HTTP request,
     /// and returns the instance of `Task` if matched.
-    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Future>;
+    fn apply(&self, input: &Input, ctx: &mut Context) -> Option<Self::Future>;
 
     #[allow(missing_docs)]
     fn apply_input(&self, input: Input) -> EndpointFuture<Self::Future> {
-        let in_flight = self.apply(&input, &mut EndpointContext::new(&input));
+        let in_flight = self.apply(&input, &mut Context::new(&input));
         EndpointFuture {
             input: Some(input),
             in_flight,
@@ -96,7 +96,7 @@ impl<'a, E: Endpoint> Endpoint for &'a E {
     type Item = E::Item;
     type Future = E::Future;
 
-    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
+    fn apply(&self, input: &Input, ctx: &mut Context) -> Option<Self::Future> {
         (*self).apply(input, ctx)
     }
 }
@@ -105,7 +105,7 @@ impl<E: Endpoint> Endpoint for Box<E> {
     type Item = E::Item;
     type Future = E::Future;
 
-    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
+    fn apply(&self, input: &Input, ctx: &mut Context) -> Option<Self::Future> {
         (**self).apply(input, ctx)
     }
 }
@@ -114,7 +114,7 @@ impl<E: Endpoint> Endpoint for Rc<E> {
     type Item = E::Item;
     type Future = E::Future;
 
-    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
+    fn apply(&self, input: &Input, ctx: &mut Context) -> Option<Self::Future> {
         (**self).apply(input, ctx)
     }
 }
@@ -123,7 +123,7 @@ impl<E: Endpoint> Endpoint for Arc<E> {
     type Item = E::Item;
     type Future = E::Future;
 
-    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
+    fn apply(&self, input: &Input, ctx: &mut Context) -> Option<Self::Future> {
         (**self).apply(input, ctx)
     }
 }

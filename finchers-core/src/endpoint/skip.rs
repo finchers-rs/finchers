@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 
-use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
+use endpoint::{Context, Endpoint, IntoEndpoint};
 use request::Input;
 
 pub fn skip<E1, E2>(e1: E1, e2: E2) -> Skip<E1::Endpoint, E2::Endpoint>
@@ -28,7 +28,7 @@ where
     type Item = E1::Item;
     type Future = E1::Future;
 
-    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
+    fn apply(&self, input: &Input, ctx: &mut Context) -> Option<Self::Future> {
         let f1 = self.e1.apply(input, ctx)?;
         let _f2 = self.e2.apply(input, ctx)?;
         Some(f1)
