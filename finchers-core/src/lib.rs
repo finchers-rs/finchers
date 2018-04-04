@@ -14,6 +14,7 @@ extern crate mime;
 
 pub mod endpoint;
 pub mod errors;
+pub mod local;
 pub mod request;
 pub mod response;
 pub mod service;

@@ -23,19 +23,16 @@ impl<T: Clone> Endpoint for EndpointOk<T> {
     }
 }
 
-/*
 #[cfg(test)]
 mod tests {
     use super::*;
-    use http::Request;
-    use test::TestRunner;
+    use local::Client;
 
     #[test]
     fn test_ok() {
         let endpoint = ok("Alice");
-        let mut runner = TestRunner::new(endpoint).unwrap();
-        let request = Request::get("/").body(()).unwrap();
-        assert_eq!(runner.run(request).ok(), Some("Alice"));
+        let client = Client::new(endpoint);
+        let outcome = client.get("/").run().unwrap();
+        assert_eq!(outcome.ok(), Some("Alice"));
     }
 }
-*/
