@@ -1,13 +1,10 @@
-use futures::Async::*;
 use futures::{Future, IntoFuture, Poll};
-use std::marker::PhantomData;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use endpoint::{self, EndpointContext, Outcome};
+use endpoint::{self, EndpointContext};
 use request::{set_input, Input};
-use error::Error;
-use never::Never;
+use error::{Error, NoRoute};
 
 /// Abstruction of an endpoint.
 pub trait Endpoint {
@@ -22,15 +19,11 @@ pub trait Endpoint {
     fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Future>;
 
     #[allow(missing_docs)]
-    fn apply_input<T>(&self, input: Input) -> EndpointFuture<Self::Future, T>
-    where
-        Self::Item: Into<Outcome<T>>,
-    {
+    fn apply_input(&self, input: Input) -> EndpointFuture<Self::Future> {
         let in_flight = self.apply(&input, &mut EndpointContext::new(&input));
         EndpointFuture {
             input: Some(input),
             in_flight,
-            _marker: PhantomData,
         }
     }
 
@@ -136,39 +129,24 @@ impl<E: Endpoint> Endpoint for Arc<E> {
 }
 
 #[allow(missing_docs)]
-#[allow(missing_debug_implementations)]
-pub struct EndpointFuture<F, T>
-where
-    F: Future<Error = Error>,
-    F::Item: Into<Outcome<T>>,
-{
+#[derive(Debug)]
+pub struct EndpointFuture<F> {
     input: Option<Input>,
     in_flight: Option<F>,
-    _marker: PhantomData<fn() -> T>,
 }
 
-impl<F, T> Future for EndpointFuture<F, T>
-where
-    F: Future<Error = Error>,
-    F::Item: Into<Outcome<T>>,
-{
-    type Item = Outcome<T>;
-    type Error = Never;
+impl<F: Future<Error = Error>> Future for EndpointFuture<F> {
+    type Item = F::Item;
+    type Error = Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         if let Some(input) = self.input.take() {
             set_input(input);
         }
-
-        let outcome = match self.in_flight {
-            Some(ref mut f) => match f.poll() {
-                Ok(Ready(outcome)) => outcome.into(),
-                Ok(NotReady) => return Ok(NotReady),
-                Err(err) => Outcome::Err(err),
-            },
-            None => Outcome::NoRoute,
-        };
-        Ok(Ready(outcome))
+        match self.in_flight {
+            Some(ref mut f) => f.poll(),
+            None => Err(NoRoute::new().into()),
+        }
     }
 }
 

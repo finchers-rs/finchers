@@ -9,6 +9,7 @@ mod db;
 mod application;
 
 use finchers::prelude::*;
+use finchers::error::NoRoute;
 use finchers::runtime::Server;
 use finchers::json::{json_body, JsonResponder};
 use self::db::*;
@@ -31,30 +32,36 @@ fn main() {
     let endpoint = {
         use finchers::endpoint::prelude::*;
 
-        let find_todo = get(path()).and_then({
-            let app = app.clone();
-            move |id| app.find_todo(id).map(|todo| todo.map(TheTodo))
-        });
+        let find_todo = get(path())
+            .and_then({
+                let app = app.clone();
+                move |id| app.find_todo(id)
+            })
+            .and_then(|todo| todo.map(TheTodo).ok_or_else(|| NoRoute::new()));
 
         let list_todos = get(()).and_then({
             let app = app.clone();
-            move |_| app.list_todos().map(|todos| Some(Todos(todos)))
+            move |_| app.list_todos().map(Todos)
         });
 
         let add_todo = post(json_body()).and_then({
             let app = app.clone();
-            move |new_todo| app.add_todo(new_todo).map(|todo| Some(NewTodo(todo)))
+            move |new_todo| app.add_todo(new_todo).map(NewTodo)
         });
 
-        let patch_todo = patch((path(), json_body())).and_then({
-            let app = app.clone();
-            move |(id, patch)| app.patch_todo(id, patch).map(|todo| todo.map(TheTodo))
-        });
+        let patch_todo = patch((path(), json_body()))
+            .and_then({
+                let app = app.clone();
+                move |(id, patch)| app.patch_todo(id, patch)
+            })
+            .and_then(|todo| todo.map(TheTodo).ok_or_else(|| NoRoute::new()));
 
-        let delete_todo = delete(path()).and_then({
-            let app = app.clone();
-            move |id| app.delete_todo(id).map(|s| s.map(|_| Deleted))
-        });
+        let delete_todo = delete(path())
+            .and_then({
+                let app = app.clone();
+                move |id| app.delete_todo(id)
+            })
+            .and_then(|todo| todo.map(|_| Deleted).ok_or_else(|| NoRoute::new()));
 
         endpoint("api/v1/todos").with(choice![
             find_todo,

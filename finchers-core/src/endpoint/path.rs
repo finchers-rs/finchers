@@ -424,7 +424,7 @@ mod tests {
     fn test_endpoint_reject_path() {
         let client = Client::new(endpoint("bar"));
         let outcome = client.get("/foo").run().unwrap();
-        assert!(outcome.is_noroute());
+        assert!(outcome.err().map_or(false, |e| e.is_noroute()));
     }
 
     #[test]
@@ -438,14 +438,14 @@ mod tests {
     fn test_endpoint_reject_multi_segments() {
         let client = Client::new(endpoint("/foo/bar"));
         let outcome = client.get("/foo/baz").run().unwrap();
-        assert!(outcome.is_noroute());
+        assert!(outcome.err().map_or(false, |e| e.is_noroute()));
     }
 
     #[test]
     fn test_endpoint_reject_short_path() {
         let client = Client::new(endpoint("/foo/bar/baz"));
         let outcome = client.get("/foo/bar").run().unwrap();
-        assert!(outcome.is_noroute());
+        assert!(outcome.err().map_or(false, |e| e.is_noroute()));
     }
 
     #[test]
@@ -466,7 +466,7 @@ mod tests {
     fn test_endpoint_extract_wrong_integer() {
         let client = Client::new(path::<i32>());
         let outcome = client.get("/foo").run().unwrap();
-        assert!(outcome.is_noroute());
+        assert!(outcome.err().map_or(false, |e| e.is_noroute()));
     }
 
     #[test]

@@ -7,7 +7,6 @@ pub mod path;
 
 mod context;
 mod endpoint;
-mod outcome;
 
 mod and_then;
 mod join;
@@ -22,7 +21,6 @@ mod with;
 // re-exports
 pub use self::context::EndpointContext;
 pub use self::endpoint::{endpoint, Endpoint, EndpointFuture, IntoEndpoint};
-pub use self::outcome::Outcome;
 
 pub use self::and_then::AndThen;
 pub use self::join::{Join, Join3, Join4, Join5};
