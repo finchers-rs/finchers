@@ -24,7 +24,7 @@ extern crate finchers;
 
 use finchers::prelude::*;
 use finchers::endpoint::prelude::*;
-use finchers::service::{Server, backend};
+use finchers::runtime::Server;
 
 fn main() {
     let endpoint = endpoint("api/v1").with(choice![
@@ -33,7 +33,7 @@ fn main() {
     ]);
 
     let service = endpoint.into_service::<String>();
-    Server::from_service(service).run(backend::default());
+    Server::from_service(service).run();
 }
 ```
 
