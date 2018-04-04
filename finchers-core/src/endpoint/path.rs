@@ -369,6 +369,7 @@ impl<T: FromSegments> Endpoint for ExtractPathsOptional<T> {
     }
 }
 
+/*
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -485,3 +486,4 @@ mod tests {
         );
     }
 }
+*/

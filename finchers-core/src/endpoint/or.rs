@@ -86,6 +86,7 @@ where
     }
 }
 
+/*
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -121,3 +122,4 @@ mod tests {
         assert_eq!(runner.run(request).ok(), Some("foobar"));
     }
 }
+*/
