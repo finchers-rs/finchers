@@ -19,7 +19,7 @@ use std::marker::PhantomData;
 use std::fmt;
 
 use endpoint::{Endpoint, EndpointContext};
-use errors::{BadRequest, Error};
+use error::{BadRequest, Error};
 use request::{self, with_input, with_input_mut, FromBody, Input};
 
 /// Creates an endpoint for parsing the incoming request body into the value of `T`

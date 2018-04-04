@@ -2,7 +2,7 @@ use std::error::Error;
 use std::ops::Deref;
 use std::path::PathBuf;
 use std::str::FromStr;
-use errors::NeverReturn;
+use never::Never;
 
 /// An iterator of remaning path segments.
 #[derive(Debug, Copy, Clone)]
@@ -169,7 +169,7 @@ impl_from_segment_from_str! {
 }
 
 impl<T: FromSegment> FromSegment for Option<T> {
-    type Err = NeverReturn;
+    type Err = Never;
 
     #[inline]
     fn from_segment(segment: Segment) -> Result<Self, Self::Err> {
@@ -178,7 +178,7 @@ impl<T: FromSegment> FromSegment for Option<T> {
 }
 
 impl<T: FromSegment> FromSegment for Result<T, T::Err> {
-    type Err = NeverReturn;
+    type Err = Never;
 
     #[inline]
     fn from_segment(segment: Segment) -> Result<Self, Self::Err> {
@@ -204,7 +204,7 @@ impl<T: FromSegment> FromSegments for Vec<T> {
 }
 
 impl FromSegments for String {
-    type Err = NeverReturn;
+    type Err = Never;
 
     fn from_segments(segments: &mut Segments) -> Result<Self, Self::Err> {
         let s = segments.remaining_path().to_owned();
@@ -214,7 +214,7 @@ impl FromSegments for String {
 }
 
 impl FromSegments for PathBuf {
-    type Err = NeverReturn;
+    type Err = Never;
 
     fn from_segments(segments: &mut Segments) -> Result<Self, Self::Err> {
         let s = PathBuf::from(segments.remaining_path());
@@ -224,7 +224,7 @@ impl FromSegments for PathBuf {
 }
 
 impl<T: FromSegments> FromSegments for Option<T> {
-    type Err = NeverReturn;
+    type Err = Never;
 
     fn from_segments(segments: &mut Segments) -> Result<Self, Self::Err> {
         Ok(FromSegments::from_segments(segments).ok())
@@ -232,7 +232,7 @@ impl<T: FromSegments> FromSegments for Option<T> {
 }
 
 impl<T: FromSegments> FromSegments for Result<T, T::Err> {
-    type Err = NeverReturn;
+    type Err = Never;
 
     fn from_segments(segments: &mut Segments) -> Result<Self, Self::Err> {
         Ok(FromSegments::from_segments(segments))

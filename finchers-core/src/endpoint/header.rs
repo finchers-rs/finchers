@@ -11,7 +11,7 @@ use std::fmt;
 use std::marker::PhantomData;
 
 use endpoint::{Endpoint, EndpointContext};
-use errors::{BadRequest, Error, NotPresent};
+use error::{BadRequest, Error, NotPresent};
 use request::{with_input, FromHeader, Input};
 
 #[allow(missing_docs)]

@@ -1,17 +1,15 @@
 //! Error types thrown from finchers
 
 use std::borrow::Cow;
-use std::fmt;
-use std::error::Error as StdError;
-use std::io;
+use std::{error, fmt};
 use std::ops::Deref;
 use http::StatusCode;
 use response::HttpStatus;
 
 #[allow(missing_docs)]
-pub trait HttpError: StdError + HttpStatus {}
+pub trait HttpError: error::Error + HttpStatus {}
 
-impl<E: StdError + HttpStatus> HttpError for E {}
+impl<E: error::Error + HttpStatus> HttpError for E {}
 
 macro_rules! impl_http_error {
     (@bad_request) => { StatusCode::BAD_REQUEST };
@@ -87,40 +85,6 @@ impl PartialEq for Error {
 }
 
 #[allow(missing_docs)]
-#[derive(Debug, Copy, PartialEq, Eq, Hash)]
-pub enum NeverReturn {}
-
-impl Clone for NeverReturn {
-    fn clone(&self) -> Self {
-        unreachable!()
-    }
-}
-
-impl fmt::Display for NeverReturn {
-    fn fmt(&self, _: &mut fmt::Formatter) -> fmt::Result {
-        unreachable!()
-    }
-}
-
-impl StdError for NeverReturn {
-    fn description(&self) -> &str {
-        unreachable!()
-    }
-}
-
-impl HttpStatus for NeverReturn {
-    fn status_code(&self) -> StatusCode {
-        unreachable!()
-    }
-}
-
-impl Into<io::Error> for NeverReturn {
-    fn into(self) -> io::Error {
-        unreachable!()
-    }
-}
-
-#[allow(missing_docs)]
 #[derive(Debug)]
 pub struct BadRequest<E> {
     err: E,
@@ -148,17 +112,17 @@ impl<E: fmt::Display> fmt::Display for BadRequest<E> {
     }
 }
 
-impl<E: StdError> StdError for BadRequest<E> {
+impl<E: error::Error> error::Error for BadRequest<E> {
     fn description(&self) -> &str {
         self.err.description()
     }
 
-    fn cause(&self) -> Option<&StdError> {
+    fn cause(&self) -> Option<&error::Error> {
         self.err.cause()
     }
 }
 
-impl<E: StdError + 'static> HttpStatus for BadRequest<E> {
+impl<E: error::Error + 'static> HttpStatus for BadRequest<E> {
     fn status_code(&self) -> StatusCode {
         StatusCode::BAD_REQUEST
     }
@@ -185,7 +149,7 @@ impl fmt::Display for NotPresent {
     }
 }
 
-impl StdError for NotPresent {
+impl error::Error for NotPresent {
     fn description(&self) -> &str {
         "not present"
     }

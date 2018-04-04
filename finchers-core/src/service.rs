@@ -140,7 +140,11 @@ where
     type Error = io::Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let outcome = try_ready!(self.outcome.poll().map_err(Into::<io::Error>::into));
+        let outcome = try_ready!(
+            self.outcome
+                .poll()
+                .map_err(|_| -> io::Error { unreachable!() })
+        );
         let mut response = self.responder.respond(outcome);
         if !response.headers().contains_key(header::SERVER) {
             response

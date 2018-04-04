@@ -28,7 +28,7 @@ use futures::{Future, Poll};
 use http::{header, Response, StatusCode};
 
 use finchers_core::endpoint::{self, Endpoint, EndpointContext, Outcome};
-use finchers_core::errors::{BadRequest, Error as FinchersError, HttpError};
+use finchers_core::error::{BadRequest, Error as FinchersError, HttpError};
 use finchers_core::request::{Bytes, FromBody, Input};
 use finchers_core::response::{HttpStatus, Responder};
 

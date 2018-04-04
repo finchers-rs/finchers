@@ -3,7 +3,7 @@
 use self::Chain::*;
 use endpoint::{Endpoint, EndpointContext};
 use request::Input;
-use errors::Error;
+use error::Error;
 use futures::Async::*;
 use futures::{Future, IntoFuture, Poll};
 use std::fmt;

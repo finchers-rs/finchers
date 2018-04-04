@@ -2,7 +2,7 @@
 
 use futures::future::{self, FutureResult};
 use super::{Endpoint, EndpointContext};
-use errors::Error;
+use error::Error;
 use request::Input;
 
 pub fn ok<T: Clone>(x: T) -> EndpointOk<T> {

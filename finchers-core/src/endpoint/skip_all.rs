@@ -2,7 +2,7 @@
 
 use futures::future::{ok, FutureResult};
 use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
-use errors::Error;
+use error::Error;
 use request::Input;
 
 pub fn skip_all<I>(iter: I) -> SkipAll<<I::Item as IntoEndpoint>::Endpoint>

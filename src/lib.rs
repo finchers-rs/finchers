@@ -13,8 +13,8 @@ pub extern crate mime;
 #[doc(hidden)]
 pub use finchers_derive::*;
 
-pub use finchers_core::{endpoint, errors, request, response, service};
-pub use finchers_core::errors::Error;
+pub use finchers_core::{endpoint, error, request, response, service};
+pub use finchers_core::error::Error;
 
 pub mod runtime {
     pub use finchers_runtime::Server;

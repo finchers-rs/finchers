@@ -6,7 +6,8 @@ use std::sync::Arc;
 
 use endpoint::{self, EndpointContext, Outcome};
 use request::{set_input, Input};
-use errors::{Error, NeverReturn};
+use error::Error;
+use never::Never;
 
 /// Abstruction of an endpoint.
 pub trait Endpoint {
@@ -152,7 +153,7 @@ where
     F::Item: Into<Outcome<T>>,
 {
     type Item = Outcome<T>;
-    type Error = NeverReturn;
+    type Error = Never;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         if let Some(input) = self.input.take() {

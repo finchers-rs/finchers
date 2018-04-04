@@ -36,15 +36,14 @@ extern crate mime;
 extern crate serde;
 extern crate serde_qs;
 
-use std::fmt;
-use std::error::Error as StdError;
+use std::{error, fmt};
 use std::marker::PhantomData;
 use std::iter::FromIterator;
 use serde::de::{self, IntoDeserializer};
 use futures::{Future, Poll};
 
 use finchers_core::endpoint::{self, Endpoint, EndpointContext};
-use finchers_core::errors::{BadRequest, Error as FinchersError};
+use finchers_core::error::{BadRequest, Error as FinchersError};
 use finchers_core::request::{with_input, Bytes, FromBody, Input};
 
 #[allow(missing_docs)]
@@ -349,12 +348,12 @@ impl fmt::Display for Error {
     }
 }
 
-impl StdError for Error {
+impl error::Error for Error {
     fn description(&self) -> &str {
         "failed to parse an urlencoded string"
     }
 
-    fn cause(&self) -> Option<&StdError> {
+    fn cause(&self) -> Option<&error::Error> {
         match *self {
             Error::Parsing(ref e) => Some(&*e),
             _ => None,

@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 
-use errors::Error;
+use error::Error;
 
 #[derive(Debug)]
 pub enum Outcome<T> {

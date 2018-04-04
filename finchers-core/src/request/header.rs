@@ -5,7 +5,7 @@ use std::error::Error;
 use std::str::FromStr;
 use hyper;
 use hyper::header::{self, Header};
-use errors::NeverReturn;
+use never::Never;
 
 pub trait FromHeader: 'static + Sized {
     type Error: Error + Send + 'static;
@@ -16,7 +16,7 @@ pub trait FromHeader: 'static + Sized {
 }
 
 impl<H: FromHeader> FromHeader for Option<H> {
-    type Error = NeverReturn;
+    type Error = Never;
 
     #[inline]
     fn header_name() -> &'static str {
@@ -30,7 +30,7 @@ impl<H: FromHeader> FromHeader for Option<H> {
 }
 
 impl<H: FromHeader> FromHeader for Result<H, H::Error> {
-    type Error = NeverReturn;
+    type Error = Never;
 
     #[inline]
     fn header_name() -> &'static str {
