@@ -27,8 +27,8 @@ use serde::de::DeserializeOwned;
 use futures::{Future, Poll};
 use http::{header, Response, StatusCode};
 
-use finchers_core::endpoint::{self, Endpoint, EndpointContext, Outcome};
-use finchers_core::errors::{BadRequest, Error as FinchersError, HttpError};
+use finchers_core::endpoint::{self, Context, Endpoint};
+use finchers_core::error::{BadRequest, Error as FinchersError, HttpError};
 use finchers_core::request::{Bytes, FromBody, Input};
 use finchers_core::response::{HttpStatus, Responder};
 
@@ -151,7 +151,7 @@ impl<T: DeserializeOwned + 'static> Endpoint for JsonBody<T> {
     type Item = T;
     type Future = JsonBodyFuture<T>;
 
-    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
+    fn apply(&self, input: &Input, ctx: &mut Context) -> Option<Self::Future> {
         Some(JsonBodyFuture {
             inner: match self.inner.apply(input, ctx) {
                 Some(inner) => inner,
@@ -208,11 +208,11 @@ impl<T: Serialize + HttpStatus> Responder for JsonResponder<T> {
     type Item = T;
     type Body = String;
 
-    fn respond(&self, outcome: Outcome<T>) -> Response<String> {
+    fn respond(&self, outcome: Result<T, FinchersError>) -> Response<String> {
         match outcome {
-            Outcome::Ok(item) => json_response(&item),
-            Outcome::Err(err) => json_error_response(&*err),
-            Outcome::NoRoute => no_route(),
+            Ok(item) => json_response(&item),
+            Err(ref err) if err.is_noroute() => no_route(),
+            Err(err) => json_error_response(&*err),
         }
     }
 }

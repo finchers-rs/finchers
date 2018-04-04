@@ -23,8 +23,8 @@ use std::borrow::Cow;
 use std::fmt;
 use std::marker::PhantomData;
 
-use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
-use errors::{BadRequest, Error, NotPresent};
+use endpoint::{Context, Endpoint, IntoEndpoint};
+use error::{BadRequest, Error, NotPresent};
 use request::{FromSegment, FromSegments, Input};
 
 #[allow(missing_docs)]
@@ -67,7 +67,7 @@ impl Endpoint for MatchPath {
     type Item = ();
     type Future = FutureResult<Self::Item, Error>;
 
-    fn apply(&self, _: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
+    fn apply(&self, _: &Input, ctx: &mut Context) -> Option<Self::Future> {
         match self.kind {
             Segments(ref segments) => {
                 let mut matched = true;
@@ -171,7 +171,7 @@ impl<T: FromSegment> Endpoint for ExtractPath<T> {
     type Item = T;
     type Future = FutureResult<Self::Item, Error>;
 
-    fn apply(&self, _: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
+    fn apply(&self, _: &Input, ctx: &mut Context) -> Option<Self::Future> {
         ctx.segments()
             .next()
             .and_then(|s| T::from_segment(s).map(ok).ok())
@@ -209,7 +209,7 @@ impl<T: FromSegment> Endpoint for ExtractPathRequired<T> {
     type Item = T;
     type Future = FutureResult<T, Error>;
 
-    fn apply(&self, _: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
+    fn apply(&self, _: &Input, ctx: &mut Context) -> Option<Self::Future> {
         let fut = match ctx.segments().next().map(|s| T::from_segment(s)) {
             Some(Ok(val)) => future::ok(val),
             Some(Err(e)) => future::err(BadRequest::new(e).into()),
@@ -250,7 +250,7 @@ impl<T: FromSegment> Endpoint for ExtractPathOptional<T> {
     type Item = Option<T>;
     type Future = FutureResult<Self::Item, Error>;
 
-    fn apply(&self, _: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
+    fn apply(&self, _: &Input, ctx: &mut Context) -> Option<Self::Future> {
         Some(ok(ctx.segments()
             .next()
             .and_then(|s| T::from_segment(s).ok())))
@@ -288,7 +288,7 @@ impl<T: FromSegments> Endpoint for ExtractPaths<T> {
     type Item = T;
     type Future = FutureResult<Self::Item, Error>;
 
-    fn apply(&self, _: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
+    fn apply(&self, _: &Input, ctx: &mut Context) -> Option<Self::Future> {
         T::from_segments(ctx.segments()).map(ok).ok()
     }
 }
@@ -324,7 +324,7 @@ impl<T: FromSegments> Endpoint for ExtractPathsRequired<T> {
     type Item = T;
     type Future = FutureResult<Self::Item, Error>;
 
-    fn apply(&self, _: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
+    fn apply(&self, _: &Input, ctx: &mut Context) -> Option<Self::Future> {
         Some(future::result(
             T::from_segments(ctx.segments())
                 .map_err(BadRequest::new)
@@ -364,7 +364,7 @@ impl<T: FromSegments> Endpoint for ExtractPathsOptional<T> {
     type Item = Option<T>;
     type Future = FutureResult<Self::Item, Error>;
 
-    fn apply(&self, _: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
+    fn apply(&self, _: &Input, ctx: &mut Context) -> Option<Self::Future> {
         Some(ok(T::from_segments(ctx.segments()).ok()))
     }
 }
@@ -424,7 +424,7 @@ mod tests {
     fn test_endpoint_reject_path() {
         let client = Client::new(endpoint("bar"));
         let outcome = client.get("/foo").run().unwrap();
-        assert!(outcome.is_noroute());
+        assert!(outcome.err().map_or(false, |e| e.is_noroute()));
     }
 
     #[test]
@@ -438,14 +438,14 @@ mod tests {
     fn test_endpoint_reject_multi_segments() {
         let client = Client::new(endpoint("/foo/bar"));
         let outcome = client.get("/foo/baz").run().unwrap();
-        assert!(outcome.is_noroute());
+        assert!(outcome.err().map_or(false, |e| e.is_noroute()));
     }
 
     #[test]
     fn test_endpoint_reject_short_path() {
         let client = Client::new(endpoint("/foo/bar/baz"));
         let outcome = client.get("/foo/bar").run().unwrap();
-        assert!(outcome.is_noroute());
+        assert!(outcome.err().map_or(false, |e| e.is_noroute()));
     }
 
     #[test]
@@ -466,7 +466,7 @@ mod tests {
     fn test_endpoint_extract_wrong_integer() {
         let client = Client::new(path::<i32>());
         let outcome = client.get("/foo").run().unwrap();
-        assert!(outcome.is_noroute());
+        assert!(outcome.err().map_or(false, |e| e.is_noroute()));
     }
 
     #[test]

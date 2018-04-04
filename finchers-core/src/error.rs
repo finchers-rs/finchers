@@ -1,17 +1,16 @@
 //! Error types thrown from finchers
 
+#![allow(missing_docs)]
+
 use std::borrow::Cow;
-use std::fmt;
-use std::error::Error as StdError;
-use std::io;
+use std::{error, fmt};
 use std::ops::Deref;
 use http::StatusCode;
 use response::HttpStatus;
 
-#[allow(missing_docs)]
-pub trait HttpError: StdError + HttpStatus {}
+pub trait HttpError: error::Error + HttpStatus {}
 
-impl<E: StdError + HttpStatus> HttpError for E {}
+impl<E: error::Error + HttpStatus> HttpError for E {}
 
 macro_rules! impl_http_error {
     (@bad_request) => { StatusCode::BAD_REQUEST };
@@ -50,10 +49,18 @@ impl_http_error! {
     @server_error ::hyper::Error;
 }
 
-#[allow(missing_docs)]
 #[derive(Debug)]
 pub struct Error {
     inner: Box<HttpError + Send + 'static>,
+}
+
+impl Error {
+    pub fn is_noroute(&self) -> bool {
+        match self.inner.status_code() {
+            StatusCode::NOT_FOUND => true,
+            _ => false,
+        }
+    }
 }
 
 impl<E: HttpError + Send + 'static> From<E> for Error {
@@ -79,48 +86,6 @@ impl Deref for Error {
     }
 }
 
-#[cfg(test)]
-impl PartialEq for Error {
-    fn eq(&self, _: &Self) -> bool {
-        unreachable!()
-    }
-}
-
-#[allow(missing_docs)]
-#[derive(Debug, Copy, PartialEq, Eq, Hash)]
-pub enum NeverReturn {}
-
-impl Clone for NeverReturn {
-    fn clone(&self) -> Self {
-        unreachable!()
-    }
-}
-
-impl fmt::Display for NeverReturn {
-    fn fmt(&self, _: &mut fmt::Formatter) -> fmt::Result {
-        unreachable!()
-    }
-}
-
-impl StdError for NeverReturn {
-    fn description(&self) -> &str {
-        unreachable!()
-    }
-}
-
-impl HttpStatus for NeverReturn {
-    fn status_code(&self) -> StatusCode {
-        unreachable!()
-    }
-}
-
-impl Into<io::Error> for NeverReturn {
-    fn into(self) -> io::Error {
-        unreachable!()
-    }
-}
-
-#[allow(missing_docs)]
 #[derive(Debug)]
 pub struct BadRequest<E> {
     err: E,
@@ -128,12 +93,10 @@ pub struct BadRequest<E> {
 }
 
 impl<E> BadRequest<E> {
-    #[allow(missing_docs)]
     pub fn new(err: E) -> Self {
         BadRequest { err, message: None }
     }
 
-    #[allow(missing_docs)]
     pub fn with_message<S: Into<Cow<'static, str>>>(self, message: S) -> Self {
         BadRequest {
             message: Some(message.into()),
@@ -148,30 +111,69 @@ impl<E: fmt::Display> fmt::Display for BadRequest<E> {
     }
 }
 
-impl<E: StdError> StdError for BadRequest<E> {
+impl<E: error::Error> error::Error for BadRequest<E> {
     fn description(&self) -> &str {
         self.err.description()
     }
 
-    fn cause(&self) -> Option<&StdError> {
+    fn cause(&self) -> Option<&error::Error> {
         self.err.cause()
     }
 }
 
-impl<E: StdError + 'static> HttpStatus for BadRequest<E> {
+impl<E: error::Error + 'static> HttpStatus for BadRequest<E> {
     fn status_code(&self) -> StatusCode {
         StatusCode::BAD_REQUEST
     }
 }
 
-#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct ServerError<E> {
+    err: E,
+    message: Option<Cow<'static, str>>,
+}
+
+impl<E> ServerError<E> {
+    pub fn new(err: E) -> Self {
+        ServerError { err, message: None }
+    }
+
+    pub fn with_message<S: Into<Cow<'static, str>>>(self, message: S) -> Self {
+        ServerError {
+            message: Some(message.into()),
+            ..self
+        }
+    }
+}
+
+impl<E: fmt::Display> fmt::Display for ServerError<E> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.err.fmt(f)
+    }
+}
+
+impl<E: error::Error> error::Error for ServerError<E> {
+    fn description(&self) -> &str {
+        self.err.description()
+    }
+
+    fn cause(&self) -> Option<&error::Error> {
+        self.err.cause()
+    }
+}
+
+impl<E: error::Error + 'static> HttpStatus for ServerError<E> {
+    fn status_code(&self) -> StatusCode {
+        StatusCode::INTERNAL_SERVER_ERROR
+    }
+}
+
 #[derive(Debug)]
 pub struct NotPresent {
     message: Cow<'static, str>,
 }
 
 impl NotPresent {
-    #[allow(missing_docs)]
     pub fn new<S: Into<Cow<'static, str>>>(message: S) -> Self {
         NotPresent {
             message: message.into(),
@@ -185,7 +187,7 @@ impl fmt::Display for NotPresent {
     }
 }
 
-impl StdError for NotPresent {
+impl error::Error for NotPresent {
     fn description(&self) -> &str {
         "not present"
     }
@@ -194,5 +196,34 @@ impl StdError for NotPresent {
 impl HttpStatus for NotPresent {
     fn status_code(&self) -> StatusCode {
         StatusCode::BAD_REQUEST
+    }
+}
+
+#[derive(Debug)]
+pub struct NoRoute {
+    _priv: (),
+}
+
+impl NoRoute {
+    pub fn new() -> Self {
+        NoRoute { _priv: () }
+    }
+}
+
+impl fmt::Display for NoRoute {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("no route")
+    }
+}
+
+impl error::Error for NoRoute {
+    fn description(&self) -> &str {
+        "no route"
+    }
+}
+
+impl HttpStatus for NoRoute {
+    fn status_code(&self) -> StatusCode {
+        StatusCode::NOT_FOUND
     }
 }

@@ -3,7 +3,8 @@
 use http::{self, HttpTryFrom, Method, Request, Uri};
 use futures::Future;
 
-use endpoint::{Endpoint, Outcome};
+use endpoint::Endpoint;
+use error::Error;
 use request::Input;
 use request::body::BodyStream;
 
@@ -89,11 +90,11 @@ impl<'a, E: Endpoint> ClientRequest<'a, E> {
         self
     }
 
-    pub fn run(self) -> http::Result<Outcome<E::Item>> {
+    pub fn run(self) -> http::Result<Result<E::Item, Error>> {
         let ClientRequest { client, request } = self;
         let input: Input = request?.into();
         let f = client.endpoint.apply_input(input);
         // TODO: replace with futures::executor
-        Ok(f.wait().unwrap())
+        Ok(f.wait())
     }
 }

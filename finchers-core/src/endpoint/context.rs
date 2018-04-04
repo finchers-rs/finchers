@@ -2,13 +2,13 @@ use request::{Input, Segments};
 
 /// A context during the routing.
 #[derive(Debug, Clone)]
-pub struct EndpointContext<'a> {
+pub struct Context<'a> {
     segments: Segments<'a>,
 }
 
-impl<'a> EndpointContext<'a> {
+impl<'a> Context<'a> {
     pub(crate) fn new(input: &'a Input) -> Self {
-        EndpointContext {
+        Context {
             segments: Segments::from(input.path()),
         }
     }

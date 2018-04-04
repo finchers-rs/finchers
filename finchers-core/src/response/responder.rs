@@ -3,10 +3,10 @@ use std::marker::PhantomData;
 use std::rc::Rc;
 use std::string::ToString;
 use std::sync::Arc;
-use http::{Response, StatusCode};
+use http::Response;
 use http::header;
 
-use endpoint::Outcome;
+use error::Error;
 use response::{HttpStatus, ResponseBody};
 
 /// A trait to represents the conversion from outcome to an HTTP response.
@@ -15,14 +15,14 @@ pub trait Responder {
     type Body: ResponseBody;
 
     /// Convert an outcome into an HTTP response
-    fn respond(&self, outcome: Outcome<Self::Item>) -> Response<Self::Body>;
+    fn respond(&self, outcome: Result<Self::Item, Error>) -> Response<Self::Body>;
 }
 
 impl<R: Responder> Responder for Rc<R> {
     type Item = R::Item;
     type Body = R::Body;
 
-    fn respond(&self, outcome: Outcome<Self::Item>) -> Response<Self::Body> {
+    fn respond(&self, outcome: Result<Self::Item, Error>) -> Response<Self::Body> {
         (**self).respond(outcome)
     }
 }
@@ -31,7 +31,7 @@ impl<R: Responder> Responder for Arc<R> {
     type Item = R::Item;
     type Body = R::Body;
 
-    fn respond(&self, outcome: Outcome<Self::Item>) -> Response<Self::Body> {
+    fn respond(&self, outcome: Result<Self::Item, Error>) -> Response<Self::Body> {
         (**self).respond(outcome)
     }
 }
@@ -71,11 +71,10 @@ where
     type Item = T;
     type Body = String;
 
-    fn respond(&self, output: Outcome<T>) -> Response<String> {
+    fn respond(&self, output: Result<T, Error>) -> Response<String> {
         match output {
-            Outcome::Ok(item) => respond_item(&item),
-            Outcome::NoRoute => respond_noroute(),
-            Outcome::Err(err) => respond_item(&*err),
+            Ok(item) => respond_item(&item),
+            Err(err) => respond_item(&*err),
         }
     }
 }
@@ -90,12 +89,5 @@ where
         .header(header::CONTENT_TYPE, "text/plain; charset=utf-8")
         .header(header::CONTENT_LENGTH, body.len().to_string().as_str())
         .body(body.into())
-        .unwrap()
-}
-
-fn respond_noroute() -> Response<String> {
-    Response::builder()
-        .status(StatusCode::NOT_FOUND)
-        .body(Default::default())
         .unwrap()
 }

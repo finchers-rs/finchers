@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 
-use super::{Endpoint, EndpointContext, IntoEndpoint};
+use super::{Context, Endpoint, IntoEndpoint};
 use request::Input;
 use futures::future;
 use std::fmt;
@@ -37,7 +37,7 @@ impl<E: Endpoint> Endpoint for JoinAll<E> {
     type Item = Vec<E::Item>;
     type Future = future::JoinAll<Vec<E::Future>>;
 
-    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
+    fn apply(&self, input: &Input, ctx: &mut Context) -> Option<Self::Future> {
         let inner: Vec<_> = self.inner
             .iter()
             .map(|e| e.apply(input, ctx))

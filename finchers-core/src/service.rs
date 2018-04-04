@@ -10,7 +10,7 @@ use std::rc::Rc;
 use std::string::ToString;
 use std::sync::Arc;
 
-use endpoint::{Endpoint, EndpointFuture, Outcome};
+use endpoint::{Endpoint, EndpointFuture};
 use request::Input;
 use request::body::BodyStream;
 use response::{DefaultResponder, HttpStatus, Responder, ResponseBody};
@@ -102,8 +102,7 @@ impl<E, R> FinchersService<E, R> {
 impl<E, R> HttpService for FinchersService<E, R>
 where
     E: Endpoint,
-    E::Item: Into<Outcome<R::Item>>,
-    R: Responder + Clone,
+    R: Responder<Item = E::Item> + Clone,
 {
     type RequestBody = BodyStream;
     type ResponseBody = R::Body;
@@ -123,24 +122,26 @@ where
 pub struct FinchersServiceFuture<E, R>
 where
     E: Endpoint,
-    E::Item: Into<Outcome<R::Item>>,
-    R: Responder,
+    R: Responder<Item = E::Item>,
 {
-    outcome: EndpointFuture<E::Future, R::Item>,
+    outcome: EndpointFuture<E::Future>,
     responder: R,
 }
 
 impl<E, R> Future for FinchersServiceFuture<E, R>
 where
     E: Endpoint,
-    E::Item: Into<Outcome<R::Item>>,
-    R: Responder,
+    R: Responder<Item = E::Item>,
 {
     type Item = Response<R::Body>;
     type Error = io::Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let outcome = try_ready!(self.outcome.poll().map_err(Into::<io::Error>::into));
+        let outcome = match self.outcome.poll() {
+            Ok(NotReady) => return Ok(NotReady),
+            Ok(Ready(ok)) => Ok(ok),
+            Err(err) => Err(err),
+        };
         let mut response = self.responder.respond(outcome);
         if !response.headers().contains_key(header::SERVER) {
             response
@@ -153,33 +154,29 @@ where
 
 #[allow(missing_docs)]
 pub trait EndpointServiceExt: Endpoint + sealed::Sealed {
-    fn into_service<T>(self) -> FinchersService<Self, DefaultResponder<T>>
+    fn into_service<T>(self) -> FinchersService<Self, DefaultResponder<Self::Item>>
     where
-        Self::Item: Into<Outcome<T>>,
-        T: ToString + HttpStatus,
+        Self::Item: ToString + HttpStatus,
         Self: Sized;
 
     fn with_responder<R>(self, responder: R) -> FinchersService<Self, R>
     where
-        Self::Item: Into<Outcome<R::Item>>,
-        R: Responder + Clone,
+        R: Responder<Item = Self::Item> + Clone,
         Self: Sized;
 }
 
 impl<E: Endpoint> EndpointServiceExt for E {
-    fn into_service<T>(self) -> FinchersService<Self, DefaultResponder<T>>
+    fn into_service<T>(self) -> FinchersService<Self, DefaultResponder<Self::Item>>
     where
+        Self::Item: ToString + HttpStatus,
         Self: Sized,
-        E::Item: Into<Outcome<T>>,
-        T: ToString + HttpStatus,
     {
         FinchersService::new(self, Default::default())
     }
 
     fn with_responder<R>(self, responder: R) -> FinchersService<Self, R>
     where
-        Self::Item: Into<Outcome<R::Item>>,
-        R: Responder + Clone,
+        R: Responder<Item = Self::Item> + Clone,
         Self: Sized,
     {
         FinchersService::new(self, responder)

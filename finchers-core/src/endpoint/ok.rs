@@ -1,8 +1,8 @@
 #![allow(missing_docs)]
 
 use futures::future::{self, FutureResult};
-use super::{Endpoint, EndpointContext};
-use errors::Error;
+use super::{Context, Endpoint};
+use error::Error;
 use request::Input;
 
 pub fn ok<T: Clone>(x: T) -> EndpointOk<T> {
@@ -18,7 +18,7 @@ impl<T: Clone> Endpoint for EndpointOk<T> {
     type Item = T;
     type Future = FutureResult<T, Error>;
 
-    fn apply(&self, _: &Input, _: &mut EndpointContext) -> Option<Self::Future> {
+    fn apply(&self, _: &Input, _: &mut Context) -> Option<Self::Future> {
         Some(future::ok(self.x.clone()))
     }
 }

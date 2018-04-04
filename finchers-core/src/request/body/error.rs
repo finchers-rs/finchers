@@ -1,5 +1,4 @@
-use std::fmt;
-use std::error::Error as StdError;
+use std::{error, fmt};
 use futures::future;
 use http::StatusCode;
 use hyper;
@@ -42,7 +41,7 @@ impl fmt::Display for Error {
     }
 }
 
-impl StdError for Error {
+impl error::Error for Error {
     fn description(&self) -> &str {
         match self.kind {
             ErrorKind::Hyper(ref e) => e.description(),
@@ -50,7 +49,7 @@ impl StdError for Error {
         }
     }
 
-    fn cause(&self) -> Option<&StdError> {
+    fn cause(&self) -> Option<&error::Error> {
         match self.kind {
             ErrorKind::Hyper(ref e) => e.cause(),
             ErrorKind::Shared(ref e) => e.cause(),

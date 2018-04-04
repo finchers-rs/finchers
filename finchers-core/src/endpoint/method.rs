@@ -1,6 +1,6 @@
 //! Components for checking the HTTP method
 
-use endpoint::{Endpoint, EndpointContext, IntoEndpoint};
+use endpoint::{Context, Endpoint, IntoEndpoint};
 use request::Input;
 use http::Method;
 
@@ -15,7 +15,7 @@ impl<E: Endpoint> Endpoint for MatchMethod<E> {
     type Item = E::Item;
     type Future = E::Future;
 
-    fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
+    fn apply(&self, input: &Input, ctx: &mut Context) -> Option<Self::Future> {
         if *input.method() == self.method {
             self.endpoint.apply(input, ctx)
         } else {
@@ -53,7 +53,7 @@ macro_rules! define_method {
             type Item = E::Item;
             type Future = E::Future;
 
-            fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
+            fn apply(&self, input: &Input, ctx: &mut Context) -> Option<Self::Future> {
                 if *input.method() == Method::$method {
                     self.endpoint.apply(input, ctx)
                 } else {

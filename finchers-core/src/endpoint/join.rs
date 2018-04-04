@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 #![allow(non_snake_case)]
 
-use super::{Endpoint, EndpointContext, IntoEndpoint};
+use super::{Context, Endpoint, IntoEndpoint};
 use request::Input;
 use futures::{future, IntoFuture};
 use std::fmt;
@@ -63,7 +63,7 @@ macro_rules! generate {
             type Item = ($($T::Item),*);
             type Future = future::$Join<$($T::Future),*>;
 
-            fn apply(&self, input: &Input, ctx: &mut EndpointContext) -> Option<Self::Future> {
+            fn apply(&self, input: &Input, ctx: &mut Context) -> Option<Self::Future> {
                 $(
                     let $T = self.$T.apply(input, ctx)?;
                 )*

@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 
-use super::{Endpoint, EndpointContext, IntoEndpoint};
+use super::{Context, Endpoint, IntoEndpoint};
 use futures::{Future, Poll};
 use request::Input;
 
@@ -29,7 +29,7 @@ where
     type Item = E1::Item;
     type Future = OrFuture<E1::Future, E2::Future>;
 
-    fn apply(&self, input: &Input, ctx2: &mut EndpointContext) -> Option<Self::Future> {
+    fn apply(&self, input: &Input, ctx2: &mut Context) -> Option<Self::Future> {
         let mut ctx1 = ctx2.clone();
         let t1 = self.e1.apply(input, &mut ctx1);
         let t2 = self.e2.apply(input, ctx2);
