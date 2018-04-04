@@ -17,9 +17,10 @@ addons:
   apt:
     packages:
       - libcurl4-openssl-dev
-      - libelf-dev
       - libdw-dev
       - binutils-dev
+      - libiberty-dev
+      - libelf-dev
       - cmake
 
 matrix:
@@ -27,14 +28,18 @@ matrix:
     - rust: nightly
   include:
     - rust: stable
+      sudo: true
       before_script:
         - rustup component add rustfmt-preview
+        - cargo install cargo-kcov
+        - cargo kcov --print-install-kcov-sh | sh -s
         - cargo clean
       script:
         - cargo test --all
         - cargo test --all --all-features
       after_success:
         - cargo fmt -- --write-mode=diff
+        - cargo kcov -v --all --coveralls
       before_deploy:
         - cargo doc --all --all-features --no-deps
         - cargo install mdbook -f --version 0.1.2
