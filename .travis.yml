@@ -13,33 +13,26 @@ branches:
   only:
     - master
 
-addons:
-  apt:
-    packages:
-      - libcurl4-openssl-dev
-      - libdw-dev
-      - binutils-dev
-      - libiberty-dev
-      - libelf-dev
-      - cmake
-
 matrix:
   allow_failures:
     - rust: nightly
   include:
     - rust: beta
-      sudo: true
+      sudo: required
+      addons:
+        apt:
+          packages:
+            - libssl-dev
       before_script:
         - rustup component add rustfmt-preview
-        - cargo install cargo-kcov || true
-        - cargo kcov --print-install-kcov-sh | sh -s
       script:
         - cargo clean
         - cargo test --all
         - cargo test --all --all-features
       after_success:
         - cargo fmt -- --write-mode=diff
-        - cargo kcov -v --all --coveralls
+        - bash <(curl https://raw.githubusercontent.com/xd009642/tarpaulin/master/travis-install.sh)
+        - USE_SKEPTIC=1 cargo tarpaulin --ciserver travis-ci --coveralls $TRAVIS_JOB_ID --all
 
     - rust: nightly
       before_script:
