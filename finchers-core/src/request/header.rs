@@ -1,11 +1,11 @@
 #![allow(missing_docs)]
 
-use std::any::Any;
-use std::error::Error;
-use std::str::FromStr;
 use hyper;
 use hyper::header::{self, Header};
 use never::Never;
+use std::any::Any;
+use std::error::Error;
+use std::str::FromStr;
 
 pub trait FromHeader: 'static + Sized {
     type Error: Error + Send + 'static;

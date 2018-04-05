@@ -1,8 +1,8 @@
 #![allow(missing_docs)]
 
-use std::{error, fmt};
 use http::StatusCode;
 use response::HttpStatus;
+use std::{error, fmt};
 
 // TODO: replace with primitive never_type (!)
 

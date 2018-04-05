@@ -1,8 +1,8 @@
 #![allow(missing_docs)]
 
-use std::{fmt, mem, str};
-use std::ops::Deref;
 use bytes::Bytes;
+use std::ops::Deref;
+use std::{fmt, mem, str};
 
 /// A reference counted UTF-8 sequence.
 pub struct BytesString(Bytes);

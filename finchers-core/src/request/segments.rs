@@ -1,8 +1,8 @@
+use never::Never;
 use std::error::Error;
 use std::ops::Deref;
 use std::path::PathBuf;
 use std::str::FromStr;
-use never::Never;
 
 /// An iterator of remaning path segments.
 #[derive(Debug, Copy, Clone)]

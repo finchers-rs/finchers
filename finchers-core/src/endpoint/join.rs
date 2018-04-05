@@ -2,8 +2,8 @@
 #![allow(non_snake_case)]
 
 use super::{Context, Endpoint, IntoEndpoint};
-use request::Input;
 use futures::{future, IntoFuture};
+use request::Input;
 use std::fmt;
 
 macro_rules! generate {

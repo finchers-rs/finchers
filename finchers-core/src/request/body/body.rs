@@ -1,9 +1,9 @@
-use std::mem;
-use bytes::{BufMut, Bytes, BytesMut};
-use futures::{future, Future, Poll, Stream};
-use futures::Async::*;
-use hyper;
 use super::{BodyStream, Error};
+use bytes::{BufMut, Bytes, BytesMut};
+use futures::Async::*;
+use futures::{future, Future, Poll, Stream};
+use hyper;
+use std::mem;
 
 /// A clonable, shared future to receive the incoming request body
 #[derive(Debug, Clone)]

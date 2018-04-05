@@ -2,10 +2,10 @@
 
 use self::Chain::*;
 use endpoint::{Context, Endpoint};
-use request::Input;
 use error::Error;
 use futures::Async::*;
 use futures::{Future, IntoFuture, Poll};
+use request::Input;
 use std::fmt;
 use std::mem;
 use std::sync::Arc;

@@ -15,8 +15,8 @@
 //! [from_body]: ../../http/trait.FromBody.html
 
 use futures::{Future, Poll};
-use std::marker::PhantomData;
 use std::fmt;
+use std::marker::PhantomData;
 
 use endpoint::{Context, Endpoint};
 use error::{BadRequest, Error};
@@ -24,9 +24,7 @@ use request::{self, with_input, with_input_mut, FromBody, Input};
 
 /// Creates an endpoint for parsing the incoming request body into the value of `T`
 pub fn body<T: FromBody>() -> Body<T> {
-    Body {
-        _marker: PhantomData,
-    }
+    Body { _marker: PhantomData }
 }
 
 #[allow(missing_docs)]

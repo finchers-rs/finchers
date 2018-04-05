@@ -1,6 +1,6 @@
+use futures::{Poll, Stream};
 use std::borrow::Cow;
 use std::io;
-use futures::{Poll, Stream};
 
 /// An abstruction of response body.
 pub trait ResponseBody {

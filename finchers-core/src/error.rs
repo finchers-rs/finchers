@@ -2,11 +2,11 @@
 
 #![allow(missing_docs)]
 
-use std::borrow::Cow;
-use std::{error, fmt};
-use std::ops::Deref;
 use http::StatusCode;
 use response::HttpStatus;
+use std::borrow::Cow;
+use std::ops::Deref;
+use std::{error, fmt};
 
 pub trait HttpError: error::Error + HttpStatus {}
 
@@ -65,9 +65,7 @@ impl Error {
 
 impl<E: HttpError + Send + 'static> From<E> for Error {
     fn from(err: E) -> Self {
-        Error {
-            inner: Box::new(err),
-        }
+        Error { inner: Box::new(err) }
     }
 }
 

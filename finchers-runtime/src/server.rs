@@ -1,11 +1,11 @@
-use std::io;
-use std::net::{SocketAddr, ToSocketAddrs};
+use finchers_core::response::ResponseBody;
+use finchers_core::service::{const_service, ConstService, HttpService, NewHttpService};
 use futures::{Future, Poll, Stream};
 use http;
 use hyper;
 use hyper::server::{service_fn, Http};
-use finchers_core::response::ResponseBody;
-use finchers_core::service::{const_service, ConstService, HttpService, NewHttpService};
+use std::io;
+use std::net::{SocketAddr, ToSocketAddrs};
 use tokio;
 use tokio::net::TcpListener;
 

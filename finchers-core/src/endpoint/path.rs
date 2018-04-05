@@ -42,9 +42,7 @@ impl Clone for MatchPath {
 
 impl fmt::Debug for MatchPath {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("MatchPath")
-            .field("kind", &self.kind)
-            .finish()
+        f.debug_struct("MatchPath").field("kind", &self.kind).finish()
     }
 }
 
@@ -142,9 +140,7 @@ impl<'a> IntoEndpoint for Cow<'a, str> {
 
 #[allow(missing_docs)]
 pub fn path<T: FromSegment>() -> ExtractPath<T> {
-    ExtractPath {
-        _marker: PhantomData,
-    }
+    ExtractPath { _marker: PhantomData }
 }
 
 #[allow(missing_docs)]
@@ -172,17 +168,13 @@ impl<T: FromSegment> Endpoint for ExtractPath<T> {
     type Future = FutureResult<Self::Item, Error>;
 
     fn apply(&self, _: &Input, ctx: &mut Context) -> Option<Self::Future> {
-        ctx.segments()
-            .next()
-            .and_then(|s| T::from_segment(s).map(ok).ok())
+        ctx.segments().next().and_then(|s| T::from_segment(s).map(ok).ok())
     }
 }
 
 #[allow(missing_docs)]
 pub fn path_req<T: FromSegment>() -> ExtractPathRequired<T> {
-    ExtractPathRequired {
-        _marker: PhantomData,
-    }
+    ExtractPathRequired { _marker: PhantomData }
 }
 
 #[allow(missing_docs)]
@@ -221,9 +213,7 @@ impl<T: FromSegment> Endpoint for ExtractPathRequired<T> {
 
 #[allow(missing_docs)]
 pub fn path_opt<T: FromSegment>() -> ExtractPathOptional<T> {
-    ExtractPathOptional {
-        _marker: PhantomData,
-    }
+    ExtractPathOptional { _marker: PhantomData }
 }
 
 #[allow(missing_docs)]
@@ -251,17 +241,13 @@ impl<T: FromSegment> Endpoint for ExtractPathOptional<T> {
     type Future = FutureResult<Self::Item, Error>;
 
     fn apply(&self, _: &Input, ctx: &mut Context) -> Option<Self::Future> {
-        Some(ok(ctx.segments()
-            .next()
-            .and_then(|s| T::from_segment(s).ok())))
+        Some(ok(ctx.segments().next().and_then(|s| T::from_segment(s).ok())))
     }
 }
 
 #[allow(missing_docs)]
 pub fn paths<T: FromSegments>() -> ExtractPaths<T> {
-    ExtractPaths {
-        _marker: PhantomData,
-    }
+    ExtractPaths { _marker: PhantomData }
 }
 
 #[allow(missing_docs)]
@@ -295,9 +281,7 @@ impl<T: FromSegments> Endpoint for ExtractPaths<T> {
 
 #[allow(missing_docs)]
 pub fn paths_req<T: FromSegments>() -> ExtractPathsRequired<T> {
-    ExtractPathsRequired {
-        _marker: PhantomData,
-    }
+    ExtractPathsRequired { _marker: PhantomData }
 }
 
 #[allow(missing_docs)]
@@ -335,9 +319,7 @@ impl<T: FromSegments> Endpoint for ExtractPathsRequired<T> {
 
 #[allow(missing_docs)]
 pub fn paths_opt<T: FromSegments>() -> ExtractPathsOptional<T> {
-    ExtractPathsOptional {
-        _marker: PhantomData,
-    }
+    ExtractPathsOptional { _marker: PhantomData }
 }
 
 #[allow(missing_docs)]
@@ -378,10 +360,7 @@ mod tests {
 
     #[test]
     fn test_match_single_segment() {
-        assert_eq!(
-            match_("foo").map(|m| m.kind),
-            Ok(Segments(vec!["foo".to_owned()]))
-        );
+        assert_eq!(match_("foo").map(|m| m.kind), Ok(Segments(vec!["foo".to_owned()])));
     }
 
     #[test]
@@ -399,18 +378,12 @@ mod tests {
 
     #[test]
     fn test_match_failure_empty() {
-        assert_eq!(
-            match_("").map(|m| m.kind),
-            Err(ParseMatchError::EmptyString)
-        );
+        assert_eq!(match_("").map(|m| m.kind), Err(ParseMatchError::EmptyString));
     }
 
     #[test]
     fn test_match_failure_empty_2() {
-        assert_eq!(
-            match_("foo//bar").map(|m| m.kind),
-            Err(ParseMatchError::EmptyString)
-        );
+        assert_eq!(match_("foo//bar").map(|m| m.kind), Err(ParseMatchError::EmptyString));
     }
 
     #[test]

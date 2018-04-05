@@ -1,7 +1,7 @@
 extern crate skeptic;
 
-use std::path::{Path, PathBuf};
 use skeptic::*;
+use std::path::{Path, PathBuf};
 
 fn path_string(s: &str) -> Option<String> {
     Path::new(env!("CARGO_MANIFEST_DIR"))

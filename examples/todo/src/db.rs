@@ -1,6 +1,6 @@
-use std::{error, fmt};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
+use std::{error, fmt};
 
 #[derive(Debug)]
 pub enum Error {

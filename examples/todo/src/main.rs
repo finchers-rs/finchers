@@ -5,15 +5,15 @@ extern crate finchers;
 #[macro_use]
 extern crate serde;
 
-mod db;
 mod application;
+mod db;
 
-use finchers::prelude::*;
-use finchers::error::NoRoute;
-use finchers::runtime::Server;
-use finchers::json::{json_body, JsonResponder};
-use self::db::*;
 use self::Response::*;
+use self::db::*;
+use finchers::error::NoRoute;
+use finchers::json::{json_body, JsonResponder};
+use finchers::prelude::*;
+use finchers::runtime::Server;
 
 #[derive(Debug, Serialize, HttpStatus)]
 #[serde(untagged)]
@@ -63,13 +63,7 @@ fn main() {
             })
             .and_then(|todo| todo.map(|_| Deleted).ok_or_else(|| NoRoute::new()));
 
-        endpoint("api/v1/todos").with(choice![
-            find_todo,
-            list_todos,
-            add_todo,
-            patch_todo,
-            delete_todo,
-        ])
+        endpoint("api/v1/todos").with(choice![find_todo, list_todos, add_todo, patch_todo, delete_todo,])
     };
 
     let service = endpoint.with_responder(JsonResponder::<Response>::default());

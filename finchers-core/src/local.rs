@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 
-use http::{self, HttpTryFrom, Method, Request, Uri};
 use futures::Future;
+use http::{self, HttpTryFrom, Method, Request, Uri};
 
 use endpoint::Endpoint;
 use error::Error;
