@@ -18,14 +18,13 @@
 //!     .assert_types::<i32, ExtractPathError<i32>>()
 //! ```
 
+use finchers_core::error::{BadRequest, Error, NotPresent};
+use finchers_core::request::{FromSegment, FromSegments, Input};
 use futures::future::{self, ok, FutureResult};
 use std::borrow::Cow;
 use std::fmt;
 use std::marker::PhantomData;
-
-use endpoint::{Context, Endpoint, IntoEndpoint};
-use error::{BadRequest, Error, NotPresent};
-use request::{FromSegment, FromSegments, Input};
+use {Context, Endpoint, IntoEndpoint};
 
 #[allow(missing_docs)]
 pub struct MatchPath {
@@ -354,9 +353,6 @@ impl<T: FromSegments> Endpoint for ExtractPathsOptional<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use endpoint::endpoint;
-    use endpoint::path::{path, paths};
-    use local::Client;
 
     #[test]
     fn test_match_single_segment() {
@@ -384,85 +380,5 @@ mod tests {
     #[test]
     fn test_match_failure_empty_2() {
         assert_eq!(match_("foo//bar").map(|m| m.kind), Err(ParseMatchError::EmptyString));
-    }
-
-    #[test]
-    fn test_endpoint_match_path() {
-        let client = Client::new(endpoint("foo"));
-        let outcome = client.get("/foo").run().unwrap();
-        assert_eq!(outcome.ok(), Some(()));
-    }
-
-    #[test]
-    fn test_endpoint_reject_path() {
-        let client = Client::new(endpoint("bar"));
-        let outcome = client.get("/foo").run().unwrap();
-        assert!(outcome.err().map_or(false, |e| e.is_noroute()));
-    }
-
-    #[test]
-    fn test_endpoint_match_multi_segments() {
-        let client = Client::new(endpoint("/foo/bar"));
-        let outcome = client.get("/foo/bar").run().unwrap();
-        assert_eq!(outcome.ok(), Some(()));
-    }
-
-    #[test]
-    fn test_endpoint_reject_multi_segments() {
-        let client = Client::new(endpoint("/foo/bar"));
-        let outcome = client.get("/foo/baz").run().unwrap();
-        assert!(outcome.err().map_or(false, |e| e.is_noroute()));
-    }
-
-    #[test]
-    fn test_endpoint_reject_short_path() {
-        let client = Client::new(endpoint("/foo/bar/baz"));
-        let outcome = client.get("/foo/bar").run().unwrap();
-        assert!(outcome.err().map_or(false, |e| e.is_noroute()));
-    }
-
-    #[test]
-    fn test_endpoint_match_all_path() {
-        let client = Client::new(endpoint("*"));
-        let outcome = client.get("/foo").run().unwrap();
-        assert_eq!(outcome.ok(), Some(()));
-    }
-
-    #[test]
-    fn test_endpoint_extract_integer() {
-        let client = Client::new(path::<i32>());
-        let outcome = client.get("/42").run().unwrap();
-        assert_eq!(outcome.ok(), Some(42i32));
-    }
-
-    #[test]
-    fn test_endpoint_extract_wrong_integer() {
-        let client = Client::new(path::<i32>());
-        let outcome = client.get("/foo").run().unwrap();
-        assert!(outcome.err().map_or(false, |e| e.is_noroute()));
-    }
-
-    #[test]
-    fn test_endpoint_extract_wrong_integer_result() {
-        let client = Client::new(path::<Result<i32, _>>());
-        let outcome = client.get("/foo").run().unwrap();
-        match outcome.ok() {
-            Some(Err(..)) => (),
-            _ => panic!("assertion failed"),
-        }
-    }
-
-    #[test]
-    fn test_endpoint_extract_wrong_integer_required() {
-        let client = Client::new(path_req::<i32>());
-        let outcome = client.get("/foo").run().unwrap();
-        assert!(outcome.is_err());
-    }
-
-    #[test]
-    fn test_endpoint_extract_strings() {
-        let client = Client::new(paths::<Vec<String>>());
-        let outcome = client.get("/foo/bar").run().unwrap();
-        assert_eq!(outcome.ok(), Some(vec!["foo".into(), "bar".into()]));
     }
 }

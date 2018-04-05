@@ -12,10 +12,7 @@ extern crate http;
 extern crate hyper;
 extern crate mime;
 
-pub mod endpoint;
 pub mod error;
-pub mod local;
 pub mod never;
 pub mod request;
 pub mod response;
-pub mod service;

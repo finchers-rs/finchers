@@ -1,12 +1,12 @@
 [package]
-name = "finchers-urlencoded"
+name = "finchers-endpoint"
 version = "0.11.0-dev"
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 
 [dependencies]
 finchers-core = { version = "0.11.0-dev", path = "../finchers-core" }
-finchers-endpoint = { version = "0.11.0-dev", path = "../finchers-endpoint" }
-futures = "0.1.20"
-mime = "0.3.0"
-serde = "1.0"
-serde_qs = "0.3"
+futures = "0.1.21"
+http = "0.1.5"
+
+[dev-dependencies]
+finchers-test = { version = "0.11.0-dev", path = "../finchers-test" }

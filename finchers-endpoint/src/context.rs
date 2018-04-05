@@ -1,4 +1,4 @@
-use request::{Input, Segments};
+use finchers_core::request::{Input, Segments};
 
 /// A context during the routing.
 #[derive(Debug, Clone)]

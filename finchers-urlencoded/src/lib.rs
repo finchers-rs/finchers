@@ -31,6 +31,7 @@
 #![deny(warnings)]
 
 extern crate finchers_core;
+extern crate finchers_endpoint;
 extern crate futures;
 extern crate mime;
 extern crate serde;
@@ -42,9 +43,9 @@ use std::iter::FromIterator;
 use std::marker::PhantomData;
 use std::{error, fmt};
 
-use finchers_core::endpoint::{self, Context, Endpoint};
 use finchers_core::error::{BadRequest, Error as FinchersError};
 use finchers_core::request::{with_input, Bytes, FromBody, Input};
+use finchers_endpoint::{self as endpoint, Context, Endpoint};
 
 #[allow(missing_docs)]
 pub fn queries<T: de::DeserializeOwned>() -> Queries<T> {

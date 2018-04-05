@@ -1,8 +1,8 @@
 //! Components for checking the HTTP method
 
-use endpoint::{Context, Endpoint, IntoEndpoint};
+use finchers_core::request::Input;
 use http::Method;
-use request::Input;
+use {Context, Endpoint, IntoEndpoint};
 
 #[allow(missing_docs)]
 #[derive(Debug, Clone)]

@@ -12,6 +12,10 @@ tokio = "0.1.5"
 version = "0.11.0-dev"
 path = "../finchers-core"
 
+[dependencies.finchers-endpoint]
+version = "0.11.0-dev"
+path = "../finchers-endpoint"
+
 [dependencies.hyper]
 version = "0.11.24"
 features = ["compat"]

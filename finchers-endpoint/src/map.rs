@@ -1,10 +1,10 @@
 #![allow(missing_docs)]
 
-use super::{Context, Endpoint, IntoEndpoint};
+use finchers_core::request::Input;
 use futures::{Future, Poll};
-use request::Input;
 use std::fmt;
 use std::sync::Arc;
+use {Context, Endpoint, IntoEndpoint};
 
 pub fn map<E, F, R>(endpoint: E, f: F) -> Map<E::Endpoint, F>
 where

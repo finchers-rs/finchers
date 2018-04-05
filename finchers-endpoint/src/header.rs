@@ -6,13 +6,12 @@
 //! * `HeaderRequired<H>` - Similar to `Header`, but always matches and returns an error if `H` is not found.
 //! * `HeaderOptional<H, E>` - Similar to `Header`, but always matches and returns a `None` if `H` is not found.
 
+use finchers_core::error::{BadRequest, Error, NotPresent};
+use finchers_core::request::{with_input, FromHeader, Input};
 use futures::{Future, Poll};
 use std::fmt;
 use std::marker::PhantomData;
-
-use endpoint::{Context, Endpoint};
-use error::{BadRequest, Error, NotPresent};
-use request::{with_input, FromHeader, Input};
+use {Context, Endpoint};
 
 #[allow(missing_docs)]
 pub fn header<H: FromHeader>() -> Header<H> {

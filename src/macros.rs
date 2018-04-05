@@ -29,7 +29,7 @@ macro_rules! choice {
 
 #[cfg(test)]
 mod tests {
-    use finchers_core::endpoint::endpoint;
+    use finchers_endpoint::endpoint;
 
     #[test]
     #[allow(unused_variables)]

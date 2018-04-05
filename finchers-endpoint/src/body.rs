@@ -14,13 +14,12 @@
 //!
 //! [from_body]: ../../http/trait.FromBody.html
 
+use finchers_core::error::{BadRequest, Error};
+use finchers_core::request::{self, with_input, with_input_mut, FromBody, Input};
 use futures::{Future, Poll};
 use std::fmt;
 use std::marker::PhantomData;
-
-use endpoint::{Context, Endpoint};
-use error::{BadRequest, Error};
-use request::{self, with_input, with_input_mut, FromBody, Input};
+use {Context, Endpoint};
 
 /// Creates an endpoint for parsing the incoming request body into the value of `T`
 pub fn body<T: FromBody>() -> Body<T> {

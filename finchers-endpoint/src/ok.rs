@@ -1,9 +1,9 @@
 #![allow(missing_docs)]
 
-use super::{Context, Endpoint};
-use error::Error;
+use finchers_core::error::Error;
+use finchers_core::request::Input;
 use futures::future::{self, FutureResult};
-use request::Input;
+use {Context, Endpoint};
 
 pub fn ok<T: Clone>(x: T) -> EndpointOk<T> {
     EndpointOk { x }
@@ -20,19 +20,5 @@ impl<T: Clone> Endpoint for EndpointOk<T> {
 
     fn apply(&self, _: &Input, _: &mut Context) -> Option<Self::Future> {
         Some(future::ok(self.x.clone()))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use local::Client;
-
-    #[test]
-    fn test_ok() {
-        let endpoint = ok("Alice");
-        let client = Client::new(endpoint);
-        let outcome = client.get("/").run().unwrap();
-        assert_eq!(outcome.ok(), Some("Alice"));
     }
 }

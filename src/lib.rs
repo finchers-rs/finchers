@@ -2,6 +2,7 @@ extern crate finchers_core;
 #[allow(unused_imports)]
 #[macro_use]
 extern crate finchers_derive;
+extern crate finchers_endpoint;
 extern crate finchers_json;
 extern crate finchers_runtime;
 extern crate finchers_urlencoded;
@@ -14,10 +15,23 @@ pub extern crate mime;
 pub use finchers_derive::*;
 
 pub use finchers_core::error::Error;
-pub use finchers_core::{endpoint, error, request, response, service};
+pub use finchers_core::{error, request, response};
+
+pub mod endpoint {
+    pub use finchers_endpoint::*;
+
+    /// The "prelude" for building endpoints
+    pub mod prelude {
+        pub use finchers_endpoint::body::{body, body_stream};
+        pub use finchers_endpoint::header::{header, header_opt, header_req};
+        pub use finchers_endpoint::method::{delete, get, head, patch, post, put};
+        pub use finchers_endpoint::path::{match_, path, paths};
+        pub use finchers_endpoint::{endpoint, Endpoint, IntoEndpoint};
+    }
+}
 
 pub mod runtime {
-    pub use finchers_runtime::Server;
+    pub use finchers_runtime::*;
 }
 
 pub mod json {
@@ -30,8 +44,8 @@ pub mod urlencoded {
 }
 
 pub mod prelude {
-    pub use finchers_core::endpoint::Endpoint;
-    pub use finchers_core::service::EndpointServiceExt;
+    pub use finchers_endpoint::Endpoint;
+    pub use finchers_runtime::EndpointServiceExt;
 }
 
 #[macro_use]

@@ -8,6 +8,7 @@ use request::body::{Body, BodyStream};
 
 task_local!(static INPUT: RefCell<Option<Input>> = RefCell::new(None));
 
+#[allow(missing_docs)]
 pub fn set_input(input: Input) {
     INPUT.with(|i| {
         i.borrow_mut().get_or_insert(input);

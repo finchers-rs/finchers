@@ -1,12 +1,15 @@
-#![allow(missing_docs)]
+extern crate finchers_core;
+extern crate finchers_endpoint;
+extern crate futures;
+extern crate http;
 
 use futures::Future;
-use http::{self, HttpTryFrom, Method, Request, Uri};
+use http::{HttpTryFrom, Method, Request, Uri};
 
-use endpoint::Endpoint;
-use error::Error;
-use request::Input;
-use request::body::BodyStream;
+use finchers_core::error::Error;
+use finchers_core::request::Input;
+use finchers_core::request::body::BodyStream;
+use finchers_endpoint::Endpoint;
 
 #[derive(Debug)]
 pub struct Client<E: Endpoint> {

@@ -1,5 +1,3 @@
-#![allow(missing_docs)]
-
 //! Components of lower-level HTTP services
 
 use futures::Async::*;
@@ -10,10 +8,10 @@ use std::rc::Rc;
 use std::string::ToString;
 use std::sync::Arc;
 
-use endpoint::{Endpoint, EndpointFuture};
-use request::Input;
-use request::body::BodyStream;
-use response::{DefaultResponder, HttpStatus, Responder, ResponseBody};
+use finchers_core::request::Input;
+use finchers_core::request::body::BodyStream;
+use finchers_core::response::{DefaultResponder, HttpStatus, Responder, ResponseBody};
+use finchers_endpoint::{Endpoint, EndpointFuture};
 
 #[allow(missing_docs)]
 pub trait HttpService {
@@ -181,7 +179,7 @@ impl<E: Endpoint> EndpointServiceExt for E {
 }
 
 mod sealed {
-    use endpoint::Endpoint;
+    use finchers_endpoint::Endpoint;
     pub trait Sealed {}
     impl<E: Endpoint> Sealed for E {}
 }

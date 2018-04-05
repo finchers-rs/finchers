@@ -1,9 +1,9 @@
 #![allow(missing_docs)]
 
-use super::{Context, Endpoint, IntoEndpoint};
+use finchers_core::request::Input;
 use futures::future;
-use request::Input;
 use std::fmt;
+use {Context, Endpoint, IntoEndpoint};
 
 pub fn join_all<I>(iter: I) -> JoinAll<<I::Item as IntoEndpoint>::Endpoint>
 where

@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 
-use endpoint::{Context, Endpoint, IntoEndpoint};
-use request::Input;
+use finchers_core::request::Input;
+use {Context, Endpoint, IntoEndpoint};
 
 pub fn skip<E1, E2>(e1: E1, e2: E2) -> Skip<E1::Endpoint, E2::Endpoint>
 where

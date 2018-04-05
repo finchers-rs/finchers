@@ -1,8 +1,8 @@
 #![allow(missing_docs)]
 
-use super::{Context, Endpoint, IntoEndpoint};
+use finchers_core::request::Input;
 use futures::{Future, Poll};
-use request::Input;
+use {Context, Endpoint, IntoEndpoint};
 
 pub fn or<E1, E2>(e1: E1, e2: E2) -> Or<E1::Endpoint, E2::Endpoint>
 where
@@ -83,38 +83,5 @@ where
             Either::Left(ref mut e) => e.poll(),
             Either::Right(ref mut e) => e.poll(),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use endpoint::{endpoint, ok};
-    use local::Client;
-
-    #[test]
-    fn test_or_1() {
-        let endpoint = endpoint("foo").with(ok("foo")).or(endpoint("bar").with(ok("bar")));
-        let client = Client::new(endpoint);
-
-        let outcome = client.get("/foo").run().unwrap();
-        assert_eq!(outcome.ok(), Some("foo"));
-
-        let outcome = client.get("/bar").run().unwrap();
-        assert_eq!(outcome.ok(), Some("bar"));
-    }
-
-    #[test]
-    fn test_or_choose_longer_segments() {
-        let e1 = endpoint("foo").with(ok("foo"));
-        let e2 = endpoint("foo/bar").with(ok("foobar"));
-        let endpoint = e1.or(e2);
-        let client = Client::new(endpoint);
-
-        let outcome = client.get("/foo").run().unwrap();
-        assert_eq!(outcome.ok(), Some("foo"));
-
-        let outcome = client.get("/foo/bar").run().unwrap();
-        assert_eq!(outcome.ok(), Some("foobar"));
     }
 }

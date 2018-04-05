@@ -1,10 +1,10 @@
+use super::*;
+use Context;
+use finchers_core::error::{Error, NoRoute};
+use finchers_core::request::{set_input, Input};
 use futures::{Future, IntoFuture, Poll};
 use std::rc::Rc;
 use std::sync::Arc;
-
-use endpoint::{self, Context};
-use error::{Error, NoRoute};
-use request::{set_input, Input};
 
 /// Abstruction of an endpoint.
 pub trait Endpoint {
@@ -28,59 +28,59 @@ pub trait Endpoint {
     }
 
     #[allow(missing_docs)]
-    fn join<E>(self, e: E) -> endpoint::join::Join<Self, E::Endpoint>
+    fn join<E>(self, e: E) -> Join<Self, E::Endpoint>
     where
         Self: Sized,
         E: IntoEndpoint,
     {
-        assert_endpoint::<_, (Self::Item, <E::Endpoint as Endpoint>::Item)>(endpoint::join::join(self, e))
+        assert_endpoint::<_, (Self::Item, <E::Endpoint as Endpoint>::Item)>(join::join(self, e))
     }
 
     #[allow(missing_docs)]
-    fn with<E>(self, e: E) -> endpoint::with::With<Self, E::Endpoint>
+    fn with<E>(self, e: E) -> With<Self, E::Endpoint>
     where
         Self: Sized,
         E: IntoEndpoint,
     {
-        assert_endpoint::<_, E::Item>(endpoint::with::with(self, e))
+        assert_endpoint::<_, E::Item>(with::with(self, e))
     }
 
     #[allow(missing_docs)]
-    fn skip<E>(self, e: E) -> endpoint::skip::Skip<Self, E::Endpoint>
+    fn skip<E>(self, e: E) -> Skip<Self, E::Endpoint>
     where
         Self: Sized,
         E: IntoEndpoint,
     {
-        assert_endpoint::<_, Self::Item>(endpoint::skip::skip(self, e))
+        assert_endpoint::<_, Self::Item>(skip::skip(self, e))
     }
 
     #[allow(missing_docs)]
-    fn or<E>(self, e: E) -> endpoint::or::Or<Self, E::Endpoint>
+    fn or<E>(self, e: E) -> Or<Self, E::Endpoint>
     where
         Self: Sized,
         E: IntoEndpoint<Item = Self::Item>,
     {
-        assert_endpoint::<_, Self::Item>(endpoint::or::or(self, e))
+        assert_endpoint::<_, Self::Item>(or::or(self, e))
     }
 
     #[allow(missing_docs)]
-    fn map<F, T>(self, f: F) -> endpoint::map::Map<Self, F>
+    fn map<F, T>(self, f: F) -> map::Map<Self, F>
     where
         Self: Sized,
         F: Fn(Self::Item) -> T,
     {
-        assert_endpoint::<_, T>(endpoint::map::map(self, f))
+        assert_endpoint::<_, T>(map::map(self, f))
     }
 
     #[allow(missing_docs)]
-    fn and_then<F, R>(self, f: F) -> endpoint::and_then::AndThen<Self, F>
+    fn and_then<F, R>(self, f: F) -> AndThen<Self, F>
     where
         Self: Sized,
         F: Fn(Self::Item) -> R,
         R: IntoFuture,
         R::Error: Into<Error>,
     {
-        assert_endpoint::<_, R::Item>(endpoint::and_then::and_then(self, f))
+        assert_endpoint::<_, R::Item>(and_then::and_then(self, f))
     }
 }
 
@@ -173,21 +173,21 @@ impl<E: Endpoint> IntoEndpoint for E {
 
 impl IntoEndpoint for () {
     type Item = ();
-    type Endpoint = endpoint::EndpointOk<()>;
+    type Endpoint = EndpointOk<()>;
 
     #[inline]
     fn into_endpoint(self) -> Self::Endpoint {
-        endpoint::ok(())
+        ok(())
     }
 }
 
 impl<E: IntoEndpoint> IntoEndpoint for Vec<E> {
     type Item = Vec<E::Item>;
-    type Endpoint = endpoint::JoinAll<E::Endpoint>;
+    type Endpoint = JoinAll<E::Endpoint>;
 
     #[inline]
     fn into_endpoint(self) -> Self::Endpoint {
-        endpoint::join_all(self)
+        join_all(self)
     }
 }
 

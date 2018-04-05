@@ -1,10 +1,10 @@
 #![allow(missing_docs)]
 #![allow(non_snake_case)]
 
-use super::{Context, Endpoint, IntoEndpoint};
+use finchers_core::request::Input;
 use futures::{future, IntoFuture};
-use request::Input;
 use std::fmt;
+use {Context, Endpoint, IntoEndpoint};
 
 macro_rules! generate {
     ($(

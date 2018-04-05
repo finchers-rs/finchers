@@ -14,6 +14,7 @@ maintenance = { status = "actively-developed" }
 
 [dependencies]
 finchers-core = { version = "0.11.0-dev", path = "../finchers-core" }
+finchers-endpoint = { version = "0.11.0-dev", path = "../finchers-endpoint" }
 futures = "0.1.20"
 http = "0.1.5"
 mime = "0.3.0"

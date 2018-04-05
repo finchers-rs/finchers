@@ -1,9 +1,9 @@
 #![allow(missing_docs)]
 
-use endpoint::{Context, Endpoint, IntoEndpoint};
-use error::Error;
+use finchers_core::error::Error;
+use finchers_core::request::Input;
 use futures::future::{ok, FutureResult};
-use request::Input;
+use {Context, Endpoint, IntoEndpoint};
 
 pub fn skip_all<I>(iter: I) -> SkipAll<<I::Item as IntoEndpoint>::Endpoint>
 where

@@ -1,14 +1,14 @@
 #![allow(missing_docs)]
 
 use self::Chain::*;
-use endpoint::{Context, Endpoint};
-use error::Error;
+use finchers_core::error::Error;
+use finchers_core::request::Input;
 use futures::Async::*;
 use futures::{Future, IntoFuture, Poll};
-use request::Input;
 use std::fmt;
 use std::mem;
 use std::sync::Arc;
+use {Context, Endpoint};
 
 pub fn and_then<E, F, R>(endpoint: E, f: F) -> AndThen<E, F>
 where
