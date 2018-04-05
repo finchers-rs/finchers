@@ -1,8 +1,8 @@
 #![allow(missing_docs)]
 
 use super::{Context, Endpoint, IntoEndpoint};
-use request::Input;
 use futures::future;
+use request::Input;
 use std::fmt;
 
 pub fn join_all<I>(iter: I) -> JoinAll<<I::Item as IntoEndpoint>::Endpoint>
@@ -38,10 +38,7 @@ impl<E: Endpoint> Endpoint for JoinAll<E> {
     type Future = future::JoinAll<Vec<E::Future>>;
 
     fn apply(&self, input: &Input, ctx: &mut Context) -> Option<Self::Future> {
-        let inner: Vec<_> = self.inner
-            .iter()
-            .map(|e| e.apply(input, ctx))
-            .collect::<Option<_>>()?;
+        let inner: Vec<_> = self.inner.iter().map(|e| e.apply(input, ctx)).collect::<Option<_>>()?;
         Some(future::join_all(inner))
     }
 }

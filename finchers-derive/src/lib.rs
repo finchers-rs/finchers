@@ -6,8 +6,8 @@ extern crate proc_macro2;
 extern crate quote;
 extern crate syn;
 
-mod http_status;
 mod from_segment;
+mod http_status;
 
 use proc_macro::TokenStream;
 

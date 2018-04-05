@@ -1,8 +1,8 @@
-use std::error::Error;
-use std::str::Utf8Error;
 use bytes::Bytes;
 use never::Never;
 use request::{BytesString, Input};
+use std::error::Error;
+use std::str::Utf8Error;
 
 /// The conversion from received request body.
 pub trait FromBody: 'static + Sized {

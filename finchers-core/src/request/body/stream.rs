@@ -1,7 +1,7 @@
-use std::borrow::Cow;
+use super::Error;
 use futures::{Poll, Stream};
 use hyper;
-use super::Error;
+use std::borrow::Cow;
 
 #[allow(missing_docs)]
 #[derive(Debug)]

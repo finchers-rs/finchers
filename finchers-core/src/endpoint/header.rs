@@ -16,9 +16,7 @@ use request::{with_input, FromHeader, Input};
 
 #[allow(missing_docs)]
 pub fn header<H: FromHeader>() -> Header<H> {
-    Header {
-        _marker: PhantomData,
-    }
+    Header { _marker: PhantomData }
 }
 
 #[allow(missing_docs)]
@@ -47,9 +45,7 @@ impl<H: FromHeader> Endpoint for Header<H> {
 
     fn apply(&self, input: &Input, _: &mut Context) -> Option<Self::Future> {
         if input.headers().contains_key(H::header_name()) {
-            Some(HeaderFuture {
-                _marker: PhantomData,
-            })
+            Some(HeaderFuture { _marker: PhantomData })
         } else {
             None
         }
@@ -68,10 +64,10 @@ impl<H: FromHeader> Future for HeaderFuture<H> {
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         with_input(|input| {
-            let value = input.headers().get(H::header_name()).expect(&format!(
-                "The value of header {} has already taken",
-                H::header_name()
-            ));
+            let value = input
+                .headers()
+                .get(H::header_name())
+                .expect(&format!("The value of header {} has already taken", H::header_name()));
             H::from_header(value.as_bytes())
                 .map(Into::into)
                 .map_err(|e| BadRequest::new(e).into())
@@ -81,9 +77,7 @@ impl<H: FromHeader> Future for HeaderFuture<H> {
 
 #[allow(missing_docs)]
 pub fn header_req<H: FromHeader>() -> HeaderRequired<H> {
-    HeaderRequired {
-        _marker: PhantomData,
-    }
+    HeaderRequired { _marker: PhantomData }
 }
 
 #[allow(missing_docs)]
@@ -111,9 +105,7 @@ impl<H: FromHeader> Endpoint for HeaderRequired<H> {
     type Future = HeaderRequiredFuture<H>;
 
     fn apply(&self, _: &Input, _: &mut Context) -> Option<Self::Future> {
-        Some(HeaderRequiredFuture {
-            _marker: PhantomData,
-        })
+        Some(HeaderRequiredFuture { _marker: PhantomData })
     }
 }
 
@@ -142,9 +134,7 @@ impl<H: FromHeader> Future for HeaderRequiredFuture<H> {
 
 #[allow(missing_docs)]
 pub fn header_opt<H: FromHeader>() -> HeaderOptional<H> {
-    HeaderOptional {
-        _marker: PhantomData,
-    }
+    HeaderOptional { _marker: PhantomData }
 }
 
 #[allow(missing_docs)]
@@ -172,9 +162,7 @@ impl<H: FromHeader> Endpoint for HeaderOptional<H> {
     type Future = HeaderOptionalFuture<H>;
 
     fn apply(&self, _: &Input, _: &mut Context) -> Option<Self::Future> {
-        Some(HeaderOptionalFuture {
-            _marker: PhantomData,
-        })
+        Some(HeaderOptionalFuture { _marker: PhantomData })
     }
 }
 

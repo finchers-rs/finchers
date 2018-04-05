@@ -1,10 +1,10 @@
+use http::Response;
+use http::header;
 use std::fmt;
 use std::marker::PhantomData;
 use std::rc::Rc;
 use std::string::ToString;
 use std::sync::Arc;
-use http::Response;
-use http::header;
 
 use error::Error;
 use response::{HttpStatus, ResponseBody};
@@ -52,9 +52,7 @@ impl<T> Clone for DefaultResponder<T> {
 
 impl<T> Default for DefaultResponder<T> {
     fn default() -> Self {
-        DefaultResponder {
-            _marker: PhantomData,
-        }
+        DefaultResponder { _marker: PhantomData }
     }
 }
 

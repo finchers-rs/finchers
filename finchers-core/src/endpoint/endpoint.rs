@@ -3,8 +3,8 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use endpoint::{self, Context};
-use request::{set_input, Input};
 use error::{Error, NoRoute};
+use request::{set_input, Input};
 
 /// Abstruction of an endpoint.
 pub trait Endpoint {

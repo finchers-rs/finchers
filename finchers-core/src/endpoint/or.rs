@@ -94,9 +94,7 @@ mod tests {
 
     #[test]
     fn test_or_1() {
-        let endpoint = endpoint("foo")
-            .with(ok("foo"))
-            .or(endpoint("bar").with(ok("bar")));
+        let endpoint = endpoint("foo").with(ok("foo")).or(endpoint("bar").with(ok("bar")));
         let client = Client::new(endpoint);
 
         let outcome = client.get("/foo").run().unwrap();

@@ -1,8 +1,8 @@
-use std::cell::RefCell;
 use http::request::Parts;
 use http::{Extensions, Request};
 use http::{header, HeaderMap, Method, Uri, Version};
 use mime;
+use std::cell::RefCell;
 
 use request::body::{Body, BodyStream};
 
@@ -21,9 +21,7 @@ where
 {
     INPUT.with(|input| {
         let input = input.borrow();
-        let input = input
-            .as_ref()
-            .expect("The instance of Input has not initialized yet.");
+        let input = input.as_ref().expect("The instance of Input has not initialized yet.");
         f(input)
     })
 }
@@ -35,9 +33,7 @@ where
 {
     INPUT.with(|input| {
         let mut input = input.borrow_mut();
-        let input = input
-            .as_mut()
-            .expect("The instance of Input has not initialized yet.");
+        let input = input.as_mut().expect("The instance of Input has not initialized yet.");
         f(input)
     })
 }

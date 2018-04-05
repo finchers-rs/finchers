@@ -18,14 +18,14 @@ extern crate serde;
 #[macro_use]
 extern crate serde_json;
 
+use futures::{Future, Poll};
+use http::{header, Response, StatusCode};
+use serde::de::DeserializeOwned;
+use serde::ser::Serialize;
 use std::error;
 use std::fmt;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
-use serde::ser::Serialize;
-use serde::de::DeserializeOwned;
-use futures::{Future, Poll};
-use http::{header, Response, StatusCode};
 
 use finchers_core::endpoint::{self, Context, Endpoint};
 use finchers_core::error::{BadRequest, Error as FinchersError, HttpError};
@@ -107,10 +107,7 @@ impl<T: DeserializeOwned + 'static> FromBody for Json<T> {
     type Error = BadRequest<Error>;
 
     fn from_body(body: Bytes, input: &Input) -> Result<Self, Self::Error> {
-        if input
-            .media_type()
-            .map_or(true, |m| m == mime::APPLICATION_JSON)
-        {
+        if input.media_type().map_or(true, |m| m == mime::APPLICATION_JSON) {
             serde_json::from_slice(&*body)
                 .map(Json)
                 .map_err(|e| BadRequest::new(Error::InvalidBody(e)))
@@ -192,9 +189,7 @@ impl<T> Clone for JsonResponder<T> {
 
 impl<T> Default for JsonResponder<T> {
     fn default() -> Self {
-        JsonResponder {
-            _marker: PhantomData,
-        }
+        JsonResponder { _marker: PhantomData }
     }
 }
 

@@ -1,8 +1,8 @@
-use std::{error, fmt};
 use futures::future;
 use http::StatusCode;
 use hyper;
 use response::HttpStatus;
+use std::{error, fmt};
 
 #[allow(missing_docs)]
 #[derive(Debug)]

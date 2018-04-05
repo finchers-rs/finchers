@@ -92,10 +92,7 @@ pub struct FinchersService<E, R> {
 impl<E, R> FinchersService<E, R> {
     /// Create an instance of `FinchersService` from components
     pub fn new(endpoint: E, responder: R) -> Self {
-        Self {
-            endpoint,
-            responder,
-        }
+        Self { endpoint, responder }
     }
 }
 

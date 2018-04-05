@@ -36,11 +36,11 @@ extern crate mime;
 extern crate serde;
 extern crate serde_qs;
 
-use std::{error, fmt};
-use std::marker::PhantomData;
-use std::iter::FromIterator;
-use serde::de::{self, IntoDeserializer};
 use futures::{Future, Poll};
+use serde::de::{self, IntoDeserializer};
+use std::iter::FromIterator;
+use std::marker::PhantomData;
+use std::{error, fmt};
 
 use finchers_core::endpoint::{self, Context, Endpoint};
 use finchers_core::error::{BadRequest, Error as FinchersError};
@@ -48,9 +48,7 @@ use finchers_core::request::{with_input, Bytes, FromBody, Input};
 
 #[allow(missing_docs)]
 pub fn queries<T: de::DeserializeOwned>() -> Queries<T> {
-    Queries {
-        _marker: PhantomData,
-    }
+    Queries { _marker: PhantomData }
 }
 
 #[allow(missing_docs)]
@@ -79,9 +77,7 @@ impl<T: de::DeserializeOwned> Endpoint for Queries<T> {
 
     fn apply(&self, input: &Input, _: &mut Context) -> Option<Self::Future> {
         if input.query().is_some() {
-            Some(QueriesFuture {
-                _marker: PhantomData,
-            })
+            Some(QueriesFuture { _marker: PhantomData })
         } else {
             None
         }
@@ -100,17 +96,13 @@ impl<T: de::DeserializeOwned> Future for QueriesFuture<T> {
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         let result = with_input(|input| serde_qs::from_str::<T>(input.query().unwrap()).map_err(Error::Parsing));
-        result
-            .map(Into::into)
-            .map_err(|e| BadRequest::new(e).into())
+        result.map(Into::into).map_err(|e| BadRequest::new(e).into())
     }
 }
 
 #[allow(missing_docs)]
 pub fn queries_req<T: de::DeserializeOwned>() -> QueriesRequired<T> {
-    QueriesRequired {
-        _marker: PhantomData,
-    }
+    QueriesRequired { _marker: PhantomData }
 }
 
 #[allow(missing_docs)]
@@ -138,9 +130,7 @@ impl<T: de::DeserializeOwned> Endpoint for QueriesRequired<T> {
     type Future = QueriesRequiredFuture<T>;
 
     fn apply(&self, _: &Input, _: &mut Context) -> Option<Self::Future> {
-        Some(QueriesRequiredFuture {
-            _marker: PhantomData,
-        })
+        Some(QueriesRequiredFuture { _marker: PhantomData })
     }
 }
 
@@ -159,17 +149,13 @@ impl<T: de::DeserializeOwned> Future for QueriesRequiredFuture<T> {
             Some(s) => self::serde_qs::from_str::<T>(s).map_err(Error::Parsing),
             None => Err(Error::MissingQuery),
         });
-        result
-            .map(Into::into)
-            .map_err(|e| BadRequest::new(e).into())
+        result.map(Into::into).map_err(|e| BadRequest::new(e).into())
     }
 }
 
 #[allow(missing_docs)]
 pub fn queries_opt<T: de::DeserializeOwned>() -> QueriesOptional<T> {
-    QueriesOptional {
-        _marker: PhantomData,
-    }
+    QueriesOptional { _marker: PhantomData }
 }
 
 #[allow(missing_docs)]
@@ -197,9 +183,7 @@ impl<T: de::DeserializeOwned> Endpoint for QueriesOptional<T> {
     type Future = QueriesOptionalFuture<T>;
 
     fn apply(&self, _: &Input, _: &mut Context) -> Option<Self::Future> {
-        Some(QueriesOptionalFuture {
-            _marker: PhantomData,
-        })
+        Some(QueriesOptionalFuture { _marker: PhantomData })
     }
 }
 
@@ -394,7 +378,5 @@ where
     I: FromIterator<T>,
     T: de::Deserialize<'de>,
 {
-    de.deserialize_str(CSVSeqVisitor {
-        _marker: PhantomData,
-    })
+    de.deserialize_str(CSVSeqVisitor { _marker: PhantomData })
 }

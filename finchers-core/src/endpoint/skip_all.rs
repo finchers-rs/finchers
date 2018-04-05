@@ -1,8 +1,8 @@
 #![allow(missing_docs)]
 
-use futures::future::{ok, FutureResult};
 use endpoint::{Context, Endpoint, IntoEndpoint};
 use error::Error;
+use futures::future::{ok, FutureResult};
 use request::Input;
 
 pub fn skip_all<I>(iter: I) -> SkipAll<<I::Item as IntoEndpoint>::Endpoint>
