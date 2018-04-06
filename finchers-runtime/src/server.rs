@@ -2,33 +2,30 @@ use futures::{Future, Poll, Stream};
 use http;
 use hyper;
 use hyper::server::{service_fn, Http};
-use service::{const_service, ConstService, HttpService, NewHttpService};
+use service::HttpService;
 use std::io;
 use std::net::{SocketAddr, ToSocketAddrs};
+use std::sync::Arc;
 use tokio;
 use tokio::net::TcpListener;
 
 #[derive(Debug)]
 pub struct Server<S> {
-    new_service: S,
+    service: S,
     addr: Option<SocketAddr>,
 }
 
 impl<S> Server<S>
 where
-    S: NewHttpService + Clone + Send + Sync + 'static,
+    S: HttpService + Send + Sync + 'static,
     S::RequestBody: From<hyper::Body>,
-    S::Service: Send,
-    <S::Service as HttpService>::Future: Send,
+    S::Future: Send,
     S::ResponseBody: Stream<Error = io::Error> + Send + 'static,
     <S::ResponseBody as Stream>::Item: AsRef<[u8]> + Send + 'static,
 {
     /// Create a new launcher from given service.
-    pub fn new(new_service: S) -> Self {
-        Server {
-            new_service,
-            addr: None,
-        }
+    pub fn new(service: S) -> Self {
+        Server { service, addr: None }
     }
 
     pub fn bind<T: ToSocketAddrs>(mut self, addr: T) -> Self {
@@ -39,7 +36,8 @@ where
     /// Start the HTTP server with given configurations
     #[inline]
     pub fn run(self) {
-        let Server { new_service, addr } = self;
+        let Server { service, addr } = self;
+        let service = Arc::new(service);
         let addr = addr.unwrap_or_else(|| ([127, 0, 0, 1], 4000).into());
 
         let listener = TcpListener::bind(&addr).expect("failed to create TcpListener");
@@ -48,7 +46,7 @@ where
             .incoming()
             .map_err(|err| eprintln!("failed to accept: {}", err))
             .for_each(move |stream| {
-                let service = new_service.new_service().unwrap();
+                let service = service.clone();
                 let service = service_fn(move |request| {
                     let request = http::Request::from(request).map(Into::into);
                     service
@@ -60,19 +58,6 @@ where
                 conn.map(|_conn| ()).map_err(|_| ())
             });
         tokio::run(server);
-    }
-}
-
-impl<S> Server<ConstService<S>>
-where
-    S: HttpService + Send + Sync + 'static,
-    S::RequestBody: From<hyper::Body>,
-    S::Future: Send,
-    S::ResponseBody: Stream<Error = io::Error> + Send + 'static,
-    <S::ResponseBody as Stream>::Item: AsRef<[u8]> + Send + 'static,
-{
-    pub fn from_service(service: S) -> Self {
-        Self::new(const_service(service))
     }
 }
 

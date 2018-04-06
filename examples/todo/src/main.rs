@@ -69,5 +69,5 @@ fn main() {
     };
 
     let service = endpoint.into_service();
-    Server::from_service(service).run();
+    Server::new(service).run();
 }

@@ -41,44 +41,6 @@ impl<S: HttpService> HttpService for Arc<S> {
     }
 }
 
-#[allow(missing_docs)]
-pub trait NewHttpService {
-    type RequestBody;
-    type ResponseBody;
-    type Service: HttpService<RequestBody = Self::RequestBody, ResponseBody = Self::ResponseBody>;
-
-    fn new_service(&self) -> io::Result<Self::Service>;
-}
-
-pub fn const_service<S>(service: S) -> ConstService<S> {
-    ConstService {
-        service: Arc::new(service),
-    }
-}
-
-#[derive(Debug)]
-pub struct ConstService<S> {
-    service: Arc<S>,
-}
-
-impl<S> Clone for ConstService<S> {
-    fn clone(&self) -> Self {
-        ConstService {
-            service: self.service.clone(),
-        }
-    }
-}
-
-impl<S: HttpService> NewHttpService for ConstService<S> {
-    type RequestBody = S::RequestBody;
-    type ResponseBody = S::ResponseBody;
-    type Service = Arc<S>;
-
-    fn new_service(&self) -> io::Result<Self::Service> {
-        Ok(self.service.clone())
-    }
-}
-
 /// An HTTP service which wraps a `Endpoint`, `Handler` and `Responder`.
 #[derive(Debug, Copy, Clone)]
 pub struct FinchersService<E> {
