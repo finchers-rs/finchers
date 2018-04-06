@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 
-use finchers_core::request::Input;
+use finchers_core::Input;
 use futures::{Future, Poll};
 use {Context, Endpoint, IntoEndpoint};
 

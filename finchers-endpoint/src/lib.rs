@@ -36,3 +36,7 @@ pub use or::Or;
 pub use skip::Skip;
 pub use skip_all::{skip_all, SkipAll};
 pub use with::With;
+
+pub use body::FromBody;
+pub use header::FromHeader;
+pub use path::{FromSegment, FromSegments};

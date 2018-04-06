@@ -8,8 +8,7 @@ use std::rc::Rc;
 use std::string::ToString;
 use std::sync::Arc;
 
-use finchers_core::request::Input;
-use finchers_core::request::body::BodyStream;
+use finchers_core::input::{BodyStream, Input};
 use finchers_core::response::{DefaultResponder, HttpStatus, Responder, ResponseBody};
 use finchers_endpoint::{Endpoint, EndpointFuture};
 

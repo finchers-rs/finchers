@@ -1,7 +1,6 @@
 #![allow(missing_docs)]
 
-use finchers_core::error::Error;
-use finchers_core::request::Input;
+use finchers_core::{Error, Input};
 use futures::future::{self, FutureResult};
 use {Context, Endpoint};
 

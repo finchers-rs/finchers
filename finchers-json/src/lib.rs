@@ -28,9 +28,10 @@ use std::fmt;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 
-use finchers_core::error::{BadRequest, Error as FinchersError, HttpError};
-use finchers_core::request::{Bytes, FromBody, Input};
+use finchers_core::error::{BadRequest, HttpError};
 use finchers_core::response::{HttpStatus, Responder};
+use finchers_core::{Bytes, Error as FinchersError, Input};
+use finchers_endpoint::body::FromBody;
 use finchers_endpoint::{self as endpoint, Context, Endpoint};
 
 /// The error type from serde_json

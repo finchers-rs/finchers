@@ -1,8 +1,7 @@
 #![allow(missing_docs)]
 
 use self::Chain::*;
-use finchers_core::error::Error;
-use finchers_core::request::Input;
+use finchers_core::{Error, Input};
 use futures::Async::*;
 use futures::{Future, IntoFuture, Poll};
 use std::fmt;

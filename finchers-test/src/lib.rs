@@ -6,9 +6,8 @@ extern crate http;
 use futures::Future;
 use http::{HttpTryFrom, Method, Request, Uri};
 
-use finchers_core::error::Error;
-use finchers_core::request::Input;
-use finchers_core::request::body::BodyStream;
+use finchers_core::Error;
+use finchers_core::input::{BodyStream, Input};
 use finchers_endpoint::Endpoint;
 
 #[derive(Debug)]

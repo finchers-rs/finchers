@@ -1,6 +1,6 @@
 //! Components for checking the HTTP method
 
-use finchers_core::request::Input;
+use finchers_core::Input;
 use http::Method;
 use {Context, Endpoint, IntoEndpoint};
 

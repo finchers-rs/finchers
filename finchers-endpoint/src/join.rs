@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 #![allow(non_snake_case)]
 
-use finchers_core::request::Input;
+use finchers_core::Input;
 use futures::{future, IntoFuture};
 use std::fmt;
 use {Context, Endpoint, IntoEndpoint};

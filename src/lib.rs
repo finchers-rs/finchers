@@ -15,7 +15,7 @@ pub extern crate mime;
 pub use finchers_derive::*;
 
 pub use finchers_core::error::Error;
-pub use finchers_core::{error, request, response};
+pub use finchers_core::{error, input, response};
 
 pub mod endpoint {
     pub use finchers_endpoint::*;

@@ -14,11 +14,13 @@
 //!
 //! [from_body]: ../../http/trait.FromBody.html
 
-use finchers_core::error::{BadRequest, Error};
-use finchers_core::request::{self, with_input, with_input_mut, FromBody, Input};
+use finchers_core::error::BadRequest;
+use finchers_core::input::{self, with_input, with_input_mut};
+use finchers_core::{Bytes, BytesString, Error, Input, Never};
 use futures::{Future, Poll};
-use std::fmt;
 use std::marker::PhantomData;
+use std::str::Utf8Error;
+use std::{error, fmt};
 use {Context, Endpoint};
 
 /// Creates an endpoint for parsing the incoming request body into the value of `T`
@@ -62,7 +64,7 @@ impl<T: FromBody> Endpoint for Body<T> {
 #[allow(missing_debug_implementations)]
 pub enum BodyFuture<T> {
     Init,
-    Recv(request::body::Body),
+    Recv(input::Body),
     Done(PhantomData<fn() -> T>),
 }
 
@@ -115,7 +117,7 @@ impl fmt::Debug for BodyStream {
 }
 
 impl Endpoint for BodyStream {
-    type Item = request::body::BodyStream;
+    type Item = input::BodyStream;
     type Future = BodyStreamFuture;
 
     fn apply(&self, _: &Input, _: &mut Context) -> Option<Self::Future> {
@@ -130,13 +132,79 @@ pub struct BodyStreamFuture {
 }
 
 impl Future for BodyStreamFuture {
-    type Item = request::body::BodyStream;
+    type Item = input::BodyStream;
     type Error = Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         with_input_mut(|input| {
             let body = input.body_stream().expect("cannot take a body twice");
-            Ok(request::body::BodyStream::from(body).into())
+            Ok(input::BodyStream::from(body).into())
         })
+    }
+}
+
+/// The conversion from received request body.
+pub trait FromBody: 'static + Sized {
+    /// The type of error value returned from `from_body`.
+    type Error: error::Error + Send + 'static;
+
+    /// Returns whether the incoming request matches to this type or not.
+    ///
+    /// This method is used only for the purpose of changing the result of routing.
+    /// Otherwise, use `validate` instead.
+    #[allow(unused_variables)]
+    fn is_match(input: &Input) -> bool {
+        true
+    }
+
+    /// Performs conversion from raw bytes into itself.
+    fn from_body(body: Bytes, input: &Input) -> Result<Self, Self::Error>;
+}
+
+impl FromBody for () {
+    type Error = Never;
+
+    fn from_body(_: Bytes, _: &Input) -> Result<Self, Self::Error> {
+        Ok(())
+    }
+}
+
+impl FromBody for Bytes {
+    type Error = Never;
+
+    fn from_body(body: Bytes, _: &Input) -> Result<Self, Self::Error> {
+        Ok(body)
+    }
+}
+
+impl FromBody for BytesString {
+    type Error = Utf8Error;
+
+    fn from_body(body: Bytes, _: &Input) -> Result<Self, Self::Error> {
+        BytesString::from_shared(body)
+    }
+}
+
+impl FromBody for String {
+    type Error = Utf8Error;
+
+    fn from_body(body: Bytes, _: &Input) -> Result<Self, Self::Error> {
+        BytesString::from_shared(body).map(Into::into)
+    }
+}
+
+impl<T: FromBody> FromBody for Option<T> {
+    type Error = Never;
+
+    fn from_body(body: Bytes, input: &Input) -> Result<Self, Self::Error> {
+        Ok(T::from_body(body, input).ok())
+    }
+}
+
+impl<T: FromBody> FromBody for Result<T, T::Error> {
+    type Error = Never;
+
+    fn from_body(body: Bytes, input: &Input) -> Result<Self, Self::Error> {
+        Ok(T::from_body(body, input))
     }
 }

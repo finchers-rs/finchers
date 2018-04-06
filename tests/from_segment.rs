@@ -1,7 +1,6 @@
 #[macro_use]
 extern crate finchers;
-
-use finchers::request::{FromSegment, Segment};
+use finchers::endpoint::path::{FromSegment, Segment};
 
 #[test]
 fn unit_struct() {

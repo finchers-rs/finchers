@@ -6,11 +6,12 @@
 //! * `HeaderRequired<H>` - Similar to `Header`, but always matches and returns an error if `H` is not found.
 //! * `HeaderOptional<H, E>` - Similar to `Header`, but always matches and returns a `None` if `H` is not found.
 
-use finchers_core::error::{BadRequest, Error, NotPresent};
-use finchers_core::request::{with_input, FromHeader, Input};
+use finchers_core::error::{BadRequest, NotPresent};
+use finchers_core::input::with_input;
+use finchers_core::{Error, Input, Never};
 use futures::{Future, Poll};
-use std::fmt;
 use std::marker::PhantomData;
+use std::{error, fmt};
 use {Context, Endpoint};
 
 #[allow(missing_docs)]
@@ -183,5 +184,41 @@ impl<H: FromHeader> Future for HeaderOptionalFuture<H> {
                 .and_then(|h| H::from_header(h.as_bytes()).ok())
                 .into())
         })
+    }
+}
+
+pub trait FromHeader: 'static + Sized {
+    type Error: error::Error + Send + 'static;
+
+    fn header_name() -> &'static str;
+
+    fn from_header(s: &[u8]) -> Result<Self, Self::Error>;
+}
+
+impl<H: FromHeader> FromHeader for Option<H> {
+    type Error = Never;
+
+    #[inline]
+    fn header_name() -> &'static str {
+        H::header_name()
+    }
+
+    #[inline]
+    fn from_header(s: &[u8]) -> Result<Self, Self::Error> {
+        Ok(H::from_header(s).ok())
+    }
+}
+
+impl<H: FromHeader> FromHeader for Result<H, H::Error> {
+    type Error = Never;
+
+    #[inline]
+    fn header_name() -> &'static str {
+        H::header_name()
+    }
+
+    #[inline]
+    fn from_header(s: &[u8]) -> Result<Self, Self::Error> {
+        Ok(H::from_header(s))
     }
 }

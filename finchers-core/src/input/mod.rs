@@ -1,10 +1,11 @@
+pub mod body;
+pub use self::body::{Body, BodyStream};
+
 use http::request::Parts;
 use http::{Extensions, Request};
 use http::{header, HeaderMap, Method, Uri, Version};
 use mime;
 use std::cell::RefCell;
-
-use request::body::{Body, BodyStream};
 
 task_local!(static INPUT: RefCell<Option<Input>> = RefCell::new(None));
 

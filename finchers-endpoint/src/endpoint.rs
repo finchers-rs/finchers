@@ -1,7 +1,8 @@
 use super::*;
 use Context;
-use finchers_core::error::{Error, NoRoute};
-use finchers_core::request::{set_input, Input};
+use finchers_core::error::NoRoute;
+use finchers_core::input::set_input;
+use finchers_core::{Error, Input};
 use futures::{Future, IntoFuture, Poll};
 use std::rc::Rc;
 use std::sync::Arc;

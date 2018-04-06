@@ -43,8 +43,10 @@ use std::iter::FromIterator;
 use std::marker::PhantomData;
 use std::{error, fmt};
 
-use finchers_core::error::{BadRequest, Error as FinchersError};
-use finchers_core::request::{with_input, Bytes, FromBody, Input};
+use finchers_core::error::BadRequest;
+use finchers_core::input::with_input;
+use finchers_core::{Bytes, Error as FinchersError, Input};
+use finchers_endpoint::body::FromBody;
 use finchers_endpoint::{self as endpoint, Context, Endpoint};
 
 #[allow(missing_docs)]
