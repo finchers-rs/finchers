@@ -281,7 +281,7 @@ impl ToTokens for Context {
             mod #dummy_mod {
                 extern crate finchers as _finchers;
                 use self::_finchers::http::StatusCode;
-                use self::_finchers::response::HttpStatus;
+                use self::_finchers::output::HttpStatus;
 
                 impl #impl_generics HttpStatus for #ident #ty_generics #where_clause {
                     fn status_code(&self) -> StatusCode {

@@ -2,22 +2,21 @@
 
 #![allow(missing_docs)]
 
-use http::StatusCode;
-use response::HttpStatus;
+use http::header::{self, HeaderValue};
+use http::{Response, StatusCode};
 use std::borrow::Cow;
-use std::ops::Deref;
 use std::{error, fmt};
 
-pub trait HttpError: error::Error + HttpStatus {}
-
-impl<E: error::Error + HttpStatus> HttpError for E {}
+pub trait HttpError: error::Error + Send + 'static {
+    fn status_code(&self) -> StatusCode;
+}
 
 macro_rules! impl_http_error {
     (@bad_request) => { StatusCode::BAD_REQUEST };
     (@server_error) => { StatusCode::INTERNAL_SERVER_ERROR };
 
     ($( @$i:ident $t:ty; )*) => {$(
-        impl HttpStatus for $t {
+        impl HttpError for $t {
             #[inline]
             fn status_code(&self) -> StatusCode {
                 impl_http_error!(@$i)
@@ -46,7 +45,6 @@ impl_http_error! {
     @server_error ::std::sync::mpsc::RecvError;
     @server_error ::std::sync::mpsc::TryRecvError;
     @server_error ::std::sync::mpsc::RecvTimeoutError;
-    @server_error ::hyper::Error;
 }
 
 #[derive(Debug)]
@@ -55,11 +53,28 @@ pub struct Error {
 }
 
 impl Error {
+    pub fn status_code(&self) -> StatusCode {
+        self.inner.status_code()
+    }
+
     pub fn is_noroute(&self) -> bool {
-        match self.inner.status_code() {
-            StatusCode::NOT_FOUND => true,
-            _ => false,
-        }
+        self.status_code() == StatusCode::NOT_FOUND
+    }
+
+    pub fn to_response(&self) -> Response<String> {
+        let body = self.inner.to_string();
+        let body_len = body.len().to_string();
+
+        let mut response = Response::new(body);
+        *response.status_mut() = self.status_code();
+        response.headers_mut().insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("text/plain; charset=utf-8"),
+        );
+        response.headers_mut().insert(header::CONTENT_LENGTH, unsafe {
+            HeaderValue::from_shared_unchecked(body_len.into())
+        });
+        response
     }
 }
 
@@ -75,31 +90,14 @@ impl fmt::Display for Error {
     }
 }
 
-impl Deref for Error {
-    type Target = HttpError;
-
-    #[inline]
-    fn deref(&self) -> &Self::Target {
-        &*self.inner
-    }
-}
-
 #[derive(Debug)]
 pub struct BadRequest<E> {
     err: E,
-    message: Option<Cow<'static, str>>,
 }
 
 impl<E> BadRequest<E> {
     pub fn new(err: E) -> Self {
-        BadRequest { err, message: None }
-    }
-
-    pub fn with_message<S: Into<Cow<'static, str>>>(self, message: S) -> Self {
-        BadRequest {
-            message: Some(message.into()),
-            ..self
-        }
+        BadRequest { err }
     }
 }
 
@@ -119,7 +117,7 @@ impl<E: error::Error> error::Error for BadRequest<E> {
     }
 }
 
-impl<E: error::Error + 'static> HttpStatus for BadRequest<E> {
+impl<E: error::Error + Send + 'static> HttpError for BadRequest<E> {
     fn status_code(&self) -> StatusCode {
         StatusCode::BAD_REQUEST
     }
@@ -128,19 +126,11 @@ impl<E: error::Error + 'static> HttpStatus for BadRequest<E> {
 #[derive(Debug)]
 pub struct ServerError<E> {
     err: E,
-    message: Option<Cow<'static, str>>,
 }
 
 impl<E> ServerError<E> {
     pub fn new(err: E) -> Self {
-        ServerError { err, message: None }
-    }
-
-    pub fn with_message<S: Into<Cow<'static, str>>>(self, message: S) -> Self {
-        ServerError {
-            message: Some(message.into()),
-            ..self
-        }
+        ServerError { err }
     }
 }
 
@@ -160,7 +150,7 @@ impl<E: error::Error> error::Error for ServerError<E> {
     }
 }
 
-impl<E: error::Error + 'static> HttpStatus for ServerError<E> {
+impl<E: error::Error + Send + 'static> HttpError for ServerError<E> {
     fn status_code(&self) -> StatusCode {
         StatusCode::INTERNAL_SERVER_ERROR
     }
@@ -191,7 +181,7 @@ impl error::Error for NotPresent {
     }
 }
 
-impl HttpStatus for NotPresent {
+impl HttpError for NotPresent {
     fn status_code(&self) -> StatusCode {
         StatusCode::BAD_REQUEST
     }
@@ -220,7 +210,7 @@ impl error::Error for NoRoute {
     }
 }
 
-impl HttpStatus for NoRoute {
+impl HttpError for NoRoute {
     fn status_code(&self) -> StatusCode {
         StatusCode::NOT_FOUND
     }

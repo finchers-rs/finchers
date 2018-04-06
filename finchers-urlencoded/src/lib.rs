@@ -31,6 +31,7 @@
 #![deny(warnings)]
 
 extern crate finchers_core;
+extern crate finchers_endpoint;
 extern crate futures;
 extern crate mime;
 extern crate serde;
@@ -42,9 +43,10 @@ use std::iter::FromIterator;
 use std::marker::PhantomData;
 use std::{error, fmt};
 
-use finchers_core::endpoint::{self, Context, Endpoint};
-use finchers_core::error::{BadRequest, Error as FinchersError};
-use finchers_core::request::{with_input, Bytes, FromBody, Input};
+use finchers_core::error::BadRequest;
+use finchers_core::{Bytes, Error as FinchersError, Input};
+use finchers_endpoint::body::FromBody;
+use finchers_endpoint::{self as endpoint, Context, Endpoint};
 
 #[allow(missing_docs)]
 pub fn queries<T: de::DeserializeOwned>() -> Queries<T> {
@@ -95,7 +97,7 @@ impl<T: de::DeserializeOwned> Future for QueriesFuture<T> {
     type Error = FinchersError;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let result = with_input(|input| serde_qs::from_str::<T>(input.query().unwrap()).map_err(Error::Parsing));
+        let result = Input::with(|input| serde_qs::from_str::<T>(input.query().unwrap()).map_err(Error::Parsing));
         result.map(Into::into).map_err(|e| BadRequest::new(e).into())
     }
 }
@@ -145,7 +147,7 @@ impl<T: de::DeserializeOwned> Future for QueriesRequiredFuture<T> {
     type Error = FinchersError;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let result = with_input(|input| match input.query() {
+        let result = Input::with(|input| match input.query() {
             Some(s) => self::serde_qs::from_str::<T>(s).map_err(Error::Parsing),
             None => Err(Error::MissingQuery),
         });
@@ -198,7 +200,7 @@ impl<T: de::DeserializeOwned> Future for QueriesOptionalFuture<T> {
     type Error = FinchersError;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let result = with_input(|input| match input.query() {
+        let result = Input::with(|input| match input.query() {
             Some(s) => match serde_qs::from_str(s) {
                 Ok(v) => Ok(Some(v)),
                 Err(e) => Err(BadRequest::new(Error::Parsing(e)).into()),
@@ -239,10 +241,11 @@ impl<F> ::std::ops::DerefMut for Form<F> {
 impl<F: de::DeserializeOwned + 'static> FromBody for Form<F> {
     type Error = Error;
 
-    fn from_body(body: Bytes, input: &Input) -> Result<Self, Self::Error> {
+    fn from_body(body: Bytes, input: &mut Input) -> Result<Self, Self::Error> {
         if input
             .media_type()
-            .map_or(true, |m| m == mime::APPLICATION_WWW_FORM_URLENCODED)
+            .map_err(|_| Error::InvalidMediaType)?
+            .map_or(true, |m| *m == mime::APPLICATION_WWW_FORM_URLENCODED)
         {
             serde_qs::from_bytes(&*body).map(Form).map_err(Into::into)
         } else {

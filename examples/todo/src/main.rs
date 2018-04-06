@@ -11,7 +11,7 @@ mod db;
 use self::Response::*;
 use self::db::*;
 use finchers::error::NoRoute;
-use finchers::json::{json_body, JsonResponder};
+use finchers::json::{json_body, JsonOutput};
 use finchers::prelude::*;
 use finchers::runtime::Server;
 
@@ -63,9 +63,11 @@ fn main() {
             })
             .and_then(|todo| todo.map(|_| Deleted).ok_or_else(|| NoRoute::new()));
 
-        endpoint("api/v1/todos").with(choice![find_todo, list_todos, add_todo, patch_todo, delete_todo,])
+        endpoint("api/v1/todos")
+            .with(choice![find_todo, list_todos, add_todo, patch_todo, delete_todo,])
+            .map(JsonOutput::new)
     };
 
-    let service = endpoint.with_responder(JsonResponder::<Response>::default());
+    let service = endpoint.into_service();
     Server::from_service(service).run();
 }

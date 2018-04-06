@@ -18,7 +18,7 @@
 #[macro_export]
 macro_rules! choice {
     ($h:expr, $($t:expr),*) => {{
-        use $crate::endpoint::{endpoint, Endpoint};
+        use $crate::endpoint::{endpoint, EndpointExt};
         endpoint($h)
             $( .or(endpoint($t)) )*
     }};
@@ -29,7 +29,7 @@ macro_rules! choice {
 
 #[cfg(test)]
 mod tests {
-    use finchers_core::endpoint::endpoint;
+    use finchers_endpoint::endpoint;
 
     #[test]
     #[allow(unused_variables)]

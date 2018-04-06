@@ -32,7 +32,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
         #[allow(non_snake_case)]
         mod #dummy_mod {
             extern crate finchers as _finchers;
-            use self::_finchers::request::{Segment, FromSegment};
+            use self::_finchers::endpoint::path::{Segment, FromSegment};
 
             impl #impl_generics FromSegment for #ident #ty_generics #where_clause
             {

@@ -1,7 +1,8 @@
 #![allow(missing_docs)]
 
+use error::HttpError;
 use http::StatusCode;
-use response::HttpStatus;
+use output::HttpStatus;
 use std::{error, fmt};
 
 // TODO: replace with primitive never_type (!)
@@ -28,6 +29,12 @@ impl error::Error for Never {
 }
 
 impl HttpStatus for Never {
+    fn status_code(&self) -> StatusCode {
+        match *self {}
+    }
+}
+
+impl HttpError for Never {
     fn status_code(&self) -> StatusCode {
         match *self {}
     }
