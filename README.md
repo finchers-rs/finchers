@@ -25,6 +25,7 @@ extern crate finchers;
 
 use finchers::prelude::*;
 use finchers::endpoint::prelude::*;
+use finchers::output::Display;
 use finchers::runtime::Server;
 
 fn main() {
@@ -33,7 +34,7 @@ fn main() {
         post(body::<String>()).map(|body| format!("POST: body={}", body)),
     ]);
 
-    let service = endpoint.into_service::<String>();
+    let service = endpoint.map(Display::new).into_service();
     Server::from_service(service).run();
 }
 ```
