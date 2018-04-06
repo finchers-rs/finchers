@@ -6,10 +6,11 @@ use http::{header, Request, Response};
 use std::io;
 use std::sync::Arc;
 
-use finchers_core::input::{with_input, BodyStream};
+use finchers_core::Input;
+use finchers_core::input::BodyStream;
 use finchers_core::output::{Body, Responder};
-use finchers_core::{Error, Input};
-use finchers_endpoint::{Endpoint, EndpointFuture};
+use finchers_endpoint::Endpoint;
+use finchers_endpoint::apply::{apply_and_respond, ApplyAndRespond};
 
 #[allow(missing_docs)]
 pub trait HttpService {
@@ -103,7 +104,7 @@ where
     fn call(&self, request: Request<BodyStream>) -> Self::Future {
         let input = Input::from(request);
         FinchersServiceFuture {
-            outcome: self.endpoint.apply_input(input),
+            outcome: apply_and_respond(&self.endpoint, input),
         }
     }
 }
@@ -111,7 +112,7 @@ where
 /// A future returned from `EndpointService::call()`
 #[allow(missing_debug_implementations)]
 pub struct FinchersServiceFuture<E: Endpoint> {
-    outcome: EndpointFuture<E::Future>,
+    outcome: ApplyAndRespond<E::Future>,
 }
 
 impl<E> Future for FinchersServiceFuture<E>
@@ -125,10 +126,7 @@ where
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         let mut response = match self.outcome.poll() {
             Ok(NotReady) => return Ok(NotReady),
-            Ok(Ready(item)) => with_input(|input| {
-                item.respond(input)
-                    .unwrap_or_else(|e| Error::from(e).to_response().map(Body::once))
-            }),
+            Ok(Ready(item)) => item,
             Err(err) => err.to_response().map(Body::once),
         };
         if !response.headers().contains_key(header::SERVER) {

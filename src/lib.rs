@@ -44,7 +44,7 @@ pub mod urlencoded {
 }
 
 pub mod prelude {
-    pub use finchers_endpoint::Endpoint;
+    pub use finchers_endpoint::EndpointExt;
     pub use finchers_runtime::EndpointServiceExt;
 }
 

@@ -9,6 +9,7 @@ use http::{HttpTryFrom, Method, Request, Uri};
 use finchers_core::Error;
 use finchers_core::input::{BodyStream, Input};
 use finchers_endpoint::Endpoint;
+use finchers_endpoint::apply::apply;
 
 #[derive(Debug)]
 pub struct Client<E: Endpoint> {
@@ -95,7 +96,7 @@ impl<'a, E: Endpoint> ClientRequest<'a, E> {
     pub fn run(self) -> http::Result<Result<E::Item, Error>> {
         let ClientRequest { client, request } = self;
         let input: Input = request?.into();
-        let f = client.endpoint.apply_input(input);
+        let f = apply(&client.endpoint, input);
         // TODO: replace with futures::executor
         Ok(f.wait())
     }

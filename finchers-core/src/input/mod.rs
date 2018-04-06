@@ -6,17 +6,23 @@ use http::{Extensions, Request};
 use http::{header, HeaderMap, Method, Uri, Version};
 use mime;
 use std::cell::RefCell;
+use std::mem;
 
 task_local!(static INPUT: RefCell<Option<Input>> = RefCell::new(None));
 
-#[allow(missing_docs)]
-pub fn set_input(input: Input) {
-    INPUT.with(|i| {
-        i.borrow_mut().get_or_insert(input);
-    })
+/// Insert the value of `Input` to the current task context.
+///
+/// This function will return a `Some(input)` if the value of `Input` has already set.
+pub fn insert_input(input: Input) -> Option<Input> {
+    INPUT.with(|i| mem::replace(&mut *i.borrow_mut(), Some(input)))
 }
 
-#[allow(missing_docs)]
+/// Remove the value of `Input` from the current task context.
+pub fn remove_input() -> Option<Input> {
+    INPUT.with(|i| mem::replace(&mut *i.borrow_mut(), None))
+}
+
+/// Run a closure with the reference to `Input` at the current task context.
 pub fn with_input<F, R>(f: F) -> R
 where
     F: FnOnce(&Input) -> R,
@@ -28,7 +34,7 @@ where
     })
 }
 
-#[allow(missing_docs)]
+/// Run a closure with the mutable reference to `Input` at the current task context.
 pub fn with_input_mut<F, R>(f: F) -> R
 where
     F: FnOnce(&mut Input) -> R,

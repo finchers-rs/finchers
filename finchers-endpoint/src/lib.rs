@@ -5,6 +5,7 @@ extern crate finchers_core;
 extern crate futures;
 extern crate http;
 
+pub mod apply;
 pub mod body;
 pub mod header;
 pub mod method;
@@ -12,6 +13,7 @@ pub mod path;
 
 mod context;
 mod endpoint;
+mod ext;
 
 mod and_then;
 mod join;
@@ -25,7 +27,8 @@ mod with;
 
 // re-exports
 pub use context::Context;
-pub use endpoint::{endpoint, Endpoint, EndpointFuture, IntoEndpoint};
+pub use endpoint::{endpoint, Endpoint, IntoEndpoint};
+pub use ext::EndpointExt;
 
 pub use and_then::AndThen;
 pub use join::{Join, Join3, Join4, Join5};

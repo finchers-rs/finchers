@@ -1,9 +1,7 @@
 use super::*;
 use Context;
-use finchers_core::error::NoRoute;
-use finchers_core::input::set_input;
 use finchers_core::{Error, Input};
-use futures::{Future, IntoFuture, Poll};
+use futures::Future;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -18,79 +16,6 @@ pub trait Endpoint {
     /// Validates the incoming HTTP request,
     /// and returns the instance of `Task` if matched.
     fn apply(&self, input: &Input, ctx: &mut Context) -> Option<Self::Future>;
-
-    #[allow(missing_docs)]
-    fn apply_input(&self, input: Input) -> EndpointFuture<Self::Future> {
-        let in_flight = self.apply(&input, &mut Context::new(&input));
-        EndpointFuture {
-            input: Some(input),
-            in_flight,
-        }
-    }
-
-    #[allow(missing_docs)]
-    fn join<E>(self, e: E) -> Join<Self, E::Endpoint>
-    where
-        Self: Sized,
-        E: IntoEndpoint,
-    {
-        assert_endpoint::<_, (Self::Item, <E::Endpoint as Endpoint>::Item)>(join::join(self, e))
-    }
-
-    #[allow(missing_docs)]
-    fn with<E>(self, e: E) -> With<Self, E::Endpoint>
-    where
-        Self: Sized,
-        E: IntoEndpoint,
-    {
-        assert_endpoint::<_, E::Item>(with::with(self, e))
-    }
-
-    #[allow(missing_docs)]
-    fn skip<E>(self, e: E) -> Skip<Self, E::Endpoint>
-    where
-        Self: Sized,
-        E: IntoEndpoint,
-    {
-        assert_endpoint::<_, Self::Item>(skip::skip(self, e))
-    }
-
-    #[allow(missing_docs)]
-    fn or<E>(self, e: E) -> Or<Self, E::Endpoint>
-    where
-        Self: Sized,
-        E: IntoEndpoint<Item = Self::Item>,
-    {
-        assert_endpoint::<_, Self::Item>(or::or(self, e))
-    }
-
-    #[allow(missing_docs)]
-    fn map<F, T>(self, f: F) -> map::Map<Self, F>
-    where
-        Self: Sized,
-        F: Fn(Self::Item) -> T,
-    {
-        assert_endpoint::<_, T>(map::map(self, f))
-    }
-
-    #[allow(missing_docs)]
-    fn and_then<F, R>(self, f: F) -> AndThen<Self, F>
-    where
-        Self: Sized,
-        F: Fn(Self::Item) -> R,
-        R: IntoFuture,
-        R::Error: Into<Error>,
-    {
-        assert_endpoint::<_, R::Item>(and_then::and_then(self, f))
-    }
-}
-
-#[inline]
-fn assert_endpoint<E, T>(endpoint: E) -> E
-where
-    E: Endpoint<Item = T>,
-{
-    endpoint
 }
 
 impl<'a, E: Endpoint> Endpoint for &'a E {
@@ -126,28 +51,6 @@ impl<E: Endpoint> Endpoint for Arc<E> {
 
     fn apply(&self, input: &Input, ctx: &mut Context) -> Option<Self::Future> {
         (**self).apply(input, ctx)
-    }
-}
-
-#[allow(missing_docs)]
-#[derive(Debug)]
-pub struct EndpointFuture<F> {
-    input: Option<Input>,
-    in_flight: Option<F>,
-}
-
-impl<F: Future<Error = Error>> Future for EndpointFuture<F> {
-    type Item = F::Item;
-    type Error = Error;
-
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        if let Some(input) = self.input.take() {
-            set_input(input);
-        }
-        match self.in_flight {
-            Some(ref mut f) => f.poll(),
-            None => Err(NoRoute::new().into()),
-        }
     }
 }
 

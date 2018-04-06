@@ -1,7 +1,7 @@
 extern crate finchers_endpoint;
 extern crate finchers_test;
 
-use finchers_endpoint::{endpoint, ok, Endpoint};
+use finchers_endpoint::{endpoint, ok, EndpointExt};
 use finchers_test::Client;
 
 #[test]
