@@ -14,11 +14,11 @@ pub extern crate mime;
 #[doc(hidden)]
 pub use finchers_derive::*;
 
-pub use finchers_core::error::Error;
-pub use finchers_core::{error, input, output};
+pub use finchers_core::{error, output};
 
 pub mod endpoint {
-    pub use finchers_endpoint::*;
+    pub use finchers_endpoint::{body, endpoint, header, join_all, method, ok, path, skip_all, Endpoint, EndpointExt,
+                                FromBody, FromHeader, FromSegment, FromSegments, IntoEndpoint};
 
     /// The "prelude" for building endpoints
     pub mod prelude {
@@ -30,8 +30,12 @@ pub mod endpoint {
     }
 }
 
+pub mod input {
+    pub use finchers_core::input::{Body, BodyStream, Error, ErrorKind, Input};
+}
+
 pub mod runtime {
-    pub use finchers_runtime::*;
+    pub use finchers_runtime::{EndpointServiceExt, FinchersService, FinchersServiceFuture, HttpService, Server};
 }
 
 pub mod json {
@@ -47,6 +51,9 @@ pub mod prelude {
     pub use finchers_endpoint::EndpointExt;
     pub use finchers_runtime::EndpointServiceExt;
 }
+
+pub use finchers_core::{Error, Input, Output};
+pub use finchers_endpoint::{Endpoint, EndpointExt};
 
 #[macro_use]
 mod macros;
