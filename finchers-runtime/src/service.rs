@@ -4,24 +4,23 @@ use futures::Async::*;
 use futures::{Future, Poll};
 use http::{header, Request, Response};
 use std::io;
-use std::rc::Rc;
-use std::string::ToString;
 use std::sync::Arc;
 
-use finchers_core::input::{BodyStream, Input};
-use finchers_core::response::{DefaultResponder, HttpStatus, Responder, ResponseBody};
+use finchers_core::input::{with_input, BodyStream};
+use finchers_core::output::{Body, Responder};
+use finchers_core::{Error, Input};
 use finchers_endpoint::{Endpoint, EndpointFuture};
 
 #[allow(missing_docs)]
 pub trait HttpService {
     type RequestBody;
-    type ResponseBody: ResponseBody;
+    type ResponseBody;
     type Future: Future<Item = Response<Self::ResponseBody>, Error = io::Error>;
 
     fn call(&self, request: Request<Self::RequestBody>) -> Self::Future;
 }
 
-impl<S: HttpService> HttpService for Rc<S> {
+impl<S: HttpService> HttpService for Box<S> {
     type RequestBody = S::RequestBody;
     type ResponseBody = S::ResponseBody;
     type Future = S::Future;
@@ -44,7 +43,7 @@ impl<S: HttpService> HttpService for Arc<S> {
 #[allow(missing_docs)]
 pub trait NewHttpService {
     type RequestBody;
-    type ResponseBody: ResponseBody;
+    type ResponseBody;
     type Service: HttpService<RequestBody = Self::RequestBody, ResponseBody = Self::ResponseBody>;
 
     fn new_service(&self) -> io::Result<Self::Service>;
@@ -81,62 +80,57 @@ impl<S: HttpService> NewHttpService for ConstService<S> {
 
 /// An HTTP service which wraps a `Endpoint`, `Handler` and `Responder`.
 #[derive(Debug, Copy, Clone)]
-pub struct FinchersService<E, R> {
+pub struct FinchersService<E> {
     endpoint: E,
-    responder: R,
 }
 
-impl<E, R> FinchersService<E, R> {
+impl<E> FinchersService<E> {
     /// Create an instance of `FinchersService` from components
-    pub fn new(endpoint: E, responder: R) -> Self {
-        Self { endpoint, responder }
+    pub fn new(endpoint: E) -> Self {
+        Self { endpoint }
     }
 }
 
-impl<E, R> HttpService for FinchersService<E, R>
+impl<E> HttpService for FinchersService<E>
 where
     E: Endpoint,
-    R: Responder<Item = E::Item> + Clone,
+    E::Item: Responder,
 {
     type RequestBody = BodyStream;
-    type ResponseBody = R::Body;
-    type Future = FinchersServiceFuture<E, R>;
+    type ResponseBody = Body;
+    type Future = FinchersServiceFuture<E>;
 
     fn call(&self, request: Request<BodyStream>) -> Self::Future {
         let input = Input::from(request);
         FinchersServiceFuture {
             outcome: self.endpoint.apply_input(input),
-            responder: self.responder.clone(),
         }
     }
 }
 
 /// A future returned from `EndpointService::call()`
 #[allow(missing_debug_implementations)]
-pub struct FinchersServiceFuture<E, R>
-where
-    E: Endpoint,
-    R: Responder<Item = E::Item>,
-{
+pub struct FinchersServiceFuture<E: Endpoint> {
     outcome: EndpointFuture<E::Future>,
-    responder: R,
 }
 
-impl<E, R> Future for FinchersServiceFuture<E, R>
+impl<E> Future for FinchersServiceFuture<E>
 where
     E: Endpoint,
-    R: Responder<Item = E::Item>,
+    E::Item: Responder,
 {
-    type Item = Response<R::Body>;
+    type Item = Response<Body>;
     type Error = io::Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let outcome = match self.outcome.poll() {
+        let mut response = match self.outcome.poll() {
             Ok(NotReady) => return Ok(NotReady),
-            Ok(Ready(ok)) => Ok(ok),
-            Err(err) => Err(err),
+            Ok(Ready(item)) => with_input(|input| {
+                item.respond(input)
+                    .unwrap_or_else(|e| Error::from(e).to_response().map(Body::once))
+            }),
+            Err(err) => err.to_response().map(Body::once),
         };
-        let mut response = self.responder.respond(outcome);
         if !response.headers().contains_key(header::SERVER) {
             response
                 .headers_mut()
@@ -148,32 +142,19 @@ where
 
 #[allow(missing_docs)]
 pub trait EndpointServiceExt: Endpoint + sealed::Sealed {
-    fn into_service<T>(self) -> FinchersService<Self, DefaultResponder<Self::Item>>
+    fn into_service(self) -> FinchersService<Self>
     where
-        Self::Item: ToString + HttpStatus,
-        Self: Sized;
-
-    fn with_responder<R>(self, responder: R) -> FinchersService<Self, R>
-    where
-        R: Responder<Item = Self::Item> + Clone,
+        Self::Item: Responder,
         Self: Sized;
 }
 
 impl<E: Endpoint> EndpointServiceExt for E {
-    fn into_service<T>(self) -> FinchersService<Self, DefaultResponder<Self::Item>>
+    fn into_service(self) -> FinchersService<Self>
     where
-        Self::Item: ToString + HttpStatus,
+        Self::Item: Responder,
         Self: Sized,
     {
-        FinchersService::new(self, Default::default())
-    }
-
-    fn with_responder<R>(self, responder: R) -> FinchersService<Self, R>
-    where
-        R: Responder<Item = Self::Item> + Clone,
-        Self: Sized,
-    {
-        FinchersService::new(self, responder)
+        FinchersService::new(self)
     }
 }
 

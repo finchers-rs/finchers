@@ -2,7 +2,7 @@
 extern crate finchers;
 extern crate http;
 
-use finchers::response::HttpStatus;
+use finchers::output::HttpStatus;
 use http::StatusCode;
 
 fn assert_impl_http_response<T: HttpStatus>(t: T) -> T {

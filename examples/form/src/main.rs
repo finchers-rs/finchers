@@ -5,6 +5,7 @@ extern crate http;
 extern crate serde_derive;
 
 use finchers::endpoint::prelude::*;
+use finchers::output::Debug;
 use finchers::prelude::*;
 use finchers::runtime::Server;
 use finchers::urlencoded::{form_body, from_csv, queries};
@@ -29,9 +30,9 @@ fn main() {
         .with(choice![get(queries()), post(form_body()),])
         .map(|param: FormParam| {
             println!("Received: {:#}", param);
-            param
+            Debug::new(param)
         });
 
-    let service = endpoint.into_service::<FormParam>();
+    let service = endpoint.into_service();
     Server::from_service(service).run();
 }

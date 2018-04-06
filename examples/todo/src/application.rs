@@ -1,6 +1,6 @@
 use super::db::{self, NewTodo, PatchTodo, Todo, TodoRepository};
+use finchers::error::HttpError;
 use finchers::http::StatusCode;
-use finchers::response::HttpStatus;
 
 error_chain! {
     foreign_links {
@@ -8,7 +8,7 @@ error_chain! {
     }
 }
 
-impl HttpStatus for Error {
+impl HttpError for Error {
     fn status_code(&self) -> StatusCode {
         StatusCode::INTERNAL_SERVER_ERROR
     }

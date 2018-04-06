@@ -5,78 +5,27 @@
 //! * `Json<T>` - represents a JSON value to be deserialized from request bodies.
 //! * `JsonBody<T>` - an endpoint to parse the request body into a value of `T`.
 
-// #![doc(html_root_url = "https://docs.rs/finchers/0.10.1")]
-#![deny(missing_docs)]
-#![deny(missing_debug_implementations)]
-#![deny(warnings)]
-
 extern crate finchers_core;
 extern crate finchers_endpoint;
 extern crate futures;
 extern crate http;
 extern crate mime;
 extern crate serde;
-#[macro_use]
 extern crate serde_json;
 
 use futures::{Future, Poll};
+use http::header::HeaderValue;
 use http::{header, Response, StatusCode};
 use serde::de::DeserializeOwned;
 use serde::ser::Serialize;
-use std::error;
-use std::fmt;
-use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
+use std::{error, fmt};
 
 use finchers_core::error::{BadRequest, HttpError};
-use finchers_core::response::{HttpStatus, Responder};
-use finchers_core::{Bytes, Error as FinchersError, Input};
+use finchers_core::output::{Body, HttpStatus, Responder};
+use finchers_core::{Bytes, Error as FinchersError, Input, Output};
 use finchers_endpoint::body::FromBody;
 use finchers_endpoint::{self as endpoint, Context, Endpoint};
-
-/// The error type from serde_json
-#[derive(Debug)]
-pub enum Error {
-    /// The value of `Content-type` is invalid
-    InvalidMediaType,
-    /// An error during parsing the request body
-    InvalidBody(serde_json::Error),
-}
-
-impl From<serde_json::Error> for Error {
-    #[inline]
-    fn from(err: serde_json::Error) -> Self {
-        Error::InvalidBody(err)
-    }
-}
-
-impl fmt::Display for Error {
-    #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Error::InvalidMediaType => f.write_str("The header `Content-type' must be application/json"),
-            Error::InvalidBody(ref e) => e.fmt(f),
-        }
-    }
-}
-
-impl error::Error for Error {
-    #[inline]
-    fn description(&self) -> &str {
-        match *self {
-            Error::InvalidMediaType => "invalid media type",
-            Error::InvalidBody(ref e) => e.description(),
-        }
-    }
-
-    #[inline]
-    fn cause(&self) -> Option<&error::Error> {
-        match *self {
-            Error::InvalidBody(ref e) => Some(&*e),
-            _ => None,
-        }
-    }
-}
 
 /// Represents a JSON value
 #[derive(Debug, Default, Copy, Clone, PartialEq, PartialOrd, Eq, Hash)]
@@ -176,73 +125,86 @@ impl<T: DeserializeOwned + 'static> Future for JsonBodyFuture<T> {
 }
 
 #[allow(missing_docs)]
-pub struct JsonResponder<T> {
-    _marker: PhantomData<fn() -> T>,
+pub struct JsonOutput<T> {
+    value: T,
 }
 
-impl<T> Copy for JsonResponder<T> {}
+impl<T: Serialize + HttpStatus> JsonOutput<T> {
+    pub fn new(value: T) -> JsonOutput<T> {
+        JsonOutput { value }
+    }
+}
 
-impl<T> Clone for JsonResponder<T> {
+impl<T: Serialize + HttpStatus> Responder for JsonOutput<T> {
+    type Error = Error;
+
+    fn respond(self, _: &Input) -> Result<Output, Self::Error> {
+        let body = serde_json::to_vec(&self.value).map_err(Error::Serialize)?;
+        let body_len = body.len().to_string();
+
+        let mut response = Response::new(Body::once(body));
+        *response.status_mut() = self.value.status_code();
+        response
+            .headers_mut()
+            .insert(header::CONTENT_TYPE, HeaderValue::from_static("application/json"));
+        response.headers_mut().insert(header::CONTENT_LENGTH, unsafe {
+            HeaderValue::from_shared_unchecked(body_len.into())
+        });
+        Ok(response)
+    }
+}
+
+/// The error type from serde_json
+#[derive(Debug)]
+pub enum Error {
+    /// The value of `Content-type` is invalid
+    InvalidMediaType,
+    /// An error during parsing the request body
+    InvalidBody(serde_json::Error),
+    /// during converting to HTTP response
+    Serialize(serde_json::Error),
+}
+
+impl From<serde_json::Error> for Error {
     #[inline]
-    fn clone(&self) -> Self {
-        *self
+    fn from(err: serde_json::Error) -> Self {
+        Error::InvalidBody(err)
     }
 }
 
-impl<T> Default for JsonResponder<T> {
-    fn default() -> Self {
-        JsonResponder { _marker: PhantomData }
-    }
-}
-
-impl<T> fmt::Debug for JsonResponder<T> {
+impl fmt::Display for Error {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("JsonResponder").finish()
-    }
-}
-
-impl<T: Serialize + HttpStatus> Responder for JsonResponder<T> {
-    type Item = T;
-    type Body = String;
-
-    fn respond(&self, outcome: Result<T, FinchersError>) -> Response<String> {
-        match outcome {
-            Ok(item) => json_response(&item),
-            Err(ref err) if err.is_noroute() => no_route(),
-            Err(err) => json_error_response(&*err),
+        match *self {
+            Error::InvalidMediaType => f.write_str("The header `Content-type' must be application/json"),
+            Error::InvalidBody(ref e) | Error::Serialize(ref e) => e.fmt(f),
         }
     }
 }
 
-fn json_response<T: Serialize + HttpStatus>(item: &T) -> Response<String> {
-    let body = serde_json::to_string(item).expect("failed to serialize a JSON body");
-    make_json_response(item.status_code(), body)
+impl error::Error for Error {
+    #[inline]
+    fn description(&self) -> &str {
+        match *self {
+            Error::InvalidMediaType => "invalid media type",
+            Error::InvalidBody(ref e) | Error::Serialize(ref e) => e.description(),
+        }
+    }
+
+    #[inline]
+    fn cause(&self) -> Option<&error::Error> {
+        match *self {
+            Error::InvalidBody(ref e) => Some(&*e),
+            _ => None,
+        }
+    }
 }
 
-fn json_error_response(err: &HttpError) -> Response<String> {
-    make_json_response(
-        err.status_code(),
-        json!({
-            "message": err.to_string(),
-            "description": err.description(),
-        }).to_string(),
-    )
-}
-
-fn no_route() -> Response<String> {
-    make_json_response(
-        StatusCode::NOT_FOUND,
-        json!({
-            "message": "Not found",
-        }).to_string(),
-    )
-}
-
-fn make_json_response(status: StatusCode, body: String) -> Response<String> {
-    Response::builder()
-        .status(status)
-        .header(header::CONTENT_TYPE, "application/json")
-        .header(header::CONTENT_LENGTH, body.len().to_string().as_str())
-        .body(body)
-        .unwrap()
+impl HttpError for Error {
+    fn status_code(&self) -> StatusCode {
+        match *self {
+            Error::InvalidBody(..) | Error::InvalidMediaType => StatusCode::BAD_REQUEST,
+            Error::Serialize(..) => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
 }

@@ -1,7 +1,7 @@
+use error::HttpError;
 use futures::future;
 use http::StatusCode;
 use hyper;
-use response::HttpStatus;
 use std::{error, fmt};
 
 #[allow(missing_docs)]
@@ -57,7 +57,7 @@ impl error::Error for Error {
     }
 }
 
-impl HttpStatus for Error {
+impl HttpError for Error {
     fn status_code(&self) -> StatusCode {
         StatusCode::INTERNAL_SERVER_ERROR
     }

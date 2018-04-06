@@ -1,4 +1,3 @@
-use finchers_core::response::ResponseBody;
 use futures::{Future, Poll, Stream};
 use http;
 use hyper;
@@ -21,8 +20,8 @@ where
     S::RequestBody: From<hyper::Body>,
     S::Service: Send,
     <S::Service as HttpService>::Future: Send,
-    <S::ResponseBody as ResponseBody>::Item: Send,
-    <S::ResponseBody as ResponseBody>::Stream: Send,
+    S::ResponseBody: Stream<Error = io::Error> + Send + 'static,
+    <S::ResponseBody as Stream>::Item: AsRef<[u8]> + Send + 'static,
 {
     /// Create a new launcher from given service.
     pub fn new(new_service: S) -> Self {
@@ -44,7 +43,7 @@ where
         let addr = addr.unwrap_or_else(|| ([127, 0, 0, 1], 4000).into());
 
         let listener = TcpListener::bind(&addr).expect("failed to create TcpListener");
-        let protocol = Http::<<S::ResponseBody as ResponseBody>::Item>::new();
+        let protocol = Http::<<S::ResponseBody as Stream>::Item>::new();
         let server = listener
             .incoming()
             .map_err(|err| eprintln!("failed to accept: {}", err))
@@ -54,7 +53,7 @@ where
                     let request = http::Request::from(request).map(Into::into);
                     service
                         .call(request)
-                        .map(|response| hyper::Response::from(response.map(ResponseBody::into_stream).map(BodyWrapper)))
+                        .map(|response| hyper::Response::from(response.map(BodyWrapper)))
                         .map_err(hyper::Error::from)
                 });
                 let conn = protocol.serve_connection(stream, service);
@@ -69,8 +68,8 @@ where
     S: HttpService + Send + Sync + 'static,
     S::RequestBody: From<hyper::Body>,
     S::Future: Send,
-    <S::ResponseBody as ResponseBody>::Item: Send,
-    <S::ResponseBody as ResponseBody>::Stream: Send,
+    S::ResponseBody: Stream<Error = io::Error> + Send + 'static,
+    <S::ResponseBody as Stream>::Item: AsRef<[u8]> + Send + 'static,
 {
     pub fn from_service(service: S) -> Self {
         Self::new(const_service(service))

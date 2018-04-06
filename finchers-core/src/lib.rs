@@ -12,10 +12,11 @@ mod string;
 
 pub mod error;
 pub mod input;
-pub mod response;
+pub mod output;
 
 pub use bytes::Bytes;
 pub use error::Error;
 pub use input::Input;
 pub use never::Never;
+pub use output::Output;
 pub use string::BytesString;
