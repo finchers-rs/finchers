@@ -35,7 +35,7 @@ fn main() {
     ]);
 
     let service = endpoint.map(Display::new).into_service();
-    Server::from_service(service).run();
+    Server::new(service).run();
 }
 ```
 
