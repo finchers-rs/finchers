@@ -1,5 +1,5 @@
 use finchers_core::error::NoRoute;
-use finchers_core::input::{insert_input, with_input};
+use finchers_core::input::replace_input;
 use finchers_core::output::{Output, Responder};
 use finchers_core::{Error, Input};
 use futures::{Async, Future, Poll};
@@ -25,7 +25,7 @@ impl<F: Future<Error = Error>> Future for Apply<F> {
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         if let Some(input) = self.input.take() {
-            insert_input(input);
+            replace_input(Some(input));
         }
         match self.in_flight {
             Some(ref mut f) => f.poll(),
@@ -62,12 +62,12 @@ where
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         if let Some(input) = self.input.take() {
-            insert_input(input);
+            replace_input(Some(input));
         }
         match self.in_flight {
             Some(ref mut f) => {
                 let item = try_ready!(f.poll());
-                with_input(|input| item.respond(input).map(Async::Ready).map_err(Into::into))
+                Input::with(|input| item.respond(input).map(Async::Ready).map_err(Into::into))
             }
             None => Err(NoRoute::new().into()),
         }

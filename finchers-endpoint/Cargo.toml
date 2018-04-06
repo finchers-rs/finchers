@@ -4,9 +4,17 @@ version = "0.11.0-dev"
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 
 [dependencies]
-finchers-core = { version = "0.11.0-dev", path = "../finchers-core" }
 futures = "0.1.21"
 http = "0.1.5"
 
+[dependencies.finchers-core]
+version = "0.11.0-dev"
+path = "../finchers-core"
+default-features = false
+
 [dev-dependencies]
 finchers-test = { version = "0.11.0-dev", path = "../finchers-test" }
+
+[features]
+default = ["from_hyper"]
+from_hyper = ["finchers-core/from_hyper"]

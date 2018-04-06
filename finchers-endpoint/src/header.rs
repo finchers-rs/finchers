@@ -7,7 +7,6 @@
 //! * `HeaderOptional<H, E>` - Similar to `Header`, but always matches and returns a `None` if `H` is not found.
 
 use finchers_core::error::{BadRequest, NotPresent};
-use finchers_core::input::with_input;
 use finchers_core::{Error, Input, Never};
 use futures::{Future, Poll};
 use std::marker::PhantomData;
@@ -63,7 +62,7 @@ impl<H: FromHeader> Future for HeaderFuture<H> {
     type Error = Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        with_input(|input| {
+        Input::with(|input| {
             let value = input
                 .headers()
                 .get(H::header_name())
@@ -120,7 +119,7 @@ impl<H: FromHeader> Future for HeaderRequiredFuture<H> {
     type Error = Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        with_input(|input| match input.headers().get(H::header_name()) {
+        Input::with(|input| match input.headers().get(H::header_name()) {
             Some(h) => H::from_header(h.as_bytes())
                 .map(Into::into)
                 .map_err(|e| BadRequest::new(e).into()),
@@ -177,7 +176,7 @@ impl<H: FromHeader> Future for HeaderOptionalFuture<H> {
     type Error = Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        with_input(|input| {
+        Input::with(|input| {
             Ok(input
                 .headers()
                 .get(H::header_name())

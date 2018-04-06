@@ -45,7 +45,6 @@ impl_http_error! {
     @server_error ::std::sync::mpsc::RecvError;
     @server_error ::std::sync::mpsc::TryRecvError;
     @server_error ::std::sync::mpsc::RecvTimeoutError;
-    @server_error ::hyper::Error;
 }
 
 #[derive(Debug)]

@@ -8,8 +8,8 @@ mime = "0.3"
 http = "0.1"
 futures = "0.1"
 bytes = "0.4"
+hyper = { version = "0.11.24", default-features = false, optional = true }
 
-[dependencies.hyper]
-version = "0.11.24"
-features = ["compat"]
-default-features = false
+[features]
+default = ["from_hyper"]
+from_hyper = ["hyper"]

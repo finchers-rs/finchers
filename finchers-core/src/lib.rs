@@ -4,8 +4,10 @@ extern crate bytes;
 #[macro_use]
 extern crate futures;
 extern crate http;
-extern crate hyper;
 extern crate mime;
+
+#[cfg(feature = "from_hyper")]
+extern crate hyper;
 
 mod never;
 mod string;

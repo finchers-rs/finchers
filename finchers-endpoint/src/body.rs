@@ -15,7 +15,7 @@
 //! [from_body]: ../../http/trait.FromBody.html
 
 use finchers_core::error::BadRequest;
-use finchers_core::input::{self, with_input, with_input_mut};
+use finchers_core::input;
 use finchers_core::{Bytes, BytesString, Error, Input, Never};
 use futures::{Future, Poll};
 use std::marker::PhantomData;
@@ -76,12 +76,12 @@ impl<T: FromBody> Future for BodyFuture<T> {
         'poll: loop {
             let next = match *self {
                 BodyFuture::Init => {
-                    let body = with_input_mut(|input| input.body()).expect("The body has already taken");
-                    BodyFuture::Recv(body)
+                    let body = Input::with_mut(|input| input.body()).expect("The body has already taken");
+                    BodyFuture::Recv(body.into_data())
                 }
                 BodyFuture::Recv(ref mut body) => {
                     let buf = try_ready!(body.poll());
-                    let body = with_input(|input| T::from_body(buf, input).map_err(BadRequest::new))?;
+                    let body = Input::with_mut(|input| T::from_body(buf, input).map_err(BadRequest::new))?;
                     return Ok(body.into());
                 }
                 _ => panic!("cannot resolve/reject twice"),
@@ -136,8 +136,8 @@ impl Future for BodyStreamFuture {
     type Error = Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        with_input_mut(|input| {
-            let body = input.body_stream().expect("cannot take a body twice");
+        Input::with_mut(|input| {
+            let body = input.body().expect("cannot take a body twice");
             Ok(input::BodyStream::from(body).into())
         })
     }
@@ -158,13 +158,13 @@ pub trait FromBody: 'static + Sized {
     }
 
     /// Performs conversion from raw bytes into itself.
-    fn from_body(body: Bytes, input: &Input) -> Result<Self, Self::Error>;
+    fn from_body(body: Bytes, input: &mut Input) -> Result<Self, Self::Error>;
 }
 
 impl FromBody for () {
     type Error = Never;
 
-    fn from_body(_: Bytes, _: &Input) -> Result<Self, Self::Error> {
+    fn from_body(_: Bytes, _: &mut Input) -> Result<Self, Self::Error> {
         Ok(())
     }
 }
@@ -172,7 +172,7 @@ impl FromBody for () {
 impl FromBody for Bytes {
     type Error = Never;
 
-    fn from_body(body: Bytes, _: &Input) -> Result<Self, Self::Error> {
+    fn from_body(body: Bytes, _: &mut Input) -> Result<Self, Self::Error> {
         Ok(body)
     }
 }
@@ -180,7 +180,7 @@ impl FromBody for Bytes {
 impl FromBody for BytesString {
     type Error = Utf8Error;
 
-    fn from_body(body: Bytes, _: &Input) -> Result<Self, Self::Error> {
+    fn from_body(body: Bytes, _: &mut Input) -> Result<Self, Self::Error> {
         BytesString::from_shared(body)
     }
 }
@@ -188,7 +188,7 @@ impl FromBody for BytesString {
 impl FromBody for String {
     type Error = Utf8Error;
 
-    fn from_body(body: Bytes, _: &Input) -> Result<Self, Self::Error> {
+    fn from_body(body: Bytes, _: &mut Input) -> Result<Self, Self::Error> {
         BytesString::from_shared(body).map(Into::into)
     }
 }
@@ -196,7 +196,7 @@ impl FromBody for String {
 impl<T: FromBody> FromBody for Option<T> {
     type Error = Never;
 
-    fn from_body(body: Bytes, input: &Input) -> Result<Self, Self::Error> {
+    fn from_body(body: Bytes, input: &mut Input) -> Result<Self, Self::Error> {
         Ok(T::from_body(body, input).ok())
     }
 }
@@ -204,7 +204,7 @@ impl<T: FromBody> FromBody for Option<T> {
 impl<T: FromBody> FromBody for Result<T, T::Error> {
     type Error = Never;
 
-    fn from_body(body: Bytes, input: &Input) -> Result<Self, Self::Error> {
+    fn from_body(body: Bytes, input: &mut Input) -> Result<Self, Self::Error> {
         Ok(T::from_body(body, input))
     }
 }
