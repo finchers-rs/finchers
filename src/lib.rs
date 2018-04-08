@@ -17,7 +17,7 @@ pub use finchers_derive::*;
 pub use finchers_core::{error, output};
 
 pub mod endpoint {
-    pub use finchers_endpoint::{body, endpoint, header, join_all, method, ok, path, skip_all, Endpoint, EndpointExt,
+    pub use finchers_endpoint::{all, body, endpoint, header, method, ok, path, skip_all, Endpoint, EndpointExt,
                                 FromBody, FromHeader, FromSegment, FromSegments, IntoEndpoint};
 
     /// The "prelude" for building endpoints

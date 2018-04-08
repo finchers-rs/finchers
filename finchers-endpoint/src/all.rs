@@ -2,38 +2,24 @@
 
 use finchers_core::Input;
 use futures::future;
-use std::fmt;
 use {Context, Endpoint, IntoEndpoint};
 
-pub fn join_all<I>(iter: I) -> JoinAll<<I::Item as IntoEndpoint>::Endpoint>
+pub fn all<I>(iter: I) -> All<<I::Item as IntoEndpoint>::Endpoint>
 where
     I: IntoIterator,
     I::Item: IntoEndpoint,
 {
-    JoinAll {
+    All {
         inner: iter.into_iter().map(IntoEndpoint::into_endpoint).collect(),
     }
 }
 
-pub struct JoinAll<E: Endpoint> {
+#[derive(Clone, Debug)]
+pub struct All<E> {
     inner: Vec<E>,
 }
 
-impl<E: Endpoint + Clone> Clone for JoinAll<E> {
-    fn clone(&self) -> Self {
-        JoinAll {
-            inner: self.inner.clone(),
-        }
-    }
-}
-
-impl<E: Endpoint + fmt::Debug> fmt::Debug for JoinAll<E> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_tuple("JoinAll").field(&self.inner).finish()
-    }
-}
-
-impl<E: Endpoint> Endpoint for JoinAll<E> {
+impl<E: Endpoint> Endpoint for All<E> {
     type Item = Vec<E::Item>;
     type Future = future::JoinAll<Vec<E::Future>>;
 

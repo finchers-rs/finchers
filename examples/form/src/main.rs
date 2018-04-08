@@ -27,7 +27,7 @@ impl fmt::Display for FormParam {
 
 fn main() {
     let endpoint = endpoint("search")
-        .with(choice![get(queries()), post(form_body()),])
+        .right(choice![get(queries()), post(form_body()),])
         .map(|param: FormParam| {
             println!("Received: {:#}", param);
             Debug::new(param)

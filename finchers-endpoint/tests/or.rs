@@ -6,7 +6,7 @@ use finchers_test::Client;
 
 #[test]
 fn test_or_1() {
-    let endpoint = endpoint("foo").with(ok("foo")).or(endpoint("bar").with(ok("bar")));
+    let endpoint = endpoint("foo").right(ok("foo")).or(endpoint("bar").right(ok("bar")));
     let client = Client::new(endpoint);
 
     let outcome = client.get("/foo").run().unwrap();
@@ -18,8 +18,8 @@ fn test_or_1() {
 
 #[test]
 fn test_or_choose_longer_segments() {
-    let e1 = endpoint("foo").with(ok("foo"));
-    let e2 = endpoint("foo/bar").with(ok("foobar"));
+    let e1 = endpoint("foo").right(ok("foo"));
+    let e2 = endpoint("foo/bar").right(ok("foobar"));
     let endpoint = e1.or(e2);
     let client = Client::new(endpoint);
 

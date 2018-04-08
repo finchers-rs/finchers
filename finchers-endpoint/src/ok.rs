@@ -4,16 +4,16 @@ use finchers_core::{Error, Input};
 use futures::future::{self, FutureResult};
 use {Context, Endpoint};
 
-pub fn ok<T: Clone>(x: T) -> EndpointOk<T> {
-    EndpointOk { x }
+pub fn ok<T: Clone>(x: T) -> Ok<T> {
+    Ok { x }
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct EndpointOk<T> {
+pub struct Ok<T> {
     x: T,
 }
 
-impl<T: Clone> Endpoint for EndpointOk<T> {
+impl<T: Clone> Endpoint for Ok<T> {
     type Item = T;
     type Future = FutureResult<T, Error>;
 

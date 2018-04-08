@@ -7,16 +7,16 @@ extern crate http;
 
 pub mod apply;
 pub mod body;
+pub mod ext;
 pub mod header;
 pub mod method;
 pub mod path;
-pub mod ext;
 
 mod context;
 mod endpoint;
 
+mod all;
 mod ok;
-mod join_all;
 mod skip_all;
 
 // re-exports
@@ -24,8 +24,8 @@ pub use context::Context;
 pub use endpoint::{endpoint, Endpoint, IntoEndpoint};
 pub use ext::EndpointExt;
 
-pub use ok::{ok, EndpointOk};
-pub use join_all::{join_all, JoinAll};
+pub use all::{all, All};
+pub use ok::{ok, Ok};
 pub use skip_all::{skip_all, SkipAll};
 
 pub use body::FromBody;

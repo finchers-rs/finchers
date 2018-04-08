@@ -29,7 +29,7 @@ use finchers::output::Display;
 use finchers::runtime::Server;
 
 fn main() {
-    let endpoint = endpoint("api/v1").with(choice![
+    let endpoint = endpoint("api/v1").right(choice![
         get(path::<u64>()).map(|id| format!("GET: id={}", id)),
         post(body::<String>()).map(|body| format!("POST: body={}", body)),
     ]);

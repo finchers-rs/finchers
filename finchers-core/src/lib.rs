@@ -9,6 +9,7 @@ extern crate mime;
 #[cfg(feature = "from_hyper")]
 extern crate hyper;
 
+mod caller;
 mod never;
 mod string;
 
@@ -17,6 +18,7 @@ pub mod input;
 pub mod output;
 
 pub use bytes::Bytes;
+pub use caller::{BoxedCaller, Caller};
 pub use error::Error;
 pub use input::Input;
 pub use never::Never;

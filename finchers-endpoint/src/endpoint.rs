@@ -1,4 +1,3 @@
-use super::*;
 use Context;
 use finchers_core::{Error, Input};
 use futures::Future;
@@ -7,14 +6,14 @@ use std::sync::Arc;
 
 /// Abstruction of an endpoint.
 pub trait Endpoint {
-    /// The type *on success*.
+    /// The *internal* type of this endpoint.
     type Item;
 
-    /// The type of returned value from `apply`.
+    /// The type of future returned from `apply`.
     type Future: Future<Item = Self::Item, Error = Error>;
 
     /// Validates the incoming HTTP request,
-    /// and returns the instance of `Task` if matched.
+    /// and returns the instance of `Future` if matched.
     fn apply(&self, input: &Input, ctx: &mut Context) -> Option<Self::Future>;
 }
 
@@ -72,26 +71,6 @@ impl<E: Endpoint> IntoEndpoint for E {
     #[inline]
     fn into_endpoint(self) -> Self::Endpoint {
         self
-    }
-}
-
-impl IntoEndpoint for () {
-    type Item = ();
-    type Endpoint = EndpointOk<()>;
-
-    #[inline]
-    fn into_endpoint(self) -> Self::Endpoint {
-        ok(())
-    }
-}
-
-impl<E: IntoEndpoint> IntoEndpoint for Vec<E> {
-    type Item = Vec<E::Item>;
-    type Endpoint = JoinAll<E::Endpoint>;
-
-    #[inline]
-    fn into_endpoint(self) -> Self::Endpoint {
-        join_all(self)
     }
 }
 

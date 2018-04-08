@@ -1,10 +1,8 @@
-#![allow(missing_docs)]
-
 use finchers_core::Input;
 use futures::{Future, Poll};
 use {Context, Endpoint, IntoEndpoint};
 
-pub fn or<E1, E2>(e1: E1, e2: E2) -> Or<E1::Endpoint, E2::Endpoint>
+pub fn new<E1, E2>(e1: E1, e2: E2) -> Or<E1::Endpoint, E2::Endpoint>
 where
     E1: IntoEndpoint,
     E2: IntoEndpoint<Item = E1::Item>,
