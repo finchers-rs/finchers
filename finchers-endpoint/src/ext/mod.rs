@@ -19,9 +19,9 @@ pub use self::right::Right;
 pub use self::then::Then;
 pub use self::try_abort::TryAbort;
 
+use callable::Callable;
 use endpoint::{Endpoint, IntoEndpoint};
-use finchers_core::Caller;
-use finchers_core::error::HttpError;
+use finchers_core::HttpError;
 use futures::IntoFuture;
 
 pub trait EndpointExt: Endpoint + Sized {
@@ -70,7 +70,7 @@ pub trait EndpointExt: Endpoint + Sized {
     /// Create an endpoint which maps the returned value to a different type.
     fn map<F>(self, f: F) -> Map<Self, F>
     where
-        F: Caller<Self::Item> + Clone,
+        F: Callable<Self::Item> + Clone,
     {
         assert_endpoint::<_, F::Output>(self::map::new(self, f))
     }
@@ -82,7 +82,7 @@ pub trait EndpointExt: Endpoint + Sized {
     /// If "f" will reject with an unrecoverable error, use "try_abort" instead.
     fn then<F>(self, f: F) -> Then<Self, F>
     where
-        F: Caller<Self::Item> + Clone,
+        F: Callable<Self::Item> + Clone,
         F::Output: IntoFuture<Error = !>,
     {
         assert_endpoint::<_, <F::Output as IntoFuture>::Item>(self::then::new(self, f))
@@ -100,7 +100,7 @@ pub trait EndpointExt: Endpoint + Sized {
     /// to an error value.
     fn abort_with<F>(self, f: F) -> AbortWith<Self, F>
     where
-        F: Caller<Self::Item> + Clone,
+        F: Callable<Self::Item> + Clone,
         F::Output: HttpError,
     {
         assert_endpoint::<_, !>(self::abort_with::new(self, f))
@@ -113,7 +113,7 @@ pub trait EndpointExt: Endpoint + Sized {
     /// an unrecoverable error.
     fn try_abort<F>(self, f: F) -> TryAbort<Self, F>
     where
-        F: Caller<Self::Item> + Clone,
+        F: Callable<Self::Item> + Clone,
         F::Output: IntoFuture,
         <F::Output as IntoFuture>::Error: HttpError,
     {

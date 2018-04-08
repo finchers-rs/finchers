@@ -44,9 +44,9 @@ use std::marker::PhantomData;
 use std::{error, fmt};
 
 use finchers_core::error::BadRequest;
-use finchers_core::{Bytes, Error as FinchersError, Input};
+use finchers_core::{Bytes, Input};
 use finchers_endpoint::body::FromBody;
-use finchers_endpoint::{self as endpoint, Context, Endpoint};
+use finchers_endpoint::{self as endpoint, Context, Endpoint, Error as FinchersError};
 
 #[allow(missing_docs)]
 pub fn queries<T: de::DeserializeOwned>() -> Queries<T> {

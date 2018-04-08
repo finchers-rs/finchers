@@ -1,12 +1,12 @@
-use finchers_core::error::HttpError;
-use finchers_core::{Caller, Error, Input};
+use callable::Callable;
+use finchers_core::{HttpError, Input};
 use futures::{Future, Poll};
-use {Context, Endpoint, IntoEndpoint};
+use {Context, Endpoint, Error, IntoEndpoint};
 
 pub fn new<E, F>(endpoint: E, f: F) -> AbortWith<E::Endpoint, F>
 where
     E: IntoEndpoint,
-    F: Caller<E::Item> + Clone,
+    F: Callable<E::Item> + Clone,
     F::Output: HttpError,
 {
     AbortWith {
@@ -24,7 +24,7 @@ pub struct AbortWith<E, F> {
 impl<E, F> Endpoint for AbortWith<E, F>
 where
     E: Endpoint,
-    F: Caller<E::Item> + Clone,
+    F: Callable<E::Item> + Clone,
     F::Output: HttpError,
 {
     type Item = !;
@@ -48,7 +48,7 @@ pub struct AbortWithFuture<T, F> {
 impl<T, F> Future for AbortWithFuture<T, F>
 where
     T: Future<Error = Error>,
-    F: Caller<T::Item>,
+    F: Callable<T::Item>,
     F::Output: HttpError,
 {
     type Item = !;

@@ -52,8 +52,8 @@ pub mod prelude {
     pub use finchers_runtime::EndpointServiceExt;
 }
 
-pub use finchers_core::{Error, Input, Output};
-pub use finchers_endpoint::{Endpoint, EndpointExt};
+pub use finchers_core::{Input, Output};
+pub use finchers_endpoint::{Endpoint, EndpointExt, Error};
 
 #[macro_use]
 mod macros;

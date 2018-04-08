@@ -1,11 +1,12 @@
-use finchers_core::{Caller, Input};
+use callable::Callable;
+use finchers_core::Input;
 use futures::{Future, Poll};
 use {Context, Endpoint, IntoEndpoint};
 
 pub fn new<E, F>(endpoint: E, f: F) -> Map<E::Endpoint, F>
 where
     E: IntoEndpoint,
-    F: Caller<E::Item> + Clone,
+    F: Callable<E::Item> + Clone,
 {
     Map {
         endpoint: endpoint.into_endpoint(),
@@ -22,7 +23,7 @@ pub struct Map<E, F> {
 impl<E, F> Endpoint for Map<E, F>
 where
     E: Endpoint,
-    F: Caller<E::Item> + Clone,
+    F: Callable<E::Item> + Clone,
 {
     type Item = F::Output;
     type Future = MapFuture<E::Future, F>;
@@ -45,7 +46,7 @@ pub struct MapFuture<T, F> {
 impl<T, F> Future for MapFuture<T, F>
 where
     T: Future,
-    F: Caller<T::Item>,
+    F: Callable<T::Item>,
 {
     type Item = F::Output;
     type Error = T::Error;

@@ -23,9 +23,9 @@ use std::{error, fmt};
 
 use finchers_core::error::HttpError;
 use finchers_core::output::{Body, HttpStatus, Responder};
-use finchers_core::{Bytes, Error as FinchersError, Input, Output};
+use finchers_core::{Bytes, Input, Output};
 use finchers_endpoint::body::FromBody;
-use finchers_endpoint::{self as endpoint, Context, Endpoint};
+use finchers_endpoint::{self as endpoint, Context, Endpoint, Error as FinchersError};
 
 /// Represents a JSON value
 #[derive(Debug, Default, Copy, Clone, PartialEq, PartialOrd, Eq, Hash)]

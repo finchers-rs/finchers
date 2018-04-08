@@ -6,10 +6,9 @@ extern crate http;
 use futures::Future;
 use http::{HttpTryFrom, Method, Request, Uri};
 
-use finchers_core::Error;
 use finchers_core::input::{BodyStream, Input};
-use finchers_endpoint::Endpoint;
 use finchers_endpoint::apply::apply;
+use finchers_endpoint::{Endpoint, Error};
 
 #[derive(Debug)]
 pub struct Client<E: Endpoint> {

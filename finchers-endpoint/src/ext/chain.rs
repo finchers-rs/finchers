@@ -1,5 +1,6 @@
 use self::Chain::*;
-use finchers_core::error::{Error, HttpError};
+use Error;
+use finchers_core::HttpError;
 use futures::Async::*;
 use futures::{Future, Poll};
 use std::mem;

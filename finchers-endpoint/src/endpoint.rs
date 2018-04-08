@@ -1,8 +1,8 @@
-use Context;
-use finchers_core::{Error, Input};
+use finchers_core::Input;
 use futures::Future;
 use std::rc::Rc;
 use std::sync::Arc;
+use {Context, Error};
 
 /// Abstruction of an endpoint.
 pub trait Endpoint {

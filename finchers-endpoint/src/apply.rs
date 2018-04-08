@@ -1,9 +1,9 @@
+use finchers_core::Input;
 use finchers_core::error::NoRoute;
 use finchers_core::input::replace_input;
 use finchers_core::output::{Output, Responder};
-use finchers_core::{Error, Input};
 use futures::{Async, Future, Poll};
-use {Context, Endpoint};
+use {Context, Endpoint, Error};
 
 pub fn apply<E: Endpoint>(endpoint: &E, input: Input) -> Apply<E::Future> {
     let in_flight = endpoint.apply(&input, &mut Context::new(&input));

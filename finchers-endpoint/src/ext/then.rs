@@ -1,12 +1,13 @@
 use super::chain::Chain;
-use finchers_core::{Caller, Error, Input};
+use callable::Callable;
+use finchers_core::Input;
 use futures::{Future, IntoFuture, Poll};
-use {Context, Endpoint};
+use {Context, Endpoint, Error};
 
 pub fn new<E, F, R>(endpoint: E, f: F) -> Then<E, F>
 where
     E: Endpoint,
-    F: Caller<E::Item, Output = R> + Clone,
+    F: Callable<E::Item, Output = R> + Clone,
     R: IntoFuture<Error = !>,
 {
     Then { endpoint, f }
@@ -21,7 +22,7 @@ pub struct Then<E, F> {
 impl<E, F, R> Endpoint for Then<E, F>
 where
     E: Endpoint,
-    F: Caller<E::Item, Output = R> + Clone,
+    F: Callable<E::Item, Output = R> + Clone,
     R: IntoFuture<Error = !>,
 {
     type Item = R::Item;
@@ -39,7 +40,7 @@ where
 pub struct ThenFuture<T, F, R>
 where
     T: Future<Error = Error>,
-    F: Caller<T::Item, Output = R>,
+    F: Callable<T::Item, Output = R>,
     R: IntoFuture<Error = !>,
 {
     inner: Chain<T, R::Future, F>,
@@ -48,7 +49,7 @@ where
 impl<T, F, R> Future for ThenFuture<T, F, R>
 where
     T: Future<Error = Error>,
-    F: Caller<T::Item, Output = R>,
+    F: Callable<T::Item, Output = R>,
     R: IntoFuture<Error = !>,
 {
     type Item = R::Item;

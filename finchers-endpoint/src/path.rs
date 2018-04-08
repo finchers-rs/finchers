@@ -19,7 +19,7 @@
 //! ```
 
 use finchers_core::error::{BadRequest, NotPresent};
-use finchers_core::{Error, Input, Never};
+use finchers_core::{Input, Never};
 use futures::future::{self, ok, FutureResult};
 use std::borrow::Cow;
 use std::marker::PhantomData;
@@ -27,7 +27,7 @@ use std::ops::Deref;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::{error, fmt};
-use {Context, Endpoint, IntoEndpoint};
+use {Context, Endpoint, Error, IntoEndpoint};
 
 #[allow(missing_docs)]
 pub struct MatchPath {

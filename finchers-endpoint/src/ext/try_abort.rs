@@ -1,13 +1,13 @@
 use super::chain::Chain;
-use finchers_core::error::HttpError;
-use finchers_core::{Caller, Error, Input};
+use callable::Callable;
+use finchers_core::{HttpError, Input};
 use futures::{Future, IntoFuture, Poll};
-use {Context, Endpoint};
+use {Context, Endpoint, Error};
 
 pub fn new<E, F, R>(endpoint: E, f: F) -> TryAbort<E, F>
 where
     E: Endpoint,
-    F: Caller<E::Item, Output = R> + Clone,
+    F: Callable<E::Item, Output = R> + Clone,
     R: IntoFuture,
     R::Error: HttpError,
 {
@@ -23,7 +23,7 @@ pub struct TryAbort<E, F> {
 impl<E, F, R> Endpoint for TryAbort<E, F>
 where
     E: Endpoint,
-    F: Caller<E::Item, Output = R> + Clone,
+    F: Callable<E::Item, Output = R> + Clone,
     R: IntoFuture,
     R::Error: HttpError,
 {
@@ -42,7 +42,7 @@ where
 pub struct TryAbortFuture<T, F, R>
 where
     T: Future<Error = Error>,
-    F: Caller<T::Item, Output = R>,
+    F: Callable<T::Item, Output = R>,
     R: IntoFuture,
     R::Error: HttpError,
 {
@@ -52,7 +52,7 @@ where
 impl<T, F, R> Future for TryAbortFuture<T, F, R>
 where
     T: Future<Error = Error>,
-    F: Caller<T::Item, Output = R>,
+    F: Callable<T::Item, Output = R>,
     R: IntoFuture,
     R::Error: HttpError,
 {
