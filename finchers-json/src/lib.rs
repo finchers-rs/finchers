@@ -6,14 +6,12 @@
 //! * `JsonBody<T>` - an endpoint to parse the request body into a value of `T`.
 
 extern crate finchers_core;
-extern crate finchers_endpoint;
-extern crate futures;
+extern crate finchers_http;
 extern crate http;
 extern crate mime;
 extern crate serde;
 extern crate serde_json;
 
-use futures::{Future, Poll};
 use http::header::HeaderValue;
 use http::{header, Response, StatusCode};
 use serde::de::DeserializeOwned;
@@ -24,8 +22,7 @@ use std::{error, fmt};
 use finchers_core::error::HttpError;
 use finchers_core::output::{Body, HttpStatus, Responder};
 use finchers_core::{Bytes, Input, Output};
-use finchers_endpoint::body::FromBody;
-use finchers_endpoint::{self as endpoint, Context, Endpoint, Error as FinchersError};
+use finchers_http::body::FromBody;
 
 /// Represents a JSON value
 #[derive(Debug, Default, Copy, Clone, PartialEq, PartialOrd, Eq, Hash)]
@@ -70,82 +67,15 @@ impl<T: DeserializeOwned + 'static> FromBody for Json<T> {
     }
 }
 
-/// Creates an endpoint to parse the request body to a value of `T`
-pub fn json_body<T: DeserializeOwned + 'static>() -> JsonBody<T> {
-    JsonBody {
-        inner: endpoint::body::body(),
-    }
-}
-
-#[allow(missing_docs)]
-pub struct JsonBody<T> {
-    inner: endpoint::body::Body<Json<T>>,
-}
-
-impl<T> Copy for JsonBody<T> {}
-
-impl<T> Clone for JsonBody<T> {
-    #[inline]
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl<T> fmt::Debug for JsonBody<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_tuple("JsonBody").field(&self.inner).finish()
-    }
-}
-
-impl<T: DeserializeOwned + 'static> Endpoint for JsonBody<T> {
-    type Item = T;
-    type Future = JsonBodyFuture<T>;
-
-    fn apply(&self, input: &Input, ctx: &mut Context) -> Option<Self::Future> {
-        Some(JsonBodyFuture {
-            inner: match self.inner.apply(input, ctx) {
-                Some(inner) => inner,
-                None => return None,
-            },
-        })
-    }
-}
-
-#[doc(hidden)]
-#[allow(missing_debug_implementations)]
-pub struct JsonBodyFuture<T> {
-    inner: endpoint::body::BodyFuture<Json<T>>,
-}
-
-impl<T: DeserializeOwned + 'static> Future for JsonBodyFuture<T> {
-    type Item = T;
-    type Error = FinchersError;
-
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        self.inner.poll().map(|async| async.map(|Json(body)| body))
-    }
-}
-
-#[allow(missing_docs)]
-pub struct JsonOutput<T> {
-    value: T,
-}
-
-impl<T: Serialize + HttpStatus> JsonOutput<T> {
-    pub fn new(value: T) -> JsonOutput<T> {
-        JsonOutput { value }
-    }
-}
-
-impl<T: Serialize + HttpStatus> Responder for JsonOutput<T> {
+impl<T: Serialize + HttpStatus> Responder for Json<T> {
     type Error = Error;
 
     fn respond(self, _: &Input) -> Result<Output, Self::Error> {
-        let body = serde_json::to_vec(&self.value).map_err(Error::Serialize)?;
+        let body = serde_json::to_vec(&self.0).map_err(Error::Serialize)?;
         let body_len = body.len().to_string();
 
         let mut response = Response::new(Body::once(body));
-        *response.status_mut() = self.value.status_code();
+        *response.status_mut() = self.0.status_code();
         response
             .headers_mut()
             .insert(header::CONTENT_TYPE, HeaderValue::from_static("application/json"));

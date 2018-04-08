@@ -10,7 +10,6 @@ mod db;
 
 use self::Response::*;
 use self::db::*;
-use finchers::json::{json_body, JsonOutput};
 use finchers::prelude::*;
 use finchers::runtime::Server;
 
@@ -31,28 +30,29 @@ fn main() {
     let endpoint = {
         use finchers::endpoint::ok;
         use finchers::endpoint::prelude::*;
+        use finchers::json::Json;
 
-        let find_todo = get(path())
+        let find_todo = get(param())
             .try_abort(app.with(|app, id| app.find_todo(id)))
             .map(TheTodo);
 
         let list_todos = get(ok(())).try_abort(app.with(|app, _| app.list_todos())).map(Todos);
 
-        let add_todo = post(json_body())
-            .try_abort(app.with(|app, new_todo| app.add_todo(new_todo)))
+        let add_todo = post(body())
+            .try_abort(app.with(|app, Json(new_todo)| app.add_todo(new_todo)))
             .map(NewTodo);
 
-        let patch_todo = patch(path().and(json_body()))
-            .try_abort(app.with(|app, (id, patch)| app.patch_todo(id, patch)))
+        let patch_todo = patch(param().and(body()))
+            .try_abort(app.with(|app, (id, Json(patch))| app.patch_todo(id, patch)))
             .map(TheTodo);
 
-        let delete_todo = delete(path())
+        let delete_todo = delete(param())
             .try_abort(app.with(|app, id| app.delete_todo(id)))
             .map(|_| Deleted);
 
-        endpoint("api/v1/todos")
+        path("api/v1/todos")
             .right(choice![find_todo, list_todos, add_todo, patch_todo, delete_todo,])
-            .map(JsonOutput::new)
+            .map(Json::from)
     };
 
     let service = endpoint.into_service();

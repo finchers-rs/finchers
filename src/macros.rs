@@ -29,13 +29,13 @@ macro_rules! choice {
 
 #[cfg(test)]
 mod tests {
-    use finchers_endpoint::endpoint;
+    use finchers_http::path::path;
 
     #[test]
     #[allow(unused_variables)]
     fn compile_test_choice() {
-        let e1 = endpoint("foo");
-        let e2 = choice!(e1, "bar", "baz");
-        let e3 = choice!("foobar", e2,);
+        let e1 = path("foo");
+        let e2 = choice!(e1, path("bar"), path("baz"));
+        let e3 = choice!(path("foobar"), e2,);
     }
 }

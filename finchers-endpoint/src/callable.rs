@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use std::sync::Arc;
 
-/// The abstruction of a function with a parameter.
+/// The abstraction of a function with a parameter.
 ///
 /// This trait is similar to `FnOnce(T) -> R`. The difference is that
 /// `Rc<T>` and `Arc<T>` are also the implementors of this trait,

@@ -32,6 +32,7 @@
 
 extern crate finchers_core;
 extern crate finchers_endpoint;
+extern crate finchers_http;
 extern crate futures;
 extern crate mime;
 extern crate serde;
@@ -45,8 +46,8 @@ use std::{error, fmt};
 
 use finchers_core::error::BadRequest;
 use finchers_core::{Bytes, Input};
-use finchers_endpoint::body::FromBody;
-use finchers_endpoint::{self as endpoint, Context, Endpoint, Error as FinchersError};
+use finchers_endpoint::{Context, Endpoint, Error as FinchersError};
+use finchers_http::body::FromBody;
 
 #[allow(missing_docs)]
 pub fn queries<T: de::DeserializeOwned>() -> Queries<T> {
@@ -251,62 +252,6 @@ impl<F: de::DeserializeOwned + 'static> FromBody for Form<F> {
         } else {
             Err(Error::InvalidMediaType)
         }
-    }
-}
-
-#[allow(missing_docs)]
-pub fn form_body<T: de::DeserializeOwned + 'static>() -> FormBody<T> {
-    FormBody {
-        inner: endpoint::body::body(),
-    }
-}
-
-#[allow(missing_docs)]
-pub struct FormBody<T> {
-    inner: endpoint::body::Body<Form<T>>,
-}
-
-impl<T> Copy for FormBody<T> {}
-
-impl<T> Clone for FormBody<T> {
-    #[inline]
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl<T> fmt::Debug for FormBody<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_tuple("FormBody").field(&self.inner).finish()
-    }
-}
-
-impl<T: de::DeserializeOwned + 'static> Endpoint for FormBody<T> {
-    type Item = T;
-    type Future = FormBodyFuture<T>;
-
-    fn apply(&self, input: &Input, ctx: &mut Context) -> Option<Self::Future> {
-        Some(FormBodyFuture {
-            inner: match self.inner.apply(input, ctx) {
-                Some(inner) => inner,
-                None => return None,
-            },
-        })
-    }
-}
-
-#[doc(hidden)]
-#[allow(missing_debug_implementations)]
-pub struct FormBodyFuture<T> {
-    inner: endpoint::body::BodyFuture<Form<T>>,
-}
-
-impl<T: de::DeserializeOwned + 'static> Future for FormBodyFuture<T> {
-    type Item = T;
-    type Error = FinchersError;
-
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        self.inner.poll().map(|async| async.map(|Form(body)| body))
     }
 }
 

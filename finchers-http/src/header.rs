@@ -8,10 +8,10 @@
 
 use finchers_core::error::{BadRequest, NotPresent};
 use finchers_core::{Input, Never};
+use finchers_endpoint::{Context, Endpoint, Error};
 use futures::{Future, Poll};
 use std::marker::PhantomData;
 use std::{error, fmt};
-use {Context, Endpoint, Error};
 
 #[allow(missing_docs)]
 pub fn header<H: FromHeader>() -> Header<H> {
