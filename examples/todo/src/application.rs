@@ -3,6 +3,12 @@ use finchers::error::HttpError;
 use finchers::http::StatusCode;
 
 error_chain! {
+    errors {
+        NoEntity {
+            description("no entity")
+            display("no entity")
+        }
+    }
     foreign_links {
         Database(db::Error);
     }
@@ -10,7 +16,10 @@ error_chain! {
 
 impl HttpError for Error {
     fn status_code(&self) -> StatusCode {
-        StatusCode::INTERNAL_SERVER_ERROR
+        match *self.kind() {
+            ErrorKind::NoEntity => StatusCode::NOT_FOUND,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
+        }
     }
 }
 
@@ -20,8 +29,8 @@ pub struct Application {
 }
 
 impl Application {
-    pub fn find_todo(&self, id: u64) -> Result<Option<Todo>> {
-        Ok(self.todos.find(id)?)
+    pub fn find_todo(&self, id: u64) -> Result<Todo> {
+        self.todos.find(id)?.ok_or_else(|| ErrorKind::NoEntity.into())
     }
 
     pub fn list_todos(&self) -> Result<Vec<Todo>> {
@@ -32,12 +41,20 @@ impl Application {
         Ok(self.todos.add(new_todo)?)
     }
 
-    pub fn patch_todo(&self, id: u64, patch: PatchTodo) -> Result<Option<Todo>> {
-        Ok(self.todos.patch(id, patch)?)
+    pub fn patch_todo(&self, id: u64, patch: PatchTodo) -> Result<Todo> {
+        self.todos.patch(id, patch)?.ok_or_else(|| ErrorKind::NoEntity.into())
     }
 
-    pub fn delete_todo(&self, id: u64) -> Result<Option<()>> {
-        Ok(self.todos.delete(id)?)
+    pub fn delete_todo(&self, id: u64) -> Result<()> {
+        self.todos.delete(id)?.ok_or_else(|| ErrorKind::NoEntity.into())
+    }
+
+    pub fn with<F, T, R>(&self, f: F) -> impl FnOnce(T) -> R + Send + Clone + 'static
+    where
+        F: FnOnce(Application, T) -> R + Send + Clone + 'static,
+    {
+        let app = self.clone();
+        move |arg| f(app, arg)
     }
 }
 
