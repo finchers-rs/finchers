@@ -1,4 +1,17 @@
-use super::*;
+mod and_then;
+mod join;
+mod map;
+mod or;
+mod skip;
+mod with;
+
+pub use self::and_then::AndThen;
+pub use self::join::{Join, Join3, Join4, Join5};
+pub use self::map::Map;
+pub use self::or::Or;
+pub use self::skip::Skip;
+pub use self::with::With;
+
 use endpoint::{Endpoint, IntoEndpoint};
 use finchers_core::Error;
 use futures::IntoFuture;
