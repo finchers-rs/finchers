@@ -10,7 +10,50 @@ use std::{error, fmt};
 
 // ==== MatchPath =====
 
-#[allow(missing_docs)]
+/// Create an endpoint which takes some segments from the path
+/// and check if the segments are matched to the certain pattern.
+///
+/// # Panics
+/// This function will be panic if the given argument is an invalid
+/// pattern.
+///
+/// # Example
+///
+/// Matches to a single segment:
+///
+/// ```
+/// # extern crate finchers_http;
+/// # extern crate finchers_endpoint;
+/// # use finchers_http::path::path;
+/// # use finchers_endpoint::{ok, EndpointExt};
+/// # fn main() {
+/// let endpoint = path("foo").and(ok("matched"));
+/// # }
+/// ```
+///
+/// Matches to multiple segments:
+///
+/// ```
+/// # extern crate finchers_http;
+/// # extern crate finchers_endpoint;
+/// # use finchers_http::path::path;
+/// # use finchers_endpoint::{ok, EndpointExt};
+/// # fn main() {
+/// let endpoint = path("foo/bar").and(ok("matched"));
+/// # }
+/// ```
+///
+/// Matches to all remaining segments:
+///
+/// ```
+/// # extern crate finchers_http;
+/// # extern crate finchers_endpoint;
+/// # use finchers_http::path::path;
+/// # use finchers_endpoint::{ok, EndpointExt};
+/// # fn main() {
+/// let endpoint = path("*").and(ok("matched"));
+/// # }
+/// ```
 pub fn path(s: &str) -> MatchPath {
     MatchPath::from_str(s).expect("The following path cannot be converted to an endpoint.")
 }
@@ -117,16 +160,30 @@ impl error::Error for ParseMatchError {
 /// # Example
 ///
 /// ```
+/// # extern crate finchers_http;
+/// # extern crate finchers_endpoint;
+/// # use finchers_endpoint::EndpointExt;
+/// # use finchers_http::path::param;
+/// # fn main() {
 /// let endpoint = param()
 ///     .map(|id: i32| format!("id={}", id));
+/// # }
 /// ```
 ///
 /// Custom handling for the conversion error:
 ///
 /// ```
+/// # extern crate finchers_core;
+/// # extern crate finchers_endpoint;
+/// # extern crate finchers_http;
+/// # use finchers_endpoint::EndpointExt;
+/// # use finchers_http::path::{param, FromSegment};
+/// # fn main() {
+/// use finchers_core::error::BadRequest;
 /// // impl Endpoint<Item = i32>
-/// let endpoint = param::<Result<i32, _>>()
-///     .try_abort(|id| id.map_err(BadRequest::from));
+/// let endpoint = param()
+///     .try_abort(|id: Result<i32, _>| id.map_err(BadRequest::new));
+/// # }
 /// ```
 pub fn param<T>() -> Param<T>
 where
@@ -230,8 +287,15 @@ impl<T: FromSegment> FromSegment for Result<T, T::Error> {
 /// # Example
 ///
 /// ```
+/// # extern crate finchers_endpoint;
+/// # extern crate finchers_http;
+/// # use finchers_endpoint::EndpointExt;
+/// # use finchers_http::path::params;
+/// # use std::path::PathBuf;
+/// # fn main() {
 /// let endpoint = params()
 ///     .map(|path: PathBuf| format!("path={}", path.display()));
+/// # }
 /// ```
 pub fn params<T>() -> Params<T>
 where
