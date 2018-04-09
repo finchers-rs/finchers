@@ -26,7 +26,7 @@ pub mod endpoint {
     pub mod prelude {
         pub use finchers_endpoint::{endpoint, Endpoint, IntoEndpoint};
         pub use finchers_http::body::{body, body_stream};
-        pub use finchers_http::header::{header, header_opt, header_req};
+        pub use finchers_http::header::header;
         pub use finchers_http::method::{delete, get, head, patch, post, put};
         pub use finchers_http::path::{param, params, path};
     }

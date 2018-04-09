@@ -1,6 +1,6 @@
 //! Components for parsing request path
 
-use finchers_core::{HttpError, Input, Never};
+use finchers_core::{Input, Never};
 use finchers_endpoint::{Context, Endpoint, Error, Segment, Segments};
 use futures::future::{ok, FutureResult};
 use std::marker::PhantomData;
@@ -176,11 +176,10 @@ impl error::Error for ParseMatchError {
 /// # extern crate finchers_core;
 /// # extern crate finchers_endpoint;
 /// # extern crate finchers_http;
+/// # use finchers_core::error::BadRequest;
 /// # use finchers_endpoint::EndpointExt;
 /// # use finchers_http::path::{param, FromSegment};
 /// # fn main() {
-/// use finchers_core::error::BadRequest;
-/// // impl Endpoint<Item = i32>
 /// let endpoint = param()
 ///     .try_abort(|id: Result<i32, _>| id.map_err(BadRequest::new));
 /// # }
@@ -188,7 +187,6 @@ impl error::Error for ParseMatchError {
 pub fn param<T>() -> Param<T>
 where
     T: FromSegment,
-    T::Error: HttpError,
 {
     Param { _marker: PhantomData }
 }
@@ -216,7 +214,6 @@ impl<T> fmt::Debug for Param<T> {
 impl<T> Endpoint for Param<T>
 where
     T: FromSegment,
-    T::Error: HttpError,
 {
     type Item = T;
     type Future = FutureResult<Self::Item, Error>;
@@ -300,7 +297,6 @@ impl<T: FromSegment> FromSegment for Result<T, T::Error> {
 pub fn params<T>() -> Params<T>
 where
     T: FromSegments,
-    T::Error: HttpError,
 {
     Params { _marker: PhantomData }
 }
@@ -328,7 +324,6 @@ impl<T> fmt::Debug for Params<T> {
 impl<T> Endpoint for Params<T>
 where
     T: FromSegments,
-    T::Error: HttpError,
 {
     type Item = T;
     type Future = FutureResult<Self::Item, Error>;
