@@ -1,5 +1,5 @@
 use finchers_core::Input;
-use {Context, Endpoint, IntoEndpoint};
+use finchers_core::endpoint::{Context, Endpoint, IntoEndpoint};
 
 pub fn new<E1, E2>(e1: E1, e2: E2) -> Right<E1::Endpoint, E2::Endpoint>
 where

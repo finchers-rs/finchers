@@ -1,8 +1,8 @@
 use super::chain::Chain;
 use callable::Callable;
 use finchers_core::Input;
+use finchers_core::endpoint::{Context, Endpoint, Error};
 use futures::{Future, IntoFuture, Poll};
-use {Context, Endpoint, Error};
 
 pub fn new<E, F, R>(endpoint: E, f: F) -> Then<E, F>
 where

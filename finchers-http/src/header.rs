@@ -1,8 +1,8 @@
 //! Components for accessing of HTTP headers
 
+use finchers_core::endpoint::{Context, Endpoint, Error};
 use finchers_core::error::NotPresent;
 use finchers_core::{HttpError, Input, Never};
-use finchers_endpoint::{Context, Endpoint, Error};
 use futures::future::{err, ok, FutureResult, IntoFuture};
 use std::fmt;
 use std::marker::PhantomData;

@@ -1,4 +1,4 @@
-use finchers_core::error::HttpError;
+use error::HttpError;
 use http::header::{self, HeaderValue};
 use http::{Response, StatusCode};
 use std::fmt;

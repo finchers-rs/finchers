@@ -1,7 +1,7 @@
 use callable::Callable;
 use finchers_core::Input;
+use finchers_core::endpoint::{Context, Endpoint, IntoEndpoint};
 use futures::{Future, Poll};
-use {Context, Endpoint, IntoEndpoint};
 
 pub fn new<E, F>(endpoint: E, f: F) -> Map<E::Endpoint, F>
 where

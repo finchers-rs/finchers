@@ -1,4 +1,4 @@
-use finchers_core::Input;
+use Input;
 use std::ops::Deref;
 
 /// A context during the routing.

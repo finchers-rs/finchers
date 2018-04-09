@@ -18,9 +18,9 @@
 #[macro_export]
 macro_rules! choice {
     ($h:expr, $($t:expr),*) => {{
-        use $crate::endpoint::{endpoint, EndpointExt};
-        endpoint($h)
-            $( .or(endpoint($t)) )*
+        use $crate::endpoint::{IntoEndpoint, EndpointExt};
+        IntoEndpoint::into_endpoint($h)
+            $( .or(IntoEndpoint::into_endpoint($t)) )*
     }};
     ($h:expr, $($t:expr,)+) => {
         choice!($h, $($t),*)

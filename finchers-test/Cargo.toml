@@ -5,6 +5,5 @@ authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 
 [dependencies]
 finchers-core = { version = "0.11.0-dev", path = "../finchers-core" }
-finchers-endpoint = { version = "0.11.0-dev", path = "../finchers-endpoint" }
 futures = "0.1.21"
 http = "0.1.5"

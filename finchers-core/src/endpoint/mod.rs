@@ -1,8 +1,14 @@
-use finchers_core::Input;
+mod context;
+mod error;
+
+use Input;
 use futures::Future;
 use std::rc::Rc;
 use std::sync::Arc;
-use {Context, Error};
+
+// re-exports
+pub use self::context::{Context, Segment, Segments};
+pub use self::error::{Error, ErrorKind};
 
 /// Abstruction of an endpoint.
 pub trait Endpoint {
@@ -72,10 +78,4 @@ impl<E: Endpoint> IntoEndpoint for E {
     fn into_endpoint(self) -> Self::Endpoint {
         self
     }
-}
-
-/// A shortcut of `IntoEndpoint::into_endpoint()`
-#[inline]
-pub fn endpoint<E: IntoEndpoint>(endpoint: E) -> E::Endpoint {
-    endpoint.into_endpoint()
 }

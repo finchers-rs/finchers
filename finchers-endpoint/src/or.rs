@@ -1,6 +1,6 @@
 use finchers_core::Input;
+use finchers_core::endpoint::{Context, Endpoint, IntoEndpoint};
 use futures::{Future, Poll};
-use {Context, Endpoint, IntoEndpoint};
 
 pub fn new<E1, E2>(e1: E1, e2: E2) -> Or<E1::Endpoint, E2::Endpoint>
 where

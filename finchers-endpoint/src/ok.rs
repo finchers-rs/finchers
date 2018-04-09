@@ -1,8 +1,8 @@
 #![allow(missing_docs)]
 
 use finchers_core::Input;
+use finchers_core::endpoint::{Context, Endpoint, Error};
 use futures::future::{self, FutureResult};
-use {Context, Endpoint, Error};
 
 pub fn ok<T: Clone>(x: T) -> Ok<T> {
     Ok { x }

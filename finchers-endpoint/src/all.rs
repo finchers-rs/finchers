@@ -1,8 +1,8 @@
 #![allow(missing_docs)]
 
 use finchers_core::Input;
+use finchers_core::endpoint::{Context, Endpoint, IntoEndpoint};
 use futures::future;
-use {Context, Endpoint, IntoEndpoint};
 
 pub fn all<I>(iter: I) -> All<<I::Item as IntoEndpoint>::Endpoint>
 where

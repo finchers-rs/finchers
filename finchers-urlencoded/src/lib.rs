@@ -31,7 +31,6 @@
 #![deny(warnings)]
 
 extern crate finchers_core;
-extern crate finchers_endpoint;
 extern crate finchers_http;
 extern crate futures;
 extern crate mime;
@@ -44,9 +43,9 @@ use std::iter::FromIterator;
 use std::marker::PhantomData;
 use std::{error, fmt};
 
+use finchers_core::endpoint::{Context, Endpoint, Error as FinchersError};
 use finchers_core::error::BadRequest;
 use finchers_core::{Bytes, Input};
-use finchers_endpoint::{Context, Endpoint, Error as FinchersError};
 use finchers_http::body::FromBody;
 
 #[allow(missing_docs)]

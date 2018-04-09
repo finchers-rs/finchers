@@ -14,10 +14,10 @@
 //!
 //! [from_body]: ../../http/trait.FromBody.html
 
+use finchers_core::endpoint::{Context, Endpoint, Error};
 use finchers_core::error::BadRequest;
 use finchers_core::input;
 use finchers_core::{Bytes, BytesString, Input, Never};
-use finchers_endpoint::{Context, Endpoint, Error};
 use futures::{Future, Poll};
 use std::marker::PhantomData;
 use std::str::Utf8Error;

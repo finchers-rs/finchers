@@ -11,10 +11,10 @@ fn test_or_1() {
     let endpoint = path("foo").right(ok("foo")).or(path("bar").right(ok("bar")));
     let client = Client::new(endpoint);
 
-    let outcome = client.get("/foo").run().unwrap();
+    let outcome = client.get("/foo").run();
     assert_eq!(outcome.ok(), Some("foo"));
 
-    let outcome = client.get("/bar").run().unwrap();
+    let outcome = client.get("/bar").run();
     assert_eq!(outcome.ok(), Some("bar"));
 }
 
@@ -25,9 +25,9 @@ fn test_or_choose_longer_segments() {
     let endpoint = e1.or(e2);
     let client = Client::new(endpoint);
 
-    let outcome = client.get("/foo").run().unwrap();
+    let outcome = client.get("/foo").run();
     assert_eq!(outcome.ok(), Some("foo"));
 
-    let outcome = client.get("/foo/bar").run().unwrap();
+    let outcome = client.get("/foo/bar").run();
     assert_eq!(outcome.ok(), Some("foobar"));
 }

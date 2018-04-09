@@ -1,6 +1,6 @@
 extern crate finchers_core;
-extern crate finchers_endpoint;
 
+#[macro_use]
 extern crate futures;
 extern crate http;
 extern crate hyper;

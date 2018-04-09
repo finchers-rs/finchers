@@ -1,6 +1,6 @@
+use finchers_core::endpoint::{Context, Endpoint, Error, IntoEndpoint};
 use finchers_core::{HttpError, Input};
 use futures::{Future, Poll};
-use {Context, Endpoint, Error, IntoEndpoint};
 
 pub fn new<E>(endpoint: E) -> Abort<E::Endpoint>
 where

@@ -1,7 +1,7 @@
 use callable::Callable;
+use finchers_core::endpoint::{Context, Endpoint, Error};
 use finchers_core::{HttpError, Input};
 use futures::{Future, Poll};
-use {Context, Endpoint, Error};
 
 pub fn new<E, F, T, R>(endpoint: E, f: F) -> TryAbort<E, F>
 where

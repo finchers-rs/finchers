@@ -1,7 +1,7 @@
 //! Components for parsing request path
 
+use finchers_core::endpoint::{Context, Endpoint, Error, Segment, Segments};
 use finchers_core::{Input, Never};
-use finchers_endpoint::{Context, Endpoint, Error, Segment, Segments};
 use futures::future::{ok, FutureResult};
 use std::marker::PhantomData;
 use std::path::PathBuf;

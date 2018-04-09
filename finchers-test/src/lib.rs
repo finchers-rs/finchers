@@ -1,14 +1,14 @@
 extern crate finchers_core;
-extern crate finchers_endpoint;
 extern crate futures;
 extern crate http;
 
-use futures::Future;
-use http::{HttpTryFrom, Method, Request, Uri};
-
+use finchers_core::endpoint::{Endpoint, Error};
 use finchers_core::input::{BodyStream, Input};
-use finchers_endpoint::apply::apply;
-use finchers_endpoint::{Endpoint, Error};
+use finchers_core::util::create_task;
+use futures::Future;
+use http::header::{HeaderName, HeaderValue};
+use http::{HttpTryFrom, Method, Request, Uri};
+use std::mem;
 
 #[derive(Debug)]
 pub struct Client<E: Endpoint> {
@@ -38,18 +38,10 @@ impl<E: Endpoint> Client<E> {
     {
         let mut client = ClientRequest {
             client: self,
-            request: Ok(Request::new(Default::default())),
+            request: Request::new(Default::default()),
         };
-        client.modify(|request| {
-            Method::try_from(method).map(|method| {
-                *request.method_mut() = method;
-            })
-        });
-        client.modify(|request| {
-            Uri::try_from(uri).map(|uri| {
-                *request.uri_mut() = uri;
-            })
-        });
+        client.method(method);
+        client.uri(uri);
         client
     }
 
@@ -66,37 +58,58 @@ impl<E: Endpoint> Client<E> {
 #[derive(Debug)]
 pub struct ClientRequest<'a, E: Endpoint + 'a> {
     client: &'a Client<E>,
-    request: http::Result<Request<BodyStream>>,
+    request: Request<BodyStream>,
 }
 
 impl<'a, E: Endpoint> ClientRequest<'a, E> {
-    fn modify<F, R>(&mut self, f: F)
+    pub fn method<M>(&mut self, method: M) -> &mut ClientRequest<'a, E>
     where
-        F: FnOnce(&mut Request<BodyStream>) -> Result<(), R>,
-        R: Into<http::Error>,
+        Method: HttpTryFrom<M>,
     {
-        if self.request.is_ok() {
-            if let Err(err) = f(self.request.as_mut().unwrap()) {
-                self.request = Err(err.into());
-            }
-        }
-    }
-
-    pub fn body<B>(mut self, body: B) -> ClientRequest<'a, E>
-    where
-        B: Into<BodyStream>,
-    {
-        if let Ok(ref mut request) = self.request {
-            *request.body_mut() = body.into();
-        }
+        *self.request.method_mut() = Method::try_from(method).ok().unwrap();
         self
     }
 
-    pub fn run(self) -> http::Result<Result<E::Item, Error>> {
-        let ClientRequest { client, request } = self;
-        let input: Input = request?.into();
-        let f = apply(&client.endpoint, input);
+    pub fn uri<U>(&mut self, uri: U) -> &mut ClientRequest<'a, E>
+    where
+        Uri: HttpTryFrom<U>,
+    {
+        *self.request.uri_mut() = Uri::try_from(uri).ok().unwrap();
+        self
+    }
+
+    pub fn header<K, V>(&mut self, name: K, value: V) -> &mut ClientRequest<'a, E>
+    where
+        HeaderName: HttpTryFrom<K>,
+        HeaderValue: HttpTryFrom<V>,
+    {
+        let name = HeaderName::try_from(name).ok().unwrap();
+        let value = HeaderValue::try_from(value).ok().unwrap();
+        self.request.headers_mut().insert(name, value);
+        self
+    }
+
+    pub fn body<B>(&mut self, body: B) -> &mut ClientRequest<'a, E>
+    where
+        B: Into<BodyStream>,
+    {
+        *self.request.body_mut() = body.into();
+        self
+    }
+
+    pub fn run(&mut self) -> Result<E::Item, Error> {
+        let ClientRequest { client, request } = mem::replace(
+            self,
+            ClientRequest {
+                client: self.client,
+                request: http::Request::new(Default::default()),
+            },
+        );
+
+        let input: Input = request.into();
+        let f = create_task(&client.endpoint, input);
         // TODO: replace with futures::executor
-        Ok(f.wait())
+        let (result, _input) = f.wait().expect("EndpointTask never fails");
+        result
     }
 }
