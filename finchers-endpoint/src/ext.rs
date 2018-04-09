@@ -66,6 +66,21 @@ pub trait EndpointExt: Endpoint + Sized {
         assert_endpoint::<_, <F::Output as IntoFuture>::Item>(self::then::new(self, f))
     }
 
+    /// [unstable]
+    /// Create an endpoint which continue an asynchronous computation
+    /// from the value returned from "self".
+    ///
+    /// The future will abort if the future returned from "f" will be rejected to
+    /// an unrecoverable error.
+    fn and_then<F>(self, f: F) -> AndThen<Self, F>
+    where
+        F: Callable<Self::Item> + Clone,
+        F::Output: IntoFuture,
+        <F::Output as IntoFuture>::Error: HttpError,
+    {
+        assert_endpoint::<_, <F::Output as IntoFuture>::Item>(self::and_then::new(self, f))
+    }
+
     /// Create an endpoint which always abort with the returned value from "self".
     fn abort(self) -> Abort<Self>
     where
@@ -84,18 +99,16 @@ pub trait EndpointExt: Endpoint + Sized {
         assert_endpoint::<_, !>(self::abort_with::new(self, f))
     }
 
-    /// Create an endpoint which continue an asynchronous computation
-    /// from the value returned from "self".
+    /// Create an endpoint which maps the returned value from "self" to a `Result`.
     ///
-    /// The future will abort if the future returned from "f" will be rejected to
-    /// an unrecoverable error.
-    fn try_abort<F>(self, f: F) -> TryAbort<Self, F>
+    /// The future will abort if the mapped value will be an `Err`.
+    fn try_abort<F, T, E>(self, f: F) -> TryAbort<Self, F>
     where
-        F: Callable<Self::Item> + Clone,
-        F::Output: IntoFuture,
-        <F::Output as IntoFuture>::Error: HttpError,
+        F: Callable<Self::Item, Output = Result<T, E>> + Clone,
+        E: HttpError,
     {
-        assert_endpoint::<_, <F::Output as IntoFuture>::Item>(self::try_abort::new(self, f))
+        // FIXME: replace the trait bound with `Try`
+        assert_endpoint::<_, T>(self::try_abort::new(self, f))
     }
 }
 

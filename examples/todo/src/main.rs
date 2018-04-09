@@ -33,21 +33,21 @@ fn main() {
         use finchers::json::Json;
 
         let find_todo = get(param())
-            .try_abort(app.with(|app, id| app.find_todo(id)))
+            .and_then(app.with(|app, id| app.find_todo(id)))
             .map(TheTodo);
 
         let list_todos = get(ok(())).try_abort(app.with(|app, _| app.list_todos())).map(Todos);
 
         let add_todo = post(body())
-            .try_abort(app.with(|app, Json(new_todo)| app.add_todo(new_todo)))
+            .and_then(app.with(|app, Json(new_todo)| app.add_todo(new_todo)))
             .map(NewTodo);
 
         let patch_todo = patch(param().and(body()))
-            .try_abort(app.with(|app, (id, Json(patch))| app.patch_todo(id, patch)))
+            .and_then(app.with(|app, (id, Json(patch))| app.patch_todo(id, patch)))
             .map(TheTodo);
 
         let delete_todo = delete(param())
-            .try_abort(app.with(|app, id| app.delete_todo(id)))
+            .and_then(app.with(|app, id| app.delete_todo(id)))
             .map(|_| Deleted);
 
         path("api/v1/todos")
