@@ -1,5 +1,4 @@
 use super::chain::Chain;
-use callable::Callable;
 use finchers_core::endpoint::{Context, Endpoint, Error};
 use finchers_core::{HttpError, Input};
 use futures::{Future, IntoFuture, Poll};
@@ -7,7 +6,7 @@ use futures::{Future, IntoFuture, Poll};
 pub fn new<E, F, R>(endpoint: E, f: F) -> AndThen<E, F>
 where
     E: Endpoint,
-    F: Callable<E::Item, Output = R> + Clone,
+    F: FnOnce(E::Item) -> R + Clone,
     R: IntoFuture,
     R::Error: HttpError,
 {
@@ -23,7 +22,7 @@ pub struct AndThen<E, F> {
 impl<E, F, R> Endpoint for AndThen<E, F>
 where
     E: Endpoint,
-    F: Callable<E::Item, Output = R> + Clone,
+    F: FnOnce(E::Item) -> R + Clone,
     R: IntoFuture,
     R::Error: HttpError,
 {
@@ -42,7 +41,7 @@ where
 pub struct AndThenFuture<T, F, R>
 where
     T: Future<Error = Error>,
-    F: Callable<T::Item, Output = R>,
+    F: FnOnce(T::Item) -> R,
     R: IntoFuture,
     R::Error: HttpError,
 {
@@ -52,7 +51,7 @@ where
 impl<T, F, R> Future for AndThenFuture<T, F, R>
 where
     T: Future<Error = Error>,
-    F: Callable<T::Item, Output = R>,
+    F: FnOnce(T::Item) -> R,
     R: IntoFuture,
     R::Error: HttpError,
 {
@@ -61,7 +60,7 @@ where
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         self.inner.poll(|result, f| match result {
-            Ok(item) => Ok(Err(f.call(item).into_future())),
+            Ok(item) => Ok(Err(f(item).into_future())),
             Err(err) => Err(err),
         })
     }

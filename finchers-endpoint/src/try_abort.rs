@@ -1,4 +1,3 @@
-use callable::Callable;
 use finchers_core::endpoint::{Context, Endpoint, Error};
 use finchers_core::{HttpError, Input};
 use futures::{Future, Poll};
@@ -6,7 +5,7 @@ use futures::{Future, Poll};
 pub fn new<E, F, T, R>(endpoint: E, f: F) -> TryAbort<E, F>
 where
     E: Endpoint,
-    F: Callable<E::Item, Output = Result<T, R>> + Clone,
+    F: FnOnce(E::Item) -> Result<T, R> + Clone,
     R: HttpError,
 {
     TryAbort { endpoint, f }
@@ -21,7 +20,7 @@ pub struct TryAbort<E, F> {
 impl<E, F, T, R> Endpoint for TryAbort<E, F>
 where
     E: Endpoint,
-    F: Callable<E::Item, Output = Result<T, R>> + Clone,
+    F: FnOnce(E::Item) -> Result<T, R> + Clone,
     R: HttpError,
 {
     type Item = T;
@@ -45,7 +44,7 @@ pub struct TryAbortFuture<T, F> {
 impl<T, F, U, E> Future for TryAbortFuture<T, F>
 where
     T: Future<Error = Error>,
-    F: Callable<T::Item, Output = Result<U, E>> + Clone,
+    F: FnOnce(T::Item) -> Result<U, E> + Clone,
     E: HttpError,
 {
     type Item = U;
@@ -54,6 +53,6 @@ where
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         let item = try_ready!(self.future.poll());
         let f = self.f.take().expect("cannot resolve/reject twice");
-        f.call(item).map_err(Into::into).map(Into::into)
+        f(item).map_err(Into::into).map(Into::into)
     }
 }

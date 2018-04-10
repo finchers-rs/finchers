@@ -1,5 +1,3 @@
-#![allow(missing_docs)]
-
 use finchers_core::Input;
 use finchers_core::endpoint::{Context, Endpoint, IntoEndpoint};
 use futures::future;

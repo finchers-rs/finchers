@@ -1,12 +1,11 @@
-use callable::Callable;
 use finchers_core::Input;
 use finchers_core::endpoint::{Context, Endpoint, IntoEndpoint};
 use futures::{Future, Poll};
 
-pub fn new<E, F>(endpoint: E, f: F) -> Map<E::Endpoint, F>
+pub fn new<E, F, T>(endpoint: E, f: F) -> Map<E::Endpoint, F>
 where
     E: IntoEndpoint,
-    F: Callable<E::Item> + Clone,
+    F: FnOnce(E::Item) -> T + Clone,
 {
     Map {
         endpoint: endpoint.into_endpoint(),
@@ -20,10 +19,10 @@ pub struct Map<E, F> {
     f: F,
 }
 
-impl<E, F> Endpoint for Map<E, F>
+impl<E, F, T> Endpoint for Map<E, F>
 where
     E: Endpoint,
-    F: Callable<E::Item> + Clone,
+    F: FnOnce(E::Item) -> T + Clone,
 {
     type Item = F::Output;
     type Future = MapFuture<E::Future, F>;
@@ -43,17 +42,17 @@ pub struct MapFuture<T, F> {
     f: Option<F>,
 }
 
-impl<T, F> Future for MapFuture<T, F>
+impl<T, F, U> Future for MapFuture<T, F>
 where
     T: Future,
-    F: Callable<T::Item>,
+    F: FnOnce(T::Item) -> U,
 {
-    type Item = F::Output;
+    type Item = U;
     type Error = T::Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         let item = try_ready!(self.fut.poll());
         let f = self.f.take().expect("cannot resolve twice");
-        Ok(f.call(item).into())
+        Ok(f(item).into())
     }
 }
