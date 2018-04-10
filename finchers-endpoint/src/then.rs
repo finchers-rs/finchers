@@ -6,8 +6,9 @@ use futures::{Future, IntoFuture, Poll};
 pub fn new<E, F, R>(endpoint: E, f: F) -> Then<E, F>
 where
     E: Endpoint,
-    F: FnOnce(E::Item) -> R + Clone,
+    F: FnOnce(E::Item) -> R + Clone + Send,
     R: IntoFuture<Error = !>,
+    R::Future: Send,
 {
     Then { endpoint, f }
 }
@@ -21,8 +22,9 @@ pub struct Then<E, F> {
 impl<E, F, R> Endpoint for Then<E, F>
 where
     E: Endpoint,
-    F: FnOnce(E::Item) -> R + Clone,
+    F: FnOnce(E::Item) -> R + Clone + Send,
     R: IntoFuture<Error = !>,
+    R::Future: Send,
 {
     type Item = R::Item;
     type Future = ThenFuture<E::Future, F, R>;
@@ -38,18 +40,20 @@ where
 #[derive(Debug)]
 pub struct ThenFuture<T, F, R>
 where
-    T: Future<Error = Error>,
-    F: FnOnce(T::Item) -> R,
+    T: Future<Error = Error> + Send,
+    F: FnOnce(T::Item) -> R + Send,
     R: IntoFuture<Error = !>,
+    R::Future: Send,
 {
     inner: Chain<T, R::Future, F>,
 }
 
 impl<T, F, R> Future for ThenFuture<T, F, R>
 where
-    T: Future<Error = Error>,
-    F: FnOnce(T::Item) -> R,
+    T: Future<Error = Error> + Send,
+    F: FnOnce(T::Item) -> R + Send,
     R: IntoFuture<Error = !>,
+    R::Future: Send,
 {
     type Item = R::Item;
     type Error = Error;

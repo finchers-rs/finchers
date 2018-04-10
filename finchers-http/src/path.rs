@@ -186,7 +186,7 @@ impl error::Error for ParseMatchError {
 /// ```
 pub fn param<T>() -> Param<T>
 where
-    T: FromSegment,
+    T: FromSegment + Send,
 {
     Param { _marker: PhantomData }
 }
@@ -213,7 +213,7 @@ impl<T> fmt::Debug for Param<T> {
 
 impl<T> Endpoint for Param<T>
 where
-    T: FromSegment,
+    T: FromSegment + Send,
 {
     type Item = T;
     type Future = FutureResult<Self::Item, Error>;
@@ -296,7 +296,7 @@ impl<T: FromSegment> FromSegment for Result<T, T::Error> {
 /// ```
 pub fn params<T>() -> Params<T>
 where
-    T: FromSegments,
+    T: FromSegments + Send,
 {
     Params { _marker: PhantomData }
 }
@@ -323,7 +323,7 @@ impl<T> fmt::Debug for Params<T> {
 
 impl<T> Endpoint for Params<T>
 where
-    T: FromSegments,
+    T: FromSegments + Send,
 {
     type Item = T;
     type Future = FutureResult<Self::Item, Error>;

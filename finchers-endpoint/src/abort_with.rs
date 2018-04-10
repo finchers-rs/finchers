@@ -5,7 +5,7 @@ use futures::{Future, Poll};
 pub fn new<E, F, U>(endpoint: E, f: F) -> AbortWith<E::Endpoint, F>
 where
     E: IntoEndpoint,
-    F: FnOnce(E::Item) -> U + Clone,
+    F: FnOnce(E::Item) -> U + Clone + Send,
     U: HttpError,
 {
     AbortWith {
@@ -23,7 +23,7 @@ pub struct AbortWith<E, F> {
 impl<E, F, U> Endpoint for AbortWith<E, F>
 where
     E: Endpoint,
-    F: FnOnce(E::Item) -> U + Clone,
+    F: FnOnce(E::Item) -> U + Clone + Send,
     U: HttpError,
 {
     type Item = !;
@@ -46,8 +46,8 @@ pub struct AbortWithFuture<T, F> {
 
 impl<T, F, U> Future for AbortWithFuture<T, F>
 where
-    T: Future<Error = Error>,
-    F: FnOnce(T::Item) -> U,
+    T: Future<Error = Error> + Send,
+    F: FnOnce(T::Item) -> U + Send,
     U: HttpError,
 {
     type Item = !;
