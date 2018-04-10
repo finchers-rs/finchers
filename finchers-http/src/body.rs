@@ -17,7 +17,7 @@
 use finchers_core::endpoint::{Context, Endpoint, Error};
 use finchers_core::error::BadRequest;
 use finchers_core::input;
-use finchers_core::{Bytes, BytesString, Input, Never};
+use finchers_core::{Bytes, BytesString, Input};
 use futures::{Future, Poll};
 use std::marker::PhantomData;
 use std::str::Utf8Error;
@@ -162,7 +162,7 @@ pub trait FromBody: 'static + Sized {
 }
 
 impl FromBody for () {
-    type Error = Never;
+    type Error = !;
 
     fn from_body(_: Bytes, _: &mut Input) -> Result<Self, Self::Error> {
         Ok(())
@@ -170,7 +170,7 @@ impl FromBody for () {
 }
 
 impl FromBody for Bytes {
-    type Error = Never;
+    type Error = !;
 
     fn from_body(body: Bytes, _: &mut Input) -> Result<Self, Self::Error> {
         Ok(body)
@@ -194,7 +194,7 @@ impl FromBody for String {
 }
 
 impl<T: FromBody> FromBody for Option<T> {
-    type Error = Never;
+    type Error = !;
 
     fn from_body(body: Bytes, input: &mut Input) -> Result<Self, Self::Error> {
         Ok(T::from_body(body, input).ok())
@@ -202,7 +202,7 @@ impl<T: FromBody> FromBody for Option<T> {
 }
 
 impl<T: FromBody> FromBody for Result<T, T::Error> {
-    type Error = Never;
+    type Error = !;
 
     fn from_body(body: Bytes, input: &mut Input) -> Result<Self, Self::Error> {
         Ok(T::from_body(body, input))
