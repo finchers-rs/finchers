@@ -2,7 +2,7 @@
 
 use finchers_core::endpoint::{Context, Endpoint, Error};
 use finchers_core::error::NotPresent;
-use finchers_core::{HttpError, Input, Never};
+use finchers_core::{HttpError, Input};
 use futures::future::{err, ok, FutureResult, IntoFuture};
 use std::fmt;
 use std::marker::PhantomData;
@@ -198,7 +198,7 @@ pub trait FromHeader: 'static + Sized {
 }
 
 impl<H: FromHeader> FromHeader for Option<H> {
-    type Error = Never;
+    type Error = !;
 
     #[inline]
     fn header_name() -> &'static str {
@@ -212,7 +212,7 @@ impl<H: FromHeader> FromHeader for Option<H> {
 }
 
 impl<H: FromHeader> FromHeader for Result<H, H::Error> {
-    type Error = Never;
+    type Error = !;
 
     #[inline]
     fn header_name() -> &'static str {

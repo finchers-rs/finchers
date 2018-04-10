@@ -1,7 +1,7 @@
 //! Components for parsing request path
 
+use finchers_core::Input;
 use finchers_core::endpoint::{Context, Endpoint, Error, Segment, Segments};
-use finchers_core::{Input, Never};
 use futures::future::{ok, FutureResult};
 use std::marker::PhantomData;
 use std::path::PathBuf;
@@ -259,7 +259,7 @@ impl_from_segment_from_str! {
 }
 
 impl<T: FromSegment> FromSegment for Option<T> {
-    type Error = Never;
+    type Error = !;
 
     fn from_segment(segment: Segment) -> Result<Self, Self::Error> {
         Ok(T::from_segment(segment).ok())
@@ -267,7 +267,7 @@ impl<T: FromSegment> FromSegment for Option<T> {
 }
 
 impl<T: FromSegment> FromSegment for Result<T, T::Error> {
-    type Error = Never;
+    type Error = !;
 
     fn from_segment(segment: Segment) -> Result<Self, Self::Error> {
         Ok(T::from_segment(segment))
@@ -351,7 +351,7 @@ impl<T: FromSegment> FromSegments for Vec<T> {
 }
 
 impl FromSegments for String {
-    type Error = Never;
+    type Error = !;
 
     fn from_segments(segments: &mut Segments) -> Result<Self, Self::Error> {
         let s = segments.remaining_path().to_owned();
@@ -361,7 +361,7 @@ impl FromSegments for String {
 }
 
 impl FromSegments for PathBuf {
-    type Error = Never;
+    type Error = !;
 
     fn from_segments(segments: &mut Segments) -> Result<Self, Self::Error> {
         let s = PathBuf::from(segments.remaining_path());
@@ -371,7 +371,7 @@ impl FromSegments for PathBuf {
 }
 
 impl<T: FromSegments> FromSegments for Option<T> {
-    type Error = Never;
+    type Error = !;
 
     fn from_segments(segments: &mut Segments) -> Result<Self, Self::Error> {
         Ok(T::from_segments(segments).ok())
@@ -379,7 +379,7 @@ impl<T: FromSegments> FromSegments for Option<T> {
 }
 
 impl<T: FromSegments> FromSegments for Result<T, T::Error> {
-    type Error = Never;
+    type Error = !;
 
     fn from_segments(segments: &mut Segments) -> Result<Self, Self::Error> {
         Ok(T::from_segments(segments))

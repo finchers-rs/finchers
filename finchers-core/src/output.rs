@@ -4,7 +4,6 @@ use futures::Async::*;
 use futures::{Poll, Stream};
 use http::{header, Response, StatusCode};
 use input::Input;
-use never::Never;
 use std::{fmt, io};
 
 pub struct Body {
@@ -66,7 +65,7 @@ impl<T> Responder for Response<T>
 where
     T: Into<Body>,
 {
-    type Error = Never;
+    type Error = !;
 
     fn respond(self, _: &Input) -> Result<Output, Self::Error> {
         Ok(self.map(Into::into))
@@ -95,7 +94,7 @@ impl<T: fmt::Debug> Debug<T> {
 }
 
 impl<T: fmt::Debug> Responder for Debug<T> {
-    type Error = Never;
+    type Error = !;
 
     fn respond(self, _: &Input) -> Result<Output, Self::Error> {
         let body = if self.pretty {
@@ -123,7 +122,7 @@ impl<T: fmt::Display> Display<T> {
 }
 
 impl<T: fmt::Display> Responder for Display<T> {
-    type Error = Never;
+    type Error = !;
 
     fn respond(self, _: &Input) -> Result<Output, Self::Error> {
         let mut response = make_text_response(self.value.to_string());

@@ -2,7 +2,6 @@ use endpoint::{Context, Endpoint, Error};
 use error::NoRoute;
 use futures::{Async, Future, Poll};
 use input::{replace_input, Input};
-use never::Never;
 
 /// Create a task for processing an incoming HTTP request by using given `Endpoint`.
 pub fn create_task<E: Endpoint>(endpoint: &E, input: Input) -> EndpointTask<E::Future> {
@@ -21,7 +20,7 @@ pub struct EndpointTask<F> {
 
 impl<F: Future<Error = Error>> Future for EndpointTask<F> {
     type Item = (Result<F::Item, Error>, Input);
-    type Error = Never;
+    type Error = !;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         if let Some(input) = self.input.take() {

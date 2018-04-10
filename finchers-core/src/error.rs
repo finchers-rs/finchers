@@ -10,6 +10,12 @@ pub trait HttpError: error::Error + Send + 'static {
     fn status_code(&self) -> StatusCode;
 }
 
+impl HttpError for ! {
+    fn status_code(&self) -> StatusCode {
+        unreachable!()
+    }
+}
+
 macro_rules! impl_http_error {
     (@bad_request) => { StatusCode::BAD_REQUEST };
     (@server_error) => { StatusCode::INTERNAL_SERVER_ERROR };
