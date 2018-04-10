@@ -7,10 +7,10 @@ use std::io;
 use std::sync::Arc;
 
 use finchers_core::Input;
+use finchers_core::endpoint::Endpoint;
 use finchers_core::input::BodyStream;
 use finchers_core::output::{Body, Responder};
-use finchers_endpoint::Endpoint;
-use finchers_endpoint::apply::{apply_and_respond, ApplyAndRespond};
+use finchers_core::util::{create_task, EndpointTask};
 
 #[allow(missing_docs)]
 pub trait HttpService {
@@ -66,7 +66,7 @@ where
     fn call(&self, request: Request<BodyStream>) -> Self::Future {
         let input = Input::from(request);
         FinchersServiceFuture {
-            outcome: apply_and_respond(&self.endpoint, input),
+            task: create_task(&self.endpoint, input),
         }
     }
 }
@@ -74,7 +74,7 @@ where
 /// A future returned from `EndpointService::call()`
 #[allow(missing_debug_implementations)]
 pub struct FinchersServiceFuture<E: Endpoint> {
-    outcome: ApplyAndRespond<E::Future>,
+    task: EndpointTask<E::Future>,
 }
 
 impl<E> Future for FinchersServiceFuture<E>
@@ -86,18 +86,23 @@ where
     type Error = io::Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let mut response = match self.outcome.poll() {
-            Ok(NotReady) => return Ok(NotReady),
-            Ok(Ready(item)) => item,
-            Err(err) => err.to_response().map(Body::once),
-        };
+        let (result, input) = try_ready!(self.task.poll().map_err(io_error));
+        let mut response = result
+            .and_then(|item| item.respond(&input).map_err(Into::into))
+            .unwrap_or_else(|err| err.to_response().map(Body::once));
+
         if !response.headers().contains_key(header::SERVER) {
             response
                 .headers_mut()
                 .insert(header::SERVER, "Finchers".parse().unwrap());
         }
+
         Ok(Ready(response))
     }
+}
+
+fn io_error<T>(_: T) -> io::Error {
+    unreachable!()
 }
 
 #[allow(missing_docs)]
@@ -119,7 +124,7 @@ impl<E: Endpoint> EndpointServiceExt for E {
 }
 
 mod sealed {
-    use finchers_endpoint::Endpoint;
+    use finchers_core::endpoint::Endpoint;
     pub trait Sealed {}
     impl<E: Endpoint> Sealed for E {}
 }

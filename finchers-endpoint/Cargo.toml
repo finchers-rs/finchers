@@ -13,6 +13,7 @@ path = "../finchers-core"
 default-features = false
 
 [dev-dependencies]
+finchers-http = { version = "0.11.0-dev", path = "../finchers-http" }
 finchers-test = { version = "0.11.0-dev", path = "../finchers-test" }
 
 [features]

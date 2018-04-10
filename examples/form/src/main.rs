@@ -8,7 +8,7 @@ use finchers::endpoint::prelude::*;
 use finchers::output::Debug;
 use finchers::prelude::*;
 use finchers::runtime::Server;
-use finchers::urlencoded::{form_body, from_csv, queries};
+use finchers::urlencoded::{from_csv, queries, Form};
 use std::fmt;
 
 #[derive(Debug, Deserialize, HttpStatus)]
@@ -26,8 +26,8 @@ impl fmt::Display for FormParam {
 }
 
 fn main() {
-    let endpoint = endpoint("search")
-        .with(choice![get(queries()), post(form_body()),])
+    let endpoint = path("search")
+        .right(choice![get(queries()), post(body()).map(|Form(body)| body),])
         .map(|param: FormParam| {
             println!("Received: {:#}", param);
             Debug::new(param)

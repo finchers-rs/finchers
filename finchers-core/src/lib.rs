@@ -12,12 +12,15 @@ extern crate hyper;
 mod never;
 mod string;
 
+pub mod endpoint;
 pub mod error;
 pub mod input;
 pub mod output;
+pub mod util;
 
+// re-exports
 pub use bytes::Bytes;
-pub use error::Error;
+pub use error::HttpError;
 pub use input::Input;
 pub use never::Never;
 pub use output::Output;

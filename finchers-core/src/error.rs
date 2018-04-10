@@ -2,8 +2,7 @@
 
 #![allow(missing_docs)]
 
-use http::header::{self, HeaderValue};
-use http::{Response, StatusCode};
+use http::StatusCode;
 use std::borrow::Cow;
 use std::{error, fmt};
 
@@ -45,49 +44,6 @@ impl_http_error! {
     @server_error ::std::sync::mpsc::RecvError;
     @server_error ::std::sync::mpsc::TryRecvError;
     @server_error ::std::sync::mpsc::RecvTimeoutError;
-}
-
-#[derive(Debug)]
-pub struct Error {
-    inner: Box<HttpError + Send + 'static>,
-}
-
-impl Error {
-    pub fn status_code(&self) -> StatusCode {
-        self.inner.status_code()
-    }
-
-    pub fn is_noroute(&self) -> bool {
-        self.status_code() == StatusCode::NOT_FOUND
-    }
-
-    pub fn to_response(&self) -> Response<String> {
-        let body = self.inner.to_string();
-        let body_len = body.len().to_string();
-
-        let mut response = Response::new(body);
-        *response.status_mut() = self.status_code();
-        response.headers_mut().insert(
-            header::CONTENT_TYPE,
-            HeaderValue::from_static("text/plain; charset=utf-8"),
-        );
-        response.headers_mut().insert(header::CONTENT_LENGTH, unsafe {
-            HeaderValue::from_shared_unchecked(body_len.into())
-        });
-        response
-    }
-}
-
-impl<E: HttpError + Send + 'static> From<E> for Error {
-    fn from(err: E) -> Self {
-        Error { inner: Box::new(err) }
-    }
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.inner.fmt(f)
-    }
 }
 
 #[derive(Debug)]

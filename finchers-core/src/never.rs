@@ -39,3 +39,9 @@ impl HttpError for Never {
         match *self {}
     }
 }
+
+impl HttpError for ! {
+    fn status_code(&self) -> StatusCode {
+        unreachable!()
+    }
+}

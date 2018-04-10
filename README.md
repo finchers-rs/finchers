@@ -29,12 +29,13 @@ use finchers::output::Display;
 use finchers::runtime::Server;
 
 fn main() {
-    let endpoint = endpoint("api/v1").with(choice![
-        get(path::<u64>()).map(|id| format!("GET: id={}", id)),
-        post(body::<String>()).map(|body| format!("POST: body={}", body)),
-    ]);
+    let endpoint = path("api/v1").right(choice![
+        get(param()).map(|id: u64| format!("GET: id={}", id)),
+        post(body()).map(|data: String| format!("POST: body={}", data)),
+    ])
+    .map(Display::new);
 
-    let service = endpoint.map(Display::new).into_service();
+    let service = endpoint.into_service();
     Server::new(service).run();
 }
 ```

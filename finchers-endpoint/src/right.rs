@@ -1,26 +1,24 @@
-#![allow(missing_docs)]
-
 use finchers_core::Input;
-use {Context, Endpoint, IntoEndpoint};
+use finchers_core::endpoint::{Context, Endpoint, IntoEndpoint};
 
-pub fn with<E1, E2>(e1: E1, e2: E2) -> With<E1::Endpoint, E2::Endpoint>
+pub fn new<E1, E2>(e1: E1, e2: E2) -> Right<E1::Endpoint, E2::Endpoint>
 where
     E1: IntoEndpoint,
     E2: IntoEndpoint,
 {
-    With {
+    Right {
         e1: e1.into_endpoint(),
         e2: e2.into_endpoint(),
     }
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct With<E1, E2> {
+pub struct Right<E1, E2> {
     e1: E1,
     e2: E2,
 }
 
-impl<E1, E2> Endpoint for With<E1, E2>
+impl<E1, E2> Endpoint for Right<E1, E2>
 where
     E1: Endpoint,
     E2: Endpoint,
