@@ -1,6 +1,5 @@
 #![allow(missing_docs)]
 
-use finchers_core::Input;
 use finchers_core::endpoint::{Context, Endpoint, Error, IntoEndpoint};
 use futures::future::{ok, FutureResult};
 
@@ -23,9 +22,9 @@ impl<E: Endpoint> Endpoint for SkipAll<E> {
     type Item = ();
     type Future = FutureResult<(), Error>;
 
-    fn apply(&self, input: &Input, ctx: &mut Context) -> Option<Self::Future> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
         for endpoint in &self.endpoints {
-            let _ = endpoint.apply(input, ctx)?;
+            let _ = endpoint.apply(cx)?;
         }
         Some(ok(()))
     }

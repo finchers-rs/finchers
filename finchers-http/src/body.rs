@@ -52,8 +52,8 @@ impl<T: FromBody> Endpoint for Body<T> {
     type Item = T;
     type Future = BodyFuture<T>;
 
-    fn apply(&self, input: &Input, _: &mut Context) -> Option<Self::Future> {
-        match T::is_match(input) {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
+        match T::is_match(cx.input()) {
             true => Some(BodyFuture::Init),
             false => None,
         }
@@ -120,7 +120,7 @@ impl Endpoint for BodyStream {
     type Item = input::BodyStream;
     type Future = BodyStreamFuture;
 
-    fn apply(&self, _: &Input, _: &mut Context) -> Option<Self::Future> {
+    fn apply(&self, _: &mut Context) -> Option<Self::Future> {
         Some(BodyStreamFuture { _priv: () })
     }
 }

@@ -77,8 +77,8 @@ impl<T: de::DeserializeOwned> Endpoint for Queries<T> {
     type Item = T;
     type Future = QueriesFuture<T>;
 
-    fn apply(&self, input: &Input, _: &mut Context) -> Option<Self::Future> {
-        if input.query().is_some() {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
+        if cx.input().query().is_some() {
             Some(QueriesFuture { _marker: PhantomData })
         } else {
             None
@@ -131,7 +131,7 @@ impl<T: de::DeserializeOwned> Endpoint for QueriesRequired<T> {
     type Item = T;
     type Future = QueriesRequiredFuture<T>;
 
-    fn apply(&self, _: &Input, _: &mut Context) -> Option<Self::Future> {
+    fn apply(&self, _: &mut Context) -> Option<Self::Future> {
         Some(QueriesRequiredFuture { _marker: PhantomData })
     }
 }
@@ -184,7 +184,7 @@ impl<T: de::DeserializeOwned> Endpoint for QueriesOptional<T> {
     type Item = Option<T>;
     type Future = QueriesOptionalFuture<T>;
 
-    fn apply(&self, _: &Input, _: &mut Context) -> Option<Self::Future> {
+    fn apply(&self, _: &mut Context) -> Option<Self::Future> {
         Some(QueriesOptionalFuture { _marker: PhantomData })
     }
 }

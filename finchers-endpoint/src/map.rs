@@ -1,4 +1,3 @@
-use finchers_core::Input;
 use finchers_core::endpoint::{Context, Endpoint, IntoEndpoint};
 use futures::{Future, Poll};
 
@@ -27,8 +26,8 @@ where
     type Item = F::Output;
     type Future = MapFuture<E::Future, F>;
 
-    fn apply(&self, input: &Input, ctx: &mut Context) -> Option<Self::Future> {
-        let fut = self.endpoint.apply(input, ctx)?;
+    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
+        let fut = self.endpoint.apply(cx)?;
         Some(MapFuture {
             fut,
             f: Some(self.f.clone()),

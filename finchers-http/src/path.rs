@@ -1,6 +1,5 @@
 //! Components for parsing request path
 
-use finchers_core::Input;
 use finchers_core::endpoint::{Context, Endpoint, Error, Segment, Segments};
 use futures::future::{ok, FutureResult};
 use std::marker::PhantomData;
@@ -104,13 +103,13 @@ impl Endpoint for MatchPath {
     type Item = ();
     type Future = FutureResult<Self::Item, Error>;
 
-    fn apply(&self, _: &Input, ctx: &mut Context) -> Option<Self::Future> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
         use self::MatchPathKind::*;
         match self.kind {
             Segments(ref segments) => {
                 let mut matched = true;
                 for segment in segments {
-                    matched = matched && *ctx.segments().next()? == *segment;
+                    matched = matched && *cx.segments().next()? == *segment;
                 }
                 if matched {
                     Some(ok(()))
@@ -119,7 +118,7 @@ impl Endpoint for MatchPath {
                 }
             }
             AllSegments => {
-                let _ = ctx.segments().count();
+                let _ = cx.segments().count();
                 Some(ok(()))
             }
         }
@@ -218,8 +217,8 @@ where
     type Item = T;
     type Future = FutureResult<Self::Item, Error>;
 
-    fn apply(&self, _: &Input, ctx: &mut Context) -> Option<Self::Future> {
-        let s = ctx.segments().next()?;
+    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
+        let s = cx.segments().next()?;
         T::from_segment(s).map(ok).ok()
     }
 }
@@ -328,8 +327,8 @@ where
     type Item = T;
     type Future = FutureResult<Self::Item, Error>;
 
-    fn apply(&self, _: &Input, ctx: &mut Context) -> Option<Self::Future> {
-        T::from_segments(ctx.segments()).map(ok).ok()
+    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
+        T::from_segments(cx.segments()).map(ok).ok()
     }
 }
 

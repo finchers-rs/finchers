@@ -4,14 +4,20 @@ use std::ops::Deref;
 /// A context during the routing.
 #[derive(Debug, Clone)]
 pub struct Context<'a> {
+    input: &'a Input,
     segments: Segments<'a>,
 }
 
 impl<'a> Context<'a> {
     pub(crate) fn new(input: &'a Input) -> Self {
         Context {
+            input: input,
             segments: Segments::from(input.path()),
         }
+    }
+
+    pub fn input(&self) -> &'a Input {
+        self.input
     }
 
     /// Returns the reference of remaining path segments

@@ -5,7 +5,7 @@ use input::{replace_input, Input};
 
 /// Create a task for processing an incoming HTTP request by using given `Endpoint`.
 pub fn create_task<E: Endpoint>(endpoint: &E, input: Input) -> EndpointTask<E::Future> {
-    let in_flight = endpoint.apply(&input, &mut Context::new(&input));
+    let in_flight = endpoint.apply(&mut Context::new(&input));
     EndpointTask {
         input: Some(input),
         in_flight,

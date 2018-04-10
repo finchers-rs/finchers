@@ -1,4 +1,3 @@
-use finchers_core::Input;
 use finchers_core::endpoint::{Context, Endpoint, IntoEndpoint};
 use futures::future;
 
@@ -26,8 +25,8 @@ where
     type Item = Vec<E::Item>;
     type Future = future::JoinAll<Vec<E::Future>>;
 
-    fn apply(&self, input: &Input, ctx: &mut Context) -> Option<Self::Future> {
-        let inner: Vec<_> = self.inner.iter().map(|e| e.apply(input, ctx)).collect::<Option<_>>()?;
+    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
+        let inner: Vec<_> = self.inner.iter().map(|e| e.apply(cx)).collect::<Option<_>>()?;
         Some(future::join_all(inner))
     }
 }

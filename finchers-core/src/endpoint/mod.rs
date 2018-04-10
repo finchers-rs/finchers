@@ -1,7 +1,6 @@
 mod context;
 mod error;
 
-use Input;
 use futures::Future;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -20,15 +19,15 @@ pub trait Endpoint {
 
     /// Validates the incoming HTTP request,
     /// and returns the instance of `Future` if matched.
-    fn apply(&self, input: &Input, ctx: &mut Context) -> Option<Self::Future>;
+    fn apply(&self, cx: &mut Context) -> Option<Self::Future>;
 }
 
 impl<'a, E: Endpoint> Endpoint for &'a E {
     type Item = E::Item;
     type Future = E::Future;
 
-    fn apply(&self, input: &Input, ctx: &mut Context) -> Option<Self::Future> {
-        (*self).apply(input, ctx)
+    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
+        (*self).apply(cx)
     }
 }
 
@@ -36,8 +35,8 @@ impl<E: Endpoint> Endpoint for Box<E> {
     type Item = E::Item;
     type Future = E::Future;
 
-    fn apply(&self, input: &Input, ctx: &mut Context) -> Option<Self::Future> {
-        (**self).apply(input, ctx)
+    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
+        (**self).apply(cx)
     }
 }
 
@@ -45,8 +44,8 @@ impl<E: Endpoint> Endpoint for Rc<E> {
     type Item = E::Item;
     type Future = E::Future;
 
-    fn apply(&self, input: &Input, ctx: &mut Context) -> Option<Self::Future> {
-        (**self).apply(input, ctx)
+    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
+        (**self).apply(cx)
     }
 }
 
@@ -54,8 +53,8 @@ impl<E: Endpoint> Endpoint for Arc<E> {
     type Item = E::Item;
     type Future = E::Future;
 
-    fn apply(&self, input: &Input, ctx: &mut Context) -> Option<Self::Future> {
-        (**self).apply(input, ctx)
+    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
+        (**self).apply(cx)
     }
 }
 

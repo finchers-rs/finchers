@@ -1,5 +1,5 @@
+use finchers_core::HttpError;
 use finchers_core::endpoint::{Context, Endpoint, Error};
-use finchers_core::{HttpError, Input};
 use futures::{Future, Poll};
 
 pub fn new<E, F, T, R>(endpoint: E, f: F) -> TryAbort<E, F>
@@ -26,8 +26,8 @@ where
     type Item = T;
     type Future = TryAbortFuture<E::Future, F>;
 
-    fn apply(&self, input: &Input, ctx: &mut Context) -> Option<Self::Future> {
-        let future = self.endpoint.apply(input, ctx)?;
+    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
+        let future = self.endpoint.apply(cx)?;
         Some(TryAbortFuture {
             future,
             f: Some(self.f.clone()),

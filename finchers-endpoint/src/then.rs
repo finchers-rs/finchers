@@ -1,5 +1,4 @@
 use super::chain::Chain;
-use finchers_core::Input;
 use finchers_core::endpoint::{Context, Endpoint, Error};
 use futures::{Future, IntoFuture, Poll};
 
@@ -29,8 +28,8 @@ where
     type Item = R::Item;
     type Future = ThenFuture<E::Future, F, R>;
 
-    fn apply(&self, input: &Input, ctx: &mut Context) -> Option<Self::Future> {
-        let future = self.endpoint.apply(input, ctx)?;
+    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
+        let future = self.endpoint.apply(cx)?;
         Some(ThenFuture {
             inner: Chain::new(future, self.f.clone()),
         })

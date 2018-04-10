@@ -1,4 +1,3 @@
-use finchers_core::Input;
 use finchers_core::endpoint::{Context, Endpoint, IntoEndpoint};
 use futures::{future, IntoFuture};
 
@@ -31,9 +30,9 @@ where
     type Item = (E1::Item, E2::Item);
     type Future = future::Join<E1::Future, E2::Future>;
 
-    fn apply(&self, input: &Input, ctx: &mut Context) -> Option<Self::Future> {
-        let f1 = self.e1.apply(input, ctx)?;
-        let f2 = self.e2.apply(input, ctx)?;
+    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
+        let f1 = self.e1.apply(cx)?;
+        let f2 = self.e2.apply(cx)?;
         Some(IntoFuture::into_future((f1, f2)))
     }
 }
