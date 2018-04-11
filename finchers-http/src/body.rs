@@ -14,7 +14,8 @@
 //!
 //! [from_body]: ../../http/trait.FromBody.html
 
-use finchers_core::endpoint::{Context, Endpoint, task::{self, PollTask, Task}};
+use finchers_core::endpoint::task::{self, PollTask, Task};
+use finchers_core::endpoint::{Context, Endpoint};
 use finchers_core::error::BadRequest;
 use finchers_core::input;
 use finchers_core::{Bytes, BytesString, Input};

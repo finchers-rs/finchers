@@ -18,7 +18,7 @@ pub use finchers_derive::*;
 pub use finchers_core::{error, output};
 
 pub mod endpoint {
-    pub use finchers_core::endpoint::{Endpoint, IntoEndpoint};
+    pub use finchers_core::endpoint::{task, Endpoint, IntoEndpoint, Task};
     pub use finchers_endpoint::{all, ok, EndpointExt};
 
     pub use finchers_http::{body, header, method, path, FromBody, FromHeader, FromSegment, FromSegments};

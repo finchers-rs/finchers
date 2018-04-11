@@ -1,7 +1,8 @@
 //! Components for accessing of HTTP headers
 
 use finchers_core::HttpError;
-use finchers_core::endpoint::{Context, Endpoint, Error, task::CompatTask};
+use finchers_core::endpoint::task::CompatTask;
+use finchers_core::endpoint::{Context, Endpoint, Error};
 use finchers_core::error::NotPresent;
 use futures::future::{err, ok, FutureResult, IntoFuture};
 use std::fmt;

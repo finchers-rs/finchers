@@ -1,5 +1,6 @@
 use self::MaybeDone::*;
-use finchers_core::endpoint::{Error, task::{self, Async, Task}};
+use finchers_core::endpoint::Error;
+use finchers_core::endpoint::task::{self, Async, Task};
 use std::mem;
 
 pub enum MaybeDone<T: Task> {

@@ -1,4 +1,6 @@
-use finchers_core::{HttpError, endpoint::{Context, Endpoint, task::{self, Async, PollTask, Task}}};
+use finchers_core::HttpError;
+use finchers_core::endpoint::task::{self, Async, PollTask, Task};
+use finchers_core::endpoint::{Context, Endpoint};
 use futures::{Future, IntoFuture};
 use std::mem;
 

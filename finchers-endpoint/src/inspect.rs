@@ -1,4 +1,5 @@
-use finchers_core::endpoint::{Context, Endpoint, IntoEndpoint, task::{self, PollTask, Task}};
+use finchers_core::endpoint::task::{self, PollTask, Task};
+use finchers_core::endpoint::{Context, Endpoint, IntoEndpoint};
 
 pub fn new<E, F>(endpoint: E, f: F) -> Inspect<E::Endpoint, F>
 where

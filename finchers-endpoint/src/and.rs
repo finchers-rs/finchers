@@ -1,5 +1,6 @@
 use super::maybe_done::MaybeDone;
-use finchers_core::endpoint::{Context, Endpoint, IntoEndpoint, task::{self, Async, PollTask, Task}};
+use finchers_core::endpoint::task::{self, Async, PollTask, Task};
+use finchers_core::endpoint::{Context, Endpoint, IntoEndpoint};
 
 pub fn new<E1, E2>(e1: E1, e2: E2) -> And<E1::Endpoint, E2::Endpoint>
 where
