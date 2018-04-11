@@ -6,8 +6,9 @@ use futures::{Future, IntoFuture, Poll};
 pub fn new<E, F, R>(endpoint: E, f: F) -> AndThen<E, F>
 where
     E: Endpoint,
-    F: FnOnce(E::Item) -> R + Clone,
+    F: FnOnce(E::Item) -> R + Clone + Send,
     R: IntoFuture,
+    R::Future: Send,
     R::Error: HttpError,
 {
     AndThen { endpoint, f }
@@ -22,8 +23,9 @@ pub struct AndThen<E, F> {
 impl<E, F, R> Endpoint for AndThen<E, F>
 where
     E: Endpoint,
-    F: FnOnce(E::Item) -> R + Clone,
+    F: FnOnce(E::Item) -> R + Clone + Send,
     R: IntoFuture,
+    R::Future: Send,
     R::Error: HttpError,
 {
     type Item = R::Item;
@@ -41,8 +43,9 @@ where
 pub struct AndThenFuture<T, F, R>
 where
     T: Future<Error = Error>,
-    F: FnOnce(T::Item) -> R,
+    F: FnOnce(T::Item) -> R + Send,
     R: IntoFuture,
+    R::Future: Send,
     R::Error: HttpError,
 {
     inner: Chain<T, R::Future, F>,
@@ -51,8 +54,9 @@ where
 impl<T, F, R> Future for AndThenFuture<T, F, R>
 where
     T: Future<Error = Error>,
-    F: FnOnce(T::Item) -> R,
+    F: FnOnce(T::Item) -> R + Send,
     R: IntoFuture,
+    R::Future: Send,
     R::Error: HttpError,
 {
     type Item = R::Item;

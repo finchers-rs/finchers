@@ -4,7 +4,10 @@ use finchers_core::Input;
 use finchers_core::endpoint::{Context, Endpoint, Error};
 use futures::future::{self, FutureResult};
 
-pub fn ok<T: Clone>(x: T) -> Ok<T> {
+pub fn ok<T>(x: T) -> Ok<T>
+where
+    T: Clone + Send,
+{
     Ok { x }
 }
 
@@ -13,7 +16,10 @@ pub struct Ok<T> {
     x: T,
 }
 
-impl<T: Clone> Endpoint for Ok<T> {
+impl<T> Endpoint for Ok<T>
+where
+    T: Clone + Send,
+{
     type Item = T;
     type Future = FutureResult<T, Error>;
 

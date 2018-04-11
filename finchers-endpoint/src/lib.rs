@@ -46,7 +46,9 @@ pub trait EndpointExt: Endpoint + Sized {
     /// "self" and "e" and resolved as a pair of values returned from theirs.
     fn and<E>(self, e: E) -> And<Self, E::Endpoint>
     where
+        Self::Item: Send,
         E: IntoEndpoint,
+        E::Item: Send,
     {
         assert_endpoint::<_, (Self::Item, <E::Endpoint as Endpoint>::Item)>(self::and::new(self, e))
     }
@@ -85,7 +87,7 @@ pub trait EndpointExt: Endpoint + Sized {
     /// Create an endpoint which maps the returned value to a different type.
     fn map<F, U>(self, f: F) -> Map<Self, F>
     where
-        F: FnOnce(Self::Item) -> U + Clone,
+        F: FnOnce(Self::Item) -> U + Clone + Send,
     {
         assert_endpoint::<_, F::Output>(self::map::new(self, f))
     }
@@ -97,8 +99,9 @@ pub trait EndpointExt: Endpoint + Sized {
     /// If "f" will reject with an unrecoverable error, use "try_abort" instead.
     fn then<F, R>(self, f: F) -> Then<Self, F>
     where
-        F: FnOnce(Self::Item) -> R + Clone,
+        F: FnOnce(Self::Item) -> R + Clone + Send,
         R: IntoFuture<Error = !>,
+        R::Future: Send,
     {
         assert_endpoint::<_, R::Item>(self::then::new(self, f))
     }
@@ -111,8 +114,9 @@ pub trait EndpointExt: Endpoint + Sized {
     /// an unrecoverable error.
     fn and_then<F, R>(self, f: F) -> AndThen<Self, F>
     where
-        F: FnOnce(Self::Item) -> R + Clone,
+        F: FnOnce(Self::Item) -> R + Clone + Send,
         R: IntoFuture,
+        R::Future: Send,
         R::Error: HttpError,
     {
         assert_endpoint::<_, R::Item>(self::and_then::new(self, f))
@@ -130,7 +134,7 @@ pub trait EndpointExt: Endpoint + Sized {
     /// to an error value.
     fn abort_with<F, E>(self, f: F) -> AbortWith<Self, F>
     where
-        F: FnOnce(Self::Item) -> E + Clone,
+        F: FnOnce(Self::Item) -> E + Clone + Send,
         E: HttpError,
     {
         assert_endpoint::<_, !>(self::abort_with::new(self, f))
@@ -141,7 +145,7 @@ pub trait EndpointExt: Endpoint + Sized {
     /// The future will abort if the mapped value will be an `Err`.
     fn try_abort<F, T, E>(self, f: F) -> TryAbort<Self, F>
     where
-        F: FnOnce(Self::Item) -> Result<T, E> + Clone,
+        F: FnOnce(Self::Item) -> Result<T, E> + Clone + Send,
         E: HttpError,
     {
         // FIXME: replace the trait bound with `Try`

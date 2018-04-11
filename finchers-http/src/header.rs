@@ -66,7 +66,7 @@ use std::marker::PhantomData;
 /// ```
 pub fn header<H>() -> Header<H>
 where
-    H: FromHeader,
+    H: FromHeader + Send,
 {
     Header { _marker: PhantomData }
 }
@@ -93,7 +93,7 @@ impl<H> fmt::Debug for Header<H> {
 
 impl<H> Endpoint for Header<H>
 where
-    H: FromHeader,
+    H: FromHeader + Send,
 {
     type Item = H;
     type Future = FutureResult<H, Error>;
@@ -143,7 +143,7 @@ where
 /// ```
 pub fn header_required<H>() -> HeaderRequired<H>
 where
-    H: FromHeader,
+    H: FromHeader + Send,
     H::Error: HttpError,
 {
     HeaderRequired { _marker: PhantomData }
@@ -171,7 +171,7 @@ impl<H> fmt::Debug for HeaderRequired<H> {
 
 impl<H> Endpoint for HeaderRequired<H>
 where
-    H: FromHeader,
+    H: FromHeader + Send,
     H::Error: HttpError,
 {
     type Item = H;

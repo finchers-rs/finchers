@@ -5,7 +5,7 @@ use futures::{Future, Poll};
 pub fn new<E, F, T>(endpoint: E, f: F) -> Map<E::Endpoint, F>
 where
     E: IntoEndpoint,
-    F: FnOnce(E::Item) -> T + Clone,
+    F: FnOnce(E::Item) -> T + Clone + Send,
 {
     Map {
         endpoint: endpoint.into_endpoint(),
@@ -22,7 +22,7 @@ pub struct Map<E, F> {
 impl<E, F, T> Endpoint for Map<E, F>
 where
     E: Endpoint,
-    F: FnOnce(E::Item) -> T + Clone,
+    F: FnOnce(E::Item) -> T + Clone + Send,
 {
     type Item = F::Output;
     type Future = MapFuture<E::Future, F>;
@@ -44,8 +44,8 @@ pub struct MapFuture<T, F> {
 
 impl<T, F, U> Future for MapFuture<T, F>
 where
-    T: Future,
-    F: FnOnce(T::Item) -> U,
+    T: Future + Send,
+    F: FnOnce(T::Item) -> U + Send,
 {
     type Item = U;
     type Error = T::Error;

@@ -6,6 +6,7 @@ pub fn all<I>(iter: I) -> All<<I::Item as IntoEndpoint>::Endpoint>
 where
     I: IntoIterator,
     I::Item: IntoEndpoint,
+    <I::Item as IntoEndpoint>::Item: Send,
 {
     All {
         inner: iter.into_iter().map(IntoEndpoint::into_endpoint).collect(),
@@ -17,7 +18,11 @@ pub struct All<E> {
     inner: Vec<E>,
 }
 
-impl<E: Endpoint> Endpoint for All<E> {
+impl<E> Endpoint for All<E>
+where
+    E: Endpoint,
+    E::Item: Send,
+{
     type Item = Vec<E::Item>;
     type Future = future::JoinAll<Vec<E::Future>>;
 

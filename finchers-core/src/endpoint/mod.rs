@@ -16,7 +16,7 @@ pub trait Endpoint {
     type Item;
 
     /// The type of future returned from `apply`.
-    type Future: Future<Item = Self::Item, Error = Error>;
+    type Future: Future<Item = Self::Item, Error = Error> + Send;
 
     /// Validates the incoming HTTP request,
     /// and returns the instance of `Future` if matched.
