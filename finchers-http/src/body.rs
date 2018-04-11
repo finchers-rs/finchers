@@ -14,11 +14,11 @@
 //!
 //! [from_body]: ../../http/trait.FromBody.html
 
-use finchers_core::endpoint::{Context, Endpoint, Error};
+use finchers_core::endpoint::{Context, Endpoint, task::{self, Future, Poll}};
 use finchers_core::error::BadRequest;
 use finchers_core::input;
 use finchers_core::{Bytes, BytesString, Input};
-use futures::{Future, Poll};
+use futures;
 use std::marker::PhantomData;
 use std::str::Utf8Error;
 use std::{error, fmt};
@@ -70,18 +70,17 @@ pub enum BodyFuture<T> {
 
 impl<T: FromBody> Future for BodyFuture<T> {
     type Item = T;
-    type Error = Error;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item> {
         'poll: loop {
             let next = match *self {
                 BodyFuture::Init => {
-                    let body = Input::with_mut(|input| input.body()).expect("The body has already taken");
+                    let body = cx.input.body().expect("The body has already taken");
                     BodyFuture::Recv(body.into_data())
                 }
                 BodyFuture::Recv(ref mut body) => {
-                    let buf = try_ready!(body.poll());
-                    let body = Input::with_mut(|input| T::from_body(buf, input).map_err(BadRequest::new))?;
+                    let buf = try_ready!(futures::Future::poll(body));
+                    let body = T::from_body(buf, cx.input).map_err(BadRequest::new)?;
                     return Ok(body.into());
                 }
                 _ => panic!("cannot resolve/reject twice"),
@@ -133,13 +132,10 @@ pub struct BodyStreamFuture {
 
 impl Future for BodyStreamFuture {
     type Item = input::BodyStream;
-    type Error = Error;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        Input::with_mut(|input| {
-            let body = input.body().expect("cannot take a body twice");
-            Ok(input::BodyStream::from(body).into())
-        })
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item> {
+        let body = cx.input.body().expect("cannot take a body twice");
+        Ok(input::BodyStream::from(body).into())
     }
 }
 

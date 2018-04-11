@@ -1,6 +1,5 @@
 use finchers_core::HttpError;
-use finchers_core::endpoint::{Context, Endpoint, Error, IntoEndpoint};
-use futures::{Future, Poll};
+use finchers_core::endpoint::{Context, Endpoint, IntoEndpoint, task::{self, Future, Poll}};
 
 pub fn new<E, F, U>(endpoint: E, f: F) -> AbortWith<E::Endpoint, F>
 where
@@ -46,15 +45,14 @@ pub struct AbortWithFuture<T, F> {
 
 impl<T, F, U> Future for AbortWithFuture<T, F>
 where
-    T: Future<Error = Error> + Send,
+    T: Future + Send,
     F: FnOnce(T::Item) -> U + Send,
     U: HttpError,
 {
     type Item = !;
-    type Error = Error;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let item = try_ready!(self.fut.poll());
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item> {
+        let item = try_ready!(self.fut.poll(cx));
         let f = self.f.take().expect("cannot resolve twice");
         Err(f(item).into())
     }

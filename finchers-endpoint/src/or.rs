@@ -1,5 +1,4 @@
-use finchers_core::endpoint::{Context, Endpoint, IntoEndpoint};
-use futures::{Future, Poll};
+use finchers_core::endpoint::{Context, Endpoint, IntoEndpoint, task::{self, Future, Poll}};
 
 pub fn new<E1, E2>(e1: E1, e2: E2) -> Or<E1::Endpoint, E2::Endpoint>
 where
@@ -70,15 +69,14 @@ pub struct OrFuture<T1, T2> {
 impl<T1, T2> Future for OrFuture<T1, T2>
 where
     T1: Future,
-    T2: Future<Item = T1::Item, Error = T1::Error>,
+    T2: Future<Item = T1::Item>,
 {
     type Item = T1::Item;
-    type Error = T1::Error;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item> {
         match self.inner {
-            Either::Left(ref mut e) => e.poll(),
-            Either::Right(ref mut e) => e.poll(),
+            Either::Left(ref mut e) => e.poll(cx),
+            Either::Right(ref mut e) => e.poll(cx),
         }
     }
 }

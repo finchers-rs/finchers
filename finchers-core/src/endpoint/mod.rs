@@ -1,7 +1,8 @@
 mod context;
 mod error;
+pub mod task;
 
-use futures::Future;
+use self::task::Future;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -15,7 +16,7 @@ pub trait Endpoint {
     type Item;
 
     /// The type of future returned from `apply`.
-    type Future: Future<Item = Self::Item, Error = Error> + Send;
+    type Future: Future<Item = Self::Item> + Send;
 
     /// Validates the incoming HTTP request,
     /// and returns the instance of `Future` if matched.

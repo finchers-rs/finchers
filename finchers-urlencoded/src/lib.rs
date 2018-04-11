@@ -37,13 +37,12 @@ extern crate mime;
 extern crate serde;
 extern crate serde_qs;
 
-use futures::{Future, Poll};
 use serde::de::{self, IntoDeserializer};
 use std::iter::FromIterator;
 use std::marker::PhantomData;
 use std::{error, fmt};
 
-use finchers_core::endpoint::{Context, Endpoint, Error as FinchersError};
+use finchers_core::endpoint::{Context, Endpoint, task::{self, Future, Poll}};
 use finchers_core::error::BadRequest;
 use finchers_core::{Bytes, Input};
 use finchers_http::body::FromBody;
@@ -94,10 +93,9 @@ pub struct QueriesFuture<T: de::DeserializeOwned> {
 
 impl<T: de::DeserializeOwned> Future for QueriesFuture<T> {
     type Item = T;
-    type Error = FinchersError;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let result = Input::with(|input| serde_qs::from_str::<T>(input.query().unwrap()).map_err(Error::Parsing));
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item> {
+        let result = serde_qs::from_str::<T>(cx.input.query().unwrap()).map_err(Error::Parsing);
         result.map(Into::into).map_err(|e| BadRequest::new(e).into())
     }
 }
@@ -144,13 +142,12 @@ pub struct QueriesRequiredFuture<T: de::DeserializeOwned> {
 
 impl<T: de::DeserializeOwned> Future for QueriesRequiredFuture<T> {
     type Item = T;
-    type Error = FinchersError;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let result = Input::with(|input| match input.query() {
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item> {
+        let result = match cx.input.query() {
             Some(s) => self::serde_qs::from_str::<T>(s).map_err(Error::Parsing),
             None => Err(Error::MissingQuery),
-        });
+        };
         result.map(Into::into).map_err(|e| BadRequest::new(e).into())
     }
 }
@@ -197,16 +194,15 @@ pub struct QueriesOptionalFuture<T: de::DeserializeOwned> {
 
 impl<T: de::DeserializeOwned> Future for QueriesOptionalFuture<T> {
     type Item = Option<T>;
-    type Error = FinchersError;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let result = Input::with(|input| match input.query() {
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item> {
+        let result = match cx.input.query() {
             Some(s) => match serde_qs::from_str(s) {
                 Ok(v) => Ok(Some(v)),
                 Err(e) => Err(BadRequest::new(Error::Parsing(e)).into()),
             },
             None => Ok(None),
-        });
+        };
         result.map(Into::into)
     }
 }
