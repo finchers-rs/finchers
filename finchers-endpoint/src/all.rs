@@ -1,6 +1,6 @@
-use finchers_core::Input;
-use finchers_core::endpoint::{Context, Endpoint, IntoEndpoint};
-use futures::future;
+use super::maybe_done::MaybeDone;
+use finchers_core::endpoint::{Context, Endpoint, IntoEndpoint, task::{self, Async, Future, Poll}};
+use std::mem;
 
 pub fn all<I>(iter: I) -> All<<I::Item as IntoEndpoint>::Endpoint>
 where
@@ -24,10 +24,44 @@ where
     E::Item: Send,
 {
     type Item = Vec<E::Item>;
-    type Future = future::JoinAll<Vec<E::Future>>;
+    type Future = AllFuture<E::Future>;
 
-    fn apply(&self, input: &Input, ctx: &mut Context) -> Option<Self::Future> {
-        let inner: Vec<_> = self.inner.iter().map(|e| e.apply(input, ctx)).collect::<Option<_>>()?;
-        Some(future::join_all(inner))
+    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
+        let mut elems = Vec::with_capacity(self.inner.len());
+        for e in &self.inner {
+            let f = e.apply(cx)?;
+            elems.push(MaybeDone::Pending(f));
+        }
+        Some(AllFuture { elems })
+    }
+}
+
+pub struct AllFuture<F: Future> {
+    elems: Vec<MaybeDone<F>>,
+}
+
+impl<F: Future> Future for AllFuture<F> {
+    type Item = Vec<F::Item>;
+
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item> {
+        let mut all_done = true;
+        for i in 0..self.elems.len() {
+            match self.elems[i].poll_done(cx) {
+                Ok(done) => all_done = all_done & done,
+                Err(e) => {
+                    self.elems = Vec::new();
+                    return Err(e);
+                }
+            }
+        }
+        if all_done {
+            let elems = mem::replace(&mut self.elems, Vec::new())
+                .into_iter()
+                .map(|mut m| m.take_item())
+                .collect();
+            Ok(Async::Ready(elems))
+        } else {
+            Ok(Async::NotReady)
+        }
     }
 }

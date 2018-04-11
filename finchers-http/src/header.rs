@@ -1,8 +1,8 @@
 //! Components for accessing of HTTP headers
 
+use finchers_core::HttpError;
 use finchers_core::endpoint::{Context, Endpoint, Error};
 use finchers_core::error::NotPresent;
-use finchers_core::{HttpError, Input};
 use futures::future::{err, ok, FutureResult, IntoFuture};
 use std::fmt;
 use std::marker::PhantomData;
@@ -98,8 +98,8 @@ where
     type Item = H;
     type Future = FutureResult<H, Error>;
 
-    fn apply(&self, input: &Input, _: &mut Context) -> Option<Self::Future> {
-        input
+    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
+        cx.input()
             .headers()
             .get(H::header_name())
             .and_then(|h| H::from_header(h.as_bytes()).ok())
@@ -177,8 +177,8 @@ where
     type Item = H;
     type Future = FutureResult<H, Error>;
 
-    fn apply(&self, input: &Input, _: &mut Context) -> Option<Self::Future> {
-        match input.headers().get(H::header_name()) {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
+        match cx.input().headers().get(H::header_name()) {
             Some(h) => Some(H::from_header(h.as_bytes()).map_err(Into::into).into_future()),
             None => Some(err(NotPresent::new("").into())),
         }

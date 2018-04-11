@@ -1,6 +1,5 @@
 #![allow(missing_docs)]
 
-use finchers_core::Input;
 use finchers_core::endpoint::{Context, Endpoint, Error};
 use futures::future::{self, FutureResult};
 
@@ -23,7 +22,7 @@ where
     type Item = T;
     type Future = FutureResult<T, Error>;
 
-    fn apply(&self, _: &Input, _: &mut Context) -> Option<Self::Future> {
+    fn apply(&self, _: &mut Context) -> Option<Self::Future> {
         Some(future::ok(self.x.clone()))
     }
 }

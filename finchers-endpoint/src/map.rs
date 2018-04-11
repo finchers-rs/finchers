@@ -1,6 +1,4 @@
-use finchers_core::Input;
-use finchers_core::endpoint::{Context, Endpoint, IntoEndpoint};
-use futures::{Future, Poll};
+use finchers_core::endpoint::{Context, Endpoint, IntoEndpoint, task::{self, Future, Poll}};
 
 pub fn new<E, F, T>(endpoint: E, f: F) -> Map<E::Endpoint, F>
 where
@@ -27,8 +25,8 @@ where
     type Item = F::Output;
     type Future = MapFuture<E::Future, F>;
 
-    fn apply(&self, input: &Input, ctx: &mut Context) -> Option<Self::Future> {
-        let fut = self.endpoint.apply(input, ctx)?;
+    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
+        let fut = self.endpoint.apply(cx)?;
         Some(MapFuture {
             fut,
             f: Some(self.f.clone()),
@@ -48,10 +46,9 @@ where
     F: FnOnce(T::Item) -> U + Send,
 {
     type Item = U;
-    type Error = T::Error;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let item = try_ready!(self.fut.poll());
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item> {
+        let item = try_ready!(self.fut.poll(cx));
         let f = self.f.take().expect("cannot resolve twice");
         Ok(f(item).into())
     }

@@ -44,6 +44,20 @@ impl Error {
         self.status_code() == StatusCode::NOT_FOUND
     }
 
+    pub fn is_canceled(&self) -> bool {
+        match self.kind {
+            ErrorKind::Canceled => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_aborted(&self) -> bool {
+        match self.kind {
+            ErrorKind::Aborted(..) => true,
+            _ => false,
+        }
+    }
+
     pub fn to_response(&self) -> Response<String> {
         let body = self.to_string();
         let body_len = body.len().to_string();

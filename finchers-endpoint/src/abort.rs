@@ -1,6 +1,5 @@
-use finchers_core::endpoint::{Context, Endpoint, Error, IntoEndpoint};
-use finchers_core::{HttpError, Input};
-use futures::{Future, Poll};
+use finchers_core::HttpError;
+use finchers_core::endpoint::{Context, Endpoint, Error, IntoEndpoint, task::{self, Future, Poll}};
 
 pub fn new<E>(endpoint: E) -> Abort<E::Endpoint>
 where
@@ -25,8 +24,8 @@ where
     type Item = !;
     type Future = AbortFuture<E::Future>;
 
-    fn apply(&self, input: &Input, ctx: &mut Context) -> Option<Self::Future> {
-        let fut = self.endpoint.apply(input, ctx)?;
+    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
+        let fut = self.endpoint.apply(cx)?;
         Some(AbortFuture { fut })
     }
 }
@@ -38,14 +37,13 @@ pub struct AbortFuture<T> {
 
 impl<T> Future for AbortFuture<T>
 where
-    T: Future<Error = Error>,
+    T: Future,
     T::Item: HttpError,
 {
     type Item = !;
-    type Error = Error;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let item = try_ready!(self.fut.poll());
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item> {
+        let item = try_ready!(self.fut.poll(cx));
         Err(Error::from(item).into())
     }
 }

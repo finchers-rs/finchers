@@ -1,6 +1,5 @@
 //! Components for checking the HTTP method
 
-use finchers_core::Input;
 use finchers_core::endpoint::{Context, Endpoint, IntoEndpoint};
 use http::Method;
 
@@ -15,9 +14,9 @@ impl<E: Endpoint> Endpoint for MatchMethod<E> {
     type Item = E::Item;
     type Future = E::Future;
 
-    fn apply(&self, input: &Input, ctx: &mut Context) -> Option<Self::Future> {
-        if *input.method() == self.method {
-            self.endpoint.apply(input, ctx)
+    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
+        if *cx.input().method() == self.method {
+            self.endpoint.apply(cx)
         } else {
             None
         }
@@ -53,9 +52,9 @@ macro_rules! define_method {
             type Item = E::Item;
             type Future = E::Future;
 
-            fn apply(&self, input: &Input, ctx: &mut Context) -> Option<Self::Future> {
-                if *input.method() == Method::$method {
-                    self.endpoint.apply(input, ctx)
+            fn apply(&self,cx: &mut Context) -> Option<Self::Future> {
+                if *cx.input().method() == Method::$method {
+                    self.endpoint.apply(cx)
                 } else {
                     None
                 }
