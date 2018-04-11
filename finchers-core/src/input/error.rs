@@ -69,7 +69,7 @@ impl error::Error for Error {
 impl HttpError for Error {
     fn status_code(&self) -> StatusCode {
         match self.kind {
-            | ErrorKind::DecodeHeaderToStr(..) | ErrorKind::ParseMediaType(..) => StatusCode::BAD_REQUEST,
+            ErrorKind::DecodeHeaderToStr(..) | ErrorKind::ParseMediaType(..) => StatusCode::BAD_REQUEST,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }

@@ -1,6 +1,6 @@
 //! Components for parsing request path
 
-use finchers_core::Input;
+use finchers_core::endpoint::task::CompatTask;
 use finchers_core::endpoint::{Context, Endpoint, Error, Segment, Segments};
 use futures::future::{ok, FutureResult};
 use std::marker::PhantomData;
@@ -102,25 +102,25 @@ pub enum MatchPathKind {
 
 impl Endpoint for MatchPath {
     type Item = ();
-    type Future = FutureResult<Self::Item, Error>;
+    type Task = CompatTask<FutureResult<Self::Item, Error>>;
 
-    fn apply(&self, _: &Input, ctx: &mut Context) -> Option<Self::Future> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
         use self::MatchPathKind::*;
         match self.kind {
             Segments(ref segments) => {
                 let mut matched = true;
                 for segment in segments {
-                    matched = matched && *ctx.segments().next()? == *segment;
+                    matched = matched && *cx.segments().next()? == *segment;
                 }
                 if matched {
-                    Some(ok(()))
+                    Some(ok(()).into())
                 } else {
                     None
                 }
             }
             AllSegments => {
-                let _ = ctx.segments().count();
-                Some(ok(()))
+                let _ = cx.segments().count();
+                Some(ok(()).into())
             }
         }
     }
@@ -216,11 +216,11 @@ where
     T: FromSegment + Send,
 {
     type Item = T;
-    type Future = FutureResult<Self::Item, Error>;
+    type Task = CompatTask<FutureResult<Self::Item, Error>>;
 
-    fn apply(&self, _: &Input, ctx: &mut Context) -> Option<Self::Future> {
-        let s = ctx.segments().next()?;
-        T::from_segment(s).map(ok).ok()
+    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
+        let s = cx.segments().next()?;
+        T::from_segment(s).map(ok).map(Into::into).ok()
     }
 }
 
@@ -326,10 +326,10 @@ where
     T: FromSegments + Send,
 {
     type Item = T;
-    type Future = FutureResult<Self::Item, Error>;
+    type Task = CompatTask<FutureResult<Self::Item, Error>>;
 
-    fn apply(&self, _: &Input, ctx: &mut Context) -> Option<Self::Future> {
-        T::from_segments(ctx.segments()).map(ok).ok()
+    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
+        T::from_segments(cx.segments()).map(ok).map(Into::into).ok()
     }
 }
 

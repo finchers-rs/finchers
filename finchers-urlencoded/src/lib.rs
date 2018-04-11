@@ -37,13 +37,13 @@ extern crate mime;
 extern crate serde;
 extern crate serde_qs;
 
-use futures::{Future, Poll};
 use serde::de::{self, IntoDeserializer};
 use std::iter::FromIterator;
 use std::marker::PhantomData;
 use std::{error, fmt};
 
-use finchers_core::endpoint::{Context, Endpoint, Error as FinchersError};
+use finchers_core::endpoint::task::{self, PollTask, Task};
+use finchers_core::endpoint::{Context, Endpoint};
 use finchers_core::error::BadRequest;
 use finchers_core::{Bytes, Input};
 use finchers_http::body::FromBody;
@@ -75,11 +75,11 @@ impl<T> fmt::Debug for Queries<T> {
 
 impl<T: de::DeserializeOwned> Endpoint for Queries<T> {
     type Item = T;
-    type Future = QueriesFuture<T>;
+    type Task = QueriesTask<T>;
 
-    fn apply(&self, input: &Input, _: &mut Context) -> Option<Self::Future> {
-        if input.query().is_some() {
-            Some(QueriesFuture { _marker: PhantomData })
+    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
+        if cx.input().query().is_some() {
+            Some(QueriesTask { _marker: PhantomData })
         } else {
             None
         }
@@ -88,16 +88,15 @@ impl<T: de::DeserializeOwned> Endpoint for Queries<T> {
 
 #[doc(hidden)]
 #[allow(missing_debug_implementations)]
-pub struct QueriesFuture<T: de::DeserializeOwned> {
+pub struct QueriesTask<T: de::DeserializeOwned> {
     _marker: PhantomData<fn() -> T>,
 }
 
-impl<T: de::DeserializeOwned> Future for QueriesFuture<T> {
-    type Item = T;
-    type Error = FinchersError;
+impl<T: de::DeserializeOwned> Task for QueriesTask<T> {
+    type Output = T;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let result = Input::with(|input| serde_qs::from_str::<T>(input.query().unwrap()).map_err(Error::Parsing));
+    fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
+        let result = serde_qs::from_str::<T>(cx.input().query().unwrap()).map_err(Error::Parsing);
         result.map(Into::into).map_err(|e| BadRequest::new(e).into())
     }
 }
@@ -129,28 +128,27 @@ impl<T> fmt::Debug for QueriesRequired<T> {
 
 impl<T: de::DeserializeOwned> Endpoint for QueriesRequired<T> {
     type Item = T;
-    type Future = QueriesRequiredFuture<T>;
+    type Task = QueriesRequiredTask<T>;
 
-    fn apply(&self, _: &Input, _: &mut Context) -> Option<Self::Future> {
-        Some(QueriesRequiredFuture { _marker: PhantomData })
+    fn apply(&self, _: &mut Context) -> Option<Self::Task> {
+        Some(QueriesRequiredTask { _marker: PhantomData })
     }
 }
 
 #[doc(hidden)]
 #[allow(missing_debug_implementations)]
-pub struct QueriesRequiredFuture<T: de::DeserializeOwned> {
+pub struct QueriesRequiredTask<T: de::DeserializeOwned> {
     _marker: PhantomData<fn() -> T>,
 }
 
-impl<T: de::DeserializeOwned> Future for QueriesRequiredFuture<T> {
-    type Item = T;
-    type Error = FinchersError;
+impl<T: de::DeserializeOwned> Task for QueriesRequiredTask<T> {
+    type Output = T;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let result = Input::with(|input| match input.query() {
+    fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
+        let result = match cx.input().query() {
             Some(s) => self::serde_qs::from_str::<T>(s).map_err(Error::Parsing),
             None => Err(Error::MissingQuery),
-        });
+        };
         result.map(Into::into).map_err(|e| BadRequest::new(e).into())
     }
 }
@@ -182,31 +180,30 @@ impl<T> fmt::Debug for QueriesOptional<T> {
 
 impl<T: de::DeserializeOwned> Endpoint for QueriesOptional<T> {
     type Item = Option<T>;
-    type Future = QueriesOptionalFuture<T>;
+    type Task = QueriesOptionalTask<T>;
 
-    fn apply(&self, _: &Input, _: &mut Context) -> Option<Self::Future> {
-        Some(QueriesOptionalFuture { _marker: PhantomData })
+    fn apply(&self, _: &mut Context) -> Option<Self::Task> {
+        Some(QueriesOptionalTask { _marker: PhantomData })
     }
 }
 
 #[doc(hidden)]
 #[allow(missing_debug_implementations)]
-pub struct QueriesOptionalFuture<T: de::DeserializeOwned> {
+pub struct QueriesOptionalTask<T: de::DeserializeOwned> {
     _marker: PhantomData<fn() -> T>,
 }
 
-impl<T: de::DeserializeOwned> Future for QueriesOptionalFuture<T> {
-    type Item = Option<T>;
-    type Error = FinchersError;
+impl<T: de::DeserializeOwned> Task for QueriesOptionalTask<T> {
+    type Output = Option<T>;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let result = Input::with(|input| match input.query() {
+    fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
+        let result = match cx.input().query() {
             Some(s) => match serde_qs::from_str(s) {
                 Ok(v) => Ok(Some(v)),
                 Err(e) => Err(BadRequest::new(Error::Parsing(e)).into()),
             },
             None => Ok(None),
-        });
+        };
         result.map(Into::into)
     }
 }
