@@ -3,6 +3,7 @@
 extern crate finchers_core;
 #[macro_use]
 extern crate futures;
+extern crate either;
 extern crate http;
 
 mod abort;
@@ -10,14 +11,12 @@ mod abort_with;
 mod all;
 mod and;
 mod and_then;
-mod chain;
 mod left;
 mod map;
+mod maybe_done;
 mod ok;
 mod or;
 mod right;
-mod skip_all;
-mod then;
 mod try_abort;
 
 // re-exports
@@ -31,8 +30,6 @@ pub use map::Map;
 pub use ok::{ok, Ok};
 pub use or::Or;
 pub use right::Right;
-pub use skip_all::{skip_all, SkipAll};
-pub use then::Then;
 pub use try_abort::TryAbort;
 
 use finchers_core::HttpError;
@@ -90,20 +87,6 @@ pub trait EndpointExt: Endpoint + Sized {
         F: FnOnce(Self::Item) -> U + Clone + Send,
     {
         assert_endpoint::<_, F::Output>(self::map::new(self, f))
-    }
-
-    /// Create an endpoint which continue an asynchronous computation
-    /// from the value returned from "self".
-    ///
-    /// The returned future from "f" always success and never returns an error.
-    /// If "f" will reject with an unrecoverable error, use "try_abort" instead.
-    fn then<F, R>(self, f: F) -> Then<Self, F>
-    where
-        F: FnOnce(Self::Item) -> R + Clone + Send,
-        R: IntoFuture<Error = !>,
-        R::Future: Send,
-    {
-        assert_endpoint::<_, R::Item>(self::then::new(self, f))
     }
 
     /// [unstable]

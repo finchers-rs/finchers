@@ -1,6 +1,5 @@
 use finchers_core::HttpError;
-use finchers_core::endpoint::{Context, Endpoint, Error, IntoEndpoint};
-use futures::{Future, Poll};
+use finchers_core::endpoint::{Context, Endpoint, Error, IntoEndpoint, task::{self, PollTask, Task}};
 
 pub fn new<E>(endpoint: E) -> Abort<E::Endpoint>
 where
@@ -23,29 +22,27 @@ where
     E::Item: HttpError,
 {
     type Item = !;
-    type Future = AbortFuture<E::Future>;
+    type Task = AbortTask<E::Task>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
-        let fut = self.endpoint.apply(cx)?;
-        Some(AbortFuture { fut })
+    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
+        let task = self.endpoint.apply(cx)?;
+        Some(AbortTask { task })
     }
 }
 
 #[derive(Debug)]
-pub struct AbortFuture<T> {
-    fut: T,
+pub struct AbortTask<T> {
+    task: T,
 }
 
-impl<T> Future for AbortFuture<T>
+impl<T: Task> Task for AbortTask<T>
 where
-    T: Future<Error = Error>,
-    T::Item: HttpError,
+    T::Output: HttpError,
 {
-    type Item = !;
-    type Error = Error;
+    type Output = !;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let item = try_ready!(self.fut.poll());
+    fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
+        let item = try_ready!(self.task.poll_task(cx));
         Err(Error::from(item).into())
     }
 }

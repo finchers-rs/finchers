@@ -3,9 +3,8 @@ use http::request::Parts;
 use http::{Extensions, Request};
 use http::{header, HeaderMap, Method, Uri, Version};
 use mime::Mime;
-use std::cell::RefCell;
 
-scoped_thread_local!(static CURRENT_INPUT: RefCell<Input>);
+scoped_thread_local!(static CURRENT_INPUT: Input);
 
 /// The value of incoming HTTP request
 #[derive(Debug)]
@@ -49,11 +48,11 @@ where
 }
 
 impl Input {
-    pub(crate) fn set<F, R>(input: &RefCell<Input>, f: F) -> R
+    pub fn enter_scope<F, R>(&self, f: F) -> R
     where
         F: FnOnce() -> R,
     {
-        CURRENT_INPUT.set(input, f)
+        CURRENT_INPUT.set(self, f)
     }
 
     /// Run a closure with the reference to `Input` at the current task context.
@@ -61,21 +60,7 @@ impl Input {
     where
         F: FnOnce(&Input) -> R,
     {
-        CURRENT_INPUT.with(|input| {
-            let input = input.borrow();
-            f(&*input)
-        })
-    }
-
-    /// Run a closure with the mutable reference to `Input` at the current task context.
-    pub fn with_mut<F, R>(f: F) -> R
-    where
-        F: FnOnce(&mut Input) -> R,
-    {
-        CURRENT_INPUT.with(|input| {
-            let mut input = input.borrow_mut();
-            f(&mut *input)
-        })
+        CURRENT_INPUT.with(|input| f(input))
     }
 
     pub fn method(&self) -> &Method {

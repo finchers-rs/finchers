@@ -1,7 +1,7 @@
-use super::chain::Chain;
 use finchers_core::HttpError;
-use finchers_core::endpoint::{Context, Endpoint, Error};
-use futures::{Future, IntoFuture, Poll};
+use finchers_core::endpoint::{Context, Endpoint, task::{self, Async, PollTask, Task}};
+use futures::{Future, IntoFuture};
+use std::mem;
 
 pub fn new<E, F, R>(endpoint: E, f: F) -> AndThen<E, F>
 where
@@ -29,43 +29,62 @@ where
     R::Error: HttpError,
 {
     type Item = R::Item;
-    type Future = AndThenFuture<E::Future, F, R>;
+    type Task = AndThenTask<E::Task, F, R>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
-        let future = self.endpoint.apply(cx)?;
-        Some(AndThenFuture {
-            inner: Chain::new(future, self.f.clone()),
-        })
+    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
+        let task = self.endpoint.apply(cx)?;
+        Some(AndThenTask::First(task, self.f.clone()))
     }
 }
 
 #[derive(Debug)]
-pub struct AndThenFuture<T, F, R>
+pub enum AndThenTask<T, F, R>
 where
-    T: Future<Error = Error>,
-    F: FnOnce(T::Item) -> R + Send,
+    T: Task,
+    F: FnOnce(T::Output) -> R + Send,
     R: IntoFuture,
     R::Future: Send,
     R::Error: HttpError,
 {
-    inner: Chain<T, R::Future, F>,
+    First(T, F),
+    Second(R::Future),
+    Done,
 }
 
-impl<T, F, R> Future for AndThenFuture<T, F, R>
+impl<T, F, R> Task for AndThenTask<T, F, R>
 where
-    T: Future<Error = Error>,
-    F: FnOnce(T::Item) -> R + Send,
+    T: Task,
+    F: FnOnce(T::Output) -> R + Send,
     R: IntoFuture,
     R::Future: Send,
     R::Error: HttpError,
 {
-    type Item = R::Item;
-    type Error = Error;
+    type Output = R::Item;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        self.inner.poll(|result, f| match result {
-            Ok(item) => Ok(Err(f(item).into_future())),
-            Err(err) => Err(err),
-        })
+    fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
+        use self::AndThenTask::*;
+        loop {
+            // TODO: optimize
+            match mem::replace(self, Done) {
+                First(mut task, f) => match task.poll_task(cx)? {
+                    Async::NotReady => {
+                        *self = First(task, f);
+                        return Ok(Async::NotReady);
+                    }
+                    Async::Ready(r) => {
+                        *self = Second(f(r).into_future());
+                        continue;
+                    }
+                },
+                Second(mut fut) => match fut.poll()? {
+                    Async::NotReady => {
+                        *self = Second(fut);
+                        return Ok(Async::NotReady);
+                    }
+                    Async::Ready(item) => return Ok(Async::Ready(item)),
+                },
+                Done => panic!(),
+            }
+        }
     }
 }

@@ -14,11 +14,11 @@
 //!
 //! [from_body]: ../../http/trait.FromBody.html
 
-use finchers_core::endpoint::{Context, Endpoint, Error};
+use finchers_core::endpoint::{Context, Endpoint, task::{self, PollTask, Task}};
 use finchers_core::error::BadRequest;
 use finchers_core::input;
 use finchers_core::{Bytes, BytesString, Input};
-use futures::{Future, Poll};
+use futures::Future;
 use std::marker::PhantomData;
 use std::str::Utf8Error;
 use std::{error, fmt};
@@ -50,11 +50,11 @@ impl<T> fmt::Debug for Body<T> {
 
 impl<T: FromBody> Endpoint for Body<T> {
     type Item = T;
-    type Future = BodyFuture<T>;
+    type Task = BodyTask<T>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
         match T::is_match(cx.input()) {
-            true => Some(BodyFuture::Init),
+            true => Some(BodyTask::Init),
             false => None,
         }
     }
@@ -62,26 +62,25 @@ impl<T: FromBody> Endpoint for Body<T> {
 
 #[doc(hidden)]
 #[allow(missing_debug_implementations)]
-pub enum BodyFuture<T> {
+pub enum BodyTask<T> {
     Init,
     Recv(input::Body),
     Done(PhantomData<fn() -> T>),
 }
 
-impl<T: FromBody> Future for BodyFuture<T> {
-    type Item = T;
-    type Error = Error;
+impl<T: FromBody> Task for BodyTask<T> {
+    type Output = T;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+    fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
         'poll: loop {
             let next = match *self {
-                BodyFuture::Init => {
-                    let body = Input::with_mut(|input| input.body()).expect("The body has already taken");
-                    BodyFuture::Recv(body.into_data())
+                BodyTask::Init => {
+                    let body = cx.input_mut().body().expect("The body has already taken");
+                    BodyTask::Recv(body.into_data())
                 }
-                BodyFuture::Recv(ref mut body) => {
+                BodyTask::Recv(ref mut body) => {
                     let buf = try_ready!(body.poll());
-                    let body = Input::with_mut(|input| T::from_body(buf, input).map_err(BadRequest::new))?;
+                    let body = T::from_body(buf, cx.input_mut()).map_err(BadRequest::new)?;
                     return Ok(body.into());
                 }
                 _ => panic!("cannot resolve/reject twice"),
@@ -118,28 +117,25 @@ impl fmt::Debug for BodyStream {
 
 impl Endpoint for BodyStream {
     type Item = input::BodyStream;
-    type Future = BodyStreamFuture;
+    type Task = BodyStreamTask;
 
-    fn apply(&self, _: &mut Context) -> Option<Self::Future> {
-        Some(BodyStreamFuture { _priv: () })
+    fn apply(&self, _: &mut Context) -> Option<Self::Task> {
+        Some(BodyStreamTask { _priv: () })
     }
 }
 
 #[doc(hidden)]
 #[derive(Debug)]
-pub struct BodyStreamFuture {
+pub struct BodyStreamTask {
     _priv: (),
 }
 
-impl Future for BodyStreamFuture {
-    type Item = input::BodyStream;
-    type Error = Error;
+impl Task for BodyStreamTask {
+    type Output = input::BodyStream;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        Input::with_mut(|input| {
-            let body = input.body().expect("cannot take a body twice");
-            Ok(input::BodyStream::from(body).into())
-        })
+    fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
+        let body = cx.input_mut().body().expect("cannot take a body twice");
+        Ok(input::BodyStream::from(body).into())
     }
 }
 

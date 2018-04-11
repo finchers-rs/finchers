@@ -1,59 +1,60 @@
 mod context;
 mod error;
+pub mod task;
 
-use futures::Future;
 use std::rc::Rc;
 use std::sync::Arc;
 
 // re-exports
 pub use self::context::{Context, Segment, Segments};
 pub use self::error::{Error, ErrorKind};
+pub use self::task::Task;
 
-/// Abstruction of an endpoint.
+/// Trait representing an *endpoint*.
 pub trait Endpoint {
-    /// The *internal* type of this endpoint.
+    /// The inner type associated with this endpoint.
     type Item;
 
-    /// The type of future returned from `apply`.
-    type Future: Future<Item = Self::Item, Error = Error> + Send;
+    /// The type of asynchronous "Task" which will be returned from "apply".
+    type Task: Task<Output = Self::Item> + Send;
 
-    /// Validates the incoming HTTP request,
-    /// and returns the instance of `Future` if matched.
-    fn apply(&self, cx: &mut Context) -> Option<Self::Future>;
+    /// Perform checking the incoming HTTP request and returns
+    /// an instance of the associated task if matched.
+    fn apply(&self, cx: &mut Context) -> Option<Self::Task>;
 }
 
 impl<'a, E: Endpoint> Endpoint for &'a E {
     type Item = E::Item;
-    type Future = E::Future;
+    type Task = E::Task;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
         (*self).apply(cx)
     }
 }
 
 impl<E: Endpoint> Endpoint for Box<E> {
     type Item = E::Item;
-    type Future = E::Future;
+    type Task = E::Task;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
         (**self).apply(cx)
     }
 }
 
 impl<E: Endpoint> Endpoint for Rc<E> {
     type Item = E::Item;
-    type Future = E::Future;
+    type Task = E::Task;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
         (**self).apply(cx)
     }
 }
 
 impl<E: Endpoint> Endpoint for Arc<E> {
     type Item = E::Item;
-    type Future = E::Future;
+    type Task = E::Task;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
         (**self).apply(cx)
     }
 }

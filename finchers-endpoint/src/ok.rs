@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 
-use finchers_core::endpoint::{Context, Endpoint, Error};
+use finchers_core::endpoint::{Context, Endpoint, Error, task::CompatTask};
 use futures::future::{self, FutureResult};
 
 pub fn ok<T>(x: T) -> Ok<T>
@@ -20,9 +20,9 @@ where
     T: Clone + Send,
 {
     type Item = T;
-    type Future = FutureResult<T, Error>;
+    type Task = CompatTask<FutureResult<T, Error>>;
 
-    fn apply(&self, _: &mut Context) -> Option<Self::Future> {
-        Some(future::ok(self.x.clone()))
+    fn apply(&self, _: &mut Context) -> Option<Self::Task> {
+        Some(future::ok(self.x.clone()).into())
     }
 }

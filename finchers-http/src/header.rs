@@ -1,7 +1,7 @@
 //! Components for accessing of HTTP headers
 
 use finchers_core::HttpError;
-use finchers_core::endpoint::{Context, Endpoint, Error};
+use finchers_core::endpoint::{Context, Endpoint, Error, task::CompatTask};
 use finchers_core::error::NotPresent;
 use futures::future::{err, ok, FutureResult, IntoFuture};
 use std::fmt;
@@ -96,14 +96,15 @@ where
     H: FromHeader + Send,
 {
     type Item = H;
-    type Future = FutureResult<H, Error>;
+    type Task = CompatTask<FutureResult<H, Error>>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
         cx.input()
             .headers()
             .get(H::header_name())
             .and_then(|h| H::from_header(h.as_bytes()).ok())
             .map(ok)
+            .map(Into::into)
     }
 }
 
@@ -175,13 +176,13 @@ where
     H::Error: HttpError,
 {
     type Item = H;
-    type Future = FutureResult<H, Error>;
+    type Task = CompatTask<FutureResult<H, Error>>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
         match cx.input().headers().get(H::header_name()) {
             Some(h) => Some(H::from_header(h.as_bytes()).map_err(Into::into).into_future()),
             None => Some(err(NotPresent::new("").into())),
-        }
+        }.map(Into::into)
     }
 }
 

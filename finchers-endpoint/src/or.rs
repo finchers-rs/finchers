@@ -1,5 +1,5 @@
+use either::Either;
 use finchers_core::endpoint::{Context, Endpoint, IntoEndpoint};
-use futures::{Future, Poll};
 
 pub fn new<E1, E2>(e1: E1, e2: E2) -> Or<E1::Endpoint, E2::Endpoint>
 where
@@ -24,9 +24,9 @@ where
     E2: Endpoint<Item = E1::Item>,
 {
     type Item = E1::Item;
-    type Future = OrFuture<E1::Future, E2::Future>;
+    type Task = Either<E1::Task, E2::Task>;
 
-    fn apply(&self, cx2: &mut Context) -> Option<Self::Future> {
+    fn apply(&self, cx2: &mut Context) -> Option<Self::Task> {
         let mut cx1 = cx2.clone();
         let t1 = self.e1.apply(&mut cx1);
         let t2 = self.e2.apply(cx2);
@@ -34,51 +34,20 @@ where
             (Some(t1), Some(t2)) => {
                 // If both endpoints are matched, the one with the larger number of
                 // (consumed) path segments is choosen.
-                let inner = if cx1.segments().popped() > cx2.segments().popped() {
+                let res = if cx1.segments().popped() > cx2.segments().popped() {
                     *cx2 = cx1;
                     Either::Left(t1)
                 } else {
                     Either::Right(t2)
                 };
-                Some(OrFuture { inner })
+                Some(res)
             }
             (Some(t1), None) => {
                 *cx2 = cx1;
-                Some(OrFuture {
-                    inner: Either::Left(t1),
-                })
+                Some(Either::Left(t1))
             }
-            (None, Some(t2)) => Some(OrFuture {
-                inner: Either::Right(t2),
-            }),
+            (None, Some(t2)) => Some(Either::Right(t2)),
             (None, None) => None,
-        }
-    }
-}
-
-#[derive(Debug)]
-enum Either<T1, T2> {
-    Left(T1),
-    Right(T2),
-}
-
-#[derive(Debug)]
-pub struct OrFuture<T1, T2> {
-    inner: Either<T1, T2>,
-}
-
-impl<T1, T2> Future for OrFuture<T1, T2>
-where
-    T1: Future,
-    T2: Future<Item = T1::Item, Error = T1::Error>,
-{
-    type Item = T1::Item;
-    type Error = T1::Error;
-
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        match self.inner {
-            Either::Left(ref mut e) => e.poll(),
-            Either::Right(ref mut e) => e.poll(),
         }
     }
 }

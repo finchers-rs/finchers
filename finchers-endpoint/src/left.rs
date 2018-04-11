@@ -23,9 +23,9 @@ where
     E2: Endpoint,
 {
     type Item = E1::Item;
-    type Future = E1::Future;
+    type Task = E1::Task;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
         let f1 = self.e1.apply(cx)?;
         let _f2 = self.e2.apply(cx)?;
         Some(f1)

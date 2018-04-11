@@ -1,6 +1,5 @@
 use finchers_core::HttpError;
-use finchers_core::endpoint::{Context, Endpoint, Error};
-use futures::{Future, Poll};
+use finchers_core::endpoint::{Context, Endpoint, task::{self, PollTask, Task}};
 
 pub fn new<E, F, T, R>(endpoint: E, f: F) -> TryAbort<E, F>
 where
@@ -24,34 +23,33 @@ where
     R: HttpError,
 {
     type Item = T;
-    type Future = TryAbortFuture<E::Future, F>;
+    type Task = TryAbortTask<E::Task, F>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
-        let future = self.endpoint.apply(cx)?;
-        Some(TryAbortFuture {
-            future,
+    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
+        let task = self.endpoint.apply(cx)?;
+        Some(TryAbortTask {
+            task,
             f: Some(self.f.clone()),
         })
     }
 }
 
 #[derive(Debug)]
-pub struct TryAbortFuture<T, F> {
-    future: T,
+pub struct TryAbortTask<T, F> {
+    task: T,
     f: Option<F>,
 }
 
-impl<T, F, U, E> Future for TryAbortFuture<T, F>
+impl<T, F, U, E> Task for TryAbortTask<T, F>
 where
-    T: Future<Error = Error> + Send,
-    F: FnOnce(T::Item) -> Result<U, E> + Clone + Send,
+    T: Task + Send,
+    F: FnOnce(T::Output) -> Result<U, E> + Clone + Send,
     E: HttpError,
 {
-    type Item = U;
-    type Error = Error;
+    type Output = U;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let item = try_ready!(self.future.poll());
+    fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
+        let item = try_ready!(self.task.poll_task(cx));
         let f = self.f.take().expect("cannot resolve/reject twice");
         f(item).map_err(Into::into).map(Into::into)
     }

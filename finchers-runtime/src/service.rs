@@ -74,7 +74,7 @@ where
 /// A future returned from `EndpointService::call()`
 #[allow(missing_debug_implementations)]
 pub struct FinchersServiceFuture<E: Endpoint> {
-    task: EndpointTask<E::Future>,
+    task: EndpointTask<E::Task>,
 }
 
 impl<E> Future for FinchersServiceFuture<E>

@@ -1,5 +1,4 @@
-use finchers_core::endpoint::{Context, Endpoint, IntoEndpoint};
-use futures::{Future, Poll};
+use finchers_core::endpoint::{Context, Endpoint, IntoEndpoint, task::{self, PollTask, Task}};
 
 pub fn new<E, F, T>(endpoint: E, f: F) -> Map<E::Endpoint, F>
 where
@@ -24,33 +23,32 @@ where
     F: FnOnce(E::Item) -> T + Clone + Send,
 {
     type Item = F::Output;
-    type Future = MapFuture<E::Future, F>;
+    type Task = MapTask<E::Task, F>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
-        let fut = self.endpoint.apply(cx)?;
-        Some(MapFuture {
-            fut,
+    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
+        let task = self.endpoint.apply(cx)?;
+        Some(MapTask {
+            task,
             f: Some(self.f.clone()),
         })
     }
 }
 
 #[derive(Debug)]
-pub struct MapFuture<T, F> {
-    fut: T,
+pub struct MapTask<T, F> {
+    task: T,
     f: Option<F>,
 }
 
-impl<T, F, U> Future for MapFuture<T, F>
+impl<T, F, U> Task for MapTask<T, F>
 where
-    T: Future + Send,
-    F: FnOnce(T::Item) -> U + Send,
+    T: Task + Send,
+    F: FnOnce(T::Output) -> U + Send,
 {
-    type Item = U;
-    type Error = T::Error;
+    type Output = U;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let item = try_ready!(self.fut.poll());
+    fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
+        let item = try_ready!(self.task.poll_task(cx));
         let f = self.f.take().expect("cannot resolve twice");
         Ok(f(item).into())
     }
