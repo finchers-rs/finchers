@@ -4,16 +4,8 @@ use http::{Extensions, Request};
 use http::{header, HeaderMap, Method, Uri, Version};
 use mime::Mime;
 use std::cell::RefCell;
-use std::mem;
 
-task_local!(static CURRENT_INPUT: RefCell<Option<Input>> = RefCell::new(None));
-
-/// Insert the value of `Input` to the current task context.
-///
-/// This function will return a `Some(input)` if the value of `Input` has already set.
-pub fn replace_input(input: Option<Input>) -> Option<Input> {
-    CURRENT_INPUT.with(|i| mem::replace(&mut *i.borrow_mut(), input))
-}
+scoped_thread_local!(static CURRENT_INPUT: RefCell<Input>);
 
 /// The value of incoming HTTP request
 #[derive(Debug)]
@@ -57,6 +49,13 @@ where
 }
 
 impl Input {
+    pub(crate) fn set<F, R>(input: &RefCell<Input>, f: F) -> R
+    where
+        F: FnOnce() -> R,
+    {
+        CURRENT_INPUT.set(input, f)
+    }
+
     /// Run a closure with the reference to `Input` at the current task context.
     pub fn with<F, R>(f: F) -> R
     where
@@ -64,8 +63,7 @@ impl Input {
     {
         CURRENT_INPUT.with(|input| {
             let input = input.borrow();
-            let input = input.as_ref().expect("The instance of Input has not initialized yet.");
-            f(input)
+            f(&*input)
         })
     }
 
@@ -76,8 +74,7 @@ impl Input {
     {
         CURRENT_INPUT.with(|input| {
             let mut input = input.borrow_mut();
-            let input = input.as_mut().expect("The instance of Input has not initialized yet.");
-            f(input)
+            f(&mut *input)
         })
     }
 

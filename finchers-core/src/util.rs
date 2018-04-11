@@ -1,20 +1,21 @@
 use endpoint::{Context, Endpoint, Error};
 use error::NoRoute;
 use futures::{Async, Future, Poll};
-use input::{replace_input, Input};
+use input::Input;
+use std::cell::RefCell;
 
 /// Create a task for processing an incoming HTTP request by using given `Endpoint`.
 pub fn create_task<E: Endpoint>(endpoint: &E, input: Input) -> EndpointTask<E::Future> {
     let in_flight = endpoint.apply(&mut Context::new(&input));
     EndpointTask {
-        input: Some(input),
+        input: Some(RefCell::new(input)),
         in_flight,
     }
 }
 
 #[derive(Debug)]
 pub struct EndpointTask<F> {
-    input: Option<Input>,
+    input: Option<RefCell<Input>>,
     in_flight: Option<F>,
 }
 
@@ -23,20 +24,20 @@ impl<F: Future<Error = Error>> Future for EndpointTask<F> {
     type Error = !;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        if let Some(input) = self.input.take() {
-            replace_input(Some(input));
-        }
-
-        let result = match self.in_flight {
-            Some(ref mut f) => match f.poll() {
-                Ok(Async::NotReady) => return Ok(Async::NotReady),
-                Ok(Async::Ready(ok)) => Ok(ok),
-                Err(err) => Err(err),
+        let in_flight = &mut self.in_flight;
+        let polled = Input::set(
+            self.input.as_ref().expect("cannot resolve/reject twice"),
+            || match *in_flight {
+                Some(ref mut f) => f.poll(),
+                None => Err(NoRoute::new().into()),
             },
-            None => Err(NoRoute::new().into()),
+        );
+        let result = match polled {
+            Ok(Async::NotReady) => return Ok(Async::NotReady),
+            Ok(Async::Ready(ok)) => Ok(ok),
+            Err(err) => Err(err),
         };
-        let input = replace_input(None).expect("The instance of Input has gone.");
-
-        Ok(Async::Ready((result, input)))
+        let input = self.input.take().expect("The instance of Input has gone.");
+        Ok(Async::Ready((result, input.into_inner())))
     }
 }
