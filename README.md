@@ -1,21 +1,25 @@
 # `finchers`
-[![Travis Build Status](https://travis-ci.org/finchers-rs/finchers.svg?branch=master)](https://travis-ci.org/finchers-rs/finchers)
-[![Appveyor Build status](https://ci.appveyor.com/api/projects/status/76smoc919fni4n6l/branch/master?svg=true)](https://ci.appveyor.com/project/ubnt-intrepid/finchers/branch/master)
-[![Coverage Status](https://coveralls.io/repos/github/finchers-rs/finchers/badge.svg)](https://coveralls.io/github/finchers-rs/finchers)
-[![crates.io](https://img.shields.io/crates/v/finchers.svg)](https://crates.io/crates/finchers)
-[![Released API docs](https://docs.rs/finchers/badge.svg)](https://docs.rs/finchers)
-[![Master API docs](https://img.shields.io/badge/docs-master-red.svg)](https://finchers-rs.github.io/api/finchers/)
-[![Gitter](https://badges.gitter.im/finchers-rs/finchers.svg)](https://gitter.im/finchers-rs/finchers?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+
+[![crates.io][crates-io-badge]][crates-io]
+[![dependency status][dependencies-badge]][dependencies]
+[![Gitter][gitter-badge]][gitter]
 
 `finchers` is a combinator library for building asynchronous HTTP services.
 
 The concept and design was highly inspired by [`finch`](https://github.com/finagle/finch).
 
 ## Features
-* building an HTTP service by *combining* the primitive components
-* type-safe routing
-* asynchronous handling based on Futures and Hyper 0.11
-* focuses on stable channel
+
+* Building an HTTP service by *combining* the primitive components
+* Type-safe routing
+* Asynchronous handling based on Futures and Hyper 0.11
+* Focuses on stable channel
+
+## Documentation
+
+* [User Guide][user-guide]
+* [API documentation (released)][released-api]
+* [API documentation (master)][master-api]
 
 ## Example
 
@@ -40,10 +44,33 @@ fn main() {
 }
 ```
 
-## Documentation
-* [User Guide](https://finchers-rs.github.io/guide)
-* [API doc (released)](https://docs.rs/finchers/*/finchers)
-* [API doc (master)](https://finchers-rs.github.io/api/finchers/index.html)
+## Status
+
+| Travis CI | Appveyor | Coveralls |
+|:---------:|:--------:|:---------:|
+| [![Travis CI][travis-badge]][travis] | [![Appveyor][appveyor-badge]][appveyor] | [![Coveralls][coveralls-badge]][coveralls] |
+
 
 ## License
 Dual licensed under the MIT and Apache 2.0.
+
+<!-- links -->
+
+[user-guide]: https://finchers-rs.github.io/guide
+[crates-io]: https://crates.io/crates/finchers
+[released-api]: https://docs.rs/finchers/*/finchers
+[master-api]: https://finchers-rs.github.io/api/finchers/
+[gitter]: https://gitter.im/finchers-rs/finchers?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge
+[travis]: https://travis-ci.org/finchers-rs/finchers
+[appveyor]: https://ci.appveyor.com/project/ubnt-intrepid/finchers/branch/master
+[coveralls]: https://coveralls.io/github/finchers-rs/finchers
+[dependencies]: https://deps.rs/repo/github/finchers-rs/finchers
+
+[crates-io-badge]: https://img.shields.io/crates/v/finchers.svg
+[docs-rs-badge]: https://docs.rs/finchers/badge.svg
+[master-api-badge]: https://img.shields.io/badge/docs-master-red.svg
+[gitter-badge]: https://badges.gitter.im/finchers-rs/finchers.svg
+[travis-badge]: https://travis-ci.org/finchers-rs/finchers.svg?branch=master
+[appveyor-badge]: https://ci.appveyor.com/api/projects/status/76smoc919fni4n6l/branch/master?svg=true
+[coveralls-badge]: https://coveralls.io/repos/github/finchers-rs/finchers/badge.svg
+[dependencies-badge]: https://deps.rs/repo/github/finchers-rs/finchers/status.svg
