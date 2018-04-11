@@ -1,5 +1,4 @@
-use finchers_core::HttpError;
-use finchers_core::endpoint::{Context, Endpoint, task::{self, Async, PollTask, Task}};
+use finchers_core::{HttpError, endpoint::{Context, Endpoint, task::{self, Async, PollTask, Task}}};
 use futures::{Future, IntoFuture};
 use std::mem;
 
@@ -72,7 +71,9 @@ where
                         return Ok(Async::NotReady);
                     }
                     Async::Ready(r) => {
-                        *self = Second(f(r).into_future());
+                        cx.input().enter_scope(|| {
+                            *self = Second(f(r).into_future());
+                        });
                         continue;
                     }
                 },

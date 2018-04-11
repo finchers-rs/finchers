@@ -1,5 +1,4 @@
-use finchers_core::HttpError;
-use finchers_core::endpoint::{Context, Endpoint, task::{self, PollTask, Task}};
+use finchers_core::{HttpError, endpoint::{Context, Endpoint, task::{self, PollTask, Task}}};
 
 pub fn new<E, F, T, R>(endpoint: E, f: F) -> TryAbort<E, F>
 where
@@ -51,6 +50,6 @@ where
     fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
         let item = try_ready!(self.task.poll_task(cx));
         let f = self.f.take().expect("cannot resolve/reject twice");
-        f(item).map_err(Into::into).map(Into::into)
+        cx.input().enter_scope(|| f(item).map_err(Into::into).map(Into::into))
     }
 }

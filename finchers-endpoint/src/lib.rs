@@ -6,11 +6,10 @@ extern crate futures;
 extern crate either;
 extern crate http;
 
-mod abort;
-mod abort_with;
 mod all;
 mod and;
 mod and_then;
+mod inspect;
 mod left;
 mod map;
 mod maybe_done;
@@ -20,11 +19,10 @@ mod right;
 mod try_abort;
 
 // re-exports
-pub use abort::Abort;
-pub use abort_with::AbortWith;
 pub use all::{all, All};
 pub use and::And;
 pub use and_then::AndThen;
+pub use inspect::Inspect;
 pub use left::Left;
 pub use map::Map;
 pub use ok::{ok, Ok};
@@ -37,10 +35,19 @@ use finchers_core::endpoint::{Endpoint, IntoEndpoint};
 use futures::IntoFuture;
 
 pub trait EndpointExt: Endpoint + Sized {
-    /// Create an endpoint which evaluates "self" and "e" sequentially.
+    /// Create an endpoint which evaluates "self" and "e" sequentially
+    /// and then returns their results as a pair.
     ///
     /// The returned future from this endpoint contains both futures from
     /// "self" and "e" and resolved as a pair of values returned from theirs.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let e1 = ok("foo");
+    /// let e2 = ok("bar");
+    /// let endpoint = e1.and(e2);
+    /// ```
     fn and<E>(self, e: E) -> And<Self, E::Endpoint>
     where
         Self::Item: Send,
@@ -48,17 +55,6 @@ pub trait EndpointExt: Endpoint + Sized {
         E::Item: Send,
     {
         assert_endpoint::<_, (Self::Item, <E::Endpoint as Endpoint>::Item)>(self::and::new(self, e))
-    }
-
-    /// Create an endpoint which evaluates "self" and "e" sequentially.
-    ///
-    /// The returned future from this endpoint contains the one returned
-    /// from either "self" or "e" matched "better" to the input.
-    fn or<E>(self, e: E) -> Or<Self, E::Endpoint>
-    where
-        E: IntoEndpoint<Item = Self::Item>,
-    {
-        assert_endpoint::<_, Self::Item>(self::or::new(self, e))
     }
 
     /// Create an endpoint which evaluates "self" and "e" sequentially.
@@ -81,6 +77,25 @@ pub trait EndpointExt: Endpoint + Sized {
         assert_endpoint::<_, E::Item>(self::right::new(self, e))
     }
 
+    /// Create an endpoint which evaluates "self" and "e" sequentially.
+    ///
+    /// The returned future from this endpoint contains the one returned
+    /// from either "self" or "e" matched "better" to the input.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let e1 = path("/foo/bar").map(|_| "path 1");
+    /// let e2 = path("/foo/baz").map(|_| "path 2");
+    /// let endpoint = e1.or(e2);
+    /// ```
+    fn or<E>(self, e: E) -> Or<Self, E::Endpoint>
+    where
+        E: IntoEndpoint<Item = Self::Item>,
+    {
+        assert_endpoint::<_, Self::Item>(self::or::new(self, e))
+    }
+
     /// Create an endpoint which maps the returned value to a different type.
     fn map<F, U>(self, f: F) -> Map<Self, F>
     where
@@ -89,11 +104,18 @@ pub trait EndpointExt: Endpoint + Sized {
         assert_endpoint::<_, F::Output>(self::map::new(self, f))
     }
 
-    /// [unstable]
+    /// Create an endpoint which do something with the output value from "Self".
+    fn inspect<F>(self, f: F) -> Inspect<Self, F>
+    where
+        F: FnOnce(&Self::Item) + Clone + Send,
+    {
+        assert_endpoint::<_, Self::Item>(self::inspect::new(self, f))
+    }
+
     /// Create an endpoint which continue an asynchronous computation
     /// from the value returned from "self".
     ///
-    /// The future will abort if the future returned from "f" will be rejected to
+    /// The future will abort if the future returned from "f" will be rejected with
     /// an unrecoverable error.
     fn and_then<F, R>(self, f: F) -> AndThen<Self, F>
     where
@@ -103,24 +125,6 @@ pub trait EndpointExt: Endpoint + Sized {
         R::Error: HttpError,
     {
         assert_endpoint::<_, R::Item>(self::and_then::new(self, f))
-    }
-
-    /// Create an endpoint which always abort with the returned value from "self".
-    fn abort(self) -> Abort<Self>
-    where
-        Self::Item: HttpError,
-    {
-        assert_endpoint::<_, !>(self::abort::new(self))
-    }
-
-    /// Create an endpoint which always abort with mapping the value returned from "self"
-    /// to an error value.
-    fn abort_with<F, E>(self, f: F) -> AbortWith<Self, F>
-    where
-        F: FnOnce(Self::Item) -> E + Clone + Send,
-        E: HttpError,
-    {
-        assert_endpoint::<_, !>(self::abort_with::new(self, f))
     }
 
     /// Create an endpoint which maps the returned value from "self" to a `Result`.

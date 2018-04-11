@@ -50,6 +50,6 @@ where
     fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
         let item = try_ready!(self.task.poll_task(cx));
         let f = self.f.take().expect("cannot resolve twice");
-        Ok(f(item).into())
+        cx.input().enter_scope(|| Ok(f(item).into()))
     }
 }
