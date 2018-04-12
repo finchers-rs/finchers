@@ -21,29 +21,6 @@ The concept and design was highly inspired by [`finch`](https://github.com/finag
 * [API documentation (released)][released-api]
 * [API documentation (master)][master-api]
 
-## Example
-
-```rust,no_run
-#[macro_use]
-extern crate finchers;
-
-use finchers::prelude::*;
-use finchers::endpoint::prelude::*;
-use finchers::output::Display;
-use finchers::runtime::Server;
-
-fn main() {
-    let endpoint = path("api/v1").right(choice![
-        get(param()).map(|id: u64| format!("GET: id={}", id)),
-        post(body()).map(|data: String| format!("POST: body={}", data)),
-    ])
-    .map(Display::new);
-
-    let service = endpoint.into_service();
-    Server::new(service).run();
-}
-```
-
 ## Status
 
 | Travis CI | Appveyor | Coveralls |

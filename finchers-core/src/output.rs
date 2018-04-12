@@ -78,6 +78,9 @@ pub trait HttpStatus {
     fn status_code(&self) -> StatusCode;
 }
 
+/// A helper struct for adding implementation of `Responder` for `Debug`able types.
+///
+/// This type is only for debugging and should not use for production code.
 pub struct Debug<T> {
     value: T,
     pretty: bool,
@@ -106,6 +109,9 @@ impl<T: fmt::Debug> Responder for Debug<T> {
     }
 }
 
+/// A helper struct for adding implementation of `Responder` for `Display`able types.
+///
+/// This type is only for debugging and should not use for production code.
 pub struct Display<T> {
     value: T,
     status: StatusCode,

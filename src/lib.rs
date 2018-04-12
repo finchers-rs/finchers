@@ -1,3 +1,59 @@
+//! A combinator library for building asynchronous HTTP services.
+//!
+//! The concept and design was highly inspired by [`finch`](https://github.com/finagle/finch).
+//!
+//! # Features
+//!
+//! * Building an HTTP service by *combining* the primitive components
+//! * Type-safe routing
+//! * Asynchronous handling based on Futures and Hyper 0.11
+//! * Focuses on stable channel
+//!
+//! # References
+//!
+//! * [User Guide][user-guide]
+//! * [API documentation (released)][released-api]
+//! * [API documentation (master)][master-api]
+//!
+//!
+//! [user-guide]: https://finchers-rs.github.io/guide
+//! [released-api]: https://docs.rs/finchers/*/finchers
+//! [master-api]: https://finchers-rs.github.io/api/finchers/
+//!
+//! # Example
+//!
+//! ```toml
+//! [dependencies]
+//! finchers = { git = "https://github.com/finchers-rs/finchers.git" }
+//! ```
+//!
+//! ```rust
+//! #[macro_use]
+//! extern crate finchers;
+//!
+//! use finchers::prelude::*;
+//! use finchers::output::Display;
+//! use finchers::runtime::Server;
+//!
+//! fn main() {
+//!     let endpoint = {
+//!         use finchers::endpoint::prelude::*;
+//!
+//!         path("api/v1").right(choice![
+//!             get(param())
+//!                 .map(|id: u64| format!("GET: id={}", id)),
+//!             post(body())
+//!                 .map(|data: String| format!("POST: body={}", data)),
+//!         ])
+//!         .map(Display::new)
+//!     };
+//!
+//! # std::thread::spawn(move || {
+//!     Server::new(endpoint.into_service()).run();
+//! # });
+//! }
+//! ```
+
 extern crate finchers_core;
 #[allow(unused_imports)]
 #[macro_use]
