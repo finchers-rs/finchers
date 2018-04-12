@@ -81,22 +81,26 @@ pub trait HttpStatus {
 /// A helper struct for adding implementation of `Responder` for `Debug`able types.
 ///
 /// This type is only for debugging and should not use for production code.
-pub struct Debug<T> {
-    value: T,
+pub struct Debug {
+    value: Box<fmt::Debug + Send + 'static>,
     pretty: bool,
 }
 
-impl<T: fmt::Debug> Debug<T> {
-    pub fn new(value: T) -> Debug<T> {
-        Debug { value, pretty: false }
+impl Debug {
+    pub fn new<T: fmt::Debug + Send + 'static>(value: T) -> Debug {
+        Debug {
+            value: Box::new(value),
+            pretty: false,
+        }
     }
 
-    pub fn pretty(&mut self, enabled: bool) {
+    pub fn pretty(mut self, enabled: bool) -> Self {
         self.pretty = enabled;
+        self
     }
 }
 
-impl<T: fmt::Debug> Responder for Debug<T> {
+impl Responder for Debug {
     type Error = !;
 
     fn respond(self, _: &Input) -> Result<Output, Self::Error> {

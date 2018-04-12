@@ -31,25 +31,26 @@
 //! #[macro_use]
 //! extern crate finchers;
 //!
-//! use finchers::prelude::*;
-//! use finchers::output::Display;
-//! use finchers::runtime::Server;
+//! use finchers::Endpoint;
+//! use finchers::output::Debug;
+//!
+//! fn build_endpoint() -> impl Endpoint<Item = Debug> + Send + Sync + 'static {
+//!     use finchers::endpoint::prelude::*;
+//!
+//!     path("api/v1").right(choice![
+//!         get(param())
+//!             .map(|id: u64| format!("GET: id={}", id)),
+//!         post(body())
+//!             .map(|data: String| format!("POST: body={}", data)),
+//!     ])
+//!     .map(|val| Debug::new(val).pretty(true))
+//! }
 //!
 //! fn main() {
-//!     let endpoint = {
-//!         use finchers::endpoint::prelude::*;
-//!
-//!         path("api/v1").right(choice![
-//!             get(param())
-//!                 .map(|id: u64| format!("GET: id={}", id)),
-//!             post(body())
-//!                 .map(|data: String| format!("POST: body={}", data)),
-//!         ])
-//!         .map(Display::new)
-//!     };
+//!     let endpoint = build_endpoint();
 //!
 //! # std::thread::spawn(move || {
-//!     Server::new(endpoint.into_service()).run();
+//!     finchers::run(endpoint);
 //! # });
 //! }
 //! ```
@@ -82,6 +83,7 @@ pub mod endpoint {
     /// The "prelude" for building endpoints
     pub mod prelude {
         pub use finchers_core::endpoint::{Endpoint, IntoEndpoint};
+        pub use finchers_endpoint::EndpointExt;
         pub use finchers_http::body::{body, body_stream};
         pub use finchers_http::header::header;
         pub use finchers_http::method::{delete, get, head, patch, post, put};
@@ -106,14 +108,20 @@ pub mod urlencoded {
                                   QueriesRequired};
 }
 
-pub mod prelude {
-    pub use finchers_endpoint::EndpointExt;
-    pub use finchers_runtime::EndpointServiceExt;
-}
-
 pub use finchers_core::endpoint::Endpoint;
+pub use finchers_core::output::Responder;
 pub use finchers_core::{Input, Output};
 pub use finchers_endpoint::EndpointExt;
 
 #[macro_use]
 mod macros;
+
+pub fn run<E>(endpoint: E)
+where
+    E: Endpoint + Send + Sync + 'static,
+    E::Item: Responder,
+{
+    use finchers_runtime::{EndpointServiceExt, Server};
+    let service = endpoint.into_service();
+    Server::new(service).run();
+}

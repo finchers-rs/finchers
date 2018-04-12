@@ -10,8 +10,6 @@ mod db;
 
 use self::Response::*;
 use self::db::*;
-use finchers::prelude::*;
-use finchers::runtime::Server;
 
 #[derive(Debug, Serialize, HttpStatus)]
 #[serde(untagged)]
@@ -55,6 +53,5 @@ fn main() {
             .map(Json::from)
     };
 
-    let service = endpoint.into_service();
-    Server::new(service).run();
+    finchers::run(endpoint);
 }
