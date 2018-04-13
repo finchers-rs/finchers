@@ -4,41 +4,41 @@ use hyper;
 use hyper::server::{service_fn, Http};
 use service::HttpService;
 use std::io;
-use std::net::{SocketAddr, ToSocketAddrs};
 use std::sync::Arc;
 use tokio;
 use tokio::net::TcpListener;
 
+use Config;
+
 #[derive(Debug)]
 pub struct Server<S> {
     service: S,
-    addr: Option<SocketAddr>,
+    config: Config,
 }
 
 impl<S> Server<S>
 where
     S: HttpService + Send + Sync + 'static,
     S::RequestBody: From<hyper::Body>,
-    S::Future: Send,
     S::ResponseBody: Stream<Error = io::Error> + Send + 'static,
     <S::ResponseBody as Stream>::Item: AsRef<[u8]> + Send + 'static,
+    S::Error: Into<hyper::Error>,
+    S::Future: Send,
 {
     /// Create a new launcher from given service.
-    pub fn new(service: S) -> Self {
-        Server { service, addr: None }
-    }
-
-    pub fn bind<T: ToSocketAddrs>(mut self, addr: T) -> Self {
-        self.addr = addr.to_socket_addrs().unwrap().next();
-        self
+    pub fn new(service: S, config: Config) -> Self {
+        Server { service, config }
     }
 
     /// Start the HTTP server with given configurations
     #[inline]
     pub fn run(self) {
-        let Server { service, addr } = self;
+        let Server { service, config } = self;
         let service = Arc::new(service);
-        let addr = addr.unwrap_or_else(|| ([127, 0, 0, 1], 4000).into());
+        let addr = (config.host(), config.port()).into();
+        if config.verbose() {
+            println!("Listening on {}", addr);
+        }
 
         let listener = TcpListener::bind(&addr).expect("failed to create TcpListener");
         let protocol = Http::<<S::ResponseBody as Stream>::Item>::new();
@@ -52,7 +52,7 @@ where
                     service
                         .call(request)
                         .map(|response| hyper::Response::from(response.map(BodyWrapper)))
-                        .map_err(hyper::Error::from)
+                        .map_err(Into::into)
                 });
                 let conn = protocol.serve_connection(stream, service);
                 conn.map(|_conn| ()).map_err(|_| ())
@@ -61,9 +61,8 @@ where
     }
 }
 
-#[doc(hidden)]
 #[derive(Debug)]
-pub struct BodyWrapper<Bd>(Bd);
+struct BodyWrapper<Bd>(Bd);
 
 impl<Bd> Stream for BodyWrapper<Bd>
 where

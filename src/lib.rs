@@ -89,7 +89,8 @@ pub mod input {
 }
 
 pub mod runtime {
-    pub use finchers_runtime::{EndpointServiceExt, FinchersService, FinchersServiceFuture, HttpService, Server};
+    pub use finchers_runtime::server::Server;
+    pub use finchers_runtime::service::{EndpointService, HttpService};
 }
 
 pub use finchers_core::endpoint::Endpoint;
@@ -101,12 +102,4 @@ pub use finchers_http::json::Json;
 #[macro_use]
 mod macros;
 
-pub fn run<E>(endpoint: E)
-where
-    E: Endpoint + Send + Sync + 'static,
-    E::Item: Responder,
-{
-    use finchers_runtime::{EndpointServiceExt, Server};
-    let service = endpoint.into_service();
-    Server::new(service).run();
-}
+pub use finchers_runtime::run;
