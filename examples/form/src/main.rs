@@ -8,7 +8,7 @@ use finchers::output::Debug;
 
 fn endpoint() -> impl Endpoint<Item = Debug> + Send + Sync + 'static {
     use finchers::endpoint::prelude::*;
-    use finchers::urlencoded::{from_csv, queries, Form};
+    use finchers::endpoint::query::{from_csv, queries, Form};
 
     #[derive(Debug, Deserialize, HttpStatus)]
     pub struct FormParam {
