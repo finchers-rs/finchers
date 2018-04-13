@@ -1,28 +1,15 @@
-//! JSON support for finchers, powered by `serde` and `serde_json`
-//!
-//! Provided features are as follows:
-//!
-//! * `Json<T>` - represents a JSON value to be deserialized from request bodies.
-//! * `JsonBody<T>` - an endpoint to parse the request body into a value of `T`.
-
-extern crate finchers_core;
-extern crate finchers_http;
-extern crate http;
-extern crate mime;
-extern crate serde;
-extern crate serde_json;
-
 use http::header::HeaderValue;
 use http::{header, Response, StatusCode};
 use serde::de::DeserializeOwned;
 use serde::ser::Serialize;
 use std::ops::{Deref, DerefMut};
 use std::{error, fmt};
+use {mime, serde_json};
 
+use body::FromBody;
 use finchers_core::error::HttpError;
 use finchers_core::output::{Body, HttpStatus, Responder};
 use finchers_core::{Bytes, Input, Output};
-use finchers_http::body::FromBody;
 
 /// Represents a JSON value
 #[derive(Debug, Default, Copy, Clone, PartialEq, PartialOrd, Eq, Hash)]

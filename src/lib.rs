@@ -22,11 +22,6 @@
 //!
 //! # Example
 //!
-//! ```toml
-//! [dependencies]
-//! finchers = { git = "https://github.com/finchers-rs/finchers.git" }
-//! ```
-//!
 //! ```rust
 //! #[macro_use]
 //! extern crate finchers;
@@ -61,9 +56,7 @@ extern crate finchers_core;
 extern crate finchers_derive;
 extern crate finchers_endpoint;
 extern crate finchers_http;
-extern crate finchers_json;
 extern crate finchers_runtime;
-extern crate finchers_urlencoded;
 
 pub extern crate futures;
 pub extern crate http;
@@ -78,7 +71,7 @@ pub mod endpoint {
     pub use finchers_core::endpoint::{task, Endpoint, IntoEndpoint, Task};
     pub use finchers_endpoint::{all, ok, EndpointExt};
 
-    pub use finchers_http::{body, header, method, path, FromBody, FromHeader, FromSegment, FromSegments};
+    pub use finchers_http::{body, header, method, path, query, FromBody, FromHeader, FromSegment, FromSegments};
 
     /// The "prelude" for building endpoints
     pub mod prelude {
@@ -99,19 +92,11 @@ pub mod runtime {
     pub use finchers_runtime::{EndpointServiceExt, FinchersService, FinchersServiceFuture, HttpService, Server};
 }
 
-pub mod json {
-    pub use finchers_json::{Error, Json};
-}
-
-pub mod urlencoded {
-    pub use finchers_urlencoded::{from_csv, queries, queries_opt, queries_req, Error, Form, Queries, QueriesOptional,
-                                  QueriesRequired};
-}
-
 pub use finchers_core::endpoint::Endpoint;
 pub use finchers_core::output::Responder;
 pub use finchers_core::{Input, Output};
 pub use finchers_endpoint::EndpointExt;
+pub use finchers_http::json::Json;
 
 #[macro_use]
 mod macros;

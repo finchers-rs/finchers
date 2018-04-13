@@ -22,9 +22,7 @@ members = [
   "finchers-derive",
   "finchers-endpoint",
   "finchers-http",
-  "finchers-json",
   "finchers-runtime",
-  "finchers-urlencoded",
   "finchers-test",
 
   "examples/form",
@@ -38,9 +36,6 @@ finchers-endpoint = { version = "0.11.0-dev", path = "finchers-endpoint" }
 finchers-http = { version = "0.11.0-dev", path = "finchers-http" }
 finchers-runtime = { version = "0.11.0-dev", path = "finchers-runtime" }
 finchers-test = { version = "0.11.0-dev", path = "finchers-test" }
-
-finchers-json = { version = "0.11.0-dev", path = "finchers-json" }
-finchers-urlencoded = { version = "0.11.0-dev", path = "finchers-urlencoded" }
 
 mime = "0.3"
 http = "0.1"

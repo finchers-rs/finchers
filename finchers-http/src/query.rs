@@ -1,52 +1,14 @@
-//! Support for parsing urlencoded queries or message body, based on `serde_qs`
-//!
-//! Provided endpoins/utilities are as follows:
-//!
-//! * `Queries<T>` - Parses the query string in incoming request to the value of `T`, otherwise skips the current route.
-//! * `QueriesRequired<T>` - Similar to `Queries`, but always matches and returns an error if the query is missing.
-//! * `QueriesOptional<T>` - Similar to `Queries`, but always matches and returns an `Option<T>`.
-//! * `Form<T>` - Represents a type deserialized from an urlencoded request body.
-//!
-//! # Examples
-//!
-//! ```ignore
-//! #[derive(Debug, Deserialize)]
-//! struct Param {
-//!     name: String,
-//!     required: bool,
-//! }
-//!
-//! let endpoint = queries_req::<Param>();
-//! ```
-//!
-//! ```ignore
-//! let endpoint = get(queries().map_err(Into::into))
-//!     .or(post(body().map(|Form(body)| body)).map_err(Into::into))
-//!     .and_then(|param| { ... });
-//! ```
-
-//#![doc(html_root_url = "https://docs.rs/finchers/0.10.1")]
-#![deny(missing_docs)]
-#![deny(missing_debug_implementations)]
-#![deny(warnings)]
-
-extern crate finchers_core;
-extern crate finchers_http;
-extern crate futures;
-extern crate mime;
-extern crate serde;
-extern crate serde_qs;
-
 use serde::de::{self, IntoDeserializer};
 use std::iter::FromIterator;
 use std::marker::PhantomData;
 use std::{error, fmt};
+use {mime, serde_qs};
 
+use body::FromBody;
 use finchers_core::endpoint::task::{self, PollTask, Task};
 use finchers_core::endpoint::{Context, Endpoint};
 use finchers_core::error::BadRequest;
 use finchers_core::{Bytes, Input};
-use finchers_http::body::FromBody;
 
 #[allow(missing_docs)]
 pub fn queries<T: de::DeserializeOwned>() -> Queries<T> {
