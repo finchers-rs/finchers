@@ -8,7 +8,13 @@ extern crate tokio;
 #[macro_use]
 extern crate structopt;
 
+#[macro_use]
+extern crate slog;
+extern crate slog_async;
+extern crate slog_term;
+
 pub mod config;
+pub mod logging;
 pub mod server;
 pub mod service;
 
@@ -24,7 +30,7 @@ where
     E: Endpoint + Send + Sync + 'static,
     E::Item: Responder,
 {
-    let service = EndpointService::new(endpoint);
     let config = Config::from_env();
+    let service = EndpointService::new(endpoint);
     Server::new(service, config).run();
 }

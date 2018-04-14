@@ -1,3 +1,4 @@
+use slog::Level;
 use std::net::IpAddr;
 use structopt::StructOpt;
 
@@ -13,6 +14,9 @@ struct Cli {
 
     #[structopt(short = "v", long = "verbose")]
     verbose: bool,
+
+    #[structopt(short = "d", long = "debug")]
+    debug: bool,
 }
 
 /// The configuration
@@ -20,7 +24,7 @@ struct Cli {
 pub struct Config {
     host: IpAddr,
     port: u16,
-    verbose: bool,
+    log_level: Level,
     cli: Option<Cli>,
 }
 
@@ -29,7 +33,7 @@ impl Default for Config {
         Config {
             host: [127, 0, 0, 1].into(),
             port: 5000,
-            verbose: false,
+            log_level: Level::Warning,
             cli: None,
         }
     }
@@ -45,7 +49,12 @@ impl Config {
     fn overwite_cli(&mut self, cli: Cli) {
         self.host = cli.host;
         self.port = cli.port;
-        self.verbose = cli.verbose;
+        if cli.verbose {
+            self.log_level = Level::Info;
+        }
+        if cli.debug {
+            self.log_level = Level::Debug;
+        }
         self.cli = Some(cli);
     }
 
@@ -57,7 +66,7 @@ impl Config {
         self.port
     }
 
-    pub fn verbose(&self) -> bool {
-        self.verbose
+    pub fn log_level(&self) -> Level {
+        self.log_level
     }
 }
