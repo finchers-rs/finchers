@@ -40,9 +40,3 @@ finchers-test = { version = "0.11.0-dev", path = "finchers-test" }
 mime = "0.3"
 http = "0.1"
 futures = "0.1"
-
-[build-dependencies]
-skeptic = "0.13"
-
-[dev-dependencies]
-skeptic = "0.13"
