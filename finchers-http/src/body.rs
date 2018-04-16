@@ -1,14 +1,16 @@
 //! Components for parsing an HTTP request body.
 
-use finchers_core::endpoint::task::{self, PollTask, Task};
-use finchers_core::endpoint::{Context, Endpoint};
-use finchers_core::error::BadRequest;
-use finchers_core::input;
-use finchers_core::{Bytes, BytesString, Input};
+use bytes::Bytes;
 use futures::Future;
 use std::marker::PhantomData;
 use std::str::Utf8Error;
 use std::{error, fmt};
+
+use finchers_core::endpoint::{Context, Endpoint};
+use finchers_core::error::BadRequest;
+use finchers_core::input;
+use finchers_core::task::{self, PollTask, Task};
+use finchers_core::{BytesString, Input};
 
 /// Creates an endpoint for parsing the incoming request body into the value of `T`
 pub fn body<T: FromBody>() -> Body<T> {

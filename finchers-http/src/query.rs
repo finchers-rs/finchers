@@ -1,5 +1,6 @@
 //! Components for parsing the query string and urlencoded payload.
 
+use bytes::Bytes;
 use serde::de::{self, IntoDeserializer};
 use std::iter::FromIterator;
 use std::marker::PhantomData;
@@ -7,10 +8,10 @@ use std::{error, fmt};
 use {mime, serde_qs};
 
 use body::FromBody;
-use finchers_core::endpoint::task::{self, PollTask, Task};
+use finchers_core::Input;
 use finchers_core::endpoint::{Context, Endpoint};
 use finchers_core::error::BadRequest;
-use finchers_core::{Bytes, Input};
+use finchers_core::task::{self, PollTask, Task};
 
 #[allow(missing_docs)]
 pub fn queries<T: de::DeserializeOwned>() -> Queries<T> {

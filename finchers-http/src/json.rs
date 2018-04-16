@@ -1,5 +1,6 @@
 //! Components for parsing the JSON payload and converting to JSON values.
 
+use bytes::Bytes;
 use http::header::HeaderValue;
 use http::{header, Response, StatusCode};
 use serde::de::DeserializeOwned;
@@ -11,7 +12,7 @@ use {mime, serde_json};
 use body::FromBody;
 use finchers_core::error::HttpError;
 use finchers_core::output::{Body, HttpStatus, Responder};
-use finchers_core::{Bytes, Input, Output};
+use finchers_core::{Input, Output};
 
 /// Represents a JSON value
 #[derive(Debug, Default, Copy, Clone, PartialEq, PartialOrd, Eq, Hash)]

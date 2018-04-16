@@ -15,11 +15,13 @@ pub mod error;
 pub mod input;
 pub mod output;
 pub mod string;
+pub mod task;
 pub mod util;
 
 // re-exports
-pub use bytes::Bytes;
+pub use endpoint::Endpoint;
 pub use error::HttpError;
 pub use input::Input;
 pub use output::Output;
 pub use string::BytesString;
+pub use task::Task;

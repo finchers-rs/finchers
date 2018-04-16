@@ -1,6 +1,6 @@
-use super::Error;
 use Input;
 use either::Either;
+use endpoint::Error;
 use futures::Future;
 
 pub use futures::Async;

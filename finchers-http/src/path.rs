@@ -1,12 +1,13 @@
 //! Components for parsing request path
 
-use finchers_core::endpoint::task::CompatTask;
-use finchers_core::endpoint::{Context, Endpoint, Error, Segment, Segments};
 use futures::future::{ok, FutureResult};
 use std::marker::PhantomData;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::{error, fmt};
+
+use finchers_core::endpoint::{Context, Endpoint, Error, Segment, Segments};
+use finchers_core::task::CompatTask;
 
 // ==== MatchPath =====
 
