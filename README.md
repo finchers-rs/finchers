@@ -10,10 +10,10 @@ The concept and design was highly inspired by [`finch`](https://github.com/finag
 
 ## Features
 
+* Asynchronous handling powerd by futures and Tokio
 * Building an HTTP service by *combining* the primitive components
-* Type-safe routing
-* Asynchronous handling based on Futures and Hyper 0.11
-* Focuses on stable channel
+* Type-safe routing without (unstable) procedural macros
+* Focusing on stable channel
 
 ## Documentation
 

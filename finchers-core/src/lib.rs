@@ -1,5 +1,3 @@
-//! A combinator library for building asynchronous HTTP services.
-
 extern crate bytes;
 #[macro_use]
 extern crate futures;

@@ -1,3 +1,5 @@
+//! Components for parsing the JSON payload and converting to JSON values.
+
 use http::header::HeaderValue;
 use http::{header, Response, StatusCode};
 use serde::de::DeserializeOwned;

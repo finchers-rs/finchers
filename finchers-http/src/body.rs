@@ -1,18 +1,4 @@
 //! Components for parsing an HTTP request body.
-//!
-//! The key component is an endpoint `Body<T>`.
-//! It will check if the incoming request is valid and start to receive
-//! the request body in asynchronous mannar, finally do conversion from
-//! received data into the value of `T`.
-//!
-//! The actual parsing of request body are in implementions of the trait
-//! `FromBody`.
-//! See [the documentation of `FromBody`][from_body] for details.
-//!
-//! If you would like to take the *raw* instance of hyper's body stream,
-//! use `BodyStream` instead.
-//!
-//! [from_body]: ../../http/trait.FromBody.html
 
 use finchers_core::endpoint::task::{self, PollTask, Task};
 use finchers_core::endpoint::{Context, Endpoint};

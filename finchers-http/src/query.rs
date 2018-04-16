@@ -1,3 +1,5 @@
+//! Components for parsing the query string and urlencoded payload.
+
 use serde::de::{self, IntoDeserializer};
 use std::iter::FromIterator;
 use std::marker::PhantomData;
