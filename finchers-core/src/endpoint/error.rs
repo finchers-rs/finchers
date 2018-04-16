@@ -1,6 +1,5 @@
 use error::HttpError;
-use http::header::{self, HeaderValue};
-use http::{Response, StatusCode};
+use http::StatusCode;
 use std::fmt;
 
 #[derive(Debug)]
@@ -56,22 +55,6 @@ impl Error {
             ErrorKind::Aborted(..) => true,
             _ => false,
         }
-    }
-
-    pub fn to_response(&self) -> Response<String> {
-        let body = self.to_string();
-        let body_len = body.len().to_string();
-
-        let mut response = Response::new(body);
-        *response.status_mut() = self.status_code();
-        response.headers_mut().insert(
-            header::CONTENT_TYPE,
-            HeaderValue::from_static("text/plain; charset=utf-8"),
-        );
-        response.headers_mut().insert(header::CONTENT_LENGTH, unsafe {
-            HeaderValue::from_shared_unchecked(body_len.into())
-        });
-        response
     }
 }
 

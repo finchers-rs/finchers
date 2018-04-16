@@ -2,12 +2,13 @@
 
 use futures::Async::*;
 use futures::{Future, Poll};
-use http::{header, Request, Response};
+use http::header::{self, HeaderValue};
+use http::{Request, Response};
 use std::io;
 use std::sync::Arc;
 
 use finchers_core::Input;
-use finchers_core::endpoint::Endpoint;
+use finchers_core::endpoint::{Endpoint, Error};
 use finchers_core::input::BodyStream;
 use finchers_core::output::{Body, Responder};
 use finchers_core::util::{create_task, EndpointTask};
@@ -16,7 +17,8 @@ use finchers_core::util::{create_task, EndpointTask};
 pub trait HttpService {
     type RequestBody;
     type ResponseBody;
-    type Future: Future<Item = Response<Self::ResponseBody>, Error = io::Error>;
+    type Error;
+    type Future: Future<Item = Response<Self::ResponseBody>, Error = Self::Error>;
 
     fn call(&self, request: Request<Self::RequestBody>) -> Self::Future;
 }
@@ -24,6 +26,7 @@ pub trait HttpService {
 impl<S: HttpService> HttpService for Box<S> {
     type RequestBody = S::RequestBody;
     type ResponseBody = S::ResponseBody;
+    type Error = S::Error;
     type Future = S::Future;
 
     fn call(&self, request: Request<Self::RequestBody>) -> Self::Future {
@@ -34,6 +37,7 @@ impl<S: HttpService> HttpService for Box<S> {
 impl<S: HttpService> HttpService for Arc<S> {
     type RequestBody = S::RequestBody;
     type ResponseBody = S::ResponseBody;
+    type Error = S::Error;
     type Future = S::Future;
 
     fn call(&self, request: Request<Self::RequestBody>) -> Self::Future {
@@ -41,43 +45,50 @@ impl<S: HttpService> HttpService for Arc<S> {
     }
 }
 
-/// An HTTP service which wraps a `Endpoint`, `Handler` and `Responder`.
-#[derive(Debug, Copy, Clone)]
-pub struct FinchersService<E> {
+/// An HTTP service which wraps an `Endpoint`.
+pub struct EndpointService<E> {
     endpoint: E,
+    error_handler: ErrorHandler,
 }
 
-impl<E> FinchersService<E> {
-    /// Create an instance of `FinchersService` from components
-    pub fn new(endpoint: E) -> Self {
-        Self { endpoint }
+impl<E> EndpointService<E> {
+    pub fn new(endpoint: E) -> EndpointService<E> {
+        Self {
+            endpoint,
+            error_handler: default_error_handler,
+        }
+    }
+
+    pub fn set_error_handler(&mut self, handler: ErrorHandler) {
+        self.error_handler = handler;
     }
 }
 
-impl<E> HttpService for FinchersService<E>
+impl<E> HttpService for EndpointService<E>
 where
     E: Endpoint,
     E::Item: Responder,
 {
     type RequestBody = BodyStream;
     type ResponseBody = Body;
-    type Future = FinchersServiceFuture<E>;
+    type Error = io::Error;
+    type Future = EndpointServiceFuture<E>;
 
-    fn call(&self, request: Request<BodyStream>) -> Self::Future {
-        let input = Input::from(request);
-        FinchersServiceFuture {
-            task: create_task(&self.endpoint, input),
+    fn call(&self, request: Request<Self::RequestBody>) -> Self::Future {
+        EndpointServiceFuture {
+            task: create_task(&self.endpoint, Input::from(request)),
+            error_handler: self.error_handler,
         }
     }
 }
 
-/// A future returned from `EndpointService::call()`
 #[allow(missing_debug_implementations)]
-pub struct FinchersServiceFuture<E: Endpoint> {
+pub struct EndpointServiceFuture<E: Endpoint> {
     task: EndpointTask<E::Task>,
+    error_handler: ErrorHandler,
 }
 
-impl<E> Future for FinchersServiceFuture<E>
+impl<E> Future for EndpointServiceFuture<E>
 where
     E: Endpoint,
     E::Item: Responder,
@@ -87,14 +98,18 @@ where
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         let (result, input) = try_ready!(self.task.poll().map_err(io_error));
-        let mut response = result
-            .and_then(|item| item.respond(&input).map_err(Into::into))
-            .unwrap_or_else(|err| err.to_response().map(Body::once));
+
+        let result = result.and_then(|item| item.respond(&input).map_err(Into::into));
+        let mut response = match result {
+            Ok(response) => response,
+            Err(err) => (self.error_handler)(err, &input),
+        };
 
         if !response.headers().contains_key(header::SERVER) {
-            response
-                .headers_mut()
-                .insert(header::SERVER, "Finchers".parse().unwrap());
+            response.headers_mut().insert(
+                header::SERVER,
+                HeaderValue::from_static(concat!("finchers-runtime/", env!("CARGO_PKG_VERSION"))),
+            );
         }
 
         Ok(Ready(response))
@@ -105,26 +120,21 @@ fn io_error<T>(_: T) -> io::Error {
     unreachable!()
 }
 
-#[allow(missing_docs)]
-pub trait EndpointServiceExt: Endpoint + sealed::Sealed {
-    fn into_service(self) -> FinchersService<Self>
-    where
-        Self::Item: Responder,
-        Self: Sized;
-}
+///
+pub type ErrorHandler = fn(Error, &Input) -> Response<Body>;
 
-impl<E: Endpoint> EndpointServiceExt for E {
-    fn into_service(self) -> FinchersService<Self>
-    where
-        Self::Item: Responder,
-        Self: Sized,
-    {
-        FinchersService::new(self)
-    }
-}
+fn default_error_handler(err: Error, _: &Input) -> Response<Body> {
+    let body = err.to_string();
+    let body_len = body.len().to_string();
 
-mod sealed {
-    use finchers_core::endpoint::Endpoint;
-    pub trait Sealed {}
-    impl<E: Endpoint> Sealed for E {}
+    let mut response = Response::new(Body::once(body));
+    *response.status_mut() = err.status_code();
+    response.headers_mut().insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("text/plain; charset=utf-8"),
+    );
+    response.headers_mut().insert(header::CONTENT_LENGTH, unsafe {
+        HeaderValue::from_shared_unchecked(body_len.into())
+    });
+    response
 }
