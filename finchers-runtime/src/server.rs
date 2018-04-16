@@ -9,7 +9,6 @@ use tokio;
 use tokio::net::TcpListener;
 
 use Config;
-use logging::Logging;
 use service::HttpService;
 
 #[derive(Debug)]
@@ -37,36 +36,41 @@ where
     pub fn run(self) {
         let Server { service, config } = self;
         let service = Arc::new(service);
-        let logging = Logging::new(config.log_level());
 
-        let addr = (config.host(), config.port()).into();
-        info!(logging.root(), "Listening on {}", addr);
+        let logger = config.logger();
+        info!(logger, "Listening on {}", config.addr());
 
-        let listener = match TcpListener::bind(&addr) {
+        let listener = match TcpListener::bind(&config.addr()) {
             Ok(listener) => listener,
             Err(err) => {
-                crit!(logging.root(), "Failed to create TcpListener: {}", err);
+                crit!(logger, "Failed to create TcpListener: {}", err);
                 ::std::process::exit(1);
             }
         };
+
         let protocol = Http::<<S::ResponseBody as Stream>::Item>::new();
         let server = listener
             .incoming()
             .map_err({
-                let root = logging.root().clone();
-                move |err| trace!(root, "failed to accept: {}", err)
+                let logger = logger.clone();
+                move |err| trace!(logger, "failed to accept: {}", err)
             })
             .for_each(move |stream| {
-                let logger = logging.request();
+                let logger = logger.new(o! {
+                    "ip_addr" => stream.peer_addr()
+                        .map(|addr| addr.to_string())
+                        .unwrap_or_else(|_| "<error>".into()),
+                });
 
                 let service = service.clone();
                 let service = service_fn(move |request: hyper::Request<_>| {
                     let request = http::Request::from(request).map(Into::into);
 
-                    let logger = logger.clone();
+                    let logger = logger.new(o!{
+                        "method" => request.method().to_string(),
+                        "path" => request.uri().path().to_owned(),
+                    });
                     let start = Instant::now();
-                    let method = request.method().clone();
-                    let path = request.uri().path().to_owned();
 
                     service
                         .call(request)
@@ -77,9 +81,7 @@ where
                             let duration = end - start;
                             info!(
                                 logger,
-                                "{} {} -> {} ({} ms)",
-                                method,
-                                path,
+                                "{} ({} ms)",
                                 response.status(),
                                 duration.as_secs() / 10 + duration.subsec_nanos() as u64 / 1_000_000,
                             );
@@ -88,6 +90,7 @@ where
                 let conn = protocol.serve_connection(stream, service);
                 conn.map(|_conn| ()).map_err(|_| ())
             });
+
         tokio::run(server);
     }
 }

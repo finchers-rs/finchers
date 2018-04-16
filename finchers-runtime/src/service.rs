@@ -2,7 +2,8 @@
 
 use futures::Async::*;
 use futures::{Future, Poll};
-use http::{header, Request, Response};
+use http::header::{self, HeaderValue};
+use http::{Request, Response};
 use std::io;
 use std::sync::Arc;
 
@@ -44,14 +45,7 @@ impl<S: HttpService> HttpService for Arc<S> {
     }
 }
 
-pub type ErrorHandler = fn(Error) -> Response<Body>;
-
-fn default_error_handler(err: Error) -> Response<Body> {
-    err.to_response().map(Body::once)
-}
-
-/// An HTTP service which wraps a `Endpoint`.
-#[derive(Debug, Copy, Clone)]
+/// An HTTP service which wraps an `Endpoint`.
 pub struct EndpointService<E> {
     endpoint: E,
     error_handler: ErrorHandler,
@@ -81,9 +75,8 @@ where
     type Future = EndpointServiceFuture<E>;
 
     fn call(&self, request: Request<Self::RequestBody>) -> Self::Future {
-        let input = Input::from(request);
         EndpointServiceFuture {
-            task: create_task(&self.endpoint, input),
+            task: create_task(&self.endpoint, Input::from(request)),
             error_handler: self.error_handler,
         }
     }
@@ -105,14 +98,18 @@ where
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         let (result, input) = try_ready!(self.task.poll().map_err(io_error));
-        let result = result.and_then(|item| item.respond(&input).map_err(Into::into));
 
-        let mut response = result.unwrap_or_else(|err| (self.error_handler)(err));
+        let result = result.and_then(|item| item.respond(&input).map_err(Into::into));
+        let mut response = match result {
+            Ok(response) => response,
+            Err(err) => (self.error_handler)(err, &input),
+        };
 
         if !response.headers().contains_key(header::SERVER) {
-            response
-                .headers_mut()
-                .insert(header::SERVER, "Finchers".parse().unwrap());
+            response.headers_mut().insert(
+                header::SERVER,
+                HeaderValue::from_static(concat!("finchers-runtime/", env!("CARGO_PKG_VERSION"))),
+            );
         }
 
         Ok(Ready(response))
@@ -121,4 +118,23 @@ where
 
 fn io_error<T>(_: T) -> io::Error {
     unreachable!()
+}
+
+///
+pub type ErrorHandler = fn(Error, &Input) -> Response<Body>;
+
+fn default_error_handler(err: Error, _: &Input) -> Response<Body> {
+    let body = err.to_string();
+    let body_len = body.len().to_string();
+
+    let mut response = Response::new(Body::once(body));
+    *response.status_mut() = err.status_code();
+    response.headers_mut().insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("text/plain; charset=utf-8"),
+    );
+    response.headers_mut().insert(header::CONTENT_LENGTH, unsafe {
+        HeaderValue::from_shared_unchecked(body_len.into())
+    });
+    response
 }
