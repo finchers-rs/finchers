@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 
-use finchers_core::endpoint::task::CompatTask;
 use finchers_core::endpoint::{Context, Endpoint, Error};
+use finchers_core::task::CompatTask;
 use futures::future::{self, FutureResult};
 
 pub fn ok<T>(x: T) -> Ok<T>

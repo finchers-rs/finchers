@@ -1,6 +1,6 @@
 use super::maybe_done::MaybeDone;
-use finchers_core::endpoint::task::{self, Async, PollTask, Task};
 use finchers_core::endpoint::{Context, Endpoint, IntoEndpoint};
+use finchers_core::task::{self, Async, PollTask, Task};
 use std::mem;
 
 pub fn all<I>(iter: I) -> All<<I::Item as IntoEndpoint>::Endpoint>

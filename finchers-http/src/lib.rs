@@ -2,6 +2,7 @@ extern crate finchers_core;
 extern crate http;
 #[macro_use]
 extern crate futures;
+extern crate bytes;
 extern crate mime;
 extern crate serde;
 extern crate serde_json;

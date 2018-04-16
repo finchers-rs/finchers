@@ -1,7 +1,9 @@
-use endpoint::{task, Context, Endpoint, Error};
-use error::NoRoute;
 use futures::{Async, Future, Poll};
+
+use endpoint::{Context, Endpoint, Error};
+use error::NoRoute;
 use input::Input;
+use task::{self, Task};
 
 /// Create a task for processing an incoming HTTP request by using given `Endpoint`.
 pub fn create_task<E: Endpoint>(endpoint: &E, input: Input) -> EndpointTask<E::Task> {
@@ -18,7 +20,7 @@ pub struct EndpointTask<F> {
     in_flight: Option<F>,
 }
 
-impl<F: task::Task> Future for EndpointTask<F> {
+impl<F: Task> Future for EndpointTask<F> {
     type Item = (Result<F::Output, Error>, Input);
     type Error = !;
 

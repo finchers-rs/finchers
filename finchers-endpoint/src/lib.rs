@@ -1,5 +1,3 @@
-//! `Endpoint` layer
-
 extern crate finchers_core;
 #[macro_use]
 extern crate futures;

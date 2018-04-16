@@ -1,6 +1,6 @@
 use finchers_core::HttpError;
-use finchers_core::endpoint::task::{self, PollTask, Task};
 use finchers_core::endpoint::{Context, Endpoint};
+use finchers_core::task::{self, PollTask, Task};
 
 pub fn new<E, F, T, R>(endpoint: E, f: F) -> TryAbort<E, F>
 where
