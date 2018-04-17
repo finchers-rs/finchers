@@ -6,7 +6,8 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::{error, fmt};
 
-use finchers_core::endpoint::{Context, Endpoint, Error, Segment, Segments};
+use finchers_core::Error;
+use finchers_core::endpoint::{Context, Endpoint, Segment, Segments};
 use finchers_core::task::CompatTask;
 
 // ==== MatchPath =====

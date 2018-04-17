@@ -2,13 +2,14 @@ extern crate finchers_core;
 extern crate futures;
 extern crate http;
 
-use finchers_core::endpoint::{Endpoint, Error};
-use finchers_core::input::{BodyStream, Input};
-use finchers_core::util::create_task;
 use futures::Future;
 use http::header::{HeaderName, HeaderValue};
 use http::{HttpTryFrom, Method, Request, Uri};
 use std::mem;
+
+use finchers_core::input::BodyStream;
+use finchers_core::util::create_task;
+use finchers_core::{Endpoint, Error, Input};
 
 #[derive(Debug)]
 pub struct Client<E: Endpoint> {

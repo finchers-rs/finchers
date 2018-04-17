@@ -1,5 +1,4 @@
 mod context;
-mod error;
 
 use std::rc::Rc;
 use std::sync::Arc;
@@ -7,7 +6,6 @@ use task::Task;
 
 // re-exports
 pub use self::context::{Context, Segment, Segments};
-pub use self::error::{Error, ErrorKind};
 
 /// Trait representing an *endpoint*.
 pub trait Endpoint {
@@ -23,7 +21,7 @@ pub trait Endpoint {
 
     /// Ensure that the associated type `Item` is equal to `T`.
     #[inline(always)]
-    fn with_item_type<T>(self) -> Self
+    fn as_<T>(self) -> Self
     where
         Self: Sized + Endpoint<Item = T>,
     {

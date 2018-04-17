@@ -4,10 +4,10 @@ use futures::future::{err, ok, FutureResult, IntoFuture};
 use std::fmt;
 use std::marker::PhantomData;
 
-use finchers_core::HttpError;
-use finchers_core::endpoint::{Context, Endpoint, Error};
+use finchers_core::endpoint::{Context, Endpoint};
 use finchers_core::error::NotPresent;
 use finchers_core::task::CompatTask;
+use finchers_core::{Error, HttpError};
 
 /// Create an endpoint which parses an entry in the HTTP header.
 ///

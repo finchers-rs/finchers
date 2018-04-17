@@ -15,7 +15,7 @@ fn test_endpoint_match_path() {
 fn test_endpoint_reject_path() {
     let client = Client::new(path("bar"));
     let outcome = client.get("/foo").run();
-    assert!(outcome.err().map_or(false, |e| e.is_noroute()));
+    assert!(outcome.err().map_or(false, |e| e.is_canceled()));
 }
 
 #[test]
@@ -29,14 +29,14 @@ fn test_endpoint_match_multi_segments() {
 fn test_endpoint_reject_multi_segments() {
     let client = Client::new(path("/foo/bar"));
     let outcome = client.get("/foo/baz").run();
-    assert!(outcome.err().map_or(false, |e| e.is_noroute()));
+    assert!(outcome.err().map_or(false, |e| e.is_canceled()));
 }
 
 #[test]
 fn test_endpoint_reject_short_path() {
     let client = Client::new(path("/foo/bar/baz"));
     let outcome = client.get("/foo/bar").run();
-    assert!(outcome.err().map_or(false, |e| e.is_noroute()));
+    assert!(outcome.err().map_or(false, |e| e.is_canceled()));
 }
 
 #[test]
@@ -57,7 +57,7 @@ fn test_endpoint_extract_integer() {
 fn test_endpoint_extract_wrong_integer() {
     let client = Client::new(param::<i32>());
     let outcome = client.get("/foo").run();
-    assert!(outcome.err().map_or(false, |e| e.is_noroute()));
+    assert!(outcome.err().map_or(false, |e| e.is_canceled()));
 }
 
 #[test]
