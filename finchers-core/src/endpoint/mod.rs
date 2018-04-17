@@ -21,7 +21,7 @@ pub trait Endpoint {
 
     /// Ensure that the associated type `Item` is equal to `T`.
     #[inline(always)]
-    fn with_item_type<T>(self) -> Self
+    fn as_<T>(self) -> Self
     where
         Self: Sized + Endpoint<Item = T>,
     {

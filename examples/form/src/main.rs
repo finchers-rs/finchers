@@ -27,7 +27,7 @@ fn endpoint() -> impl Endpoint<Item = Debug> + Send + Sync + 'static {
         // TODO: add an endpoint for reporting the param error.
     ]
     // annotate to the endpoint that the inner type is FormParam.
-    .with_item_type::<FormParam>();
+    .as_::<FormParam>();
 
     path("search")
         .right(urlencoded_param)
