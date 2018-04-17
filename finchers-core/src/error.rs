@@ -1,7 +1,5 @@
 //! Error types thrown from finchers
 
-#![allow(missing_docs)]
-
 use http::StatusCode;
 use std::borrow::Cow;
 use std::{error, fmt};
@@ -150,30 +148,65 @@ impl HttpError for NotPresent {
 }
 
 #[derive(Debug)]
-pub struct NoRoute {
-    _priv: (),
+pub struct Error {
+    kind: ErrorKind,
 }
 
-impl NoRoute {
-    pub fn new() -> Self {
-        NoRoute { _priv: () }
+#[derive(Debug)]
+enum ErrorKind {
+    Canceled,
+    Aborted(Box<HttpError>),
+}
+
+impl<E: HttpError> From<E> for Error {
+    fn from(err: E) -> Self {
+        Error::aborted(err)
     }
 }
 
-impl fmt::Display for NoRoute {
+impl Error {
+    pub fn canceled() -> Error {
+        Error {
+            kind: ErrorKind::Canceled,
+        }
+    }
+
+    pub fn aborted<E>(err: E) -> Error
+    where
+        E: HttpError,
+    {
+        Error {
+            kind: ErrorKind::Aborted(Box::new(err)),
+        }
+    }
+
+    pub fn is_canceled(&self) -> bool {
+        match self.kind {
+            ErrorKind::Canceled => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_aborted(&self) -> bool {
+        match self.kind {
+            ErrorKind::Aborted(..) => true,
+            _ => false,
+        }
+    }
+
+    pub fn status_code(&self) -> StatusCode {
+        match self.kind {
+            ErrorKind::Canceled => StatusCode::NOT_FOUND,
+            ErrorKind::Aborted(ref e) => e.status_code(),
+        }
+    }
+}
+
+impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str("no route")
-    }
-}
-
-impl error::Error for NoRoute {
-    fn description(&self) -> &str {
-        "no route"
-    }
-}
-
-impl HttpError for NoRoute {
-    fn status_code(&self) -> StatusCode {
-        StatusCode::NOT_FOUND
+        match self.kind {
+            ErrorKind::Canceled => f.write_str("no route"),
+            ErrorKind::Aborted(ref e) => fmt::Display::fmt(e, f),
+        }
     }
 }

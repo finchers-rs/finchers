@@ -1,5 +1,5 @@
 use self::MaybeDone::*;
-use finchers_core::endpoint::Error;
+use finchers_core::Error;
 use finchers_core::task::{self, Async, Task};
 use std::mem;
 

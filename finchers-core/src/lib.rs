@@ -20,7 +20,7 @@ pub mod util;
 
 // re-exports
 pub use endpoint::Endpoint;
-pub use error::HttpError;
+pub use error::{Error, HttpError};
 pub use input::Input;
 pub use output::Output;
 pub use string::BytesString;

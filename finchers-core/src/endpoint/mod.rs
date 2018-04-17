@@ -1,5 +1,4 @@
 mod context;
-mod error;
 
 use std::rc::Rc;
 use std::sync::Arc;
@@ -7,7 +6,6 @@ use task::Task;
 
 // re-exports
 pub use self::context::{Context, Segment, Segments};
-pub use self::error::{Error, ErrorKind};
 
 /// Trait representing an *endpoint*.
 pub trait Endpoint {

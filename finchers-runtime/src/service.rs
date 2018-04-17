@@ -7,11 +7,10 @@ use http::{Request, Response};
 use std::io;
 use std::sync::Arc;
 
-use finchers_core::Input;
-use finchers_core::endpoint::{Endpoint, Error};
 use finchers_core::input::BodyStream;
 use finchers_core::output::{Body, Responder};
 use finchers_core::util::{create_task, EndpointTask};
+use finchers_core::{Endpoint, Error, Input};
 
 #[allow(missing_docs)]
 pub trait HttpService {

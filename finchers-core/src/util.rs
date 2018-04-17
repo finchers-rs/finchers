@@ -1,7 +1,7 @@
 use futures::{Async, Future, Poll};
 
-use endpoint::{Context, Endpoint, Error};
-use error::NoRoute;
+use endpoint::{Context, Endpoint};
+use error::Error;
 use input::Input;
 use task::{self, Task};
 
@@ -35,7 +35,7 @@ impl<F: Task> Future for EndpointTask<F> {
                     Err(err) => Err(err),
                 }
             }
-            None => Err(NoRoute::new().into()),
+            None => Err(Error::canceled()),
         };
         let input = self.input.take().expect("The instance of Input has gone.");
         Ok(Async::Ready((result, input)))
