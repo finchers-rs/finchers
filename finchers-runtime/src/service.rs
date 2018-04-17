@@ -122,18 +122,21 @@ fn io_error<T>(_: T) -> io::Error {
 ///
 pub type ErrorHandler = fn(Error, &Input) -> Response<Body>;
 
-fn default_error_handler(err: Error, _: &Input) -> Response<Body> {
-    let body = err.to_string();
-    let body_len = body.len().to_string();
+fn default_error_handler(err: Error, input: &Input) -> Response<Body> {
+    let mut response = err.to_response(input).unwrap_or_else(|| {
+        let body = err.to_string();
+        let body_len = body.len().to_string();
 
-    let mut response = Response::new(Body::once(body));
-    *response.status_mut() = err.status_code();
-    response.headers_mut().insert(
-        header::CONTENT_TYPE,
-        HeaderValue::from_static("text/plain; charset=utf-8"),
-    );
-    response.headers_mut().insert(header::CONTENT_LENGTH, unsafe {
-        HeaderValue::from_shared_unchecked(body_len.into())
+        let mut response = Response::new(Body::once(body));
+        response.headers_mut().insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("text/plain; charset=utf-8"),
+        );
+        response.headers_mut().insert(header::CONTENT_LENGTH, unsafe {
+            HeaderValue::from_shared_unchecked(body_len.into())
+        });
+        response
     });
+    *response.status_mut() = err.status_code();
     response
 }

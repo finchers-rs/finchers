@@ -1,11 +1,21 @@
 //! Error types thrown from finchers
 
-use http::StatusCode;
+use http::{Response, StatusCode};
+use input::Input;
+use output::Body;
 use std::borrow::Cow;
 use std::{error, fmt};
 
+/// Trait representing errors during handling an HTTP request.
 pub trait HttpError: error::Error + Send + 'static {
+    /// Returns the HTTP status code associated with this error type.
     fn status_code(&self) -> StatusCode;
+
+    /// Create an instance of "Response<Body>" from this error.
+    #[allow(unused_variables)]
+    fn to_response(&self, input: &Input) -> Option<Response<Body>> {
+        None
+    }
 }
 
 impl HttpError for ! {
@@ -162,6 +172,13 @@ impl Error {
         match self.kind {
             ErrorKind::Canceled => StatusCode::NOT_FOUND,
             ErrorKind::Aborted(ref e) => e.status_code(),
+        }
+    }
+
+    pub fn to_response(&self, input: &Input) -> Option<Response<Body>> {
+        match self.kind {
+            ErrorKind::Canceled => None,
+            ErrorKind::Aborted(ref e) => e.to_response(input),
         }
     }
 }
