@@ -43,7 +43,7 @@ impl<T: de::DeserializeOwned> Endpoint for Queries<T> {
     type Task = QueriesTask<T>;
 
     fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
-        if cx.input().query().is_some() {
+        if cx.input().request().uri().query().is_some() {
             Some(QueriesTask { _marker: PhantomData })
         } else {
             None
@@ -61,7 +61,7 @@ impl<T: de::DeserializeOwned> Task for QueriesTask<T> {
     type Output = T;
 
     fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
-        let result = serde_qs::from_str::<T>(cx.input().query().unwrap()).map_err(Error::Parsing);
+        let result = serde_qs::from_str::<T>(cx.input().request().uri().query().unwrap()).map_err(Error::Parsing);
         result.map(Into::into).map_err(|e| BadRequest::new(e).into())
     }
 }
@@ -110,7 +110,7 @@ impl<T: de::DeserializeOwned> Task for QueriesRequiredTask<T> {
     type Output = T;
 
     fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
-        let result = match cx.input().query() {
+        let result = match cx.input().request().uri().query() {
             Some(s) => self::serde_qs::from_str::<T>(s).map_err(Error::Parsing),
             None => Err(Error::MissingQuery),
         };
@@ -162,7 +162,7 @@ impl<T: de::DeserializeOwned> Task for QueriesOptionalTask<T> {
     type Output = Option<T>;
 
     fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
-        let result = match cx.input().query() {
+        let result = match cx.input().request().uri().query() {
             Some(s) => match serde_qs::from_str(s) {
                 Ok(v) => Ok(Some(v)),
                 Err(e) => Err(BadRequest::new(Error::Parsing(e)).into()),
@@ -203,7 +203,7 @@ impl<F> ::std::ops::DerefMut for Form<F> {
 impl<F: de::DeserializeOwned + 'static> FromBody for Form<F> {
     type Error = Error;
 
-    fn from_body(body: Bytes, input: &mut Input) -> Result<Self, Self::Error> {
+    fn from_body(body: Bytes, input: &Input) -> Result<Self, Self::Error> {
         if input
             .media_type()
             .map_err(|_| Error::InvalidMediaType)?

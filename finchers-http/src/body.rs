@@ -69,7 +69,7 @@ impl<T: FromBody> Task for BodyTask<T> {
                 }
                 BodyTask::Recv(ref mut body) => {
                     let buf = try_ready!(body.poll());
-                    let body = T::from_body(buf, cx.input_mut()).map_err(BadRequest::new)?;
+                    let body = T::from_body(buf, cx.input()).map_err(BadRequest::new)?;
                     return Ok(body.into());
                 }
                 _ => panic!("cannot resolve/reject twice"),
@@ -143,13 +143,13 @@ pub trait FromBody: 'static + Sized {
     }
 
     /// Performs conversion from raw bytes into itself.
-    fn from_body(body: Bytes, input: &mut Input) -> Result<Self, Self::Error>;
+    fn from_body(body: Bytes, input: &Input) -> Result<Self, Self::Error>;
 }
 
 impl FromBody for () {
     type Error = !;
 
-    fn from_body(_: Bytes, _: &mut Input) -> Result<Self, Self::Error> {
+    fn from_body(_: Bytes, _: &Input) -> Result<Self, Self::Error> {
         Ok(())
     }
 }
@@ -157,7 +157,7 @@ impl FromBody for () {
 impl FromBody for Bytes {
     type Error = !;
 
-    fn from_body(body: Bytes, _: &mut Input) -> Result<Self, Self::Error> {
+    fn from_body(body: Bytes, _: &Input) -> Result<Self, Self::Error> {
         Ok(body)
     }
 }
@@ -165,7 +165,7 @@ impl FromBody for Bytes {
 impl FromBody for BytesString {
     type Error = Utf8Error;
 
-    fn from_body(body: Bytes, _: &mut Input) -> Result<Self, Self::Error> {
+    fn from_body(body: Bytes, _: &Input) -> Result<Self, Self::Error> {
         BytesString::from_shared(body)
     }
 }
@@ -173,7 +173,7 @@ impl FromBody for BytesString {
 impl FromBody for String {
     type Error = Utf8Error;
 
-    fn from_body(body: Bytes, _: &mut Input) -> Result<Self, Self::Error> {
+    fn from_body(body: Bytes, _: &Input) -> Result<Self, Self::Error> {
         BytesString::from_shared(body).map(Into::into)
     }
 }
@@ -181,7 +181,7 @@ impl FromBody for String {
 impl<T: FromBody> FromBody for Option<T> {
     type Error = !;
 
-    fn from_body(body: Bytes, input: &mut Input) -> Result<Self, Self::Error> {
+    fn from_body(body: Bytes, input: &Input) -> Result<Self, Self::Error> {
         Ok(T::from_body(body, input).ok())
     }
 }
@@ -189,7 +189,7 @@ impl<T: FromBody> FromBody for Option<T> {
 impl<T: FromBody> FromBody for Result<T, T::Error> {
     type Error = !;
 
-    fn from_body(body: Bytes, input: &mut Input) -> Result<Self, Self::Error> {
+    fn from_body(body: Bytes, input: &Input) -> Result<Self, Self::Error> {
         Ok(T::from_body(body, input))
     }
 }

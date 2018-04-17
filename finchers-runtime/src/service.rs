@@ -74,8 +74,10 @@ where
     type Future = EndpointServiceFuture<E>;
 
     fn call(&self, request: Request<Self::RequestBody>) -> Self::Future {
+        let (parts, body) = request.into_parts();
+        let request = Request::from_parts(parts, ());
         EndpointServiceFuture {
-            task: create_task(&self.endpoint, Input::from(request)),
+            task: create_task(&self.endpoint, Input::new(request, body)),
             error_handler: self.error_handler,
         }
     }

@@ -44,7 +44,7 @@ impl<T> DerefMut for Json<T> {
 impl<T: DeserializeOwned + 'static> FromBody for Json<T> {
     type Error = Error;
 
-    fn from_body(body: Bytes, input: &mut Input) -> Result<Self, Self::Error> {
+    fn from_body(body: Bytes, input: &Input) -> Result<Self, Self::Error> {
         if input
             .media_type()
             .map_err(|_| Error::InvalidMediaType)?

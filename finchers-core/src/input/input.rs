@@ -1,53 +1,38 @@
 use super::{BodyStream, Error, ErrorKind};
-use http::request::Parts;
-use http::{Extensions, Request};
-use http::{header, HeaderMap, Method, Uri, Version};
+use http::{header, Request};
 use mime::Mime;
+use std::cell::UnsafeCell;
 
 scoped_thread_local!(static CURRENT_INPUT: Input);
 
-/// The value of incoming HTTP request
+/// The context which holds the received HTTP request.
+///
+/// The value is used throughout the processing like "Endpoint" and "Task".
 #[derive(Debug)]
 pub struct Input {
-    method: Method,
-    uri: Uri,
-    version: Version,
-    headers: HeaderMap,
-    extensions: Extensions,
-    body: Option<BodyStream>,
-    media_type: Option<Mime>,
-}
+    request: Request<()>,
+    media_type: UnsafeCell<Option<Mime>>,
 
-impl<B> From<Request<B>> for Input
-where
-    B: Into<BodyStream>,
-{
-    fn from(request: Request<B>) -> Self {
-        let request = request.map(Into::into);
-        let (
-            Parts {
-                method,
-                uri,
-                version,
-                headers,
-                extensions,
-                ..
-            },
-            body,
-        ) = request.into_parts();
-        Input {
-            method,
-            uri,
-            version,
-            headers,
-            extensions,
-            body: Some(body),
-            media_type: None,
-        }
-    }
+    body: Option<BodyStream>,
 }
 
 impl Input {
+    /// Create an instance of "Input" from components.
+    ///
+    /// Some fields remain uninitialized and their values are set when the corresponding
+    /// method will be called.
+    pub fn new(request: Request<()>, body: BodyStream) -> Input {
+        Input {
+            request,
+            media_type: UnsafeCell::new(None),
+
+            body: Some(body),
+        }
+    }
+
+    /// Set the reference to itself to the thread-local storage and execute given closure.
+    ///
+    /// Typically, this method is used in the implementation of "Task" which holds some closures.
     pub fn enter_scope<F, R>(&self, f: F) -> R
     where
         F: FnOnce() -> R,
@@ -55,7 +40,10 @@ impl Input {
         CURRENT_INPUT.set(self, f)
     }
 
-    /// Run a closure with the reference to `Input` at the current task context.
+    /// Execute a closure with the reference to the instance of "Input" from the thread-local storage.
+    ///
+    /// This method is only used in a closure passed to "enter_scope".
+    /// Otherwise, it will be panic.
     pub fn with<F, R>(f: F) -> R
     where
         F: FnOnce(&Input) -> R,
@@ -63,53 +51,35 @@ impl Input {
         CURRENT_INPUT.with(|input| f(input))
     }
 
-    pub fn method(&self) -> &Method {
-        &self.method
+    /// Return a shared reference to the value of raw HTTP request without the message body.
+    pub fn request(&self) -> &Request<()> {
+        &self.request
     }
 
-    pub fn uri(&self) -> &Uri {
-        &self.uri
-    }
-
-    pub fn path(&self) -> &str {
-        self.uri().path()
-    }
-
-    pub fn query(&self) -> Option<&str> {
-        self.uri().query()
-    }
-
-    pub fn version(&self) -> &Version {
-        &self.version
-    }
-
-    pub fn headers(&self) -> &HeaderMap {
-        &self.headers
-    }
-
-    pub fn extensions(&self) -> &Extensions {
-        &self.extensions
-    }
-
-    pub fn extensions_mut(&mut self) -> &mut Extensions {
-        &mut self.extensions
-    }
-
+    /// Take away the instance of "BodyStream" from this context.
+    ///
+    /// If the instance has been already removed, the method will return a "None".
     pub fn body(&mut self) -> Option<BodyStream> {
         self.body.take()
     }
 
-    pub fn media_type(&mut self) -> Result<Option<&Mime>, Error> {
-        if self.media_type.is_none() && self.headers().contains_key(header::CONTENT_TYPE) {
-            let mime = {
-                let raw = self.headers().get(header::CONTENT_TYPE).unwrap();
-                raw.to_str()
-                    .map_err(ErrorKind::DecodeHeaderToStr)?
-                    .parse()
-                    .map_err(ErrorKind::ParseMediaType)?
-            };
-            self.media_type = Some(mime);
+    /// Return the reference to the parsed media type in the request header.
+    ///
+    /// This method will perform parsing of the entry "Content-type" in the request header
+    /// if it has not been done yet.  If the value is invalid, it will return an "Err".
+    pub fn media_type(&self) -> Result<Option<&Mime>, Error> {
+        // safety: this mutable borrow is used only in the block.
+        let media_type: &mut Option<Mime> = unsafe { &mut *self.media_type.get() };
+
+        if media_type.is_none() {
+            if let Some(raw) = self.request().headers().get(header::CONTENT_TYPE) {
+                let raw_str = raw.to_str().map_err(ErrorKind::DecodeHeaderToStr)?;
+                let mime = raw_str.parse().map_err(ErrorKind::ParseMediaType)?;
+
+                *media_type = Some(mime);
+            }
         }
-        Ok(self.media_type.as_ref())
+
+        Ok((&*media_type).as_ref())
     }
 }
