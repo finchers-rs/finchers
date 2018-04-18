@@ -9,7 +9,7 @@ use std::ops::{Deref, DerefMut};
 use std::{error, fmt};
 use {mime, serde_json};
 
-use body::FromBody;
+use body::FromData;
 use finchers_core::error::HttpError;
 use finchers_core::output::{Body, HttpStatus, Responder};
 use finchers_core::{Input, Output};
@@ -41,10 +41,13 @@ impl<T> DerefMut for Json<T> {
     }
 }
 
-impl<T: DeserializeOwned + 'static> FromBody for Json<T> {
+impl<T> FromData for Json<T>
+where
+    T: DeserializeOwned + 'static,
+{
     type Error = Error;
 
-    fn from_body(body: Bytes, input: &Input) -> Result<Self, Self::Error> {
+    fn from_data(body: Bytes, input: &Input) -> Result<Self, Self::Error> {
         if input
             .media_type()
             .map_err(|_| Error::InvalidMediaType)?

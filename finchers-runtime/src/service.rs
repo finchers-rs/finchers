@@ -7,7 +7,7 @@ use http::{Request, Response};
 use std::io;
 use std::sync::Arc;
 
-use finchers_core::input::BodyStream;
+use finchers_core::input::RequestBody;
 use finchers_core::output::{Body, Responder};
 use finchers_core::util::{create_task, EndpointTask};
 use finchers_core::{Endpoint, Error, Input};
@@ -68,7 +68,7 @@ where
     E: Endpoint,
     E::Item: Responder,
 {
-    type RequestBody = BodyStream;
+    type RequestBody = RequestBody;
     type ResponseBody = Body;
     type Error = io::Error;
     type Future = EndpointServiceFuture<E>;

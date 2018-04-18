@@ -15,6 +15,6 @@ pub mod method;
 pub mod path;
 pub mod query;
 
-pub use body::FromBody;
+pub use body::FromData;
 pub use header::FromHeader;
 pub use path::{FromSegment, FromSegments};

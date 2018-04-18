@@ -7,7 +7,7 @@ use std::marker::PhantomData;
 use std::{error, fmt};
 use {mime, serde_qs};
 
-use body::FromBody;
+use body::FromData;
 use finchers_core::Input;
 use finchers_core::endpoint::{Context, Endpoint};
 use finchers_core::error::BadRequest;
@@ -200,18 +200,24 @@ impl<F> ::std::ops::DerefMut for Form<F> {
     }
 }
 
-impl<F: de::DeserializeOwned + 'static> FromBody for Form<F> {
-    type Error = Error;
+impl<F> FromData for Form<F>
+where
+    F: de::DeserializeOwned + 'static,
+{
+    type Error = BadRequest<Error>;
 
-    fn from_body(body: Bytes, input: &Input) -> Result<Self, Self::Error> {
+    fn from_data(body: Bytes, input: &Input) -> Result<Self, Self::Error> {
         if input
             .media_type()
-            .map_err(|_| Error::InvalidMediaType)?
+            .map_err(|_| BadRequest::new(Error::InvalidMediaType))?
             .map_or(true, |m| *m == mime::APPLICATION_WWW_FORM_URLENCODED)
         {
-            serde_qs::from_bytes(&*body).map(Form).map_err(Into::into)
+            serde_qs::from_bytes(&*body)
+                .map(Form)
+                .map_err(Into::into)
+                .map_err(BadRequest::new)
         } else {
-            Err(Error::InvalidMediaType)
+            Err(BadRequest::new(Error::InvalidMediaType))
         }
     }
 }

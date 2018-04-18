@@ -1,4 +1,4 @@
-use super::{BodyStream, Error, ErrorKind};
+use super::{Error, ErrorKind, RequestBody};
 use http::{header, Request};
 use mime::Mime;
 use std::cell::UnsafeCell;
@@ -13,7 +13,7 @@ pub struct Input {
     request: Request<()>,
     media_type: UnsafeCell<Option<Mime>>,
 
-    body: Option<BodyStream>,
+    body: Option<RequestBody>,
 }
 
 impl Input {
@@ -21,7 +21,7 @@ impl Input {
     ///
     /// Some fields remain uninitialized and their values are set when the corresponding
     /// method will be called.
-    pub fn new(request: Request<()>, body: BodyStream) -> Input {
+    pub fn new(request: Request<()>, body: RequestBody) -> Input {
         Input {
             request,
             media_type: UnsafeCell::new(None),
@@ -56,10 +56,10 @@ impl Input {
         &self.request
     }
 
-    /// Take away the instance of "BodyStream" from this context.
+    /// Take away the instance of "RequestBody" from this context.
     ///
     /// If the instance has been already removed, the method will return a "None".
-    pub fn body(&mut self) -> Option<BodyStream> {
+    pub fn body(&mut self) -> Option<RequestBody> {
         self.body.take()
     }
 
