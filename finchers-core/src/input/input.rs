@@ -1,4 +1,4 @@
-use super::{Error, ErrorKind, RequestBody};
+use super::{Error, ErrorKind};
 use http::{header, Request};
 use mime::Mime;
 use std::cell::UnsafeCell;
@@ -12,8 +12,6 @@ scoped_thread_local!(static CURRENT_INPUT: Input);
 pub struct Input {
     request: Request<()>,
     media_type: UnsafeCell<Option<Mime>>,
-
-    body: Option<RequestBody>,
 }
 
 impl Input {
@@ -21,12 +19,10 @@ impl Input {
     ///
     /// Some fields remain uninitialized and their values are set when the corresponding
     /// method will be called.
-    pub fn new(request: Request<()>, body: RequestBody) -> Input {
+    pub fn new(request: Request<()>) -> Input {
         Input {
             request,
             media_type: UnsafeCell::new(None),
-
-            body: Some(body),
         }
     }
 
@@ -54,13 +50,6 @@ impl Input {
     /// Return a shared reference to the value of raw HTTP request without the message body.
     pub fn request(&self) -> &Request<()> {
         &self.request
-    }
-
-    /// Take away the instance of "RequestBody" from this context.
-    ///
-    /// If the instance has been already removed, the method will return a "None".
-    pub fn body(&mut self) -> Option<RequestBody> {
-        self.body.take()
     }
 
     /// Return the reference to the parsed media type in the request header.

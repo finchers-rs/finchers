@@ -14,11 +14,13 @@ pub mod endpoint;
 pub mod error;
 pub mod input;
 pub mod output;
-pub mod string;
 pub mod task;
-pub mod util;
+
+mod apply;
+mod string;
 
 // re-exports
+pub use apply::{apply, Apply};
 pub use endpoint::Endpoint;
 pub use error::{Error, HttpError};
 pub use input::Input;

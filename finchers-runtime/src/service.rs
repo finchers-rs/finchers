@@ -9,8 +9,7 @@ use std::sync::Arc;
 
 use finchers_core::input::RequestBody;
 use finchers_core::output::{Body, Responder};
-use finchers_core::util::{create_task, EndpointTask};
-use finchers_core::{Endpoint, Error, Input};
+use finchers_core::{apply, Apply, Endpoint, Error, Input, Task};
 
 #[allow(missing_docs)]
 pub trait HttpService {
@@ -71,39 +70,50 @@ where
     type RequestBody = RequestBody;
     type ResponseBody = Body;
     type Error = io::Error;
-    type Future = EndpointServiceFuture<E>;
+    type Future = EndpointServiceFuture<E::Task>;
 
     fn call(&self, request: Request<Self::RequestBody>) -> Self::Future {
         let (parts, body) = request.into_parts();
-        let request = Request::from_parts(parts, ());
+        let input = Input::new(Request::from_parts(parts, ()));
+        let apply = apply(&self.endpoint, &input, body);
+
         EndpointServiceFuture {
-            task: create_task(&self.endpoint, Input::new(request, body)),
+            apply,
+            input,
             error_handler: self.error_handler,
         }
     }
 }
 
 #[allow(missing_debug_implementations)]
-pub struct EndpointServiceFuture<E: Endpoint> {
-    task: EndpointTask<E::Task>,
+pub struct EndpointServiceFuture<T> {
+    apply: Apply<T>,
+    input: Input,
     error_handler: ErrorHandler,
 }
 
-impl<E> Future for EndpointServiceFuture<E>
+impl<T> EndpointServiceFuture<T> {
+    fn handle_error<E>(&self, err: E) -> Response<Body>
+    where
+        E: Into<Error>,
+    {
+        (self.error_handler)(err.into(), &self.input)
+    }
+}
+
+impl<T> Future for EndpointServiceFuture<T>
 where
-    E: Endpoint,
-    E::Item: Responder,
+    T: Task,
+    T::Output: Responder,
 {
     type Item = Response<Body>;
     type Error = io::Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let (result, input) = try_ready!(self.task.poll().map_err(io_error));
-
-        let result = result.and_then(|item| item.respond(&input).map_err(Into::into));
-        let mut response = match result {
-            Ok(response) => response,
-            Err(err) => (self.error_handler)(err, &input),
+        let mut response = match self.apply.poll_ready(&self.input) {
+            NotReady => return Ok(NotReady),
+            Ready(Ok(output)) => output.respond(&self.input).unwrap_or_else(|err| self.handle_error(err)),
+            Ready(Err(err)) => self.handle_error(err),
         };
 
         if !response.headers().contains_key(header::SERVER) {
@@ -115,10 +125,6 @@ where
 
         Ok(Ready(response))
     }
-}
-
-fn io_error<T>(_: T) -> io::Error {
-    unreachable!()
 }
 
 ///

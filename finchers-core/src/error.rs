@@ -1,5 +1,3 @@
-//! Error types thrown from finchers
-
 use http::{Response, StatusCode};
 use input::Input;
 use output::Body;

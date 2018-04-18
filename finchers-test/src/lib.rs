@@ -2,14 +2,13 @@ extern crate finchers_core;
 extern crate futures;
 extern crate http;
 
-use futures::Future;
+use futures::{Future, Poll};
 use http::header::{HeaderName, HeaderValue};
 use http::{HttpTryFrom, Method, Request, Uri};
 use std::mem;
 
 use finchers_core::input::RequestBody;
-use finchers_core::util::create_task;
-use finchers_core::{Endpoint, Error, Input};
+use finchers_core::{apply, Apply, Endpoint, Error, Input, Task};
 
 #[derive(Debug)]
 pub struct Client<E: Endpoint> {
@@ -111,12 +110,27 @@ impl<'a, E: Endpoint> ClientRequest<'a, E> {
     pub fn run(&mut self) -> Result<E::Item, Error> {
         let ClientRequest { client, request, body } = self.take();
 
-        let input = Input::new(request, body.unwrap_or_else(RequestBody::empty));
-        let f = create_task(&client.endpoint, input);
+        let input = Input::new(request);
+        let body = body.unwrap_or_else(RequestBody::empty);
+
+        let apply = apply(&client.endpoint, &input, body);
+        let task = TestFuture { apply, input };
 
         // TODO: replace with futures::executor
-        let (result, _input) = f.wait().expect("EndpointTask never fails");
+        task.wait().expect("EndpointTask never fails")
+    }
+}
 
-        result
+struct TestFuture<T> {
+    apply: Apply<T>,
+    input: Input,
+}
+
+impl<T: Task> Future for TestFuture<T> {
+    type Item = Result<T::Output, Error>;
+    type Error = !;
+
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        Ok(self.apply.poll_ready(&self.input))
     }
 }
