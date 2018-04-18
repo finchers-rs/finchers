@@ -9,6 +9,7 @@ use tokio;
 use tokio::net::TcpListener;
 
 use Config;
+use finchers_core::input::RequestBody;
 use service::HttpService;
 
 #[derive(Debug)]
@@ -19,8 +20,7 @@ pub struct Server<S> {
 
 impl<S> Server<S>
 where
-    S: HttpService + Send + Sync + 'static,
-    S::RequestBody: From<hyper::Body>,
+    S: HttpService<RequestBody = RequestBody> + Send + Sync + 'static,
     S::ResponseBody: Stream<Error = io::Error> + Send + 'static,
     <S::ResponseBody as Stream>::Item: AsRef<[u8]> + Send + 'static,
     S::Error: Into<hyper::Error>,
@@ -63,8 +63,8 @@ where
                 });
 
                 let service = service.clone();
-                let service = service_fn(move |request: hyper::Request<_>| {
-                    let request = http::Request::from(request).map(Into::into);
+                let service = service_fn(move |request: hyper::Request<hyper::Body>| {
+                    let request = http::Request::from(request).map(RequestBody::from_hyp);
 
                     let logger = logger.new(o!{
                         "method" => request.method().to_string(),

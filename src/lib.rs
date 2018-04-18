@@ -35,7 +35,7 @@
 //!     path("api/v1").right(choice![
 //!         get(param())
 //!             .map(|id: u64| format!("GET: id={}", id)),
-//!         post(body())
+//!         post(data())
 //!             .map(|data: String| format!("POST: body={}", data)),
 //!     ])
 //!     .map(|val| Debug::new(val).pretty(true))
@@ -71,13 +71,13 @@ pub mod endpoint {
     pub use finchers_core::endpoint::{Endpoint, IntoEndpoint};
     pub use finchers_core::task::{self, Task};
     pub use finchers_endpoint::{all, ok, EndpointExt};
-    pub use finchers_http::{body, header, method, path, query, FromBody, FromHeader, FromSegment, FromSegments};
+    pub use finchers_http::{body, header, method, path, query, FromData, FromHeader, FromSegment, FromSegments};
 
     /// The "prelude" for building endpoints
     pub mod prelude {
         pub use finchers_core::endpoint::{Endpoint, IntoEndpoint};
         pub use finchers_endpoint::EndpointExt;
-        pub use finchers_http::body::{body, body_stream};
+        pub use finchers_http::body::{data, raw_body};
         pub use finchers_http::header::header;
         pub use finchers_http::method::{delete, get, head, patch, post, put};
         pub use finchers_http::path::{param, params, path};
@@ -85,7 +85,7 @@ pub mod endpoint {
 }
 
 pub mod input {
-    pub use finchers_core::input::{Body, BodyStream, Error, ErrorKind, Input};
+    pub use finchers_core::input::{Data, Error, ErrorKind, Input, RequestBody};
 }
 
 pub mod runtime {

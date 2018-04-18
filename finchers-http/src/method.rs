@@ -15,7 +15,7 @@ impl<E: Endpoint> Endpoint for MatchMethod<E> {
     type Task = E::Task;
 
     fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
-        if *cx.input().method() == self.method {
+        if *cx.input().request().method() == self.method {
             self.endpoint.apply(cx)
         } else {
             None
@@ -53,7 +53,7 @@ macro_rules! define_method {
             type Task = E::Task;
 
             fn apply(&self,cx: &mut Context) -> Option<Self::Task> {
-                if *cx.input().method() == Method::$method {
+                if *cx.input().request().method() == Method::$method {
                     self.endpoint.apply(cx)
                 } else {
                     None

@@ -7,7 +7,7 @@ use http::header::{HeaderName, HeaderValue};
 use http::{HttpTryFrom, Method, Request, Uri};
 use std::mem;
 
-use finchers_core::input::BodyStream;
+use finchers_core::input::RequestBody;
 use finchers_core::util::create_task;
 use finchers_core::{Endpoint, Error, Input};
 
@@ -39,7 +39,8 @@ impl<E: Endpoint> Client<E> {
     {
         let mut client = ClientRequest {
             client: self,
-            request: Request::new(Default::default()),
+            request: Request::new(()),
+            body: None,
         };
         client.method(method);
         client.uri(uri);
@@ -59,7 +60,8 @@ impl<E: Endpoint> Client<E> {
 #[derive(Debug)]
 pub struct ClientRequest<'a, E: Endpoint + 'a> {
     client: &'a Client<E>,
-    request: Request<BodyStream>,
+    request: Request<()>,
+    body: Option<RequestBody>,
 }
 
 impl<'a, E: Endpoint> ClientRequest<'a, E> {
@@ -90,27 +92,31 @@ impl<'a, E: Endpoint> ClientRequest<'a, E> {
         self
     }
 
-    pub fn body<B>(&mut self, body: B) -> &mut ClientRequest<'a, E>
-    where
-        B: Into<BodyStream>,
-    {
-        *self.request.body_mut() = body.into();
+    pub fn body(&mut self, body: RequestBody) -> &mut ClientRequest<'a, E> {
+        self.body = Some(body);
         self
     }
 
-    pub fn run(&mut self) -> Result<E::Item, Error> {
-        let ClientRequest { client, request } = mem::replace(
+    fn take(&mut self) -> ClientRequest<'a, E> {
+        mem::replace(
             self,
             ClientRequest {
                 client: self.client,
-                request: http::Request::new(Default::default()),
+                request: http::Request::new(()),
+                body: None,
             },
-        );
+        )
+    }
 
-        let input: Input = request.into();
+    pub fn run(&mut self) -> Result<E::Item, Error> {
+        let ClientRequest { client, request, body } = self.take();
+
+        let input = Input::new(request, body.unwrap_or_else(RequestBody::empty));
         let f = create_task(&client.endpoint, input);
+
         // TODO: replace with futures::executor
         let (result, _input) = f.wait().expect("EndpointTask never fails");
+
         result
     }
 }

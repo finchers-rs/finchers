@@ -102,6 +102,7 @@ where
 
     fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
         cx.input()
+            .request()
             .headers()
             .get(H::header_name())
             .and_then(|h| H::from_header(h.as_bytes()).ok())
@@ -181,7 +182,7 @@ where
     type Task = CompatTask<FutureResult<H, Error>>;
 
     fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
-        match cx.input().headers().get(H::header_name()) {
+        match cx.input().request().headers().get(H::header_name()) {
             Some(h) => Some(H::from_header(h.as_bytes()).map_err(Into::into).into_future()),
             None => Some(err(NotPresent::new("").into())),
         }.map(Into::into)

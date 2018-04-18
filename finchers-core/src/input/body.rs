@@ -5,24 +5,24 @@ use futures::{Future, Poll, Stream};
 #[cfg(feature = "from_hyper")]
 use hyper;
 use std::ops::Deref;
-use std::{fmt, io, mem};
+use std::{fmt, mem};
 
-/// A future to receive the incoming request body
+/// A "future" which will be done when the all message body has been received.
 #[derive(Debug)]
-pub struct Body(BodyState);
+pub struct Data(DataState);
 
 #[derive(Debug)]
-enum BodyState {
-    Receiving(BodyStream, BytesMut),
+enum DataState {
+    Receiving(RequestBody, BytesMut),
     Done,
 }
 
-impl Future for Body {
+impl Future for Data {
     type Item = Bytes;
     type Error = Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        use self::BodyState::*;
+        use self::DataState::*;
         match self.0 {
             Receiving(ref mut body, ref mut buf) => while let Some(item) = try_ready!(body.poll()) {
                 buf.reserve(item.len());
@@ -41,81 +41,69 @@ impl Future for Body {
 }
 
 /// A raw `Stream` to receive the incoming request body
-pub struct BodyStream(BodyStreamKind);
+pub struct RequestBody {
+    kind: RequestBodyKind,
+}
 
-enum BodyStreamKind {
+enum RequestBodyKind {
     Empty,
     Once(Option<Bytes>),
-    #[allow(dead_code)]
-    Stream(Box<Stream<Item = Bytes, Error = io::Error> + Send>),
     #[cfg(feature = "from_hyper")]
     Hyper(hyper::Body),
 }
 
-impl fmt::Debug for BodyStream {
+impl fmt::Debug for RequestBody {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self.0 {
-            BodyStreamKind::Empty => f.debug_tuple("Empty").finish(),
-            BodyStreamKind::Once(..) => f.debug_tuple("Once").finish(),
-            BodyStreamKind::Stream(..) => f.debug_tuple("Stream").finish(),
+        use self::RequestBodyKind::*;
+        match self.kind {
+            Empty => f.debug_tuple("Empty").finish(),
+            Once(..) => f.debug_tuple("Once").finish(),
             #[cfg(feature = "from_hyper")]
-            BodyStreamKind::Hyper(..) => f.debug_tuple("Hyper").finish(),
+            Hyper(..) => f.debug_tuple("Hyper").finish(),
         }
     }
 }
 
-impl Default for BodyStream {
-    fn default() -> Self {
-        BodyStream(BodyStreamKind::Empty)
+impl RequestBody {
+    pub fn empty() -> RequestBody {
+        RequestBody {
+            kind: RequestBodyKind::Empty,
+        }
     }
-}
 
-impl BodyStream {
-    pub fn into_data(self) -> Body {
+    pub fn once<T>(body: T) -> RequestBody
+    where
+        T: Into<Bytes>,
+    {
+        RequestBody {
+            kind: RequestBodyKind::Once(Some(body.into())),
+        }
+    }
+
+    #[cfg(feature = "from_hyper")]
+    pub fn from_hyp(body: hyper::Body) -> RequestBody {
+        RequestBody {
+            kind: RequestBodyKind::Hyper(body),
+        }
+    }
+
+    pub fn into_data(self) -> Data {
         // TODO: reserve the capacity of content-length
-        Body(BodyState::Receiving(self, BytesMut::new()))
+        Data(DataState::Receiving(self, BytesMut::new()))
     }
 }
 
-macro_rules! impl_from_for_stream {
-    ($(
-        $(#[$attr:meta])*
-        $t:ty;
-    )*) => {$(
-        $(#[$attr])*
-        impl From<$t> for BodyStream {
-            fn from(body: $t) -> Self {
-                BodyStream(BodyStreamKind::Once(Some(body.into())))
-            }
-        }
-    )*};
-}
-
-impl_from_for_stream! {
-    Vec<u8>; &'static [u8]; String; &'static str; Bytes;
-}
-
-#[cfg(feature = "from_hyper")]
-impl From<hyper::Body> for BodyStream {
-    fn from(body: hyper::Body) -> BodyStream {
-        BodyStream(BodyStreamKind::Hyper(body))
-    }
-}
-
-impl Stream for BodyStream {
+impl Stream for RequestBody {
     type Item = Chunk;
     type Error = Error;
 
     fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
-        match self.0 {
-            BodyStreamKind::Empty => Ok(Ready(None)),
-            BodyStreamKind::Once(ref mut chunk) => Ok(Ready(chunk.take().map(Chunk::new))),
-            BodyStreamKind::Stream(ref mut stream) => stream
-                .poll()
-                .map(|async| async.map(|c| c.map(Chunk::new)))
-                .map_err(|err| ErrorKind::Io(err).into()),
+        use self::RequestBodyKind::*;
+        match self.kind {
+            Empty => Ok(Ready(None)),
+            Once(ref mut chunk) => Ok(Ready(chunk.take().map(Chunk::new))),
             #[cfg(feature = "from_hyper")]
-            BodyStreamKind::Hyper(ref mut body) => body.poll()
+            Hyper(ref mut body) => body.poll()
                 .map(|async| async.map(|c| c.map(Chunk::from_hyp)))
                 .map_err(|err| ErrorKind::Hyper(err).into()),
         }
@@ -141,7 +129,7 @@ impl Chunk {
     }
 
     #[cfg(feature = "from_hyper")]
-    fn from_hyp(chunk: ::hyper::Chunk) -> Chunk {
+    pub fn from_hyp(chunk: hyper::Chunk) -> Chunk {
         Chunk(ChunkType::Hyper(chunk))
     }
 }

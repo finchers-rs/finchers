@@ -7,7 +7,7 @@ use std::marker::PhantomData;
 use std::{error, fmt};
 use {mime, serde_qs};
 
-use body::FromBody;
+use body::FromData;
 use finchers_core::Input;
 use finchers_core::endpoint::{Context, Endpoint};
 use finchers_core::error::BadRequest;
@@ -43,7 +43,7 @@ impl<T: de::DeserializeOwned> Endpoint for Queries<T> {
     type Task = QueriesTask<T>;
 
     fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
-        if cx.input().query().is_some() {
+        if cx.input().request().uri().query().is_some() {
             Some(QueriesTask { _marker: PhantomData })
         } else {
             None
@@ -61,7 +61,7 @@ impl<T: de::DeserializeOwned> Task for QueriesTask<T> {
     type Output = T;
 
     fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
-        let result = serde_qs::from_str::<T>(cx.input().query().unwrap()).map_err(Error::Parsing);
+        let result = serde_qs::from_str::<T>(cx.input().request().uri().query().unwrap()).map_err(Error::Parsing);
         result.map(Into::into).map_err(|e| BadRequest::new(e).into())
     }
 }
@@ -110,7 +110,7 @@ impl<T: de::DeserializeOwned> Task for QueriesRequiredTask<T> {
     type Output = T;
 
     fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
-        let result = match cx.input().query() {
+        let result = match cx.input().request().uri().query() {
             Some(s) => self::serde_qs::from_str::<T>(s).map_err(Error::Parsing),
             None => Err(Error::MissingQuery),
         };
@@ -162,7 +162,7 @@ impl<T: de::DeserializeOwned> Task for QueriesOptionalTask<T> {
     type Output = Option<T>;
 
     fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
-        let result = match cx.input().query() {
+        let result = match cx.input().request().uri().query() {
             Some(s) => match serde_qs::from_str(s) {
                 Ok(v) => Ok(Some(v)),
                 Err(e) => Err(BadRequest::new(Error::Parsing(e)).into()),
@@ -200,18 +200,24 @@ impl<F> ::std::ops::DerefMut for Form<F> {
     }
 }
 
-impl<F: de::DeserializeOwned + 'static> FromBody for Form<F> {
-    type Error = Error;
+impl<F> FromData for Form<F>
+where
+    F: de::DeserializeOwned + 'static,
+{
+    type Error = BadRequest<Error>;
 
-    fn from_body(body: Bytes, input: &mut Input) -> Result<Self, Self::Error> {
+    fn from_data(body: Bytes, input: &Input) -> Result<Self, Self::Error> {
         if input
             .media_type()
-            .map_err(|_| Error::InvalidMediaType)?
+            .map_err(|_| BadRequest::new(Error::InvalidMediaType))?
             .map_or(true, |m| *m == mime::APPLICATION_WWW_FORM_URLENCODED)
         {
-            serde_qs::from_bytes(&*body).map(Form).map_err(Into::into)
+            serde_qs::from_bytes(&*body)
+                .map(Form)
+                .map_err(Into::into)
+                .map_err(BadRequest::new)
         } else {
-            Err(Error::InvalidMediaType)
+            Err(BadRequest::new(Error::InvalidMediaType))
         }
     }
 }

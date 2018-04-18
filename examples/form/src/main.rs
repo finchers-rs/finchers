@@ -23,7 +23,7 @@ fn endpoint() -> impl Endpoint<Item = Debug> + Send + Sync + 'static {
         // Parse the query string when GET request.
         get(queries()),
         // Parse the message body when POST request.
-        post(body()).map(|Form(body)| body),
+        post(data()).map(|Form(data)| data),
         // TODO: add an endpoint for reporting the param error.
     ]
     // annotate to the endpoint that the inner type is FormParam.

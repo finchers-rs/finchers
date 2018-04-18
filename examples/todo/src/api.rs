@@ -25,11 +25,11 @@ pub fn build_endpoint(app: &Application) -> impl Endpoint<Item = Json<Response>>
 
     let list_todos = get(ok(())).try_abort(app.with(|app, _| app.list_todos())).map(Todos);
 
-    let add_todo = post(body())
+    let add_todo = post(data())
         .and_then(app.with(|app, Json(new_todo)| app.add_todo(new_todo)))
         .map(NewTodo);
 
-    let patch_todo = patch(param().and(body()))
+    let patch_todo = patch(param().and(data()))
         .and_then(app.with(|app, (id, Json(patch))| app.patch_todo(id, patch)))
         .map(TheTodo);
 

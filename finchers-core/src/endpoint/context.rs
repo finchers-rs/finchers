@@ -12,7 +12,7 @@ impl<'a> Context<'a> {
     pub(crate) fn new(input: &'a Input) -> Self {
         Context {
             input: input,
-            segments: Segments::from(input.path()),
+            segments: Segments::from(input.request().uri().path()),
         }
     }
 

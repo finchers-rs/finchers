@@ -1,53 +1,27 @@
 //! Error types thrown from finchers
 
-use http::StatusCode;
+use http::{Response, StatusCode};
+use input::Input;
+use output::Body;
 use std::borrow::Cow;
 use std::{error, fmt};
 
+/// Trait representing errors during handling an HTTP request.
 pub trait HttpError: error::Error + Send + 'static {
+    /// Returns the HTTP status code associated with this error type.
     fn status_code(&self) -> StatusCode;
+
+    /// Create an instance of "Response<Body>" from this error.
+    #[allow(unused_variables)]
+    fn to_response(&self, input: &Input) -> Option<Response<Body>> {
+        None
+    }
 }
 
 impl HttpError for ! {
     fn status_code(&self) -> StatusCode {
         unreachable!()
     }
-}
-
-macro_rules! impl_http_error {
-    (@bad_request) => { StatusCode::BAD_REQUEST };
-    (@server_error) => { StatusCode::INTERNAL_SERVER_ERROR };
-
-    ($( @$i:ident $t:ty; )*) => {$(
-        impl HttpError for $t {
-            #[inline]
-            fn status_code(&self) -> StatusCode {
-                impl_http_error!(@$i)
-            }
-        }
-    )*};
-}
-
-impl_http_error! {
-    @bad_request ::std::char::DecodeUtf16Error;
-    @bad_request ::std::char::ParseCharError;
-    @bad_request ::std::net::AddrParseError;
-    @bad_request ::std::num::ParseFloatError;
-    @bad_request ::std::num::ParseIntError;
-    @bad_request ::std::str::Utf8Error;
-    @bad_request ::std::str::ParseBoolError;
-    @bad_request ::std::string::ParseError;
-    @bad_request ::std::string::FromUtf8Error;
-    @bad_request ::std::string::FromUtf16Error;
-
-    @server_error ::std::cell::BorrowError;
-    @server_error ::std::cell::BorrowMutError;
-    @server_error ::std::env::VarError;
-    @server_error ::std::fmt::Error;
-    @server_error ::std::io::Error;
-    @server_error ::std::sync::mpsc::RecvError;
-    @server_error ::std::sync::mpsc::TryRecvError;
-    @server_error ::std::sync::mpsc::RecvTimeoutError;
 }
 
 #[derive(Debug)]
@@ -198,6 +172,13 @@ impl Error {
         match self.kind {
             ErrorKind::Canceled => StatusCode::NOT_FOUND,
             ErrorKind::Aborted(ref e) => e.status_code(),
+        }
+    }
+
+    pub fn to_response(&self, input: &Input) -> Option<Response<Body>> {
+        match self.kind {
+            ErrorKind::Canceled => None,
+            ErrorKind::Aborted(ref e) => e.to_response(input),
         }
     }
 }
