@@ -4,6 +4,7 @@ extern crate futures;
 extern crate either;
 extern crate http;
 
+mod abort;
 mod all;
 mod and;
 mod and_then;
@@ -17,6 +18,7 @@ mod right;
 mod try_abort;
 
 // re-exports
+pub use abort::{abort, Abort};
 pub use all::{all, All};
 pub use and::And;
 pub use and_then::AndThen;
