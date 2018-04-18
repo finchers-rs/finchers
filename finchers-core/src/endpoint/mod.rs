@@ -18,15 +18,6 @@ pub trait Endpoint {
     /// Perform checking the incoming HTTP request and returns
     /// an instance of the associated task if matched.
     fn apply(&self, cx: &mut Context) -> Option<Self::Task>;
-
-    /// Ensure that the associated type `Item` is equal to `T`.
-    #[inline(always)]
-    fn as_<T>(self) -> Self
-    where
-        Self: Sized + Endpoint<Item = T>,
-    {
-        self
-    }
 }
 
 impl<'a, E: Endpoint> Endpoint for &'a E {
