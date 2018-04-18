@@ -48,7 +48,7 @@ impl Task for RawBodyTask {
     type Output = RequestBody;
 
     fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
-        let body = cx.input_mut().body().expect("cannot take a body twice");
+        let body = cx.body().expect("cannot take a body twice");
         Ok(body.into())
     }
 }
@@ -117,7 +117,7 @@ where
         'poll: loop {
             let next = match *self {
                 DataTask::Init => {
-                    let body = cx.input_mut().body().expect("The body has already taken");
+                    let body = cx.body().expect("The body has already taken");
                     DataTask::Recv(body.into_data())
                 }
                 DataTask::Recv(ref mut body) => {

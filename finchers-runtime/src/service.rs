@@ -76,8 +76,9 @@ where
     fn call(&self, request: Request<Self::RequestBody>) -> Self::Future {
         let (parts, body) = request.into_parts();
         let request = Request::from_parts(parts, ());
+        let task = create_task(&self.endpoint, Input::new(request), body);
         EndpointServiceFuture {
-            task: create_task(&self.endpoint, Input::new(request, body)),
+            task,
             error_handler: self.error_handler,
         }
     }

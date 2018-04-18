@@ -1,7 +1,7 @@
-use Input;
 use either::Either;
 use error::Error;
 use futures::Future;
+use input::{Input, RequestBody};
 
 pub use futures::Async;
 
@@ -10,21 +10,22 @@ pub type PollTask<T> = Result<Async<T>, Error>;
 
 /// The context during polling a task.
 pub struct Context<'a> {
-    input: &'a mut Input,
+    input: &'a Input,
+    body: &'a mut Option<RequestBody>,
     // FIXME: add `futures::task::Context`
 }
 
 impl<'a> Context<'a> {
-    pub fn new(input: &'a mut Input) -> Context<'a> {
-        Context { input }
+    pub fn new(input: &'a Input, body: &'a mut Option<RequestBody>) -> Context<'a> {
+        Context { input, body }
     }
 
     pub fn input(&self) -> &Input {
         self.input
     }
 
-    pub fn input_mut(&mut self) -> &mut Input {
-        self.input
+    pub fn body(&mut self) -> Option<RequestBody> {
+        self.body.take()
     }
 }
 

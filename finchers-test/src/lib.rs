@@ -111,8 +111,9 @@ impl<'a, E: Endpoint> ClientRequest<'a, E> {
     pub fn run(&mut self) -> Result<E::Item, Error> {
         let ClientRequest { client, request, body } = self.take();
 
-        let input = Input::new(request, body.unwrap_or_else(RequestBody::empty));
-        let f = create_task(&client.endpoint, input);
+        let input = Input::new(request);
+        let body = body.unwrap_or_else(RequestBody::empty);
+        let f = create_task(&client.endpoint, input, body);
 
         // TODO: replace with futures::executor
         let (result, _input) = f.wait().expect("EndpointTask never fails");
