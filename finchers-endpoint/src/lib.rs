@@ -35,6 +35,15 @@ use finchers_core::endpoint::{Endpoint, IntoEndpoint};
 use futures::IntoFuture;
 
 pub trait EndpointExt: Endpoint + Sized {
+    /// Ensure that the associated type `Item` is equal to `T`.
+    #[inline(always)]
+    fn as_<T>(self) -> Self
+    where
+        Self: Endpoint<Item = T>,
+    {
+        self
+    }
+
     /// Create an endpoint which evaluates "self" and "e" sequentially
     /// and then returns their results as a pair.
     ///
