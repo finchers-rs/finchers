@@ -4,7 +4,6 @@ use bytes::Bytes;
 use futures::Future;
 use std::marker::PhantomData;
 use std::ops::Deref;
-use std::str::Utf8Error;
 use std::{fmt, mem, str};
 
 use finchers_core::endpoint::{Context, Endpoint};
@@ -213,18 +212,20 @@ impl FromData for Bytes {
 }
 
 impl FromData for BytesString {
-    type Error = BadRequest<Utf8Error>;
+    type Error = BadRequest;
 
     fn from_data(data: Bytes, _: &Input) -> Result<Self, Self::Error> {
-        BytesString::from_shared(data).map_err(BadRequest::new)
+        BytesString::from_shared(data).map_err(|e| BadRequest::new("failed to parse the message body").with_cause(e))
     }
 }
 
 impl FromData for String {
-    type Error = BadRequest<Utf8Error>;
+    type Error = BadRequest;
 
     fn from_data(data: Bytes, _: &Input) -> Result<Self, Self::Error> {
-        BytesString::from_shared(data).map(Into::into).map_err(BadRequest::new)
+        BytesString::from_shared(data)
+            .map(Into::into)
+            .map_err(|e| BadRequest::new("failed to parse the message body").with_cause(e))
     }
 }
 
