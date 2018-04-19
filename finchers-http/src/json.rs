@@ -5,7 +5,7 @@ use http::header::HeaderValue;
 use http::{header, Response, StatusCode};
 use serde::de::DeserializeOwned;
 use serde::ser::Serialize;
-use std::ops::{Deref, DerefMut};
+use std::ops::Deref;
 use std::{error, fmt};
 use {mime, serde_json};
 
@@ -14,9 +14,16 @@ use finchers_core::error::HttpError;
 use finchers_core::output::{Body, HttpStatus, Responder};
 use finchers_core::{Input, Output};
 
-/// Represents a JSON value
-#[derive(Debug, Default, Copy, Clone, PartialEq, PartialOrd, Eq, Hash)]
+/// A wrapper struct representing a statically typed JSON value.
+#[derive(Debug)]
 pub struct Json<T>(pub T);
+
+impl<T> Json<T> {
+    /// Consume itself and return the instance of inner value.
+    pub fn into_inner(self) -> T {
+        self.0
+    }
+}
 
 impl<T> From<T> for Json<T> {
     #[inline]
@@ -31,13 +38,6 @@ impl<T> Deref for Json<T> {
     #[inline]
     fn deref(&self) -> &Self::Target {
         &self.0
-    }
-}
-
-impl<T> DerefMut for Json<T> {
-    #[inline]
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
     }
 }
 
@@ -60,7 +60,10 @@ where
     }
 }
 
-impl<T: Serialize + HttpStatus> Responder for Json<T> {
+impl<T> Responder for Json<T>
+where
+    T: Serialize + HttpStatus,
+{
     type Error = Error;
 
     fn respond(self, _: &Input) -> Result<Output, Self::Error> {
@@ -75,6 +78,47 @@ impl<T: Serialize + HttpStatus> Responder for Json<T> {
         response.headers_mut().insert(header::CONTENT_LENGTH, unsafe {
             HeaderValue::from_shared_unchecked(body_len.into())
         });
+        Ok(response)
+    }
+}
+
+/// A type representing a JSON value.
+///
+/// This type is used as an output value of the endpoint or error handler.
+#[derive(Debug)]
+pub struct JsonValue {
+    value: serde_json::Value,
+    status: StatusCode,
+}
+
+impl From<serde_json::Value> for JsonValue {
+    fn from(value: serde_json::Value) -> Self {
+        JsonValue::new(value, StatusCode::OK)
+    }
+}
+
+impl JsonValue {
+    pub fn new(value: serde_json::Value, status: StatusCode) -> JsonValue {
+        JsonValue { value, status }
+    }
+}
+
+impl Responder for JsonValue {
+    type Error = Error;
+
+    fn respond(self, _: &Input) -> Result<Output, Self::Error> {
+        let body = self.value.to_string();
+        let body_len = body.len().to_string();
+
+        let mut response = Response::new(Body::once(body));
+        *response.status_mut() = self.status;
+        response
+            .headers_mut()
+            .insert(header::CONTENT_TYPE, HeaderValue::from_static("application/json"));
+        response.headers_mut().insert(header::CONTENT_LENGTH, unsafe {
+            HeaderValue::from_shared_unchecked(body_len.into())
+        });
+
         Ok(response)
     }
 }
