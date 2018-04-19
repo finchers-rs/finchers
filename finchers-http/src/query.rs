@@ -1,190 +1,99 @@
 //! Components for parsing the query string and urlencoded payload.
 
 use bytes::Bytes;
+use futures::future::{self, FutureResult};
+use http::StatusCode;
 use serde::de::{self, IntoDeserializer};
 use std::iter::FromIterator;
 use std::marker::PhantomData;
+use std::ops::Deref;
 use std::{error, fmt};
 use {mime, serde_qs};
 
 use body::FromData;
-use finchers_core::Input;
 use finchers_core::endpoint::{Context, Endpoint};
-use finchers_core::error::BadRequest;
-use finchers_core::task::{self, PollTask, Task};
+use finchers_core::task::CompatTask;
+use finchers_core::{Error, HttpError, Input};
 
-#[allow(missing_docs)]
-pub fn queries<T: de::DeserializeOwned>() -> Queries<T> {
-    Queries { _marker: PhantomData }
+/// Create an endpoint which parse the query string in the HTTP request
+/// to the value of "T".
+///
+/// # Example
+///
+/// ```
+/// # extern crate finchers_endpoint;
+/// # extern crate finchers_http;
+/// # #[macro_use] extern crate serde;
+/// # use finchers_http::query::{query, from_csv};
+/// # use finchers_endpoint::EndpointExt;
+/// #
+/// #[derive(Debug, Deserialize)]
+/// pub struct Param {
+///     query: String,
+///     count: Option<u32>,
+///     #[serde(deserialize_with = "from_csv", default)]
+///     tags: Vec<String>,
+/// }
+///
+/// # fn main() {
+/// let endpoint = query()
+///     .map(|param: Param| format!("Received: {:?}", param));
+/// # }
+/// ```
+pub fn query<T>() -> Query<T>
+where
+    T: de::DeserializeOwned,
+{
+    Query { _marker: PhantomData }
 }
 
 #[allow(missing_docs)]
-pub struct Queries<T> {
+pub struct Query<T> {
     _marker: PhantomData<fn() -> T>,
 }
 
-impl<T> Copy for Queries<T> {}
+impl<T> Copy for Query<T> {}
 
-impl<T> Clone for Queries<T> {
+impl<T> Clone for Query<T> {
     #[inline]
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<T> fmt::Debug for Queries<T> {
+impl<T> fmt::Debug for Query<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("Queries").finish()
+        f.debug_struct("Query").finish()
     }
 }
 
-impl<T: de::DeserializeOwned> Endpoint for Queries<T> {
+impl<T> Endpoint for Query<T>
+where
+    T: de::DeserializeOwned + Send,
+{
     type Item = T;
-    type Task = QueriesTask<T>;
+    type Task = CompatTask<FutureResult<T, Error>>;
 
     fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
-        if cx.input().request().uri().query().is_some() {
-            Some(QueriesTask { _marker: PhantomData })
-        } else {
-            None
-        }
+        let query = cx.input().request().uri().query()?;
+        Some(CompatTask::from(future::result(
+            serde_qs::from_str(query).map_err(|e| QueryError::Parsing(e).into()),
+        )))
     }
 }
 
-#[doc(hidden)]
-#[allow(missing_debug_implementations)]
-pub struct QueriesTask<T: de::DeserializeOwned> {
-    _marker: PhantomData<fn() -> T>,
-}
-
-impl<T: de::DeserializeOwned> Task for QueriesTask<T> {
-    type Output = T;
-
-    fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
-        let result = serde_qs::from_str::<T>(cx.input().request().uri().query().unwrap()).map_err(Error::Parsing);
-        result.map(Into::into).map_err(|e| BadRequest::new(e).into())
-    }
-}
-
-#[allow(missing_docs)]
-pub fn queries_req<T: de::DeserializeOwned>() -> QueriesRequired<T> {
-    QueriesRequired { _marker: PhantomData }
-}
-
-#[allow(missing_docs)]
-pub struct QueriesRequired<T> {
-    _marker: PhantomData<fn() -> T>,
-}
-
-impl<T> Copy for QueriesRequired<T> {}
-
-impl<T> Clone for QueriesRequired<T> {
-    #[inline]
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl<T> fmt::Debug for QueriesRequired<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("QueriesRequired").finish()
-    }
-}
-
-impl<T: de::DeserializeOwned> Endpoint for QueriesRequired<T> {
-    type Item = T;
-    type Task = QueriesRequiredTask<T>;
-
-    fn apply(&self, _: &mut Context) -> Option<Self::Task> {
-        Some(QueriesRequiredTask { _marker: PhantomData })
-    }
-}
-
-#[doc(hidden)]
-#[allow(missing_debug_implementations)]
-pub struct QueriesRequiredTask<T: de::DeserializeOwned> {
-    _marker: PhantomData<fn() -> T>,
-}
-
-impl<T: de::DeserializeOwned> Task for QueriesRequiredTask<T> {
-    type Output = T;
-
-    fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
-        let result = match cx.input().request().uri().query() {
-            Some(s) => self::serde_qs::from_str::<T>(s).map_err(Error::Parsing),
-            None => Err(Error::MissingQuery),
-        };
-        result.map(Into::into).map_err(|e| BadRequest::new(e).into())
-    }
-}
-
-#[allow(missing_docs)]
-pub fn queries_opt<T: de::DeserializeOwned>() -> QueriesOptional<T> {
-    QueriesOptional { _marker: PhantomData }
-}
-
-#[allow(missing_docs)]
-pub struct QueriesOptional<T> {
-    _marker: PhantomData<fn() -> T>,
-}
-
-impl<T> Copy for QueriesOptional<T> {}
-
-impl<T> Clone for QueriesOptional<T> {
-    #[inline]
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl<T> fmt::Debug for QueriesOptional<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("QueriesOptional").finish()
-    }
-}
-
-impl<T: de::DeserializeOwned> Endpoint for QueriesOptional<T> {
-    type Item = Option<T>;
-    type Task = QueriesOptionalTask<T>;
-
-    fn apply(&self, _: &mut Context) -> Option<Self::Task> {
-        Some(QueriesOptionalTask { _marker: PhantomData })
-    }
-}
-
-#[doc(hidden)]
-#[allow(missing_debug_implementations)]
-pub struct QueriesOptionalTask<T: de::DeserializeOwned> {
-    _marker: PhantomData<fn() -> T>,
-}
-
-impl<T: de::DeserializeOwned> Task for QueriesOptionalTask<T> {
-    type Output = Option<T>;
-
-    fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
-        let result = match cx.input().request().uri().query() {
-            Some(s) => match serde_qs::from_str(s) {
-                Ok(v) => Ok(Some(v)),
-                Err(e) => Err(BadRequest::new(Error::Parsing(e)).into()),
-            },
-            None => Ok(None),
-        };
-        result.map(Into::into)
-    }
-}
-
-#[allow(missing_docs)]
-#[derive(Debug, Default, Copy, Clone, PartialEq, PartialOrd, Eq, Hash)]
+/// A wrapper struct which contains a parsed content from the urlencoded string.
+#[derive(Debug)]
 pub struct Form<F>(pub F);
 
-impl<F> From<F> for Form<F> {
-    #[inline]
-    fn from(inner: F) -> Self {
-        Form(inner)
+impl<F> Form<F> {
+    /// Consume itself and return the instance of inner value.
+    pub fn into_inner(self) -> F {
+        self.0
     }
 }
 
-impl<F> ::std::ops::Deref for Form<F> {
+impl<F> Deref for Form<F> {
     type Target = F;
 
     #[inline]
@@ -193,70 +102,58 @@ impl<F> ::std::ops::Deref for Form<F> {
     }
 }
 
-impl<F> ::std::ops::DerefMut for Form<F> {
-    #[inline]
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
 impl<F> FromData for Form<F>
 where
     F: de::DeserializeOwned + 'static,
 {
-    type Error = BadRequest<Error>;
+    type Error = QueryError;
 
     fn from_data(body: Bytes, input: &Input) -> Result<Self, Self::Error> {
         if input
             .media_type()
-            .map_err(|_| BadRequest::new(Error::InvalidMediaType))?
+            .map_err(|_| QueryError::InvalidMediaType)?
             .map_or(true, |m| *m == mime::APPLICATION_WWW_FORM_URLENCODED)
         {
-            serde_qs::from_bytes(&*body)
-                .map(Form)
-                .map_err(Into::into)
-                .map_err(BadRequest::new)
+            serde_qs::from_bytes(&*body).map(Form).map_err(QueryError::Parsing)
         } else {
-            Err(BadRequest::new(Error::InvalidMediaType))
+            Err(QueryError::InvalidMediaType)
         }
     }
 }
 
-/// An error from `Queries` and `QueriesOpt`
-#[allow(missing_docs)]
+/// All of error kinds when receiving/parsing the urlencoded data.
 #[derive(Debug)]
-pub enum Error {
-    MissingQuery,
+pub enum QueryError {
     InvalidMediaType,
-    Parsing(self::serde_qs::Error),
+    Parsing(serde_qs::Error),
 }
 
-impl From<self::serde_qs::Error> for Error {
-    fn from(err: self::serde_qs::Error) -> Self {
-        Error::Parsing(err)
-    }
-}
-
-impl fmt::Display for Error {
+impl fmt::Display for QueryError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use self::QueryError::*;
         match *self {
-            Error::MissingQuery => f.write_str("missing query string"),
-            Error::InvalidMediaType => f.write_str("The content type should be application/www-x-urlformencoded"),
-            Error::Parsing(ref e) => e.fmt(f),
+            InvalidMediaType => f.write_str("The content type should be application/www-x-urlformencoded"),
+            Parsing(ref e) => e.fmt(f),
         }
     }
 }
 
-impl error::Error for Error {
+impl error::Error for QueryError {
     fn description(&self) -> &str {
         "failed to parse an urlencoded string"
     }
 
     fn cause(&self) -> Option<&error::Error> {
         match *self {
-            Error::Parsing(ref e) => Some(&*e),
+            QueryError::Parsing(ref e) => Some(&*e),
             _ => None,
         }
+    }
+}
+
+impl HttpError for QueryError {
+    fn status_code(&self) -> StatusCode {
+        StatusCode::BAD_REQUEST
     }
 }
 
@@ -286,7 +183,30 @@ where
     }
 }
 
-/// Deserialize a sequece from a comma-separated string
+/// Deserialize a sequece from a comma-separated string.
+///
+/// This function is typically used in an attribute of the derivation "Deserialize".
+///
+/// # Example
+///
+/// ```
+/// # extern crate finchers_http;
+/// # extern crate finchers_endpoint;
+/// # #[macro_use] extern crate serde;
+/// # use finchers_http::query::{query, from_csv};
+/// # use finchers_endpoint::EndpointExt;
+/// #
+/// #[derive(Debug, Deserialize)]
+/// pub struct Params {
+///     #[serde(deserialize_with = "from_csv", default)]
+///     tags: Vec<String>,
+/// }
+///
+/// # fn main() {
+/// let endpoint = query::<Params>()
+///     .inspect(|params| println!("{:?}", params.tags));
+/// # }
+/// ```
 pub fn from_csv<'de, D, I, T>(de: D) -> Result<I, D::Error>
 where
     D: de::Deserializer<'de>,
