@@ -2,6 +2,7 @@ use http::{Response, StatusCode};
 use input::Input;
 use output::Body;
 use std::borrow::Cow;
+use std::ops::Deref;
 use std::{error, fmt};
 
 /// Trait representing errors during handling an HTTP request.
@@ -23,66 +24,96 @@ impl HttpError for ! {
 }
 
 #[derive(Debug)]
-pub struct BadRequest<E> {
-    err: E,
+pub struct BadRequest {
+    message: Cow<'static, str>,
+    cause: Option<Box<error::Error + Send + 'static>>,
 }
 
-impl<E> BadRequest<E> {
-    pub fn new(err: E) -> Self {
-        BadRequest { err }
+impl BadRequest {
+    pub fn new<S>(message: S) -> BadRequest
+    where
+        S: Into<Cow<'static, str>>,
+    {
+        BadRequest {
+            message: message.into(),
+            cause: None,
+        }
+    }
+
+    pub fn with_cause<E>(mut self, cause: E) -> BadRequest
+    where
+        E: error::Error + Send + 'static,
+    {
+        self.cause = Some(Box::new(cause));
+        self
     }
 }
 
-impl<E: fmt::Display> fmt::Display for BadRequest<E> {
+impl fmt::Display for BadRequest {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.err.fmt(f)
+        f.write_str(&*self.message)
     }
 }
 
-impl<E: error::Error> error::Error for BadRequest<E> {
+impl error::Error for BadRequest {
     fn description(&self) -> &str {
-        self.err.description()
+        "bad request"
     }
 
     fn cause(&self) -> Option<&error::Error> {
-        self.err.cause()
+        self.cause.as_ref().map(|e| &**e as &error::Error)
     }
 }
 
-impl<E: error::Error + Send + 'static> HttpError for BadRequest<E> {
+impl HttpError for BadRequest {
     fn status_code(&self) -> StatusCode {
         StatusCode::BAD_REQUEST
     }
 }
 
 #[derive(Debug)]
-pub struct ServerError<E> {
-    err: E,
+pub struct ServerError {
+    message: Cow<'static, str>,
+    cause: Option<Box<error::Error + Send + 'static>>,
 }
 
-impl<E> ServerError<E> {
-    pub fn new(err: E) -> Self {
-        ServerError { err }
+impl ServerError {
+    pub fn new<S>(message: S) -> ServerError
+    where
+        S: Into<Cow<'static, str>>,
+    {
+        ServerError {
+            message: message.into(),
+            cause: None,
+        }
+    }
+
+    pub fn with_cause<E>(mut self, cause: E) -> ServerError
+    where
+        E: error::Error + Send + 'static,
+    {
+        self.cause = Some(Box::new(cause));
+        self
     }
 }
 
-impl<E: fmt::Display> fmt::Display for ServerError<E> {
+impl fmt::Display for ServerError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.err.fmt(f)
+        f.write_str(&*self.message)
     }
 }
 
-impl<E: error::Error> error::Error for ServerError<E> {
+impl error::Error for ServerError {
     fn description(&self) -> &str {
-        self.err.description()
+        "server error"
     }
 
     fn cause(&self) -> Option<&error::Error> {
-        self.err.cause()
+        self.cause.as_ref().map(|e| &**e as &error::Error)
     }
 }
 
-impl<E: error::Error + Send + 'static> HttpError for ServerError<E> {
+impl HttpError for ServerError {
     fn status_code(&self) -> StatusCode {
         StatusCode::INTERNAL_SERVER_ERROR
     }
@@ -94,7 +125,10 @@ pub struct NotPresent {
 }
 
 impl NotPresent {
-    pub fn new<S: Into<Cow<'static, str>>>(message: S) -> Self {
+    pub fn new<S>(message: S) -> NotPresent
+    where
+        S: Into<Cow<'static, str>>,
+    {
         NotPresent {
             message: message.into(),
         }
@@ -120,72 +154,18 @@ impl HttpError for NotPresent {
 }
 
 #[derive(Debug)]
-pub struct Error {
-    kind: ErrorKind,
-}
-
-#[derive(Debug)]
-enum ErrorKind {
-    Canceled,
-    Aborted(Box<HttpError>),
-}
+pub struct Error(Box<HttpError>);
 
 impl<E: HttpError> From<E> for Error {
     fn from(err: E) -> Self {
-        Error::aborted(err)
+        Error(Box::new(err))
     }
 }
 
-impl Error {
-    pub fn canceled() -> Error {
-        Error {
-            kind: ErrorKind::Canceled,
-        }
-    }
+impl Deref for Error {
+    type Target = HttpError;
 
-    pub fn aborted<E>(err: E) -> Error
-    where
-        E: HttpError,
-    {
-        Error {
-            kind: ErrorKind::Aborted(Box::new(err)),
-        }
-    }
-
-    pub fn is_canceled(&self) -> bool {
-        match self.kind {
-            ErrorKind::Canceled => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_aborted(&self) -> bool {
-        match self.kind {
-            ErrorKind::Aborted(..) => true,
-            _ => false,
-        }
-    }
-
-    pub fn status_code(&self) -> StatusCode {
-        match self.kind {
-            ErrorKind::Canceled => StatusCode::NOT_FOUND,
-            ErrorKind::Aborted(ref e) => e.status_code(),
-        }
-    }
-
-    pub fn to_response(&self, input: &Input) -> Option<Response<Body>> {
-        match self.kind {
-            ErrorKind::Canceled => None,
-            ErrorKind::Aborted(ref e) => e.to_response(input),
-        }
-    }
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self.kind {
-            ErrorKind::Canceled => f.write_str("no route"),
-            ErrorKind::Aborted(ref e) => fmt::Display::fmt(e, f),
-        }
+    fn deref(&self) -> &Self::Target {
+        &*self.0
     }
 }

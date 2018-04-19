@@ -12,7 +12,7 @@ fn test_try_abort_1() {
     let client = Client::new(endpoint);
 
     let outcome = client.get("/").run();
-    assert!(outcome.err().map_or(false, |e| e.is_aborted()));
+    assert!(outcome.map_or(false, |r| r.is_err()));
 }
 
 #[test]
@@ -21,5 +21,5 @@ fn test_try_abort_2() {
     let client = Client::new(endpoint);
 
     let outcome = client.get("/").run();
-    assert!(outcome.is_ok());
+    assert!(outcome.map_or(false, |r| r.is_ok()));
 }

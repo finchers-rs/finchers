@@ -12,10 +12,10 @@ fn test_or_1() {
     let client = Client::new(endpoint);
 
     let outcome = client.get("/foo").run();
-    assert_eq!(outcome.ok(), Some("foo"));
+    assert_eq!(outcome.and_then(Result::ok), Some("foo"));
 
     let outcome = client.get("/bar").run();
-    assert_eq!(outcome.ok(), Some("bar"));
+    assert_eq!(outcome.and_then(Result::ok), Some("bar"));
 }
 
 #[test]
@@ -26,8 +26,8 @@ fn test_or_choose_longer_segments() {
     let client = Client::new(endpoint);
 
     let outcome = client.get("/foo").run();
-    assert_eq!(outcome.ok(), Some("foo"));
+    assert_eq!(outcome.and_then(Result::ok), Some("foo"));
 
     let outcome = client.get("/foo/bar").run();
-    assert_eq!(outcome.ok(), Some("foobar"));
+    assert_eq!(outcome.and_then(Result::ok), Some("foobar"));
 }

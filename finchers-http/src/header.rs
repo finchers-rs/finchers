@@ -23,19 +23,18 @@ use finchers_core::{Error, HttpError};
 /// # use finchers_http::header::{header, FromHeader};
 /// # use finchers_endpoint::EndpointExt;
 /// # use finchers_core::error::BadRequest;
-/// # use std::string::FromUtf8Error;
 /// #
 /// pub struct APIKey(pub String);
 ///
 /// impl FromHeader for APIKey {
-///     type Error = BadRequest<FromUtf8Error>;
+///     type Error = BadRequest;
 ///
 ///     fn header_name() -> &'static str { "X-API-Key" }
 ///
 ///     fn from_header(s: &[u8]) -> Result<Self, Self::Error> {
 ///         String::from_utf8(s.to_owned())
 ///             .map(APIKey)
-///             .map_err(BadRequest::new)
+///             .map_err(|e| BadRequest::new("invalid API key").with_cause(e))
 ///     }
 /// }
 ///
@@ -125,19 +124,18 @@ where
 /// # use finchers_http::header::{header_required, FromHeader};
 /// # use finchers_endpoint::EndpointExt;
 /// # use finchers_core::error::BadRequest;
-/// # use std::string::FromUtf8Error;
 /// #
 /// pub struct APIKey(pub String);
 ///
 /// impl FromHeader for APIKey {
-///     type Error = BadRequest<FromUtf8Error>;
+///     type Error = BadRequest;
 ///
 ///     fn header_name() -> &'static str { "X-API-Key" }
 ///
 ///     fn from_header(s: &[u8]) -> Result<Self, Self::Error> {
 ///         String::from_utf8(s.to_owned())
 ///             .map(APIKey)
-///             .map_err(BadRequest::new)
+///             .map_err(|e| BadRequest::new("Invalid API Key").with_cause(e))
 ///     }
 /// }
 ///

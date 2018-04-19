@@ -32,6 +32,6 @@ where
     type Task = CompatTask<FutureResult<T, Error>>;
 
     fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
-        Some(CompatTask::from(err(Error::aborted((self.f)(cx)))))
+        Some(CompatTask::from(err(Error::from((self.f)(cx)))))
     }
 }

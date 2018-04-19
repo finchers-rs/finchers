@@ -29,14 +29,14 @@ pub struct Apply<T> {
 
 impl<T: Task> Apply<T> {
     /// Poll the inner "Task" and return its output if available.
-    pub fn poll_ready(&mut self, input: &Input) -> Async<Result<T::Output, Error>> {
+    pub fn poll_ready(&mut self, input: &Input) -> Async<Option<Result<T::Output, Error>>> {
         let result = match self.in_flight {
             Some(ref mut f) => match f.poll_task(&mut task::Context::new(input, &mut self.body)) {
                 Ok(Async::NotReady) => return Async::NotReady,
-                Ok(Async::Ready(ok)) => Ok(ok),
-                Err(err) => Err(err),
+                Ok(Async::Ready(ok)) => Some(Ok(ok)),
+                Err(err) => Some(Err(err)),
             },
-            None => Err(Error::canceled()),
+            None => None,
         };
         Async::Ready(result)
     }

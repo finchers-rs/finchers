@@ -2,15 +2,71 @@
 
 use bytes::Bytes;
 use futures::Future;
-use std::fmt;
 use std::marker::PhantomData;
-use std::str::Utf8Error;
+use std::ops::Deref;
+use std::{fmt, mem, str};
 
 use finchers_core::endpoint::{Context, Endpoint};
 use finchers_core::error::BadRequest;
 use finchers_core::input::{self, RequestBody};
 use finchers_core::task::{self, PollTask, Task};
-use finchers_core::{BytesString, HttpError, Input};
+use finchers_core::{HttpError, Input};
+
+/// A reference counted UTF-8 sequence.
+pub struct BytesString(Bytes);
+
+impl fmt::Debug for BytesString {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(self.as_str(), f)
+    }
+}
+
+impl AsRef<str> for BytesString {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl Deref for BytesString {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        self.as_str()
+    }
+}
+
+impl Into<Bytes> for BytesString {
+    fn into(self) -> Bytes {
+        self.0
+    }
+}
+
+impl Into<String> for BytesString {
+    fn into(self) -> String {
+        self.as_str().to_owned()
+    }
+}
+
+impl BytesString {
+    pub fn from_static(s: &'static str) -> BytesString {
+        unsafe { Self::from_shared_unchecked(Bytes::from_static(s.as_bytes())) }
+    }
+
+    pub fn from_shared(bytes: Bytes) -> Result<BytesString, str::Utf8Error> {
+        let _ = str::from_utf8(&*bytes)?;
+        Ok(unsafe { Self::from_shared_unchecked(bytes) })
+    }
+
+    pub unsafe fn from_shared_unchecked(bytes: Bytes) -> BytesString {
+        BytesString(bytes)
+    }
+
+    pub fn as_str(&self) -> &str {
+        unsafe { mem::transmute::<&[u8], _>(self.0.as_ref()) }
+    }
+
+    // TODO: add method creating substrings
+}
 
 /// Creates an endpoint for taking the instance of `BodyStream`
 pub fn raw_body() -> RawBody {
@@ -156,18 +212,20 @@ impl FromData for Bytes {
 }
 
 impl FromData for BytesString {
-    type Error = BadRequest<Utf8Error>;
+    type Error = BadRequest;
 
     fn from_data(data: Bytes, _: &Input) -> Result<Self, Self::Error> {
-        BytesString::from_shared(data).map_err(BadRequest::new)
+        BytesString::from_shared(data).map_err(|e| BadRequest::new("failed to parse the message body").with_cause(e))
     }
 }
 
 impl FromData for String {
-    type Error = BadRequest<Utf8Error>;
+    type Error = BadRequest;
 
     fn from_data(data: Bytes, _: &Input) -> Result<Self, Self::Error> {
-        BytesString::from_shared(data).map(Into::into).map_err(BadRequest::new)
+        BytesString::from_shared(data)
+            .map(Into::into)
+            .map_err(|e| BadRequest::new("failed to parse the message body").with_cause(e))
     }
 }
 

@@ -2,14 +2,15 @@
 
 use futures::Async::*;
 use futures::{Future, Poll};
+use http::StatusCode;
 use http::header::{self, HeaderValue};
 use http::{Request, Response};
-use std::io;
 use std::sync::Arc;
+use std::{error, fmt, io};
 
 use finchers_core::input::RequestBody;
 use finchers_core::output::{Body, Responder};
-use finchers_core::{apply, Apply, Endpoint, Error, Input, Task};
+use finchers_core::{apply, Apply, Endpoint, HttpError, Input, Task};
 
 #[allow(missing_docs)]
 pub trait HttpService {
@@ -93,11 +94,8 @@ pub struct EndpointServiceFuture<T> {
 }
 
 impl<T> EndpointServiceFuture<T> {
-    fn handle_error<E>(&self, err: E) -> Response<Body>
-    where
-        E: Into<Error>,
-    {
-        (self.error_handler)(err.into(), &self.input)
+    fn handle_error(&self, err: &HttpError) -> Response<Body> {
+        (self.error_handler)(err, &self.input)
     }
 }
 
@@ -112,8 +110,11 @@ where
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         let mut response = match self.apply.poll_ready(&self.input) {
             NotReady => return Ok(NotReady),
-            Ready(Ok(output)) => output.respond(&self.input).unwrap_or_else(|err| self.handle_error(err)),
-            Ready(Err(err)) => self.handle_error(err),
+            Ready(Some(Ok(output))) => output
+                .respond(&self.input)
+                .unwrap_or_else(|err| self.handle_error(&err)),
+            Ready(Some(Err(err))) => self.handle_error(&*err),
+            Ready(None) => self.handle_error(&NoRoute),
         };
 
         if !response.headers().contains_key(header::SERVER) {
@@ -127,10 +128,31 @@ where
     }
 }
 
-///
-pub type ErrorHandler = fn(Error, &Input) -> Response<Body>;
+#[derive(Debug)]
+struct NoRoute;
 
-fn default_error_handler(err: Error, input: &Input) -> Response<Body> {
+impl fmt::Display for NoRoute {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("no route")
+    }
+}
+
+impl error::Error for NoRoute {
+    fn description(&self) -> &str {
+        "no route"
+    }
+}
+
+impl HttpError for NoRoute {
+    fn status_code(&self) -> StatusCode {
+        StatusCode::NOT_FOUND
+    }
+}
+
+///
+pub type ErrorHandler = fn(&HttpError, &Input) -> Response<Body>;
+
+fn default_error_handler(err: &HttpError, input: &Input) -> Response<Body> {
     let mut response = err.to_response(input).unwrap_or_else(|| {
         let body = err.to_string();
         let body_len = body.len().to_string();

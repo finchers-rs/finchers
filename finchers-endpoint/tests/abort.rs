@@ -11,5 +11,5 @@ fn test_abort() {
     let client = Client::new(abort(|_| NotPresent::new("")).as_::<!>());
 
     let outcome = client.get("/").run();
-    assert!(outcome.err().map_or(false, |e| e.is_aborted()));
+    assert!(outcome.map_or(false, |r| r.is_err()));
 }
