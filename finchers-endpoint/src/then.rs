@@ -4,7 +4,7 @@ use finchers_core::task::{self, Async, PollTask, Task};
 use futures::{Future, IntoFuture};
 use std::mem;
 
-pub fn new<E, F, R>(endpoint: E, f: F) -> AndThen<E, F>
+pub fn new<E, F, R>(endpoint: E, f: F) -> Then<E, F>
 where
     E: Endpoint,
     F: FnOnce(E::Item) -> R + Clone + Send,
@@ -12,16 +12,16 @@ where
     R::Future: Send,
     R::Error: HttpError,
 {
-    AndThen { endpoint, f }
+    Then { endpoint, f }
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct AndThen<E, F> {
+pub struct Then<E, F> {
     endpoint: E,
     f: F,
 }
 
-impl<E, F, R> Endpoint for AndThen<E, F>
+impl<E, F, R> Endpoint for Then<E, F>
 where
     E: Endpoint,
     F: FnOnce(E::Item) -> R + Clone + Send,
@@ -30,16 +30,16 @@ where
     R::Error: HttpError,
 {
     type Item = R::Item;
-    type Task = AndThenTask<E::Task, F, R>;
+    type Task = ThenTask<E::Task, F, R>;
 
     fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
         let task = self.endpoint.apply(cx)?;
-        Some(AndThenTask::First(task, self.f.clone()))
+        Some(ThenTask::First(task, self.f.clone()))
     }
 }
 
 #[derive(Debug)]
-pub enum AndThenTask<T, F, R>
+pub enum ThenTask<T, F, R>
 where
     T: Task,
     F: FnOnce(T::Output) -> R + Send,
@@ -52,7 +52,7 @@ where
     Done,
 }
 
-impl<T, F, R> Task for AndThenTask<T, F, R>
+impl<T, F, R> Task for ThenTask<T, F, R>
 where
     T: Task,
     F: FnOnce(T::Output) -> R + Send,
@@ -63,7 +63,7 @@ where
     type Output = R::Item;
 
     fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
-        use self::AndThenTask::*;
+        use self::ThenTask::*;
         loop {
             // TODO: optimize
             match mem::replace(self, Done) {

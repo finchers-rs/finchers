@@ -4,10 +4,11 @@ extern crate futures;
 extern crate either;
 extern crate http;
 
+pub mod result;
+
 mod abort;
 mod all;
 mod and;
-mod and_then;
 mod inspect;
 mod left;
 mod map;
@@ -15,20 +16,25 @@ mod maybe_done;
 mod ok;
 mod or;
 mod right;
+mod then;
 mod try_abort;
 
 // re-exports
 pub use abort::{abort, Abort};
 pub use all::{all, All};
 pub use and::And;
-pub use and_then::AndThen;
 pub use inspect::Inspect;
 pub use left::Left;
 pub use map::Map;
 pub use ok::{ok, Ok};
 pub use or::Or;
 pub use right::Right;
+pub use then::Then;
 pub use try_abort::TryAbort;
+
+pub use result::EndpointResultExt;
+
+// ==== EndpointExt ===
 
 use finchers_core::HttpError;
 use finchers_core::endpoint::{Endpoint, IntoEndpoint};
@@ -126,14 +132,14 @@ pub trait EndpointExt: Endpoint + Sized {
     ///
     /// The future will abort if the future returned from "f" will be rejected with
     /// an unrecoverable error.
-    fn and_then<F, R>(self, f: F) -> AndThen<Self, F>
+    fn then<F, R>(self, f: F) -> Then<Self, F>
     where
         F: FnOnce(Self::Item) -> R + Clone + Send,
         R: IntoFuture,
         R::Future: Send,
         R::Error: HttpError,
     {
-        assert_endpoint::<_, R::Item>(self::and_then::new(self, f))
+        assert_endpoint::<_, R::Item>(self::then::new(self, f))
     }
 
     /// Create an endpoint which maps the returned value from "self" to a `Result`.
