@@ -10,5 +10,5 @@ fn test_and() {
     let client = Client::new(endpoint);
 
     let outcome = client.get("/").run();
-    assert_eq!(outcome.ok(), Some(vec!["Hello", "world"]));
+    assert_eq!(outcome.and_then(Result::ok), Some(vec!["Hello", "world"]));
 }

@@ -9,5 +9,5 @@ fn test_ok() {
     let endpoint = ok("Alice");
     let client = Client::new(endpoint);
     let outcome = client.get("/").run();
-    assert_eq!(outcome.ok(), Some("Alice"));
+    assert_eq!(outcome.and_then(Result::ok), Some("Alice"));
 }

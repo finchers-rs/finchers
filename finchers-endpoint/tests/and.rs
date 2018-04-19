@@ -12,7 +12,7 @@ fn test_and_1() {
     let client = Client::new(endpoint);
 
     let outcome = client.get("/").run();
-    assert_eq!(outcome.ok(), Some(("Hello", "world")));
+    assert_eq!(outcome.and_then(Result::ok), Some(("Hello", "world")));
 }
 
 #[test]
@@ -21,5 +21,5 @@ fn test_and_2() {
     let client = Client::new(endpoint);
 
     let outcome = client.get("/").run();
-    assert!(outcome.err().map_or(false, |e| e.is_aborted()));
+    assert!(outcome.map_or(false, |r| r.is_err()));
 }

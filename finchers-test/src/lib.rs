@@ -107,7 +107,7 @@ impl<'a, E: Endpoint> ClientRequest<'a, E> {
         )
     }
 
-    pub fn run(&mut self) -> Result<E::Item, Error> {
+    pub fn run(&mut self) -> Option<Result<E::Item, Error>> {
         let ClientRequest { client, request, body } = self.take();
 
         let input = Input::new(request);
@@ -127,7 +127,7 @@ struct TestFuture<T> {
 }
 
 impl<T: Task> Future for TestFuture<T> {
-    type Item = Result<T::Output, Error>;
+    type Item = Option<Result<T::Output, Error>>;
     type Error = !;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
