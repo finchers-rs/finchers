@@ -64,7 +64,7 @@ fn test_endpoint_extract_wrong_integer() {
 fn test_endpoint_extract_wrong_integer_result() {
     let client = Client::new(param::<Result<i32, _>>());
     let outcome = client.get("/foo").run();
-    assert_eq!(outcome.map(|r| r.is_err()), Some(true));
+    assert_eq!(outcome.map(|r| r.is_ok()), Some(true));
 }
 
 #[test]

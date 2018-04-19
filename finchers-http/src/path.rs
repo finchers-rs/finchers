@@ -183,7 +183,9 @@ impl error::Error for ParseMatchError {
 /// # use finchers_http::path::{param, FromSegment};
 /// # fn main() {
 /// let endpoint = param()
-///     .try_abort(|id: Result<i32, _>| id.map_err(BadRequest::new));
+///     .try_abort(|id: Result<i32, _>| {
+///         id.map_err(|e| BadRequest::new("invalid id").with_cause(e))
+///     });
 /// # }
 /// ```
 pub fn param<T>() -> Param<T>
