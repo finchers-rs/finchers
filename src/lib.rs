@@ -65,18 +65,19 @@ pub extern crate mime;
 #[doc(hidden)]
 pub use finchers_derive::*;
 
-pub use finchers_core::{error, output};
+pub mod error {
+    pub use finchers_core::error::{BadRequest, HttpError, ServerError};
+}
 
 pub mod endpoint {
     pub use finchers_core::endpoint::{Endpoint, IntoEndpoint};
-    pub use finchers_core::task::{self, Task};
-    pub use finchers_endpoint::{abort, all, just, lazy, EndpointExt};
+    pub use finchers_endpoint::{abort, all, just, lazy, EndpointExt, EndpointResultExt};
     pub use finchers_http::{body, header, method, path, query, FromData, FromHeader, FromSegment, FromSegments};
 
     /// The "prelude" for building endpoints
     pub mod prelude {
         pub use finchers_core::endpoint::{Endpoint, IntoEndpoint};
-        pub use finchers_endpoint::EndpointExt;
+        pub use finchers_endpoint::{EndpointExt, EndpointResultExt};
         pub use finchers_http::body::{data, raw_body};
         pub use finchers_http::header::header;
         pub use finchers_http::method::{delete, get, head, patch, post, put};
@@ -88,15 +89,17 @@ pub mod input {
     pub use finchers_core::input::{Data, Error, ErrorKind, Input, RequestBody};
 }
 
+pub mod output {
+    pub use finchers_core::output::{Body, Debug, HttpStatus, Responder};
+}
+
 pub mod runtime {
     pub use finchers_runtime::server::Server;
     pub use finchers_runtime::service::{EndpointService, HttpService};
 }
 
-pub use finchers_core::endpoint::Endpoint;
-pub use finchers_core::output::Responder;
-pub use finchers_core::{Input, Output};
-pub use finchers_endpoint::EndpointExt;
+pub use finchers_core::{Endpoint, HttpError, Input, Output, Responder};
+pub use finchers_endpoint::{EndpointExt, EndpointResultExt};
 pub use finchers_http::json::Json;
 
 #[macro_use]
