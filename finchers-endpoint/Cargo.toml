@@ -1,6 +1,6 @@
 [package]
 name = "finchers-endpoint"
-version = "0.11.0-dev"
+version = "0.11.0-pre"
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 
 [dependencies]
@@ -9,13 +9,13 @@ http = "0.1.5"
 either = "1.5.0"
 
 [dependencies.finchers-core]
-version = "0.11.0-dev"
+version = "0.11.0-pre"
 path = "../finchers-core"
 default-features = false
 
 [dev-dependencies]
-finchers-http = { version = "0.11.0-dev", path = "../finchers-http" }
-finchers-test = { version = "0.11.0-dev", path = "../finchers-test" }
+finchers-http = { version = "0.11.0-pre", path = "../finchers-http" }
+finchers-test = { version = "0.11.0-pre", path = "../finchers-test" }
 
 [features]
 default = ["from_hyper"]

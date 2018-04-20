@@ -1,3 +1,8 @@
+#![doc(html_url = "https://docs.rs/finchers-runtime/0.11.0")]
+#![deny(missing_docs)]
+#![deny(missing_debug_implementations)]
+#![warn(warnings)]
+
 extern crate finchers_core;
 
 extern crate futures;
