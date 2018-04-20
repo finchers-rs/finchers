@@ -1,5 +1,5 @@
 use finchers::Json;
-use finchers::endpoint::ok;
+use finchers::endpoint::just;
 use finchers::endpoint::prelude::*;
 
 use app::Application;
@@ -19,13 +19,9 @@ pub enum Response {
 }
 
 pub fn build_endpoint(app: &Application) -> impl Endpoint<Item = Json<Response>> + Send + Sync + 'static {
-    let find_todo = get(param())
-        .then(app.with(|app, id| app.find_todo(id)))
-        .map(TheTodo);
+    let find_todo = get(param()).then(app.with(|app, id| app.find_todo(id))).map(TheTodo);
 
-    let list_todos = get(ok(()))
-        .then(app.with(|app, _| app.list_todos()))
-        .map(Todos);
+    let list_todos = get(just(())).then(app.with(|app, _| app.list_todos())).map(Todos);
 
     let add_todo = post(data())
         .then(app.with(|app, Json(new_todo)| app.add_todo(new_todo)))

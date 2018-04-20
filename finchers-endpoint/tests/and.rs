@@ -3,12 +3,12 @@ extern crate finchers_endpoint;
 extern crate finchers_test;
 
 use finchers_core::error::NotPresent;
-use finchers_endpoint::{abort, ok, EndpointExt};
+use finchers_endpoint::{abort, just, EndpointExt};
 use finchers_test::Client;
 
 #[test]
 fn test_and_1() {
-    let endpoint = ok("Hello").and(ok("world"));
+    let endpoint = just("Hello").and(just("world"));
     let client = Client::new(endpoint);
 
     let outcome = client.get("/").run();
@@ -17,7 +17,7 @@ fn test_and_1() {
 
 #[test]
 fn test_and_2() {
-    let endpoint = ok("Hello").and(abort(|_| NotPresent::new("")).as_::<!>());
+    let endpoint = just("Hello").and(abort(|_| NotPresent::new("")).as_::<!>());
     let client = Client::new(endpoint);
 
     let outcome = client.get("/").run();
