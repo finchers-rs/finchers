@@ -1,3 +1,8 @@
+#![doc(html_url = "https://docs.rs/finchers-derive/0.11.0")]
+#![deny(missing_docs)]
+#![deny(missing_debug_implementations)]
+#![warn(warnings)]
+
 #![recursion_limit = "128"]
 
 extern crate proc_macro;

@@ -30,12 +30,12 @@ members = [
 ]
 
 [dependencies]
-finchers-core = { version = "0.11.0-dev", path = "finchers-core" }
-finchers-derive = { version = "0.11.0-dev", path = "finchers-derive" }
-finchers-endpoint = { version = "0.11.0-dev", path = "finchers-endpoint" }
-finchers-http = { version = "0.11.0-dev", path = "finchers-http" }
-finchers-runtime = { version = "0.11.0-dev", path = "finchers-runtime" }
-finchers-test = { version = "0.11.0-dev", path = "finchers-test" }
+finchers-core = { version = "0.11.0-pre", path = "finchers-core" }
+finchers-derive = { version = "0.11.0-pre", path = "finchers-derive" }
+finchers-endpoint = { version = "0.11.0-pre", path = "finchers-endpoint" }
+finchers-http = { version = "0.11.0-pre", path = "finchers-http" }
+finchers-runtime = { version = "0.11.0-pre", path = "finchers-runtime" }
+finchers-test = { version = "0.11.0-pre", path = "finchers-test" }
 
 mime = "0.3"
 http = "0.1"

@@ -1,3 +1,8 @@
+#![doc(html_url = "https://docs.rs/finchers/0.11.0")]
+#![deny(missing_docs)]
+#![deny(missing_debug_implementations)]
+#![warn(warnings)]
+
 //! A combinator library for building asynchronous HTTP services.
 //!
 //! The concept and design was highly inspired by [`finch`](https://github.com/finagle/finch).

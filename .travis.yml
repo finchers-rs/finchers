@@ -18,6 +18,7 @@ matrix:
     - rust: nightly
   include:
     - rust: beta
+      env: RUSTFLAGS="-D warnings"
       sudo: required
       addons:
         apt:
