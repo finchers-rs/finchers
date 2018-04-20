@@ -27,9 +27,9 @@ use finchers_core::task::CompatTask;
 /// # extern crate finchers_http;
 /// # extern crate finchers_endpoint;
 /// # use finchers_http::path::path;
-/// # use finchers_endpoint::{ok, EndpointExt};
+/// # use finchers_endpoint::{just, EndpointExt};
 /// # fn main() {
-/// let endpoint = path("foo").and(ok("matched"));
+/// let endpoint = path("foo").and(just("matched"));
 /// # }
 /// ```
 ///
@@ -39,9 +39,9 @@ use finchers_core::task::CompatTask;
 /// # extern crate finchers_http;
 /// # extern crate finchers_endpoint;
 /// # use finchers_http::path::path;
-/// # use finchers_endpoint::{ok, EndpointExt};
+/// # use finchers_endpoint::{just, EndpointExt};
 /// # fn main() {
-/// let endpoint = path("foo/bar").and(ok("matched"));
+/// let endpoint = path("foo/bar").and(just("matched"));
 /// # }
 /// ```
 ///
@@ -51,9 +51,9 @@ use finchers_core::task::CompatTask;
 /// # extern crate finchers_http;
 /// # extern crate finchers_endpoint;
 /// # use finchers_http::path::path;
-/// # use finchers_endpoint::{ok, EndpointExt};
+/// # use finchers_endpoint::{just, EndpointExt};
 /// # fn main() {
-/// let endpoint = path("*").and(ok("matched"));
+/// let endpoint = path("*").and(just("matched"));
 /// # }
 /// ```
 pub fn path(s: &str) -> MatchPath {

@@ -70,7 +70,7 @@ pub use finchers_core::{error, output};
 pub mod endpoint {
     pub use finchers_core::endpoint::{Endpoint, IntoEndpoint};
     pub use finchers_core::task::{self, Task};
-    pub use finchers_endpoint::{abort, all, ok, EndpointExt};
+    pub use finchers_endpoint::{abort, all, just, lazy, EndpointExt};
     pub use finchers_http::{body, header, method, path, query, FromData, FromHeader, FromSegment, FromSegments};
 
     /// The "prelude" for building endpoints
