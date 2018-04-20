@@ -1,4 +1,5 @@
 use bytes::Bytes;
+use either::Either;
 use error::HttpError;
 use http::header::HeaderValue;
 use http::{header, Response};
@@ -26,6 +27,36 @@ where
 
     fn respond(self, _: &Input) -> Result<Output, Self::Error> {
         Ok(self.map(Into::into))
+    }
+}
+
+impl<T, E> Responder for Result<T, E>
+where
+    T: Responder,
+    E: Responder,
+{
+    type Error = Either<T::Error, E::Error>;
+
+    fn respond(self, input: &Input) -> Result<Output, Self::Error> {
+        match self {
+            Ok(ok) => ok.respond(input).map_err(Either::Left),
+            Err(e) => e.respond(input).map_err(Either::Right),
+        }
+    }
+}
+
+impl<L, R> Responder for Either<L, R>
+where
+    L: Responder,
+    R: Responder,
+{
+    type Error = Either<L::Error, R::Error>;
+
+    fn respond(self, input: &Input) -> Result<Output, Self::Error> {
+        match self {
+            Either::Left(l) => l.respond(input).map_err(Either::Left),
+            Either::Right(r) => r.respond(input).map_err(Either::Right),
+        }
     }
 }
 

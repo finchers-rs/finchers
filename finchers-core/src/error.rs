@@ -1,3 +1,4 @@
+use either::Either;
 use http::{Response, StatusCode};
 use input::Input;
 use output::Body;
@@ -20,6 +21,30 @@ pub trait HttpError: error::Error + Send + 'static {
 impl HttpError for ! {
     fn status_code(&self) -> StatusCode {
         unreachable!()
+    }
+
+    fn to_response(&self, _: &Input) -> Option<Response<Body>> {
+        unreachable!()
+    }
+}
+
+impl<L, R> HttpError for Either<L, R>
+where
+    L: HttpError,
+    R: HttpError,
+{
+    fn status_code(&self) -> StatusCode {
+        match *self {
+            Either::Left(ref e) => e.status_code(),
+            Either::Right(ref e) => e.status_code(),
+        }
+    }
+
+    fn to_response(&self, input: &Input) -> Option<Response<Body>> {
+        match *self {
+            Either::Left(ref e) => e.to_response(input),
+            Either::Right(ref e) => e.to_response(input),
+        }
     }
 }
 
