@@ -19,6 +19,24 @@ impl Default for Body {
     }
 }
 
+impl From<()> for Body {
+    fn from(_: ()) -> Body {
+        Body::empty()
+    }
+}
+
+macro_rules! impl_from_once {
+    ($($t:ty),*) => {$(
+        impl From<$t> for Body {
+            fn from(body: $t) -> Body {
+                Body::once(body)
+            }
+        }
+    )*};
+}
+
+impl_from_once!(&'static str, String, &'static [u8], Vec<u8>, Bytes);
+
 impl Body {
     pub fn empty() -> Body {
         Body { inner: Inner::Empty }
