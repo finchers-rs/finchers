@@ -1,18 +1,17 @@
 //! Components for accessing of HTTP headers
 
-use futures::future::{err, ok, FutureResult, IntoFuture};
+use futures::future::{ok, FutureResult};
 use std::fmt;
 use std::marker::PhantomData;
 
 use finchers_core::endpoint::{Context, Endpoint};
-use finchers_core::error::NotPresent;
-use finchers_core::task::CompatTask;
+use finchers_core::task::{self, CompatTask, PollTask, Task};
 use finchers_core::{Error, HttpError};
 
 /// Create an endpoint which parses an entry in the HTTP header.
 ///
-/// If the entry is not given or the conversion is failed, this endpoint
-/// will skip the request.
+/// This endpoint will always accept the request even if the header
+/// value is not exist.
 ///
 /// # Example
 ///
@@ -34,40 +33,21 @@ use finchers_core::{Error, HttpError};
 ///     fn from_header(s: &[u8]) -> Result<Self, Self::Error> {
 ///         String::from_utf8(s.to_owned())
 ///             .map(APIKey)
-///             .map_err(|e| BadRequest::new("invalid API key").with_cause(e))
+///             .map_err(|e| BadRequest::new("Invalid API key").with_cause(e))
 ///     }
 /// }
 ///
 /// # fn main() {
-/// let api_key = header().map(|APIKey(key)| key);
-/// # }
-/// ```
-///
-/// By default, the error occuring when performing conversion to "H" is
-/// interpreted as "should be skipped". You could change this behaviour
-/// by composing some combinators as follows:
-///
-/// ```
-/// # extern crate finchers_core;
-/// # extern crate finchers_endpoint;
-/// # extern crate finchers_http;
-/// # use finchers_http::header::{header, FromHeader};
-/// # use finchers_endpoint::EndpointExt;
-/// # use finchers_core::error::BadRequest;
-/// # pub struct APIKey(pub String);
-/// # impl FromHeader for APIKey {
-/// #    type Error = !;
-/// #    fn header_name() -> &'static str { "X-API-Key" }
-/// #    fn from_header(s: &[u8]) -> Result<Self, Self::Error> { unimplemented!() }
-/// # }
-/// # fn main() {
-/// let api_key = header::<Result<APIKey, _>>()
-///     .try_abort(|key| key);
+/// // impl Endpoint<Item = APIKey>
+/// let api_key = header::<APIKey>().try_abort(|h| {
+///     h.ok_or_else(|| BadRequest::new("Missing API key"))
+/// });
 /// # }
 /// ```
 pub fn header<H>() -> Header<H>
 where
-    H: FromHeader + Send,
+    H: FromHeader,
+    H::Error: HttpError,
 {
     Header { _marker: PhantomData }
 }
@@ -94,26 +74,43 @@ impl<H> fmt::Debug for Header<H> {
 
 impl<H> Endpoint for Header<H>
 where
-    H: FromHeader + Send,
+    H: FromHeader,
+    H::Error: HttpError,
 {
-    type Item = H;
-    type Task = CompatTask<FutureResult<H, Error>>;
+    type Item = Option<H>;
+    type Task = HeaderTask<H>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
-        cx.input()
-            .request()
-            .headers()
-            .get(H::header_name())
-            .and_then(|h| H::from_header(h.as_bytes()).ok())
-            .map(ok)
-            .map(Into::into)
+    fn apply(&self, _: &mut Context) -> Option<Self::Task> {
+        Some(HeaderTask { _marker: PhantomData })
+    }
+}
+
+#[doc(hidden)]
+pub struct HeaderTask<H> {
+    _marker: PhantomData<fn() -> H>,
+}
+
+impl<H> Task for HeaderTask<H>
+where
+    H: FromHeader,
+    H::Error: HttpError,
+{
+    type Output = Option<H>;
+
+    fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
+        let header = cx.input().request().headers().get(H::header_name());
+        match header {
+            Some(h) => H::from_header(h.as_bytes()).map(|h| Some(h).into()).map_err(Into::into),
+            None => Ok(None.into()),
+        }
     }
 }
 
 /// Create an endpoint which parses an entry in the HTTP header.
 ///
-/// This endpoint will abort handling the request if the header does
-/// not exist or the conversion to "H" is failed.
+/// This endpoint will perform convesion the header value *before* creating
+/// a task. If the conversion is failed or the header value is not exist,
+/// it will skip the request.
 ///
 /// # Example
 ///
@@ -121,7 +118,7 @@ where
 /// # extern crate finchers_core;
 /// # extern crate finchers_endpoint;
 /// # extern crate finchers_http;
-/// # use finchers_http::header::{header_required, FromHeader};
+/// # use finchers_http::header::{header_skipped, FromHeader};
 /// # use finchers_endpoint::EndpointExt;
 /// # use finchers_core::error::BadRequest;
 /// #
@@ -135,55 +132,56 @@ where
 ///     fn from_header(s: &[u8]) -> Result<Self, Self::Error> {
 ///         String::from_utf8(s.to_owned())
 ///             .map(APIKey)
-///             .map_err(|e| BadRequest::new("Invalid API Key").with_cause(e))
+///             .map_err(|e| BadRequest::new("invalid API key").with_cause(e))
 ///     }
 /// }
 ///
 /// # fn main() {
-/// let api_key = header_required().map(|APIKey(key)| key);
+/// let api_key = header_skipped().map(|APIKey(key)| key);
 /// # }
 /// ```
-pub fn header_required<H>() -> HeaderRequired<H>
+pub fn header_skipped<H>() -> HeaderSkipped<H>
 where
     H: FromHeader + Send,
-    H::Error: HttpError,
 {
-    HeaderRequired { _marker: PhantomData }
+    HeaderSkipped { _marker: PhantomData }
 }
 
 #[allow(missing_docs)]
-pub struct HeaderRequired<H> {
+pub struct HeaderSkipped<H> {
     _marker: PhantomData<fn() -> H>,
 }
 
-impl<H> Copy for HeaderRequired<H> {}
+impl<H> Copy for HeaderSkipped<H> {}
 
-impl<H> Clone for HeaderRequired<H> {
+impl<H> Clone for HeaderSkipped<H> {
     #[inline]
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<H> fmt::Debug for HeaderRequired<H> {
+impl<H> fmt::Debug for HeaderSkipped<H> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("HeaderRequired").finish()
+        f.debug_struct("HeaderSkipped").finish()
     }
 }
 
-impl<H> Endpoint for HeaderRequired<H>
+impl<H> Endpoint for HeaderSkipped<H>
 where
     H: FromHeader + Send,
-    H::Error: HttpError,
 {
     type Item = H;
     type Task = CompatTask<FutureResult<H, Error>>;
 
     fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
-        match cx.input().request().headers().get(H::header_name()) {
-            Some(h) => Some(H::from_header(h.as_bytes()).map_err(Into::into).into_future()),
-            None => Some(err(NotPresent::new("").into())),
-        }.map(Into::into)
+        cx.input()
+            .request()
+            .headers()
+            .get(H::header_name())
+            .and_then(|h| H::from_header(h.as_bytes()).ok())
+            .map(ok)
+            .map(CompatTask::from)
     }
 }
 
