@@ -1,0 +1,13 @@
+[package]
+name = "example-basic-auth"
+version = "0.0.0"
+authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
+
+[[bin]]
+name = "basic-auth"
+path = "src/main.rs"
+doc = false
+
+[dependencies]
+finchers = { path = "../.." }
+base64 = "0.9"
