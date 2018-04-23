@@ -25,6 +25,7 @@ members = [
   "finchers-runtime",
   "finchers-test",
 
+  "examples/basic-auth",
   "examples/form",
   "examples/todo",
 ]
