@@ -17,7 +17,7 @@ fn test_and_1() {
 
 #[test]
 fn test_and_2() {
-    let endpoint = just("Hello").and(abort(|_| NotPresent::new("")).as_::<!>());
+    let endpoint = just("Hello").and(abort(|_| NotPresent::new("")).as_::<()>());
     let client = Client::new(endpoint);
 
     let outcome = client.get("/").run();

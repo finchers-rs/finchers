@@ -17,11 +17,13 @@ pub mod output;
 pub mod task;
 
 mod apply;
+mod never;
 
 // re-exports
 pub use apply::{apply, Apply};
 pub use endpoint::Endpoint;
 pub use error::{Error, HttpError};
 pub use input::Input;
+pub use never::Never;
 pub use output::{Output, Responder};
 pub use task::Task;

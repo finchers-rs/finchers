@@ -10,7 +10,7 @@ use finchers_core::endpoint::{Context, Endpoint};
 use finchers_core::error::BadRequest;
 use finchers_core::input::{self, RequestBody};
 use finchers_core::task::{self, PollTask, Task};
-use finchers_core::{HttpError, Input};
+use finchers_core::{HttpError, Input, Never};
 
 /// A reference counted UTF-8 sequence.
 pub struct BytesString(Bytes);
@@ -204,7 +204,7 @@ pub trait FromData: 'static + Sized {
 }
 
 impl FromData for Bytes {
-    type Error = !;
+    type Error = Never;
 
     fn from_data(data: Bytes, _: &Input) -> Result<Self, Self::Error> {
         Ok(data)
@@ -230,7 +230,7 @@ impl FromData for String {
 }
 
 impl<T: FromData> FromData for Option<T> {
-    type Error = !;
+    type Error = Never;
 
     fn from_data(data: Bytes, input: &Input) -> Result<Self, Self::Error> {
         Ok(T::from_data(data, input).ok())
@@ -238,7 +238,7 @@ impl<T: FromData> FromData for Option<T> {
 }
 
 impl<T: FromData> FromData for Result<T, T::Error> {
-    type Error = !;
+    type Error = Never;
 
     fn from_data(data: Bytes, input: &Input) -> Result<Self, Self::Error> {
         Ok(T::from_data(data, input))
