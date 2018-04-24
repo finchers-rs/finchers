@@ -6,7 +6,7 @@ use std::marker::PhantomData;
 
 use finchers_core::endpoint::{Context, Endpoint};
 use finchers_core::task::{self, CompatTask, PollTask, Task};
-use finchers_core::{Error, HttpError};
+use finchers_core::{Error, HttpError, Never};
 
 /// Create an endpoint which parses an entry in the HTTP header.
 ///
@@ -198,7 +198,7 @@ pub trait FromHeader: 'static + Sized {
 }
 
 impl<H: FromHeader> FromHeader for Option<H> {
-    type Error = !;
+    type Error = Never;
 
     #[inline]
     fn header_name() -> &'static str {
@@ -212,7 +212,7 @@ impl<H: FromHeader> FromHeader for Option<H> {
 }
 
 impl<H: FromHeader> FromHeader for Result<H, H::Error> {
-    type Error = !;
+    type Error = Never;
 
     #[inline]
     fn header_name() -> &'static str {

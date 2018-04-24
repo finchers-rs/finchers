@@ -6,9 +6,9 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::{error, fmt};
 
-use finchers_core::Error;
 use finchers_core::endpoint::{Context, Endpoint, Segment, Segments};
 use finchers_core::task::CompatTask;
+use finchers_core::{Error, Never};
 
 // ==== MatchPath =====
 
@@ -263,7 +263,7 @@ impl_from_segment_from_str! {
 }
 
 impl<T: FromSegment> FromSegment for Option<T> {
-    type Error = !;
+    type Error = Never;
 
     fn from_segment(segment: Segment) -> Result<Self, Self::Error> {
         Ok(T::from_segment(segment).ok())
@@ -271,7 +271,7 @@ impl<T: FromSegment> FromSegment for Option<T> {
 }
 
 impl<T: FromSegment> FromSegment for Result<T, T::Error> {
-    type Error = !;
+    type Error = Never;
 
     fn from_segment(segment: Segment) -> Result<Self, Self::Error> {
         Ok(T::from_segment(segment))
@@ -355,7 +355,7 @@ impl<T: FromSegment> FromSegments for Vec<T> {
 }
 
 impl FromSegments for String {
-    type Error = !;
+    type Error = Never;
 
     fn from_segments(segments: &mut Segments) -> Result<Self, Self::Error> {
         let s = segments.remaining_path().to_owned();
@@ -365,7 +365,7 @@ impl FromSegments for String {
 }
 
 impl FromSegments for PathBuf {
-    type Error = !;
+    type Error = Never;
 
     fn from_segments(segments: &mut Segments) -> Result<Self, Self::Error> {
         let s = PathBuf::from(segments.remaining_path());
@@ -375,7 +375,7 @@ impl FromSegments for PathBuf {
 }
 
 impl<T: FromSegments> FromSegments for Option<T> {
-    type Error = !;
+    type Error = Never;
 
     fn from_segments(segments: &mut Segments) -> Result<Self, Self::Error> {
         Ok(T::from_segments(segments).ok())
@@ -383,7 +383,7 @@ impl<T: FromSegments> FromSegments for Option<T> {
 }
 
 impl<T: FromSegments> FromSegments for Result<T, T::Error> {
-    type Error = !;
+    type Error = Never;
 
     fn from_segments(segments: &mut Segments) -> Result<Self, Self::Error> {
         Ok(T::from_segments(segments))

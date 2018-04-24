@@ -18,16 +18,6 @@ pub trait HttpError: error::Error + Send + 'static {
     }
 }
 
-impl HttpError for ! {
-    fn status_code(&self) -> StatusCode {
-        unreachable!()
-    }
-
-    fn to_response(&self, _: &Input) -> Option<Response<Body>> {
-        unreachable!()
-    }
-}
-
 impl<L, R> HttpError for Either<L, R>
 where
     L: HttpError,

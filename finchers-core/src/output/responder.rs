@@ -4,6 +4,7 @@ use error::HttpError;
 use http::header::HeaderValue;
 use http::{header, Response};
 use input::Input;
+use never::Never;
 use std::fmt;
 
 use super::body::Body;
@@ -23,7 +24,7 @@ impl<T> Responder for Response<T>
 where
     T: Into<Body>,
 {
-    type Error = !;
+    type Error = Never;
 
     fn respond(self, _: &Input) -> Result<Output, Self::Error> {
         Ok(self.map(Into::into))
@@ -89,7 +90,7 @@ impl Debug {
 }
 
 impl Responder for Debug {
-    type Error = !;
+    type Error = Never;
 
     fn respond(self, _: &Input) -> Result<Output, Self::Error> {
         let body = if self.pretty {
