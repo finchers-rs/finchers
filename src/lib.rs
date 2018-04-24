@@ -27,9 +27,8 @@
 //! extern crate finchers;
 //!
 //! use finchers::Endpoint;
-//! use finchers::output::Debug;
 //!
-//! fn build_endpoint() -> impl Endpoint<Item = Debug> + Send + Sync + 'static {
+//! fn build_endpoint() -> impl Endpoint<Item = String> + Send + Sync + 'static {
 //!     use finchers::endpoint::prelude::*;
 //!
 //!     path("api/v1").right(choice![
@@ -38,7 +37,6 @@
 //!         post(data())
 //!             .map(|data: String| format!("POST: body={}", data)),
 //!     ])
-//!     .map(|val| Debug::new(val).pretty(true))
 //! }
 //!
 //! fn main() {
