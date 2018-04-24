@@ -11,6 +11,9 @@ use super::body::Body;
 
 pub type Output = Response<Body>;
 
+const TEXT_PLAIN: &str = "text/plain; charset=utf-8";
+const OCTET_STREAM: &str = "application/octet-stream";
+
 /// Trait representing the conversion to an HTTP response.
 pub trait Responder {
     /// The error type returned from "respond".
@@ -28,6 +31,30 @@ where
 
     fn respond(self, _: &Input) -> Result<Output, Self::Error> {
         Ok(self.map(Into::into))
+    }
+}
+
+impl Responder for Bytes {
+    type Error = Never;
+
+    fn respond(self, _: &Input) -> Result<Output, Self::Error> {
+        let mut response = Response::new(Body::once(self));
+        content_type(&mut response, OCTET_STREAM);
+        content_length(&mut response);
+
+        Ok(response)
+    }
+}
+
+impl Responder for String {
+    type Error = Never;
+
+    fn respond(self, _: &Input) -> Result<Output, Self::Error> {
+        let mut response = Response::new(Body::once(self));
+        content_type(&mut response, TEXT_PLAIN);
+        content_length(&mut response);
+
+        Ok(response)
     }
 }
 
@@ -98,17 +125,25 @@ impl Responder for Debug {
         } else {
             format!("{:?}", self.value)
         };
-        let body_len = body.len().to_string();
 
         let mut response = Response::new(Body::once(body));
-        response.headers_mut().insert(
-            header::CONTENT_TYPE,
-            HeaderValue::from_static("text/plain; charset=utf-8"),
-        );
-        response.headers_mut().insert(header::CONTENT_LENGTH, unsafe {
-            HeaderValue::from_shared_unchecked(Bytes::from(body_len))
-        });
+        content_type(&mut response, TEXT_PLAIN);
+        content_length(&mut response);
 
         Ok(response)
+    }
+}
+
+fn content_type<T>(response: &mut Response<T>, value: &'static str) {
+    response
+        .headers_mut()
+        .insert(header::CONTENT_TYPE, HeaderValue::from_static(value));
+}
+
+fn content_length(response: &mut Response<Body>) {
+    if let Some(body_len) = response.body().len() {
+        response.headers_mut().insert(header::CONTENT_LENGTH, unsafe {
+            HeaderValue::from_shared_unchecked(Bytes::from(body_len.to_string()))
+        });
     }
 }

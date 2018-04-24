@@ -59,6 +59,14 @@ impl Body {
             inner: Inner::Stream(Box::new(stream)),
         }
     }
+
+    pub fn len(&self) -> Option<usize> {
+        match self.inner {
+            Inner::Empty => Some(0),
+            Inner::Once(ref chunk) => chunk.as_ref().map(|c| c.len()),
+            Inner::Stream(..) => None,
+        }
+    }
 }
 
 impl Stream for Body {
