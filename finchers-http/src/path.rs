@@ -7,7 +7,7 @@ use std::str::FromStr;
 use std::{error, fmt};
 
 use finchers_core::endpoint::{Context, Endpoint, Segment, Segments};
-use finchers_core::task::CompatTask;
+use finchers_core::outcome::CompatOutcome;
 use finchers_core::{Error, Never};
 
 // ==== MatchPath =====
@@ -103,10 +103,10 @@ pub enum MatchPathKind {
 }
 
 impl Endpoint for MatchPath {
-    type Item = ();
-    type Task = CompatTask<FutureResult<Self::Item, Error>>;
+    type Output = ();
+    type Outcome = CompatOutcome<FutureResult<Self::Output, Error>>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
         use self::MatchPathKind::*;
         match self.kind {
             Segments(ref segments) => {
@@ -219,10 +219,10 @@ impl<T> Endpoint for Param<T>
 where
     T: FromSegment + Send,
 {
-    type Item = T;
-    type Task = CompatTask<FutureResult<Self::Item, Error>>;
+    type Output = T;
+    type Outcome = CompatOutcome<FutureResult<Self::Output, Error>>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
         let s = cx.segments().next()?;
         T::from_segment(s).map(ok).map(Into::into).ok()
     }
@@ -329,10 +329,10 @@ impl<T> Endpoint for Params<T>
 where
     T: FromSegments + Send,
 {
-    type Item = T;
-    type Task = CompatTask<FutureResult<Self::Item, Error>>;
+    type Output = T;
+    type Outcome = CompatOutcome<FutureResult<Self::Output, Error>>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
         T::from_segments(cx.segments()).map(ok).map(Into::into).ok()
     }
 }

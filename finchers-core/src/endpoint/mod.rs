@@ -1,8 +1,8 @@
 mod context;
 
+use outcome::Outcome;
 use std::rc::Rc;
 use std::sync::Arc;
-use task::Task;
 
 // re-exports
 pub use self::context::{Context, Segment, Segments};
@@ -10,65 +10,66 @@ pub use self::context::{Context, Segment, Segments};
 /// Trait representing an *endpoint*.
 pub trait Endpoint {
     /// The inner type associated with this endpoint.
-    type Item;
+    type Output;
 
-    /// The type of asynchronous "Task" which will be returned from "apply".
-    type Task: Task<Output = Self::Item> + Send;
+    /// The type of asynchronous "Outcome" which will be returned from "apply".
+    type Outcome: Outcome<Output = Self::Output> + Send;
 
     /// Perform checking the incoming HTTP request and returns
     /// an instance of the associated task if matched.
-    fn apply(&self, cx: &mut Context) -> Option<Self::Task>;
+    fn apply(&self, cx: &mut Context) -> Option<Self::Outcome>;
 }
 
 impl<'a, E: Endpoint> Endpoint for &'a E {
-    type Item = E::Item;
-    type Task = E::Task;
+    type Output = E::Output;
+    type Outcome = E::Outcome;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
         (*self).apply(cx)
     }
 }
 
 impl<E: Endpoint> Endpoint for Box<E> {
-    type Item = E::Item;
-    type Task = E::Task;
+    type Output = E::Output;
+    type Outcome = E::Outcome;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
         (**self).apply(cx)
     }
 }
 
 impl<E: Endpoint> Endpoint for Rc<E> {
-    type Item = E::Item;
-    type Task = E::Task;
+    type Output = E::Output;
+    type Outcome = E::Outcome;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
         (**self).apply(cx)
     }
 }
 
 impl<E: Endpoint> Endpoint for Arc<E> {
-    type Item = E::Item;
-    type Task = E::Task;
+    type Output = E::Output;
+    type Outcome = E::Outcome;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
         (**self).apply(cx)
     }
 }
 
-/// Abstruction of types to be convert to an `Endpoint`.
+/// Abstraction of types to be convert to an `Endpoint`.
 pub trait IntoEndpoint {
     /// The return type
-    type Item;
+    type Output;
+
     /// The type of value returned from `into_endpoint`.
-    type Endpoint: Endpoint<Item = Self::Item>;
+    type Endpoint: Endpoint<Output = Self::Output>;
 
     /// Convert itself into `Self::Endpoint`.
     fn into_endpoint(self) -> Self::Endpoint;
 }
 
 impl<E: Endpoint> IntoEndpoint for E {
-    type Item = E::Item;
+    type Output = E::Output;
     type Endpoint = E;
 
     #[inline]

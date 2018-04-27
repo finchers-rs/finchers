@@ -12,7 +12,7 @@ pub use self::or_else::OrElse;
 
 use finchers_core::Endpoint;
 
-pub trait EndpointResultExt<A, B>: Endpoint<Item = Result<A, B>> + Sized {
+pub trait EndpointResultExt<A, B>: Endpoint<Output = Result<A, B>> + Sized {
     fn map_ok<F, U>(self, f: F) -> MapOk<Self, F>
     where
         F: FnOnce(A) -> U + Clone + Send,
@@ -51,14 +51,14 @@ pub trait EndpointResultExt<A, B>: Endpoint<Item = Result<A, B>> + Sized {
 
 impl<E, A, B> EndpointResultExt<A, B> for E
 where
-    E: Endpoint<Item = Result<A, B>>,
+    E: Endpoint<Output = Result<A, B>>,
 {
 }
 
 #[inline(always)]
 fn assert_endpoint<E, A, B>(endpoint: E) -> E
 where
-    E: Endpoint<Item = Result<A, B>>,
+    E: Endpoint<Output = Result<A, B>>,
 {
     endpoint
 }

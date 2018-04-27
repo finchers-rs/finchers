@@ -4,7 +4,7 @@ use finchers_core::endpoint::{Context, Endpoint, IntoEndpoint};
 pub fn new<E1, E2>(e1: E1, e2: E2) -> Or<E1::Endpoint, E2::Endpoint>
 where
     E1: IntoEndpoint,
-    E2: IntoEndpoint<Item = E1::Item>,
+    E2: IntoEndpoint<Output = E1::Output>,
 {
     Or {
         e1: e1.into_endpoint(),
@@ -21,12 +21,12 @@ pub struct Or<E1, E2> {
 impl<E1, E2> Endpoint for Or<E1, E2>
 where
     E1: Endpoint,
-    E2: Endpoint<Item = E1::Item>,
+    E2: Endpoint<Output = E1::Output>,
 {
-    type Item = E1::Item;
-    type Task = Either<E1::Task, E2::Task>;
+    type Output = E1::Output;
+    type Outcome = Either<E1::Outcome, E2::Outcome>;
 
-    fn apply(&self, cx2: &mut Context) -> Option<Self::Task> {
+    fn apply(&self, cx2: &mut Context) -> Option<Self::Outcome> {
         let mut cx1 = cx2.clone();
         let t1 = self.e1.apply(&mut cx1);
         let t2 = self.e2.apply(cx2);

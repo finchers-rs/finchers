@@ -28,7 +28,7 @@
 //!
 //! use finchers::Endpoint;
 //!
-//! fn build_endpoint() -> impl Endpoint<Item = String> + Send + Sync + 'static {
+//! fn build_endpoint() -> impl Endpoint<Output = String> + Send + Sync + 'static {
 //!     use finchers::endpoint::prelude::*;
 //!
 //!     path("api/v1").right(choice![

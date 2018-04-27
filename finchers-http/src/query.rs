@@ -12,7 +12,7 @@ use {mime, serde_qs};
 
 use body::FromData;
 use finchers_core::endpoint::{Context, Endpoint};
-use finchers_core::task::CompatTask;
+use finchers_core::outcome::CompatOutcome;
 use finchers_core::{Error, HttpError, Input};
 
 /// Create an endpoint which parse the query string in the HTTP request
@@ -71,12 +71,12 @@ impl<T> Endpoint for Query<T>
 where
     T: de::DeserializeOwned + Send,
 {
-    type Item = T;
-    type Task = CompatTask<FutureResult<T, Error>>;
+    type Output = T;
+    type Outcome = CompatOutcome<FutureResult<T, Error>>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
         let query = cx.input().request().uri().query()?;
-        Some(CompatTask::from(future::result(
+        Some(CompatOutcome::from(future::result(
             serde_qs::from_str(query).map_err(|e| QueryError::Parsing(e).into()),
         )))
     }

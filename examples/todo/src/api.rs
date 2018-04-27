@@ -18,7 +18,7 @@ pub enum Response {
     Deleted,
 }
 
-pub fn build_endpoint(app: &Application) -> impl Endpoint<Item = Json<Response>> + Send + Sync + 'static {
+pub fn build_endpoint(app: &Application) -> impl Endpoint<Output = Json<Response>> + Send + Sync + 'static {
     let find_todo = get(param()).then(app.with(|app, id| app.find_todo(id))).map(TheTodo);
 
     let list_todos = get(just(())).then(app.with(|app, _| app.list_todos())).map(Todos);

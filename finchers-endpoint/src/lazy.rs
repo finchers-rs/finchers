@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 
 use finchers_core::endpoint::Context;
-use finchers_core::task::CompatTask;
+use finchers_core::outcome::CompatOutcome;
 use finchers_core::{Endpoint, Error};
 use futures::future::{self, FutureResult};
 
@@ -23,10 +23,10 @@ where
     F: Fn(&mut Context) -> Option<T>,
     T: Send,
 {
-    type Item = T;
-    type Task = CompatTask<FutureResult<T, Error>>;
+    type Output = T;
+    type Outcome = CompatOutcome<FutureResult<T, Error>>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
-        (self.f)(cx).map(|t| CompatTask::from(future::ok(t)))
+    fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
+        (self.f)(cx).map(|t| CompatOutcome::from(future::ok(t)))
     }
 }

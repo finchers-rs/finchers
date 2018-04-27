@@ -8,7 +8,7 @@ use http::{HttpTryFrom, Method, Request, Uri};
 use std::mem;
 
 use finchers_core::input::RequestBody;
-use finchers_core::{apply, Apply, Endpoint, Error, Input, Never, Task};
+use finchers_core::{apply, Apply, Endpoint, Error, Input, Never, Outcome};
 
 #[derive(Debug)]
 pub struct Client<E: Endpoint> {
@@ -107,7 +107,7 @@ impl<'a, E: Endpoint> ClientRequest<'a, E> {
         )
     }
 
-    pub fn run(&mut self) -> Option<Result<E::Item, Error>> {
+    pub fn run(&mut self) -> Option<Result<E::Output, Error>> {
         let ClientRequest { client, request, body } = self.take();
 
         let input = Input::new(request);
@@ -117,7 +117,7 @@ impl<'a, E: Endpoint> ClientRequest<'a, E> {
         let task = TestFuture { apply, input };
 
         // TODO: replace with futures::executor
-        task.wait().expect("EndpointTask never fails")
+        task.wait().expect("Apply never fails")
     }
 }
 
@@ -126,7 +126,7 @@ struct TestFuture<T> {
     input: Input,
 }
 
-impl<T: Task> Future for TestFuture<T> {
+impl<T: Outcome> Future for TestFuture<T> {
     type Item = Option<Result<T::Output, Error>>;
     type Error = Never;
 
