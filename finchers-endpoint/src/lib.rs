@@ -40,7 +40,7 @@ pub use result::EndpointResultExt;
 
 use finchers_core::HttpError;
 use finchers_core::endpoint::{Endpoint, IntoEndpoint};
-use futures::IntoFuture;
+use finchers_core::outcome::IntoOutcome;
 
 pub trait EndpointExt: Endpoint + Sized {
     /// Ensure that the associated type `Item` is equal to `T`.
@@ -137,11 +137,10 @@ pub trait EndpointExt: Endpoint + Sized {
     fn then<F, R>(self, f: F) -> Then<Self, F>
     where
         F: FnOnce(Self::Output) -> R + Clone + Send,
-        R: IntoFuture,
-        R::Future: Send,
-        R::Error: HttpError,
+        R: IntoOutcome,
+        R::Outcome: Send,
     {
-        assert_endpoint::<_, R::Item>(self::then::new(self, f))
+        assert_endpoint::<_, R::Output>(self::then::new(self, f))
     }
 
     /// Create an endpoint which maps the returned value from "self" to a `Result`.

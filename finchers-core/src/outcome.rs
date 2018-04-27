@@ -1,6 +1,6 @@
 use either::Either;
 use error::Error;
-use futures::{Async, Future};
+use futures::{Async, Future, IntoFuture};
 use input::{Input, RequestBody};
 
 /// A type alias for values returned from "Outcome::poll_task".
@@ -113,5 +113,25 @@ where
 
     fn poll_outcome(&mut self, _: &mut Context) -> PollOutcome<Self::Output> {
         Future::poll(&mut self.0).into()
+    }
+}
+
+pub trait IntoOutcome {
+    type Output;
+    type Outcome: Outcome<Output = Self::Output>;
+
+    fn into_outcome(self) -> Self::Outcome;
+}
+
+impl<F> IntoOutcome for F
+where
+    F: IntoFuture,
+    F::Error: Into<Error>,
+{
+    type Output = F::Item;
+    type Outcome = CompatOutcome<F::Future>;
+
+    fn into_outcome(self) -> Self::Outcome {
+        CompatOutcome::from(IntoFuture::into_future(self))
     }
 }
