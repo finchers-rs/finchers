@@ -4,14 +4,8 @@ version = "0.11.0-dev"
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 
 [dependencies]
-futures = "0.1.21"
-http = "0.1.5"
 either = "1.5.0"
-
-[dependencies.finchers-core]
-version = "0.11.0-dev"
-path = "../finchers-core"
-default-features = false
+finchers-core = { version = "0.11.0-dev", path = "../finchers-core", default-features = false }
 
 [dev-dependencies]
 finchers-http = { version = "0.11.0-dev", path = "../finchers-http" }

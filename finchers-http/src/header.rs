@@ -1,12 +1,11 @@
 //! Components for accessing of HTTP headers
 
-use futures::future::{ok, FutureResult};
 use std::fmt;
 use std::marker::PhantomData;
 
 use finchers_core::endpoint::{Context, Endpoint};
-use finchers_core::outcome::{self, CompatOutcome, Outcome, PollOutcome};
-use finchers_core::{Error, HttpError, Never};
+use finchers_core::outcome::{self, Outcome, PollOutcome};
+use finchers_core::{HttpError, Never};
 
 /// Create an endpoint which parses an entry in the HTTP header.
 ///
@@ -174,7 +173,7 @@ where
     H: FromHeader + Send,
 {
     type Output = H;
-    type Outcome = CompatOutcome<FutureResult<H, Error>>;
+    type Outcome = outcome::Ready<H>;
 
     fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
         cx.input()
@@ -182,8 +181,7 @@ where
             .headers()
             .get(H::header_name())
             .and_then(|h| H::from_header(h.as_bytes()).ok())
-            .map(ok)
-            .map(CompatOutcome::from)
+            .map(outcome::ready)
     }
 }
 

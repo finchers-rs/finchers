@@ -1,7 +1,6 @@
 //! Components for parsing the query string and urlencoded payload.
 
 use bytes::Bytes;
-use futures::future::{self, FutureResult};
 use http::StatusCode;
 use serde::de::{self, IntoDeserializer};
 use std::iter::FromIterator;
@@ -12,8 +11,8 @@ use {mime, serde_qs};
 
 use body::FromData;
 use finchers_core::endpoint::{Context, Endpoint};
-use finchers_core::outcome::CompatOutcome;
-use finchers_core::{Error, HttpError, Input};
+use finchers_core::outcome;
+use finchers_core::{HttpError, Input};
 
 /// Create an endpoint which parse the query string in the HTTP request
 /// to the value of "T".
@@ -72,13 +71,11 @@ where
     T: de::DeserializeOwned + Send,
 {
     type Output = T;
-    type Outcome = CompatOutcome<FutureResult<T, Error>>;
+    type Outcome = outcome::OutcomeResult<T, QueryError>;
 
     fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
         let query = cx.input().request().uri().query()?;
-        Some(CompatOutcome::from(future::result(
-            serde_qs::from_str(query).map_err(|e| QueryError::Parsing(e).into()),
-        )))
+        Some(outcome::result(serde_qs::from_str(query).map_err(QueryError::Parsing)))
     }
 }
 

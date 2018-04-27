@@ -1,8 +1,6 @@
 extern crate either;
 #[macro_use]
 extern crate finchers_core;
-extern crate futures;
-extern crate http;
 
 pub mod result;
 

@@ -1,9 +1,8 @@
 #![allow(missing_docs)]
 
+use finchers_core::Endpoint;
 use finchers_core::endpoint::Context;
-use finchers_core::outcome::CompatOutcome;
-use finchers_core::{Endpoint, Error};
-use futures::future::{self, FutureResult};
+use finchers_core::outcome;
 
 pub fn just<T>(x: T) -> Just<T>
 where
@@ -22,9 +21,9 @@ where
     T: Clone + Send,
 {
     type Output = T;
-    type Outcome = CompatOutcome<FutureResult<T, Error>>;
+    type Outcome = outcome::Ready<T>;
 
     fn apply(&self, _: &mut Context) -> Option<Self::Outcome> {
-        Some(future::ok(self.x.clone()).into())
+        Some(outcome::ready(self.x.clone()))
     }
 }

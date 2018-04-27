@@ -1,14 +1,13 @@
 //! Components for parsing request path
 
-use futures::future::{ok, FutureResult};
 use std::marker::PhantomData;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::{error, fmt};
 
+use finchers_core::Never;
 use finchers_core::endpoint::{Context, Endpoint, Segment, Segments};
-use finchers_core::outcome::CompatOutcome;
-use finchers_core::{Error, Never};
+use finchers_core::outcome;
 
 // ==== MatchPath =====
 
@@ -104,7 +103,7 @@ pub enum MatchPathKind {
 
 impl Endpoint for MatchPath {
     type Output = ();
-    type Outcome = CompatOutcome<FutureResult<Self::Output, Error>>;
+    type Outcome = outcome::Ready<Self::Output>;
 
     fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
         use self::MatchPathKind::*;
@@ -115,14 +114,14 @@ impl Endpoint for MatchPath {
                     matched = matched && *cx.segments().next()? == *segment;
                 }
                 if matched {
-                    Some(ok(()).into())
+                    Some(outcome::ready(()))
                 } else {
                     None
                 }
             }
             AllSegments => {
                 let _ = cx.segments().count();
-                Some(ok(()).into())
+                Some(outcome::ready(()))
             }
         }
     }
@@ -220,11 +219,11 @@ where
     T: FromSegment + Send,
 {
     type Output = T;
-    type Outcome = CompatOutcome<FutureResult<Self::Output, Error>>;
+    type Outcome = outcome::Ready<Self::Output>;
 
     fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
         let s = cx.segments().next()?;
-        T::from_segment(s).map(ok).map(Into::into).ok()
+        T::from_segment(s).map(outcome::ready).ok()
     }
 }
 
@@ -330,10 +329,10 @@ where
     T: FromSegments + Send,
 {
     type Output = T;
-    type Outcome = CompatOutcome<FutureResult<Self::Output, Error>>;
+    type Outcome = outcome::Ready<Self::Output>;
 
     fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
-        T::from_segments(cx.segments()).map(ok).map(Into::into).ok()
+        T::from_segments(cx.segments()).map(outcome::ready).ok()
     }
 }
 
