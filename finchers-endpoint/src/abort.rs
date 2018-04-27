@@ -1,7 +1,6 @@
+use finchers_core::HttpError;
 use finchers_core::endpoint::{Context, Endpoint};
-use finchers_core::outcome::CompatOutcome;
-use finchers_core::{Error, HttpError};
-use futures::future::{err, FutureResult};
+use finchers_core::outcome;
 use std::marker::PhantomData;
 
 pub fn abort<F, T, E>(f: F) -> Abort<F, T>
@@ -29,9 +28,9 @@ where
     E: HttpError,
 {
     type Output = T;
-    type Outcome = CompatOutcome<FutureResult<T, Error>>;
+    type Outcome = outcome::Abort<T, E>;
 
     fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
-        Some(CompatOutcome::from(err(Error::from((self.f)(cx)))))
+        Some(outcome::abort((self.f)(cx)))
     }
 }

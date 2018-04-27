@@ -1,9 +1,8 @@
 #![allow(missing_docs)]
 
+use finchers_core::Endpoint;
 use finchers_core::endpoint::Context;
-use finchers_core::outcome::CompatOutcome;
-use finchers_core::{Endpoint, Error};
-use futures::future::{self, FutureResult};
+use finchers_core::outcome;
 
 pub fn lazy<F, T>(f: F) -> Lazy<F>
 where
@@ -24,9 +23,9 @@ where
     T: Send,
 {
     type Output = T;
-    type Outcome = CompatOutcome<FutureResult<T, Error>>;
+    type Outcome = outcome::Ready<T>;
 
     fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
-        (self.f)(cx).map(|t| CompatOutcome::from(future::ok(t)))
+        (self.f)(cx).map(outcome::ready)
     }
 }
