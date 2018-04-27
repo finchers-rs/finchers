@@ -3,9 +3,9 @@ extern crate finchers_core;
 extern crate futures;
 extern crate http;
 extern crate hyper;
-extern crate tokio;
 #[macro_use]
 extern crate structopt;
+extern crate tokio;
 
 #[macro_use]
 extern crate slog;
@@ -33,7 +33,7 @@ mod launcher {
     pub fn run<E>(endpoint: E)
     where
         E: Endpoint + Send + Sync + 'static,
-        E::Item: Responder,
+        E::Output: Responder,
     {
         run_with_config(endpoint, Config::from_env());
     }
@@ -42,7 +42,7 @@ mod launcher {
     pub fn run_with_config<E>(endpoint: E, config: Config)
     where
         E: Endpoint + Send + Sync + 'static,
-        E::Item: Responder,
+        E::Output: Responder,
     {
         let service = EndpointService::new(endpoint);
         Server::new(service, config).run();

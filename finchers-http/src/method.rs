@@ -11,10 +11,10 @@ pub struct MatchMethod<E: Endpoint> {
 }
 
 impl<E: Endpoint> Endpoint for MatchMethod<E> {
-    type Item = E::Item;
-    type Task = E::Task;
+    type Output = E::Output;
+    type Outcome = E::Outcome;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
         if *cx.input().request().method() == self.method {
             self.endpoint.apply(cx)
         } else {
@@ -49,10 +49,10 @@ macro_rules! define_method {
         }
 
         impl<E: Endpoint> Endpoint for $Endpoint<E> {
-            type Item = E::Item;
-            type Task = E::Task;
+            type Output = E::Output;
+            type Outcome = E::Outcome;
 
-            fn apply(&self,cx: &mut Context) -> Option<Self::Task> {
+            fn apply(&self,cx: &mut Context) -> Option<Self::Outcome> {
                 if *cx.input().request().method() == Method::$method {
                     self.endpoint.apply(cx)
                 } else {

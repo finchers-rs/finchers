@@ -5,7 +5,7 @@ use finchers::output::Body;
 use finchers::{Endpoint, HttpError, Input};
 use std::{error, fmt};
 
-pub fn basic_auth() -> impl Endpoint<Item = BasicAuth> + Send + Sync + 'static {
+pub fn basic_auth() -> impl Endpoint<Output = BasicAuth> + Send + Sync + 'static {
     use finchers::endpoint::header::header;
     use finchers::endpoint::prelude::*;
     header().try_abort(|h| h.ok_or_else(|| Unauthorized))

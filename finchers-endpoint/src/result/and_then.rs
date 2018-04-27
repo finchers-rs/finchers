@@ -1,5 +1,5 @@
 use finchers_core::endpoint::{Context, Endpoint};
-use finchers_core::task::{self, PollTask, Task};
+use finchers_core::outcome::{self, Outcome, PollOutcome};
 
 #[derive(Debug, Copy, Clone)]
 pub struct AndThen<E, F> {
@@ -9,7 +9,7 @@ pub struct AndThen<E, F> {
 
 pub fn new<E, F, U, A, B>(endpoint: E, f: F) -> AndThen<E, F>
 where
-    E: Endpoint<Item = Result<A, B>>,
+    E: Endpoint<Output = Result<A, B>>,
     F: FnOnce(A) -> Result<U, B> + Clone + Send,
 {
     AndThen { endpoint, f }
@@ -17,37 +17,36 @@ where
 
 impl<E, F, A, B, U> Endpoint for AndThen<E, F>
 where
-    E: Endpoint<Item = Result<A, B>>,
+    E: Endpoint<Output = Result<A, B>>,
     F: FnOnce(A) -> Result<U, B> + Clone + Send,
 {
-    type Item = Result<U, B>;
-    type Task = AndThenTask<E::Task, F>;
+    type Output = Result<U, B>;
+    type Outcome = AndThenOutcome<E::Outcome, F>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
-        let task = self.endpoint.apply(cx)?;
-        Some(AndThenTask {
-            task,
+    fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
+        Some(AndThenOutcome {
+            outcome: self.endpoint.apply(cx)?,
             f: Some(self.f.clone()),
         })
     }
 }
 
 #[derive(Debug)]
-pub struct AndThenTask<T, F> {
-    task: T,
+pub struct AndThenOutcome<T, F> {
+    outcome: T,
     f: Option<F>,
 }
 
-impl<T, F, U, A, B> Task for AndThenTask<T, F>
+impl<T, F, U, A, B> Outcome for AndThenOutcome<T, F>
 where
-    T: Task<Output = Result<A, B>> + Send,
+    T: Outcome<Output = Result<A, B>> + Send,
     F: FnOnce(A) -> Result<U, B> + Send,
 {
     type Output = Result<U, B>;
 
-    fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
-        let item = try_ready!(self.task.poll_task(cx));
+    fn poll_outcome(&mut self, cx: &mut outcome::Context) -> PollOutcome<Self::Output> {
+        let item = try_poll_outcome!(self.outcome.poll_outcome(cx));
         let f = self.f.take().expect("cannot resolve twice");
-        cx.input().enter_scope(|| Ok(item.and_then(f).into()))
+        cx.input().enter_scope(|| PollOutcome::Ready(item.and_then(f)))
     }
 }

@@ -22,12 +22,12 @@ where
     E1: Endpoint,
     E2: Endpoint,
 {
-    type Item = E1::Item;
-    type Task = E1::Task;
+    type Output = E1::Output;
+    type Outcome = E1::Outcome;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
         let f1 = self.e1.apply(cx)?;
-        let _f2 = self.e2.apply(cx)?;
+        drop(self.e2.apply(cx)?);
         Some(f1)
     }
 }

@@ -1,7 +1,7 @@
-extern crate finchers_core;
-#[macro_use]
-extern crate futures;
 extern crate either;
+#[macro_use]
+extern crate finchers_core;
+extern crate futures;
 extern crate http;
 
 pub mod result;
@@ -47,7 +47,7 @@ pub trait EndpointExt: Endpoint + Sized {
     #[inline(always)]
     fn as_<T>(self) -> Self
     where
-        Self: Endpoint<Item = T>,
+        Self: Endpoint<Output = T>,
     {
         self
     }
@@ -67,11 +67,11 @@ pub trait EndpointExt: Endpoint + Sized {
     /// ```
     fn and<E>(self, e: E) -> And<Self, E::Endpoint>
     where
-        Self::Item: Send,
         E: IntoEndpoint,
-        E::Item: Send,
+        Self::Output: Send,
+        E::Output: Send,
     {
-        assert_endpoint::<_, (Self::Item, <E::Endpoint as Endpoint>::Item)>(self::and::new(self, e))
+        assert_endpoint::<_, (Self::Output, <E::Endpoint as Endpoint>::Output)>(self::and::new(self, e))
     }
 
     /// Create an endpoint which evaluates "self" and "e" sequentially.
@@ -81,7 +81,7 @@ pub trait EndpointExt: Endpoint + Sized {
     where
         E: IntoEndpoint,
     {
-        assert_endpoint::<_, Self::Item>(self::left::new(self, e))
+        assert_endpoint::<_, Self::Output>(self::left::new(self, e))
     }
 
     /// Create an endpoint which evaluates "self" and "e" sequentially.
@@ -91,7 +91,7 @@ pub trait EndpointExt: Endpoint + Sized {
     where
         E: IntoEndpoint,
     {
-        assert_endpoint::<_, E::Item>(self::right::new(self, e))
+        assert_endpoint::<_, E::Output>(self::right::new(self, e))
     }
 
     /// Create an endpoint which evaluates "self" and "e" sequentially.
@@ -108,15 +108,15 @@ pub trait EndpointExt: Endpoint + Sized {
     /// ```
     fn or<E>(self, e: E) -> Or<Self, E::Endpoint>
     where
-        E: IntoEndpoint<Item = Self::Item>,
+        E: IntoEndpoint<Output = Self::Output>,
     {
-        assert_endpoint::<_, Self::Item>(self::or::new(self, e))
+        assert_endpoint::<_, Self::Output>(self::or::new(self, e))
     }
 
     /// Create an endpoint which maps the returned value to a different type.
     fn map<F, U>(self, f: F) -> Map<Self, F>
     where
-        F: FnOnce(Self::Item) -> U + Clone + Send,
+        F: FnOnce(Self::Output) -> U + Clone + Send,
     {
         assert_endpoint::<_, F::Output>(self::map::new(self, f))
     }
@@ -124,9 +124,9 @@ pub trait EndpointExt: Endpoint + Sized {
     /// Create an endpoint which do something with the output value from "Self".
     fn inspect<F>(self, f: F) -> Inspect<Self, F>
     where
-        F: FnOnce(&Self::Item) + Clone + Send,
+        F: FnOnce(&Self::Output) + Clone + Send,
     {
-        assert_endpoint::<_, Self::Item>(self::inspect::new(self, f))
+        assert_endpoint::<_, Self::Output>(self::inspect::new(self, f))
     }
 
     /// Create an endpoint which continue an asynchronous computation
@@ -136,7 +136,7 @@ pub trait EndpointExt: Endpoint + Sized {
     /// an unrecoverable error.
     fn then<F, R>(self, f: F) -> Then<Self, F>
     where
-        F: FnOnce(Self::Item) -> R + Clone + Send,
+        F: FnOnce(Self::Output) -> R + Clone + Send,
         R: IntoFuture,
         R::Future: Send,
         R::Error: HttpError,
@@ -149,7 +149,7 @@ pub trait EndpointExt: Endpoint + Sized {
     /// The future will abort if the mapped value will be an `Err`.
     fn try_abort<F, T, E>(self, f: F) -> TryAbort<Self, F>
     where
-        F: FnOnce(Self::Item) -> Result<T, E> + Clone + Send,
+        F: FnOnce(Self::Output) -> Result<T, E> + Clone + Send,
         E: HttpError,
     {
         // FIXME: replace the trait bound with `Try`
@@ -162,7 +162,7 @@ impl<E: Endpoint> EndpointExt for E {}
 #[inline]
 fn assert_endpoint<E, T>(endpoint: E) -> E
 where
-    E: Endpoint<Item = T>,
+    E: Endpoint<Output = T>,
 {
     endpoint
 }

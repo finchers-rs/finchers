@@ -1,8 +1,8 @@
-extern crate finchers_core;
-extern crate http;
-#[macro_use]
-extern crate futures;
 extern crate bytes;
+#[macro_use]
+extern crate finchers_core;
+extern crate futures;
+extern crate http;
 extern crate mime;
 extern crate serde;
 extern crate serde_json;

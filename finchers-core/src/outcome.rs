@@ -1,12 +1,39 @@
 use either::Either;
 use error::Error;
-use futures::Future;
+use futures::{Async, Future};
 use input::{Input, RequestBody};
 
-pub use futures::Async;
+/// A type alias for values returned from "Outcome::poll_task".
+#[derive(Debug)]
+pub enum PollOutcome<T> {
+    Ready(T),
+    Abort(Error),
+    Pending,
+}
 
-/// A type alias for values returned from "Task::poll_task".
-pub type PollTask<T> = Result<Async<T>, Error>;
+impl<T, E> From<Result<Async<T>, E>> for PollOutcome<T>
+where
+    E: Into<Error>,
+{
+    fn from(val: Result<Async<T>, E>) -> Self {
+        match val {
+            Ok(Async::Ready(val)) => PollOutcome::Ready(val),
+            Ok(Async::NotReady) => PollOutcome::Pending,
+            Err(e) => PollOutcome::Abort(Into::into(e)),
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! try_poll_outcome {
+    ($e:expr) => {
+        match PollOutcome::from($e) {
+            PollOutcome::Ready(v) => v,
+            PollOutcome::Abort(e) => return PollOutcome::Abort(e),
+            PollOutcome::Pending => return PollOutcome::Pending,
+        }
+    };
+}
 
 /// The context during polling a task.
 pub struct Context<'a> {
@@ -41,50 +68,50 @@ impl<'a> Context<'a> {
 ///   Such combinations are usually performed indirectly by the endpoints.
 /// * It will take an argument which enables to access the context during the computation
 ///   (similar to "futures2", but more specialized to the purpose of HTTP handling).
-pub trait Task {
+pub trait Outcome {
     /// The *inner* type of an output which will be returned from this task.
     type Output;
 
     /// Perform polling this task and get its result.
-    fn poll_task(&mut self, cx: &mut Context) -> PollTask<Self::Output>;
+    fn poll_outcome(&mut self, cx: &mut Context) -> PollOutcome<Self::Output>;
 }
 
-impl<L, R> Task for Either<L, R>
+impl<L, R> Outcome for Either<L, R>
 where
-    L: Task,
-    R: Task<Output = L::Output>,
+    L: Outcome,
+    R: Outcome<Output = L::Output>,
 {
     type Output = L::Output;
 
-    fn poll_task(&mut self, cx: &mut Context) -> PollTask<Self::Output> {
+    fn poll_outcome(&mut self, cx: &mut Context) -> PollOutcome<Self::Output> {
         match *self {
-            Either::Left(ref mut t) => t.poll_task(cx),
-            Either::Right(ref mut t) => t.poll_task(cx),
+            Either::Left(ref mut t) => t.poll_outcome(cx),
+            Either::Right(ref mut t) => t.poll_outcome(cx),
         }
     }
 }
 
 #[derive(Debug)]
-pub struct CompatTask<F>(F);
+pub struct CompatOutcome<F>(F);
 
-impl<F> From<F> for CompatTask<F>
+impl<F> From<F> for CompatOutcome<F>
 where
     F: Future,
     F::Error: Into<Error>,
 {
-    fn from(fut: F) -> CompatTask<F> {
-        CompatTask(fut)
+    fn from(fut: F) -> Self {
+        CompatOutcome(fut)
     }
 }
 
-impl<F> Task for CompatTask<F>
+impl<F> Outcome for CompatOutcome<F>
 where
     F: Future,
     F::Error: Into<Error>,
 {
     type Output = F::Item;
 
-    fn poll_task(&mut self, _: &mut Context) -> PollTask<Self::Output> {
-        self.0.poll().map_err(Into::into)
+    fn poll_outcome(&mut self, _: &mut Context) -> PollOutcome<Self::Output> {
+        Future::poll(&mut self.0).into()
     }
 }

@@ -1,5 +1,5 @@
 use finchers_core::endpoint::{Context, Endpoint};
-use finchers_core::task::{self, PollTask, Task};
+use finchers_core::outcome::{self, Outcome, PollOutcome};
 
 #[derive(Debug, Copy, Clone)]
 pub struct MapErr<E, F> {
@@ -9,7 +9,7 @@ pub struct MapErr<E, F> {
 
 pub fn new<E, F, U, A, B>(endpoint: E, f: F) -> MapErr<E, F>
 where
-    E: Endpoint<Item = Result<A, B>>,
+    E: Endpoint<Output = Result<A, B>>,
     F: FnOnce(B) -> U + Clone + Send,
 {
     MapErr { endpoint, f }
@@ -17,37 +17,36 @@ where
 
 impl<E, F, A, B, U> Endpoint for MapErr<E, F>
 where
-    E: Endpoint<Item = Result<A, B>>,
+    E: Endpoint<Output = Result<A, B>>,
     F: FnOnce(B) -> U + Clone + Send,
 {
-    type Item = Result<A, U>;
-    type Task = MapErrTask<E::Task, F>;
+    type Output = Result<A, U>;
+    type Outcome = MapErrOutcome<E::Outcome, F>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
-        let task = self.endpoint.apply(cx)?;
-        Some(MapErrTask {
-            task,
+    fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
+        Some(MapErrOutcome {
+            outcome: self.endpoint.apply(cx)?,
             f: Some(self.f.clone()),
         })
     }
 }
 
 #[derive(Debug)]
-pub struct MapErrTask<T, F> {
-    task: T,
+pub struct MapErrOutcome<T, F> {
+    outcome: T,
     f: Option<F>,
 }
 
-impl<T, F, U, A, B> Task for MapErrTask<T, F>
+impl<T, F, U, A, B> Outcome for MapErrOutcome<T, F>
 where
-    T: Task<Output = Result<A, B>> + Send,
+    T: Outcome<Output = Result<A, B>> + Send,
     F: FnOnce(B) -> U + Send,
 {
     type Output = Result<A, U>;
 
-    fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
-        let item = try_ready!(self.task.poll_task(cx));
+    fn poll_outcome(&mut self, cx: &mut outcome::Context) -> PollOutcome<Self::Output> {
+        let item = try_poll_outcome!(self.outcome.poll_outcome(cx));
         let f = self.f.take().expect("cannot resolve twice");
-        cx.input().enter_scope(|| Ok(item.map_err(f).into()))
+        cx.input().enter_scope(|| PollOutcome::Ready(item.map_err(f)))
     }
 }

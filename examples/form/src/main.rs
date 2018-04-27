@@ -6,7 +6,7 @@ extern crate serde;
 use finchers::Endpoint;
 use finchers::output::Debug;
 
-fn endpoint() -> impl Endpoint<Item = Debug> + Send + Sync + 'static {
+fn endpoint() -> impl Endpoint<Output = Debug> + Send + Sync + 'static {
     use finchers::endpoint::abort;
     use finchers::endpoint::prelude::*;
     use finchers::endpoint::query::{from_csv, query, Form};

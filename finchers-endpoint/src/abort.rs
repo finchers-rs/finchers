@@ -1,5 +1,5 @@
 use finchers_core::endpoint::{Context, Endpoint};
-use finchers_core::task::CompatTask;
+use finchers_core::outcome::CompatOutcome;
 use finchers_core::{Error, HttpError};
 use futures::future::{err, FutureResult};
 use std::marker::PhantomData;
@@ -28,10 +28,10 @@ where
     T: Send,
     E: HttpError,
 {
-    type Item = T;
-    type Task = CompatTask<FutureResult<T, Error>>;
+    type Output = T;
+    type Outcome = CompatOutcome<FutureResult<T, Error>>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
-        Some(CompatTask::from(err(Error::from((self.f)(cx)))))
+    fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
+        Some(CompatOutcome::from(err(Error::from((self.f)(cx)))))
     }
 }

@@ -1,13 +1,13 @@
 use finchers_core::HttpError;
 use finchers_core::endpoint::{Context, Endpoint};
-use finchers_core::task::{self, Async, PollTask, Task};
-use futures::{Future, IntoFuture};
+use finchers_core::outcome::{self, Outcome, PollOutcome};
+use futures::{Async, Future, IntoFuture};
 use std::mem;
 
 pub fn new<E, F, R>(endpoint: E, f: F) -> Then<E, F>
 where
     E: Endpoint,
-    F: FnOnce(E::Item) -> R + Clone + Send,
+    F: FnOnce(E::Output) -> R + Clone + Send,
     R: IntoFuture,
     R::Future: Send,
     R::Error: HttpError,
@@ -24,24 +24,24 @@ pub struct Then<E, F> {
 impl<E, F, R> Endpoint for Then<E, F>
 where
     E: Endpoint,
-    F: FnOnce(E::Item) -> R + Clone + Send,
+    F: FnOnce(E::Output) -> R + Clone + Send,
     R: IntoFuture,
     R::Future: Send,
     R::Error: HttpError,
 {
-    type Item = R::Item;
-    type Task = ThenTask<E::Task, F, R>;
+    type Output = R::Item;
+    type Outcome = ThenOutcome<E::Outcome, F, R>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
-        let task = self.endpoint.apply(cx)?;
-        Some(ThenTask::First(task, self.f.clone()))
+    fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
+        let outcome = self.endpoint.apply(cx)?;
+        Some(ThenOutcome::First(outcome, self.f.clone()))
     }
 }
 
 #[derive(Debug)]
-pub enum ThenTask<T, F, R>
+pub enum ThenOutcome<T, F, R>
 where
-    T: Task,
+    T: Outcome,
     F: FnOnce(T::Output) -> R + Send,
     R: IntoFuture,
     R::Future: Send,
@@ -52,9 +52,9 @@ where
     Done,
 }
 
-impl<T, F, R> Task for ThenTask<T, F, R>
+impl<T, F, R> Outcome for ThenOutcome<T, F, R>
 where
-    T: Task,
+    T: Outcome,
     F: FnOnce(T::Output) -> R + Send,
     R: IntoFuture,
     R::Future: Send,
@@ -62,30 +62,34 @@ where
 {
     type Output = R::Item;
 
-    fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
-        use self::ThenTask::*;
+    fn poll_outcome(&mut self, cx: &mut outcome::Context) -> PollOutcome<Self::Output> {
+        use self::ThenOutcome::*;
         loop {
             // TODO: optimize
             match mem::replace(self, Done) {
-                First(mut task, f) => match task.poll_task(cx)? {
-                    Async::NotReady => {
-                        *self = First(task, f);
-                        return Ok(Async::NotReady);
+                First(mut outcome, f) => match outcome.poll_outcome(cx) {
+                    PollOutcome::Pending => {
+                        *self = First(outcome, f);
+                        return PollOutcome::Pending;
                     }
-                    Async::Ready(r) => {
+                    PollOutcome::Ready(r) => {
                         cx.input().enter_scope(|| {
                             *self = Second(f(r).into_future());
                         });
                         continue;
                     }
+                    PollOutcome::Abort(e) => return PollOutcome::Abort(e),
                 },
-                Second(mut fut) => match fut.poll()? {
-                    Async::NotReady => {
-                        *self = Second(fut);
-                        return Ok(Async::NotReady);
+                Second(mut fut) => {
+                    return match fut.poll() {
+                        Ok(Async::NotReady) => {
+                            *self = Second(fut);
+                            PollOutcome::Pending
+                        }
+                        Ok(Async::Ready(item)) => PollOutcome::Ready(item),
+                        Err(err) => PollOutcome::Abort(Into::into(err)),
                     }
-                    Async::Ready(item) => return Ok(Async::Ready(item)),
-                },
+                }
                 Done => panic!(),
             }
         }

@@ -1,11 +1,11 @@
 use finchers_core::HttpError;
 use finchers_core::endpoint::{Context, Endpoint};
-use finchers_core::task::{self, PollTask, Task};
+use finchers_core::outcome::{self, Outcome, PollOutcome};
 
 pub fn new<E, F, T, R>(endpoint: E, f: F) -> TryAbort<E, F>
 where
     E: Endpoint,
-    F: FnOnce(E::Item) -> Result<T, R> + Clone + Send,
+    F: FnOnce(E::Output) -> Result<T, R> + Clone + Send,
     R: HttpError,
 {
     TryAbort { endpoint, f }
@@ -20,38 +20,40 @@ pub struct TryAbort<E, F> {
 impl<E, F, T, R> Endpoint for TryAbort<E, F>
 where
     E: Endpoint,
-    F: FnOnce(E::Item) -> Result<T, R> + Clone + Send,
+    F: FnOnce(E::Output) -> Result<T, R> + Clone + Send,
     R: HttpError,
 {
-    type Item = T;
-    type Task = TryAbortTask<E::Task, F>;
+    type Output = T;
+    type Outcome = TryAbortOutcome<E::Outcome, F>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
-        let task = self.endpoint.apply(cx)?;
-        Some(TryAbortTask {
-            task,
+    fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
+        Some(TryAbortOutcome {
+            outcome: self.endpoint.apply(cx)?,
             f: Some(self.f.clone()),
         })
     }
 }
 
 #[derive(Debug)]
-pub struct TryAbortTask<T, F> {
-    task: T,
+pub struct TryAbortOutcome<T, F> {
+    outcome: T,
     f: Option<F>,
 }
 
-impl<T, F, U, E> Task for TryAbortTask<T, F>
+impl<T, F, U, E> Outcome for TryAbortOutcome<T, F>
 where
-    T: Task + Send,
+    T: Outcome + Send,
     F: FnOnce(T::Output) -> Result<U, E> + Clone + Send,
     E: HttpError,
 {
     type Output = U;
 
-    fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
-        let item = try_ready!(self.task.poll_task(cx));
+    fn poll_outcome(&mut self, cx: &mut outcome::Context) -> PollOutcome<Self::Output> {
+        let item = try_poll_outcome!(self.outcome.poll_outcome(cx));
         let f = self.f.take().expect("cannot resolve/reject twice");
-        cx.input().enter_scope(|| f(item).map_err(Into::into).map(Into::into))
+        cx.input().enter_scope(|| match f(item) {
+            Ok(item) => PollOutcome::Ready(item),
+            Err(err) => PollOutcome::Abort(Into::into(err)),
+        })
     }
 }

@@ -9,7 +9,7 @@ use std::{fmt, mem, str};
 use finchers_core::endpoint::{Context, Endpoint};
 use finchers_core::error::BadRequest;
 use finchers_core::input::{self, RequestBody};
-use finchers_core::task::{self, PollTask, Task};
+use finchers_core::outcome::{self, Outcome, PollOutcome};
 use finchers_core::{HttpError, Input, Never};
 
 /// A reference counted UTF-8 sequence.
@@ -86,26 +86,26 @@ impl fmt::Debug for RawBody {
 }
 
 impl Endpoint for RawBody {
-    type Item = RequestBody;
-    type Task = RawBodyTask;
+    type Output = RequestBody;
+    type Outcome = RawBodyOutcome;
 
-    fn apply(&self, _: &mut Context) -> Option<Self::Task> {
-        Some(RawBodyTask { _priv: () })
+    fn apply(&self, _: &mut Context) -> Option<Self::Outcome> {
+        Some(RawBodyOutcome { _priv: () })
     }
 }
 
 #[doc(hidden)]
 #[derive(Debug)]
-pub struct RawBodyTask {
+pub struct RawBodyOutcome {
     _priv: (),
 }
 
-impl Task for RawBodyTask {
+impl Outcome for RawBodyOutcome {
     type Output = RequestBody;
 
-    fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
+    fn poll_outcome(&mut self, cx: &mut outcome::Context) -> PollOutcome<Self::Output> {
         let body = cx.body().expect("cannot take a body twice");
-        Ok(body.into())
+        PollOutcome::Ready(body)
     }
 }
 
@@ -143,12 +143,12 @@ where
     T: FromData,
     T::Error: HttpError,
 {
-    type Item = T;
-    type Task = DataTask<T>;
+    type Output = T;
+    type Outcome = DataOutcome<T>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
         match T::is_match(cx.input()) {
-            true => Some(DataTask::Init),
+            true => Some(DataOutcome::Init),
             false => None,
         }
     }
@@ -156,30 +156,33 @@ where
 
 #[doc(hidden)]
 #[allow(missing_debug_implementations)]
-pub enum DataTask<T> {
+pub enum DataOutcome<T> {
     Init,
     Recv(input::Data),
     Done(PhantomData<fn() -> T>),
 }
 
-impl<T> Task for DataTask<T>
+impl<T> Outcome for DataOutcome<T>
 where
     T: FromData,
     T::Error: HttpError,
 {
     type Output = T;
 
-    fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
+    fn poll_outcome(&mut self, cx: &mut outcome::Context) -> PollOutcome<Self::Output> {
         'poll: loop {
             let next = match *self {
-                DataTask::Init => {
+                DataOutcome::Init => {
                     let body = cx.body().expect("The body has already taken");
-                    DataTask::Recv(body.into_data())
+                    DataOutcome::Recv(body.into_data())
                 }
-                DataTask::Recv(ref mut body) => {
-                    let buf = try_ready!(body.poll());
-                    let body = T::from_data(buf, cx.input())?;
-                    return Ok(body.into());
+                DataOutcome::Recv(ref mut body) => {
+                    let buf = try_poll_outcome!(body.poll());
+                    let body = match T::from_data(buf, cx.input()) {
+                        Ok(body) => body,
+                        Err(e) => return PollOutcome::Abort(Into::into(e)),
+                    };
+                    return PollOutcome::Ready(body);
                 }
                 _ => panic!("cannot resolve/reject twice"),
             };

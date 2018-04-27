@@ -1,5 +1,5 @@
 use finchers_core::endpoint::{Context, Endpoint};
-use finchers_core::task::{self, PollTask, Task};
+use finchers_core::outcome::{self, Outcome, PollOutcome};
 
 #[derive(Debug, Copy, Clone)]
 pub struct MapOk<E, F> {
@@ -9,7 +9,7 @@ pub struct MapOk<E, F> {
 
 pub fn new<E, F, U, A, B>(endpoint: E, f: F) -> MapOk<E, F>
 where
-    E: Endpoint<Item = Result<A, B>>,
+    E: Endpoint<Output = Result<A, B>>,
     F: FnOnce(A) -> U + Clone + Send,
 {
     MapOk { endpoint, f }
@@ -17,37 +17,36 @@ where
 
 impl<E, F, A, B, U> Endpoint for MapOk<E, F>
 where
-    E: Endpoint<Item = Result<A, B>>,
+    E: Endpoint<Output = Result<A, B>>,
     F: FnOnce(A) -> U + Clone + Send,
 {
-    type Item = Result<U, B>;
-    type Task = MapOkTask<E::Task, F>;
+    type Output = Result<U, B>;
+    type Outcome = MapOkOutcome<E::Outcome, F>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
-        let task = self.endpoint.apply(cx)?;
-        Some(MapOkTask {
-            task,
+    fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
+        Some(MapOkOutcome {
+            outcome: self.endpoint.apply(cx)?,
             f: Some(self.f.clone()),
         })
     }
 }
 
 #[derive(Debug)]
-pub struct MapOkTask<T, F> {
-    task: T,
+pub struct MapOkOutcome<T, F> {
+    outcome: T,
     f: Option<F>,
 }
 
-impl<T, F, U, A, B> Task for MapOkTask<T, F>
+impl<T, F, U, A, B> Outcome for MapOkOutcome<T, F>
 where
-    T: Task<Output = Result<A, B>> + Send,
+    T: Outcome<Output = Result<A, B>> + Send,
     F: FnOnce(A) -> U + Send,
 {
     type Output = Result<U, B>;
 
-    fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
-        let item = try_ready!(self.task.poll_task(cx));
+    fn poll_outcome(&mut self, cx: &mut outcome::Context) -> PollOutcome<Self::Output> {
+        let item = try_poll_outcome!(self.outcome.poll_outcome(cx));
         let f = self.f.take().expect("cannot resolve twice");
-        cx.input().enter_scope(|| Ok(item.map(f).into()))
+        cx.input().enter_scope(|| PollOutcome::Ready(item.map(f)))
     }
 }
