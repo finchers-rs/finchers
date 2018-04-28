@@ -3,14 +3,16 @@ mod err_into;
 mod map_err;
 mod map_ok;
 mod or_else;
+mod try_abort;
 
 pub use self::and_then::AndThen;
 pub use self::err_into::ErrInto;
 pub use self::map_err::MapErr;
 pub use self::map_ok::MapOk;
 pub use self::or_else::OrElse;
+pub use self::try_abort::TryAbort;
 
-use finchers_core::{Endpoint, IsResult};
+use finchers_core::{Endpoint, HttpError, IsResult};
 
 pub trait EndpointResultExt<A, B>: Endpoint<Output = Result<A, B>> + Sized {
     #[inline(always)]
@@ -25,6 +27,14 @@ pub trait EndpointResultExt<A, B>: Endpoint<Output = Result<A, B>> + Sized {
     fn as_err<E>(self) -> Self
     where
         Self::Output: IsResult<Err = E>,
+    {
+        self
+    }
+
+    #[inline(always)]
+    fn as_result<T, E>(self) -> Self
+    where
+        Self::Output: IsResult<Ok = T, Err = E>,
     {
         self
     }
@@ -62,6 +72,13 @@ pub trait EndpointResultExt<A, B>: Endpoint<Output = Result<A, B>> + Sized {
         B: Into<U>,
     {
         assert_endpoint::<_, A, U>(self::err_into::new(self))
+    }
+
+    fn try_abort(self) -> TryAbort<Self>
+    where
+        B: HttpError,
+    {
+        self::try_abort::new(self)
     }
 }
 

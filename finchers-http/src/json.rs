@@ -12,7 +12,7 @@ use {mime, serde_json};
 use body::FromData;
 use finchers_core::error::HttpError;
 use finchers_core::output::{Body, HttpStatus, Responder};
-use finchers_core::{Input, Output};
+use finchers_core::{Input, Never, Output};
 
 /// A wrapper struct representing a statically typed JSON value.
 #[derive(Debug)]
@@ -85,7 +85,7 @@ where
 /// A type representing a JSON value.
 ///
 /// This type is used as an output value of the endpoint or error handler.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct JsonValue {
     value: serde_json::Value,
     status: StatusCode,
@@ -101,12 +101,8 @@ impl JsonValue {
     pub fn new(value: serde_json::Value, status: StatusCode) -> JsonValue {
         JsonValue { value, status }
     }
-}
 
-impl Responder for JsonValue {
-    type Error = Error;
-
-    fn respond(self, _: &Input) -> Result<Output, Self::Error> {
+    fn make_response(&self) -> Response<Body> {
         let body = self.value.to_string();
         let body_len = body.len().to_string();
 
@@ -119,7 +115,37 @@ impl Responder for JsonValue {
             HeaderValue::from_shared_unchecked(body_len.into())
         });
 
-        Ok(response)
+        response
+    }
+}
+
+impl Responder for JsonValue {
+    type Error = Never;
+
+    fn respond(self, _: &Input) -> Result<Output, Self::Error> {
+        Ok(self.make_response())
+    }
+}
+
+impl fmt::Display for JsonValue {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("<json value>")
+    }
+}
+
+impl error::Error for JsonValue {
+    fn description(&self) -> &str {
+        "custom JSON error"
+    }
+}
+
+impl HttpError for JsonValue {
+    fn status_code(&self) -> StatusCode {
+        self.status
+    }
+
+    fn to_response(&self, _: &Input) -> Option<Response<Body>> {
+        Some(self.make_response())
     }
 }
 

@@ -27,6 +27,7 @@ members = [
 
   "examples/basic-auth",
   "examples/form",
+  "examples/json-api",
   "examples/todo",
 ]
 

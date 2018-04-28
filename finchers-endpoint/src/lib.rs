@@ -16,7 +16,7 @@ mod maybe_done;
 mod or;
 mod right;
 mod then;
-mod try_abort;
+mod try_abort_with;
 
 // re-exports
 pub use abort::{abort, Abort};
@@ -30,7 +30,7 @@ pub use map::Map;
 pub use or::Or;
 pub use right::Right;
 pub use then::Then;
-pub use try_abort::TryAbort;
+pub use try_abort_with::TryAbortWith;
 
 pub use result::EndpointResultExt;
 
@@ -41,9 +41,9 @@ use finchers_core::endpoint::{Endpoint, IntoEndpoint};
 use finchers_core::outcome::IntoOutcome;
 
 pub trait EndpointExt: Endpoint + Sized {
-    /// Ensure that the associated type `Item` is equal to `T`.
+    /// Enforce that the associated type `Output` is equal to `T`.
     #[inline(always)]
-    fn as_<T>(self) -> Self
+    fn as_t<T>(self) -> Self
     where
         Self: Endpoint<Output = T>,
     {
@@ -55,14 +55,6 @@ pub trait EndpointExt: Endpoint + Sized {
     ///
     /// The returned future from this endpoint contains both futures from
     /// "self" and "e" and resolved as a pair of values returned from theirs.
-    ///
-    /// # Example
-    ///
-    /// ```ignore
-    /// let e1 = ok("foo");
-    /// let e2 = ok("bar");
-    /// let endpoint = e1.and(e2);
-    /// ```
     fn and<E>(self, e: E) -> And<Self, E::Endpoint>
     where
         E: IntoEndpoint,
@@ -96,14 +88,6 @@ pub trait EndpointExt: Endpoint + Sized {
     ///
     /// The returned future from this endpoint contains the one returned
     /// from either "self" or "e" matched "better" to the input.
-    ///
-    /// # Example
-    ///
-    /// ```ignore
-    /// let e1 = path("/foo/bar").map(|_| "path 1");
-    /// let e2 = path("/foo/baz").map(|_| "path 2");
-    /// let endpoint = e1.or(e2);
-    /// ```
     fn or<E>(self, e: E) -> Or<Self, E::Endpoint>
     where
         E: IntoEndpoint<Output = Self::Output>,
@@ -144,13 +128,13 @@ pub trait EndpointExt: Endpoint + Sized {
     /// Create an endpoint which maps the returned value from "self" to a `Result`.
     ///
     /// The future will abort if the mapped value will be an `Err`.
-    fn try_abort<F, T, E>(self, f: F) -> TryAbort<Self, F>
+    fn try_abort_with<F, T, E>(self, f: F) -> TryAbortWith<Self, F>
     where
         F: FnOnce(Self::Output) -> Result<T, E> + Clone + Send,
         E: HttpError,
     {
         // FIXME: replace the trait bound with `Try`
-        assert_endpoint::<_, T>(self::try_abort::new(self, f))
+        assert_endpoint::<_, T>(self::try_abort_with::new(self, f))
     }
 }
 
