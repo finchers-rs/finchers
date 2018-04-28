@@ -18,6 +18,7 @@ pub mod output;
 
 mod apply;
 mod never;
+mod option;
 mod result;
 
 // re-exports
@@ -26,6 +27,7 @@ pub use endpoint::Endpoint;
 pub use error::{Error, HttpError};
 pub use input::Input;
 pub use never::Never;
+pub use option::IsOption;
 pub use outcome::Outcome;
 pub use output::{Output, Responder};
 pub use result::IsResult;
