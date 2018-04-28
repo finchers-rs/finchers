@@ -5,6 +5,7 @@ use http::header::HeaderValue;
 use http::{header, Response};
 use input::Input;
 use never::Never;
+use std::borrow::Cow;
 use std::fmt;
 
 use super::body::Body;
@@ -12,7 +13,6 @@ use super::body::Body;
 pub type Output = Response<Body>;
 
 const TEXT_PLAIN: &str = "text/plain; charset=utf-8";
-const OCTET_STREAM: &str = "application/octet-stream";
 
 /// Trait representing the conversion to an HTTP response.
 pub trait Responder {
@@ -34,15 +34,11 @@ where
     }
 }
 
-impl Responder for Bytes {
+impl Responder for &'static str {
     type Error = Never;
 
     fn respond(self, _: &Input) -> Result<Output, Self::Error> {
-        let mut response = Response::new(Body::once(self));
-        content_type(&mut response, OCTET_STREAM);
-        content_length(&mut response);
-
-        Ok(response)
+        Ok(make_response(Bytes::from_static(self.as_bytes()), TEXT_PLAIN))
     }
 }
 
@@ -50,11 +46,19 @@ impl Responder for String {
     type Error = Never;
 
     fn respond(self, _: &Input) -> Result<Output, Self::Error> {
-        let mut response = Response::new(Body::once(self));
-        content_type(&mut response, TEXT_PLAIN);
-        content_length(&mut response);
+        Ok(make_response(Bytes::from(self), TEXT_PLAIN))
+    }
+}
 
-        Ok(response)
+impl Responder for Cow<'static, str> {
+    type Error = Never;
+
+    fn respond(self, _: &Input) -> Result<Output, Self::Error> {
+        let body = match self {
+            Cow::Borrowed(s) => Bytes::from_static(s.as_bytes()),
+            Cow::Owned(s) => Bytes::from(s),
+        };
+        Ok(make_response(body, TEXT_PLAIN))
     }
 }
 
@@ -132,6 +136,13 @@ impl Responder for Debug {
 
         Ok(response)
     }
+}
+
+fn make_response(body: Bytes, m: &'static str) -> Output {
+    let mut response = Response::new(Body::once(body));
+    content_type(&mut response, m);
+    content_length(&mut response);
+    response
 }
 
 fn content_type<T>(response: &mut Response<T>, value: &'static str) {
