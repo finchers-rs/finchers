@@ -1,20 +1,4 @@
 /// A helper macro for creating the instance of`Endpoint` from multiple routes.
-///
-/// # Example
-///
-/// A macro call
-///
-/// ```ignore
-/// choice!(e1, e2, e3)
-/// ```
-///
-/// will be expanded to
-///
-/// ```ignore
-/// endpoint(e1)
-///     .or(endpoint(e2))
-///     .or(endpoint(e3))
-/// ```
 #[macro_export]
 macro_rules! choice {
     ($h:expr, $($t:expr),*) => {{
