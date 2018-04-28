@@ -8,7 +8,7 @@ use std::{error, fmt};
 pub fn basic_auth() -> impl Endpoint<Output = BasicAuth> + Send + Sync + 'static {
     use finchers::endpoint::header::header;
     use finchers::endpoint::prelude::*;
-    header().try_abort(|h| h.ok_or_else(|| Unauthorized))
+    header().ok_or_else(|| Unauthorized).unwrap_ok()
 }
 
 #[derive(Debug)]

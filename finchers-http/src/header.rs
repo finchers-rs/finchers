@@ -19,7 +19,7 @@ use finchers_core::{HttpError, Never};
 /// # extern crate finchers_endpoint;
 /// # extern crate finchers_http;
 /// # use finchers_http::header::{header, FromHeader};
-/// # use finchers_endpoint::EndpointExt;
+/// # use finchers_endpoint::{EndpointExt, EndpointResultExt, EndpointOptionExt};
 /// # use finchers_core::error::BadRequest;
 /// #
 /// pub struct APIKey(pub String);
@@ -38,9 +38,10 @@ use finchers_core::{HttpError, Never};
 ///
 /// # fn main() {
 /// // impl Endpoint<Item = APIKey>
-/// let api_key = header::<APIKey>().try_abort(|h| {
-///     h.ok_or_else(|| BadRequest::new("Missing API key"))
-/// });
+/// let api_key = header()
+///     .ok_or_else(|| BadRequest::new("Missing API key"))
+///     .unwrap_ok()
+///     .as_t::<APIKey>();
 /// # }
 /// ```
 pub fn header<H>() -> Header<H>

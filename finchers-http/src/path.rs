@@ -178,13 +178,13 @@ impl error::Error for ParseMatchError {
 /// # extern crate finchers_endpoint;
 /// # extern crate finchers_http;
 /// # use finchers_core::error::BadRequest;
-/// # use finchers_endpoint::EndpointExt;
+/// # use finchers_endpoint::{EndpointExt, EndpointResultExt, EndpointOptionExt};
 /// # use finchers_http::path::{param, FromSegment};
 /// # fn main() {
 /// let endpoint = param()
-///     .try_abort(|id: Result<i32, _>| {
-///         id.map_err(|e| BadRequest::new("invalid id").with_cause(e))
-///     });
+///     .map_err(|e| BadRequest::new("invalid id").with_cause(e))
+///     .unwrap_ok()
+///     .as_t::<i32>();
 /// # }
 /// ```
 pub fn param<T>() -> Param<T>

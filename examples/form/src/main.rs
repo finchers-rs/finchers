@@ -30,7 +30,7 @@ fn endpoint() -> impl Endpoint<Output = Debug> + Send + Sync + 'static {
         abort(|_| BadRequest::new("Empty parameter")),
     ]
     // annotate to the endpoint that the inner type is FormParam.
-    .as_::<FormParam>();
+    .as_t::<FormParam>();
 
     path("search")
         .right(urlencoded_param)
