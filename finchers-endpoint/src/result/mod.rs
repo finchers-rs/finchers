@@ -10,9 +10,25 @@ pub use self::map_err::MapErr;
 pub use self::map_ok::MapOk;
 pub use self::or_else::OrElse;
 
-use finchers_core::Endpoint;
+use finchers_core::{Endpoint, IsResult};
 
 pub trait EndpointResultExt<A, B>: Endpoint<Output = Result<A, B>> + Sized {
+    #[inline(always)]
+    fn as_ok<T>(self) -> Self
+    where
+        Self::Output: IsResult<Ok = T>,
+    {
+        self
+    }
+
+    #[inline(always)]
+    fn as_err<E>(self) -> Self
+    where
+        Self::Output: IsResult<Err = E>,
+    {
+        self
+    }
+
     fn map_ok<F, U>(self, f: F) -> MapOk<Self, F>
     where
         F: FnOnce(A) -> U + Clone + Send,

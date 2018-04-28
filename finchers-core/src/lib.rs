@@ -18,6 +18,7 @@ pub mod output;
 
 mod apply;
 mod never;
+mod result;
 
 // re-exports
 pub use apply::{apply, Apply};
@@ -27,3 +28,4 @@ pub use input::Input;
 pub use never::Never;
 pub use outcome::Outcome;
 pub use output::{Output, Responder};
+pub use result::IsResult;
