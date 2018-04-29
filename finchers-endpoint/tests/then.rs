@@ -12,7 +12,7 @@ fn test_then_1() {
     let client = Client::new(endpoint);
 
     let outcome = client.get("/").run();
-    assert_eq!(outcome.map(|r| r.is_err()), Some(true));
+    assert!(outcome.map_or(false, |r| r.ok().map_or(false, |output| output.is_err())));
 }
 
 #[test]

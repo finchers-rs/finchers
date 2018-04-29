@@ -11,7 +11,7 @@ use std::{fmt, io};
 use finchers_core::error::ServerError;
 use finchers_core::input::RequestBody;
 use finchers_core::output::{Body, Responder};
-use finchers_core::{apply, Apply, Endpoint, HttpError, Input, Outcome};
+use finchers_core::{apply, Apply, Endpoint, HttpError, Input, Task};
 
 #[allow(missing_docs)]
 pub trait HttpService {
@@ -72,7 +72,7 @@ where
     type RequestBody = RequestBody;
     type ResponseBody = Body;
     type Error = io::Error;
-    type Future = EndpointServiceFuture<E::Outcome>;
+    type Future = EndpointServiceFuture<E::Task>;
 
     fn call(&self, request: Request<Self::RequestBody>) -> Self::Future {
         let (parts, body) = request.into_parts();
@@ -102,7 +102,7 @@ impl<T> EndpointServiceFuture<T> {
 
 impl<T> Future for EndpointServiceFuture<T>
 where
-    T: Outcome,
+    T: Task,
     T::Output: Responder,
 {
     type Item = Response<Body>;

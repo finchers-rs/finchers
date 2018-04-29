@@ -1,6 +1,6 @@
 use super::maybe_done::MaybeDone;
 use finchers_core::endpoint::{Context, Endpoint, IntoEndpoint};
-use finchers_core::outcome::{self, Outcome, PollOutcome};
+use finchers_core::task::{self, PollTask, Task};
 use std::mem;
 
 pub fn all<I>(iter: I) -> All<<I::Item as IntoEndpoint>::Endpoint>
@@ -25,33 +25,33 @@ where
     E::Output: Send,
 {
     type Output = Vec<E::Output>;
-    type Outcome = AllOutcome<E::Outcome>;
+    type Task = AllTask<E::Task>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
         let mut elems = Vec::with_capacity(self.inner.len());
         for e in &self.inner {
             let f = e.apply(cx)?;
             elems.push(MaybeDone::Pending(f));
         }
-        Some(AllOutcome { elems })
+        Some(AllTask { elems })
     }
 }
 
-pub struct AllOutcome<T: Outcome> {
+pub struct AllTask<T: Task> {
     elems: Vec<MaybeDone<T>>,
 }
 
-impl<T: Outcome> Outcome for AllOutcome<T> {
+impl<T: Task> Task for AllTask<T> {
     type Output = Vec<T::Output>;
 
-    fn poll_outcome(&mut self, cx: &mut outcome::Context) -> PollOutcome<Self::Output> {
+    fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
         let mut all_done = true;
         for i in 0..self.elems.len() {
             match self.elems[i].poll_done(cx) {
                 Ok(done) => all_done = all_done & done,
                 Err(e) => {
                     self.elems = Vec::new();
-                    return PollOutcome::Abort(e);
+                    return PollTask::Aborted(e);
                 }
             }
         }
@@ -60,9 +60,9 @@ impl<T: Outcome> Outcome for AllOutcome<T> {
                 .into_iter()
                 .map(|mut m| m.take_item())
                 .collect();
-            PollOutcome::Ready(elems)
+            PollTask::Ready(elems)
         } else {
-            PollOutcome::Pending
+            PollTask::Pending
         }
     }
 }

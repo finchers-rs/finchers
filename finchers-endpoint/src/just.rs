@@ -2,7 +2,7 @@
 
 use finchers_core::Endpoint;
 use finchers_core::endpoint::Context;
-use finchers_core::outcome;
+use finchers_core::task;
 
 pub fn just<T>(x: T) -> Just<T>
 where
@@ -21,9 +21,9 @@ where
     T: Clone + Send,
 {
     type Output = T;
-    type Outcome = outcome::Ready<T>;
+    type Task = task::Ready<T>;
 
-    fn apply(&self, _: &mut Context) -> Option<Self::Outcome> {
-        Some(outcome::ready(self.x.clone()))
+    fn apply(&self, _: &mut Context) -> Option<Self::Task> {
+        Some(task::ready(self.x.clone()))
     }
 }

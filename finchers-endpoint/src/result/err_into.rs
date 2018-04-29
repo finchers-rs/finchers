@@ -1,5 +1,5 @@
 use finchers_core::endpoint::{Context, Endpoint};
-use finchers_core::outcome::{self, Outcome, PollOutcome};
+use finchers_core::task::{self, PollTask, Task};
 use std::marker::PhantomData;
 
 #[derive(Debug, Copy, Clone)]
@@ -25,31 +25,30 @@ where
     B: Into<U>,
 {
     type Output = Result<A, U>;
-    type Outcome = ErrIntoOutcome<E::Outcome, U>;
+    type Task = ErrIntoTask<E::Task, U>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
-        Some(ErrIntoOutcome {
-            outcome: self.endpoint.apply(cx)?,
+    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
+        Some(ErrIntoTask {
+            task: self.endpoint.apply(cx)?,
             _marker: PhantomData,
         })
     }
 }
 
 #[derive(Debug)]
-pub struct ErrIntoOutcome<T, U> {
-    outcome: T,
+pub struct ErrIntoTask<T, U> {
+    task: T,
     _marker: PhantomData<fn() -> U>,
 }
 
-impl<T, U, A, B> Outcome for ErrIntoOutcome<T, U>
+impl<T, U, A, B> Task for ErrIntoTask<T, U>
 where
-    T: Outcome<Output = Result<A, B>> + Send,
+    T: Task<Output = Result<A, B>> + Send,
     B: Into<U>,
 {
     type Output = Result<A, U>;
 
-    fn poll_outcome(&mut self, cx: &mut outcome::Context) -> PollOutcome<Self::Output> {
-        let item = try_poll_outcome!(self.outcome.poll_outcome(cx));
-        cx.input().enter_scope(|| PollOutcome::Ready(item.map_err(Into::into)))
+    fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
+        self.task.poll_task(cx).map(|item| item.map_err(Into::into))
     }
 }

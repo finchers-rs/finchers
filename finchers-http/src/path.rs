@@ -7,7 +7,7 @@ use std::{error, fmt};
 
 use finchers_core::Never;
 use finchers_core::endpoint::{Context, Endpoint, Segment, Segments};
-use finchers_core::outcome;
+use finchers_core::task;
 
 // ==== MatchPath =====
 
@@ -103,9 +103,9 @@ pub enum MatchPathKind {
 
 impl Endpoint for MatchPath {
     type Output = ();
-    type Outcome = outcome::Ready<Self::Output>;
+    type Task = task::Ready<Self::Output>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
         use self::MatchPathKind::*;
         match self.kind {
             Segments(ref segments) => {
@@ -114,14 +114,14 @@ impl Endpoint for MatchPath {
                     matched = matched && *cx.segments().next()? == *segment;
                 }
                 if matched {
-                    Some(outcome::ready(()))
+                    Some(task::ready(()))
                 } else {
                     None
                 }
             }
             AllSegments => {
                 let _ = cx.segments().count();
-                Some(outcome::ready(()))
+                Some(task::ready(()))
             }
         }
     }
@@ -219,11 +219,11 @@ where
     T: FromSegment + Send,
 {
     type Output = T;
-    type Outcome = outcome::Ready<Self::Output>;
+    type Task = task::Ready<Self::Output>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
         let s = cx.segments().next()?;
-        T::from_segment(s).map(outcome::ready).ok()
+        T::from_segment(s).map(task::ready).ok()
     }
 }
 
@@ -329,10 +329,10 @@ where
     T: FromSegments + Send,
 {
     type Output = T;
-    type Outcome = outcome::Ready<Self::Output>;
+    type Task = task::Ready<Self::Output>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
-        T::from_segments(cx.segments()).map(outcome::ready).ok()
+    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
+        T::from_segments(cx.segments()).map(task::ready).ok()
     }
 }
 

@@ -1,21 +1,21 @@
 use self::MaybeDone::*;
 use finchers_core::Error;
-use finchers_core::outcome::{self, Outcome, PollOutcome};
+use finchers_core::task::{self, PollTask, Task};
 use std::mem;
 
-pub enum MaybeDone<T: Outcome> {
+pub enum MaybeDone<T: Task> {
     Pending(T),
     Done(T::Output),
     Gone,
 }
 
-impl<T: Outcome> MaybeDone<T> {
-    pub fn poll_done(&mut self, cx: &mut outcome::Context) -> Result<bool, Error> {
+impl<T: Task> MaybeDone<T> {
+    pub fn poll_done(&mut self, cx: &mut task::Context) -> Result<bool, Error> {
         let item = match *self {
-            Pending(ref mut f) => match f.poll_outcome(cx) {
-                PollOutcome::Ready(item) => item,
-                PollOutcome::Pending => return Ok(false),
-                PollOutcome::Abort(e) => return Err(e),
+            Pending(ref mut f) => match f.poll_task(cx) {
+                PollTask::Ready(item) => item,
+                PollTask::Pending => return Ok(false),
+                PollTask::Aborted(e) => return Err(e),
             },
             Done(..) => return Ok(true),
             Gone => panic!("cannot join twice"),

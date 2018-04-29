@@ -4,7 +4,7 @@ use std::fmt;
 use std::marker::PhantomData;
 
 use finchers_core::endpoint::{Context, Endpoint};
-use finchers_core::outcome::{self, Outcome, PollOutcome};
+use finchers_core::task::{self, PollTask, Task};
 use finchers_core::{HttpError, Never};
 
 /// Create an endpoint which parses an entry in the HTTP header.
@@ -78,32 +78,32 @@ where
     H::Error: HttpError,
 {
     type Output = Option<H>;
-    type Outcome = HeaderOutcome<H>;
+    type Task = HeaderTask<H>;
 
-    fn apply(&self, _: &mut Context) -> Option<Self::Outcome> {
-        Some(HeaderOutcome { _marker: PhantomData })
+    fn apply(&self, _: &mut Context) -> Option<Self::Task> {
+        Some(HeaderTask { _marker: PhantomData })
     }
 }
 
 #[doc(hidden)]
-pub struct HeaderOutcome<H> {
+pub struct HeaderTask<H> {
     _marker: PhantomData<fn() -> H>,
 }
 
-impl<H> Outcome for HeaderOutcome<H>
+impl<H> Task for HeaderTask<H>
 where
     H: FromHeader,
     H::Error: HttpError,
 {
     type Output = Option<H>;
 
-    fn poll_outcome(&mut self, cx: &mut outcome::Context) -> PollOutcome<Self::Output> {
+    fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
         match cx.input().request().headers().get(H::header_name()) {
             Some(h) => match H::from_header(h.as_bytes()) {
-                Ok(h) => PollOutcome::Ready(Some(h)),
-                Err(e) => PollOutcome::Abort(Into::into(e)),
+                Ok(h) => PollTask::Ready(Some(h)),
+                Err(e) => PollTask::Aborted(Into::into(e)),
             },
-            None => PollOutcome::Ready(None),
+            None => PollTask::Ready(None),
         }
     }
 }
@@ -174,15 +174,15 @@ where
     H: FromHeader + Send,
 {
     type Output = H;
-    type Outcome = outcome::Ready<H>;
+    type Task = task::Ready<H>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
         cx.input()
             .request()
             .headers()
             .get(H::header_name())
             .and_then(|h| H::from_header(h.as_bytes()).ok())
-            .map(outcome::ready)
+            .map(task::ready)
     }
 }
 

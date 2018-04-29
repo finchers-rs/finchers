@@ -3,10 +3,10 @@ use futures::Async;
 use endpoint::{Context, Endpoint};
 use error::Error;
 use input::{Input, RequestBody};
-use outcome::{self, Outcome, PollOutcome};
+use task::{self, PollTask, Task};
 
 /// Create an asynchronous computation for handling an HTTP request.
-pub fn apply<E>(endpoint: &E, input: &Input, body: RequestBody) -> Apply<E::Outcome>
+pub fn apply<E>(endpoint: &E, input: &Input, body: RequestBody) -> Apply<E::Task>
 where
     E: Endpoint,
 {
@@ -27,14 +27,14 @@ pub struct Apply<T> {
     body: Option<RequestBody>,
 }
 
-impl<T: Outcome> Apply<T> {
-    /// Poll the inner "Outcome" and return its output if available.
+impl<T: Task> Apply<T> {
+    /// Poll the inner "Task" and return its output if available.
     pub fn poll_ready(&mut self, input: &Input) -> Async<Option<Result<T::Output, Error>>> {
         let result = match self.in_flight {
-            Some(ref mut f) => match f.poll_outcome(&mut outcome::Context::new(input, &mut self.body)) {
-                PollOutcome::Pending => return Async::NotReady,
-                PollOutcome::Ready(ok) => Some(Ok(ok)),
-                PollOutcome::Abort(err) => Some(Err(err)),
+            Some(ref mut f) => match f.poll_task(&mut task::Context::new(input, &mut self.body)) {
+                PollTask::Pending => return Async::NotReady,
+                PollTask::Ready(ok) => Some(Ok(ok)),
+                PollTask::Aborted(err) => Some(Err(err)),
             },
             None => None,
         };

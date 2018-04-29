@@ -2,13 +2,13 @@
 
 extern crate bytes;
 extern crate either;
+extern crate failure;
 #[macro_use]
 extern crate futures;
 extern crate http;
 extern crate mime;
 #[macro_use]
 extern crate scoped_tls;
-extern crate failure;
 
 #[cfg(feature = "from_hyper")]
 extern crate hyper;
@@ -16,8 +16,8 @@ extern crate hyper;
 pub mod endpoint;
 pub mod error;
 pub mod input;
-pub mod outcome;
 pub mod output;
+pub mod task;
 
 mod apply;
 mod never;
@@ -31,6 +31,6 @@ pub use error::{Error, HttpError};
 pub use input::Input;
 pub use never::Never;
 pub use option::IsOption;
-pub use outcome::Outcome;
 pub use output::{Output, Responder};
 pub use result::IsResult;
+pub use task::Task;

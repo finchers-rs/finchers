@@ -41,7 +41,7 @@ pub use result::EndpointResultExt;
 
 use common::assert_output;
 use finchers_core::endpoint::{Endpoint, IntoEndpoint};
-use finchers_core::outcome::IntoOutcome;
+use finchers_core::task::IntoTask;
 
 pub trait EndpointExt: Endpoint + Sized {
     /// Enforce that the associated type `Output` is equal to `T`.
@@ -122,8 +122,8 @@ pub trait EndpointExt: Endpoint + Sized {
     fn then<F, R>(self, f: F) -> Then<Self, F>
     where
         F: FnOnce(Self::Output) -> R + Clone + Send,
-        R: IntoOutcome,
-        R::Outcome: Send,
+        R: IntoTask,
+        R::Task: Send,
     {
         assert_output::<_, R::Output>(self::then::new(self, f))
     }
