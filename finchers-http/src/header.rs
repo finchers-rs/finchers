@@ -32,7 +32,7 @@ use finchers_core::{HttpError, Never};
 ///     fn from_header(s: &[u8]) -> Result<Self, Self::Error> {
 ///         String::from_utf8(s.to_owned())
 ///             .map(APIKey)
-///             .map_err(|e| BadRequest::new("Invalid API key").with_cause(e))
+///             .map_err(|_| BadRequest::new("Invalid API key"))
 ///     }
 /// }
 ///
@@ -134,7 +134,7 @@ where
 ///     fn from_header(s: &[u8]) -> Result<Self, Self::Error> {
 ///         String::from_utf8(s.to_owned())
 ///             .map(APIKey)
-///             .map_err(|e| BadRequest::new("invalid API key").with_cause(e))
+///             .map_err(|_| BadRequest::new("invalid API key"))
 ///     }
 /// }
 ///

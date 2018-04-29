@@ -218,7 +218,7 @@ impl FromData for BytesString {
     type Error = BadRequest;
 
     fn from_data(data: Bytes, _: &Input) -> Result<Self, Self::Error> {
-        BytesString::from_shared(data).map_err(|e| BadRequest::new("failed to parse the message body").with_cause(e))
+        BytesString::from_shared(data).map_err(|_| BadRequest::new("failed to parse the message body"))
     }
 }
 
@@ -228,7 +228,7 @@ impl FromData for String {
     fn from_data(data: Bytes, _: &Input) -> Result<Self, Self::Error> {
         BytesString::from_shared(data)
             .map(Into::into)
-            .map_err(|e| BadRequest::new("failed to parse the message body").with_cause(e))
+            .map_err(|_| BadRequest::new("failed to parse the message body"))
     }
 }
 
