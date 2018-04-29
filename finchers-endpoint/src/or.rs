@@ -24,9 +24,9 @@ where
     E2: Endpoint<Output = E1::Output>,
 {
     type Output = E1::Output;
-    type Outcome = Either<E1::Outcome, E2::Outcome>;
+    type Task = Either<E1::Task, E2::Task>;
 
-    fn apply(&self, cx2: &mut Context) -> Option<Self::Outcome> {
+    fn apply(&self, cx2: &mut Context) -> Option<Self::Task> {
         let mut cx1 = cx2.clone();
         let t1 = self.e1.apply(&mut cx1);
         let t2 = self.e2.apply(cx2);

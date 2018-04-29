@@ -96,7 +96,7 @@ pub mod runtime {
     pub use finchers_runtime::service::{EndpointService, HttpService};
 }
 
-pub use finchers_core::{Endpoint, HttpError, Input, Output, Responder};
+pub use finchers_core::{Endpoint, HttpError, Input, Never, Output, Responder};
 pub use finchers_endpoint::{EndpointExt, EndpointResultExt};
 pub use finchers_http::json::Json;
 

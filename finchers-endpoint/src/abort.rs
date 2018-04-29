@@ -1,36 +1,28 @@
-use finchers_core::HttpError;
 use finchers_core::endpoint::{Context, Endpoint};
-use finchers_core::outcome;
-use std::marker::PhantomData;
+use finchers_core::{task, HttpError, Never};
 
-pub fn abort<F, T, E>(f: F) -> Abort<F, T>
+pub fn abort<F, E>(f: F) -> Abort<F>
 where
     F: Fn(&mut Context) -> E,
-    T: Send,
     E: HttpError,
 {
-    Abort {
-        f,
-        _marker: PhantomData,
-    }
+    Abort { f }
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct Abort<F, T> {
+pub struct Abort<F> {
     f: F,
-    _marker: PhantomData<fn() -> T>,
 }
 
-impl<F, T, E> Endpoint for Abort<F, T>
+impl<F, E> Endpoint for Abort<F>
 where
     F: Fn(&mut Context) -> E,
-    T: Send,
     E: HttpError,
 {
-    type Output = T;
-    type Outcome = outcome::Abort<T, E>;
+    type Output = Never;
+    type Task = task::Abort<E>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
-        Some(outcome::abort((self.f)(cx)))
+    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
+        Some(task::abort((self.f)(cx)))
     }
 }

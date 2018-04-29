@@ -23,9 +23,9 @@ where
     E2: Endpoint,
 {
     type Output = E1::Output;
-    type Outcome = E1::Outcome;
+    type Task = E1::Task;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
         let f1 = self.e1.apply(cx)?;
         drop(self.e2.apply(cx)?);
         Some(f1)

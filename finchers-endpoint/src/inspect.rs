@@ -1,5 +1,5 @@
 use finchers_core::endpoint::{Context, Endpoint, IntoEndpoint};
-use finchers_core::outcome::{self, Outcome, PollOutcome};
+use finchers_core::task::{self, PollTask, Task};
 
 pub fn new<E, F>(endpoint: E, f: F) -> Inspect<E::Endpoint, F>
 where
@@ -24,33 +24,33 @@ where
     F: FnOnce(&E::Output) + Clone + Send,
 {
     type Output = E::Output;
-    type Outcome = InspectOutcome<E::Outcome, F>;
+    type Task = InspectTask<E::Task, F>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
-        Some(InspectOutcome {
-            outcome: self.endpoint.apply(cx)?,
+    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
+        Some(InspectTask {
+            task: self.endpoint.apply(cx)?,
             f: Some(self.f.clone()),
         })
     }
 }
 
 #[derive(Debug)]
-pub struct InspectOutcome<T, F> {
-    outcome: T,
+pub struct InspectTask<T, F> {
+    task: T,
     f: Option<F>,
 }
 
-impl<T, F> Outcome for InspectOutcome<T, F>
+impl<T, F> Task for InspectTask<T, F>
 where
-    T: Outcome + Send,
+    T: Task + Send,
     F: FnOnce(&T::Output) + Send,
 {
     type Output = T::Output;
 
-    fn poll_outcome(&mut self, cx: &mut outcome::Context) -> PollOutcome<Self::Output> {
-        let item = try_poll_outcome!(self.outcome.poll_outcome(cx));
+    fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
+        let item = try_ready_task!(self.task.poll_task(cx));
         let f = self.f.take().expect("cannot resolve twice");
         cx.input().enter_scope(|| f(&item));
-        PollOutcome::Ready(item)
+        PollTask::Ready(item)
     }
 }

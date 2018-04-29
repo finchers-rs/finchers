@@ -7,6 +7,7 @@ use finchers::Endpoint;
 use finchers::output::Debug;
 
 fn endpoint() -> impl Endpoint<Output = Debug> + Send + Sync + 'static {
+    use finchers::Never;
     use finchers::endpoint::abort;
     use finchers::endpoint::prelude::*;
     use finchers::endpoint::query::{from_csv, query, Form};
@@ -27,7 +28,7 @@ fn endpoint() -> impl Endpoint<Output = Debug> + Send + Sync + 'static {
         // Parse the message body when POST request.
         post(data()).map(Form::into_inner),
         // TODO: add an endpoint for reporting the param error.
-        abort(|_| BadRequest::new("Empty parameter")),
+        abort(|_| BadRequest::new("Empty parameter")).map(Never::never_into),
     ]
     // annotate to the endpoint that the inner type is FormParam.
     .as_t::<FormParam>();

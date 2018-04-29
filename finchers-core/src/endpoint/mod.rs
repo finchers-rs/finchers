@@ -1,8 +1,8 @@
 mod context;
 
-use outcome::Outcome;
 use std::rc::Rc;
 use std::sync::Arc;
+use task::Task;
 
 // re-exports
 pub use self::context::{Context, Segment, Segments};
@@ -12,46 +12,46 @@ pub trait Endpoint {
     /// The inner type associated with this endpoint.
     type Output;
 
-    /// The type of asynchronous "Outcome" which will be returned from "apply".
-    type Outcome: Outcome<Output = Self::Output> + Send;
+    /// The type of value which will be returned from "Endpoint::apply".
+    type Task: Task<Output = Self::Output> + Send;
 
     /// Perform checking the incoming HTTP request and returns
     /// an instance of the associated task if matched.
-    fn apply(&self, cx: &mut Context) -> Option<Self::Outcome>;
+    fn apply(&self, cx: &mut Context) -> Option<Self::Task>;
 }
 
 impl<'a, E: Endpoint> Endpoint for &'a E {
     type Output = E::Output;
-    type Outcome = E::Outcome;
+    type Task = E::Task;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
         (*self).apply(cx)
     }
 }
 
 impl<E: Endpoint> Endpoint for Box<E> {
     type Output = E::Output;
-    type Outcome = E::Outcome;
+    type Task = E::Task;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
         (**self).apply(cx)
     }
 }
 
 impl<E: Endpoint> Endpoint for Rc<E> {
     type Output = E::Output;
-    type Outcome = E::Outcome;
+    type Task = E::Task;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
         (**self).apply(cx)
     }
 }
 
 impl<E: Endpoint> Endpoint for Arc<E> {
     type Output = E::Output;
-    type Outcome = E::Outcome;
+    type Task = E::Task;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
         (**self).apply(cx)
     }
 }

@@ -14,10 +14,10 @@ mod just;
 mod lazy;
 mod left;
 mod map;
+mod map_async;
 mod maybe_done;
 mod or;
 mod right;
-mod then;
 
 // re-exports
 pub use abort::{abort, Abort};
@@ -28,9 +28,9 @@ pub use just::{just, Just};
 pub use lazy::{lazy, Lazy};
 pub use left::Left;
 pub use map::Map;
+pub use map_async::MapAsync;
 pub use or::Or;
 pub use right::Right;
-pub use then::Then;
 
 #[doc(inline)]
 pub use option::EndpointOptionExt;
@@ -41,7 +41,7 @@ pub use result::EndpointResultExt;
 
 use common::assert_output;
 use finchers_core::endpoint::{Endpoint, IntoEndpoint};
-use finchers_core::outcome::IntoOutcome;
+use finchers_core::task::IntoTask;
 
 pub trait EndpointExt: Endpoint + Sized {
     /// Enforce that the associated type `Output` is equal to `T`.
@@ -116,16 +116,13 @@ pub trait EndpointExt: Endpoint + Sized {
 
     /// Create an endpoint which continue an asynchronous computation
     /// from the value returned from "self".
-    ///
-    /// The future will abort if the future returned from "f" will be rejected with
-    /// an unrecoverable error.
-    fn then<F, R>(self, f: F) -> Then<Self, F>
+    fn map_async<F, T>(self, f: F) -> MapAsync<Self, F>
     where
-        F: FnOnce(Self::Output) -> R + Clone + Send,
-        R: IntoOutcome,
-        R::Outcome: Send,
+        F: FnOnce(Self::Output) -> T + Clone + Send,
+        T: IntoTask,
+        T::Task: Send,
     {
-        assert_output::<_, R::Output>(self::then::new(self, f))
+        assert_output::<_, T::Output>(self::map_async::new(self, f))
     }
 }
 

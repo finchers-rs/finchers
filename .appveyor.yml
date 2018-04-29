@@ -32,7 +32,6 @@ build: false
 test_script:
   - cargo clean
   - cargo test --all
-  - cargo test --all --all-features
-
-cache:
-  - C:\Users\appveyor\.cargo\registry
+  - if [%TOOLCHAIN%]==[nightly] (
+      cargo test -p finchers-core --features nightly
+    )

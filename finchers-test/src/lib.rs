@@ -8,7 +8,7 @@ use http::{HttpTryFrom, Method, Request, Uri};
 use std::mem;
 
 use finchers_core::input::RequestBody;
-use finchers_core::{apply, Apply, Endpoint, Error, Input, Never, Outcome};
+use finchers_core::{apply, Apply, Endpoint, Error, Input, Never, Task};
 
 #[derive(Debug)]
 pub struct Client<E: Endpoint> {
@@ -126,7 +126,7 @@ struct TestFuture<T> {
     input: Input,
 }
 
-impl<T: Outcome> Future for TestFuture<T> {
+impl<T: Task> Future for TestFuture<T> {
     type Item = Option<Result<T::Output, Error>>;
     type Error = Never;
 

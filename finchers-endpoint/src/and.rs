@@ -1,6 +1,6 @@
 use super::maybe_done::MaybeDone;
 use finchers_core::endpoint::{Context, Endpoint, IntoEndpoint};
-use finchers_core::outcome::{self, Outcome, PollOutcome};
+use finchers_core::task::{self, PollTask, Task};
 
 pub fn new<E1, E2>(e1: E1, e2: E2) -> And<E1::Endpoint, E2::Endpoint>
 where
@@ -29,37 +29,37 @@ where
     E2::Output: Send,
 {
     type Output = (E1::Output, E2::Output);
-    type Outcome = AndOutcome<E1::Outcome, E2::Outcome>;
+    type Task = AndTask<E1::Task, E2::Task>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
         let f1 = self.e1.apply(cx)?;
         let f2 = self.e2.apply(cx)?;
-        Some(AndOutcome {
+        Some(AndTask {
             f1: MaybeDone::Pending(f1),
             f2: MaybeDone::Pending(f2),
         })
     }
 }
 
-pub struct AndOutcome<F1: Outcome, F2: Outcome> {
+pub struct AndTask<F1: Task, F2: Task> {
     f1: MaybeDone<F1>,
     f2: MaybeDone<F2>,
 }
 
-impl<F1, F2> Outcome for AndOutcome<F1, F2>
+impl<F1, F2> Task for AndTask<F1, F2>
 where
-    F1: Outcome,
-    F2: Outcome,
+    F1: Task,
+    F2: Task,
 {
     type Output = (F1::Output, F2::Output);
 
-    fn poll_outcome(&mut self, cx: &mut outcome::Context) -> PollOutcome<Self::Output> {
+    fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
         let mut all_done = match self.f1.poll_done(cx) {
             Ok(done) => done,
             Err(e) => {
                 self.f1.erase();
                 self.f2.erase();
-                return PollOutcome::Abort(e);
+                return PollTask::Aborted(e);
             }
         };
         all_done = match self.f2.poll_done(cx) {
@@ -67,14 +67,14 @@ where
             Err(e) => {
                 self.f1.erase();
                 self.f2.erase();
-                return PollOutcome::Abort(e);
+                return PollTask::Aborted(e);
             }
         };
 
         if all_done {
-            PollOutcome::Ready((self.f1.take_item(), self.f2.take_item()))
+            PollTask::Ready((self.f1.take_item(), self.f2.take_item()))
         } else {
-            PollOutcome::Pending
+            PollTask::Pending
         }
     }
 }

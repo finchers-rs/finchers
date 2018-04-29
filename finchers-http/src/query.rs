@@ -11,7 +11,7 @@ use {mime, serde_qs};
 
 use body::FromData;
 use finchers_core::endpoint::{Context, Endpoint};
-use finchers_core::outcome;
+use finchers_core::task::{self, PollTask, Task};
 use finchers_core::{HttpError, Input};
 
 /// Create an endpoint which parse the query string in the HTTP request
@@ -68,14 +68,42 @@ impl<T> fmt::Debug for Query<T> {
 
 impl<T> Endpoint for Query<T>
 where
-    T: de::DeserializeOwned + Send,
+    T: de::DeserializeOwned,
 {
     type Output = T;
-    type Outcome = outcome::OutcomeResult<T, QueryError>;
+    type Task = QueryTask<T>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
-        let query = cx.input().request().uri().query()?;
-        Some(outcome::result(serde_qs::from_str(query).map_err(QueryError::Parsing)))
+    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
+        if cx.input().request().uri().query().is_some() {
+            Some(QueryTask { _marker: PhantomData })
+        } else {
+            None
+        }
+    }
+}
+
+#[doc(hidden)]
+#[derive(Debug)]
+pub struct QueryTask<T> {
+    _marker: PhantomData<fn() -> T>,
+}
+
+impl<T> Task for QueryTask<T>
+where
+    T: de::DeserializeOwned,
+{
+    type Output = T;
+
+    fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
+        let query = cx.input()
+            .request()
+            .uri()
+            .query()
+            .expect("The query string should be exist at this location");
+        match serde_qs::from_str(query) {
+            Ok(v) => PollTask::Ready(v),
+            Err(e) => PollTask::Aborted(QueryError::Parsing(e).into()),
+        }
     }
 }
 

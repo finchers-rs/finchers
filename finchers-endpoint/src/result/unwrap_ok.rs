@@ -1,6 +1,6 @@
 use finchers_core::HttpError;
 use finchers_core::endpoint::{Context, Endpoint};
-use finchers_core::outcome::{self, Outcome, PollOutcome};
+use finchers_core::task::{self, PollTask, Task};
 
 pub fn new<E, T, R>(endpoint: E) -> UnwrapOk<E>
 where
@@ -21,31 +21,31 @@ where
     R: HttpError,
 {
     type Output = T;
-    type Outcome = UnwrapOkOutcome<E::Outcome>;
+    type Task = UnwrapOkTask<E::Task>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Outcome> {
-        Some(UnwrapOkOutcome {
-            outcome: self.endpoint.apply(cx)?,
+    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
+        Some(UnwrapOkTask {
+            task: self.endpoint.apply(cx)?,
         })
     }
 }
 
 #[derive(Debug)]
-pub struct UnwrapOkOutcome<T> {
-    outcome: T,
+pub struct UnwrapOkTask<T> {
+    task: T,
 }
 
-impl<T, U, E> Outcome for UnwrapOkOutcome<T>
+impl<T, U, E> Task for UnwrapOkTask<T>
 where
-    T: Outcome<Output = Result<U, E>> + Send,
+    T: Task<Output = Result<U, E>> + Send,
     E: HttpError,
 {
     type Output = U;
 
-    fn poll_outcome(&mut self, cx: &mut outcome::Context) -> PollOutcome<Self::Output> {
-        match try_poll_outcome!(self.outcome.poll_outcome(cx)) {
-            Ok(item) => PollOutcome::Ready(item),
-            Err(err) => PollOutcome::Abort(Into::into(err)),
+    fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
+        match try_ready_task!(self.task.poll_task(cx)) {
+            Ok(item) => PollTask::Ready(item),
+            Err(err) => PollTask::Aborted(Into::into(err)),
         }
     }
 }
