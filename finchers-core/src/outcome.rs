@@ -16,6 +16,8 @@ use error::Error;
 use futures::{Async, Future, IntoFuture};
 use input::{Input, RequestBody};
 use std::marker::PhantomData;
+#[cfg(feature = "nightly")]
+use std::ops::Try;
 
 /// All variants which will be returned from "Outcome::poll_outcome".
 #[derive(Debug)]
@@ -35,6 +37,28 @@ where
             Ok(Async::NotReady) => PollOutcome::Pending,
             Err(e) => PollOutcome::Abort(Into::into(e)),
         }
+    }
+}
+
+#[cfg(feature = "nightly")]
+impl<T> Try for PollOutcome<T> {
+    type Ok = T;
+    type Error = Option<Error>;
+
+    fn into_result(self) -> Result<Self::Ok, Self::Error> {
+        match self {
+            PollOutcome::Ready(ready) => Ok(ready),
+            PollOutcome::Abort(error) => Err(Some(error)),
+            PollOutcome::Pending => Err(None),
+        }
+    }
+
+    fn from_ok(v: Self::Ok) -> Self {
+        PollOutcome::Ready(v)
+    }
+
+    fn from_error(v: Self::Error) -> Self {
+        v.map_or_else(|| PollOutcome::Pending, |e| PollOutcome::Abort(e))
     }
 }
 

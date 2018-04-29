@@ -1,3 +1,5 @@
+#![cfg_attr(feature = "nightly", feature(try_trait))]
+
 extern crate bytes;
 extern crate either;
 #[macro_use]

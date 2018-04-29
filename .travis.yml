@@ -28,7 +28,7 @@ matrix:
       script:
         - cargo clean
         - cargo test --all
-        - cargo test --all --all-features
+        - cargo test -p finchers-core --no-default-features
       after_success:
         - cargo fmt -- --write-mode=diff
         - bash <(curl https://raw.githubusercontent.com/xd009642/tarpaulin/master/travis-install.sh)
@@ -40,7 +40,8 @@ matrix:
       script:
         - cargo clean
         - cargo test --all
-        - cargo test --all --all-features
+        - cargo test -p finchers-core --no-default-features
+        - cargo test -p finchers-core --features "nightly"
       after_success:
         - cargo fmt -- --write-mode=diff
 
@@ -50,9 +51,10 @@ matrix:
         - cargo install mdbook --version "$MDBOOK_VERSION" || true
       script:
         - cargo clean
-        - cargo doc --all --all-features --no-deps
+        - cargo doc --all --no-deps
         - bash doc/generate.sh
         - cp -a target/doc doc-upload/api
+        - rm -f doc-upload/api/.lock
       deploy:
         provider: pages
         skip_cleanup: true
