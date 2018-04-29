@@ -24,6 +24,14 @@ pub trait HttpError: fmt::Debug + fmt::Display + Send + 'static {
     fn to_response(&self, input: &Input) -> Option<Response<Body>> {
         None
     }
+
+    /// Consume itself and create an "Error"
+    fn into_error(self) -> Error
+    where
+        Self: Sized,
+    {
+        Error::from(self)
+    }
 }
 
 impl<L, R> HttpError for Either<L, R>

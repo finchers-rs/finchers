@@ -6,8 +6,9 @@ use http::StatusCode;
 use http::header::{self, HeaderValue};
 use http::{Request, Response};
 use std::sync::Arc;
-use std::{error, fmt, io};
+use std::{fmt, io};
 
+use finchers_core::error::ServerError;
 use finchers_core::input::RequestBody;
 use finchers_core::output::{Body, Responder};
 use finchers_core::{apply, Apply, Endpoint, HttpError, Input, Outcome};
@@ -112,8 +113,8 @@ where
             NotReady => return Ok(NotReady),
             Ready(Some(Ok(output))) => output
                 .respond(&self.input)
-                .unwrap_or_else(|err| self.handle_error(&err)),
-            Ready(Some(Err(err))) => self.handle_error(&*err),
+                .unwrap_or_else(|err| self.handle_error(&ServerError::from_fail(err))),
+            Ready(Some(Err(err))) => self.handle_error(&*err.http_error()),
             Ready(None) => self.handle_error(&NoRoute),
         };
 
@@ -134,12 +135,6 @@ struct NoRoute;
 impl fmt::Display for NoRoute {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str("no route")
-    }
-}
-
-impl error::Error for NoRoute {
-    fn description(&self) -> &str {
-        "no route"
     }
 }
 

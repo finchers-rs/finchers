@@ -1,14 +1,15 @@
-use bytes::Bytes;
-use either::Either;
-use error::HttpError;
-use http::header::HeaderValue;
-use http::{header, Response};
-use input::Input;
-use never::Never;
 use std::borrow::Cow;
 use std::fmt;
 
+use bytes::Bytes;
+use either::Either;
+use failure::Error;
+use http::header::HeaderValue;
+use http::{header, Response};
+
 use super::body::Body;
+use input::Input;
+use never::Never;
 
 pub type Output = Response<Body>;
 
@@ -17,7 +18,7 @@ const TEXT_PLAIN: &str = "text/plain; charset=utf-8";
 /// Trait representing the conversion to an HTTP response.
 pub trait Responder {
     /// The error type returned from "respond".
-    type Error: HttpError;
+    type Error: Into<Error>;
 
     /// Create an HTTP response from the value of "Self".
     fn respond(self, input: &Input) -> Result<Output, Self::Error>;
@@ -65,15 +66,12 @@ impl Responder for Cow<'static, str> {
 impl<T, E> Responder for Result<T, E>
 where
     T: Responder,
-    E: Responder,
+    E: Into<Error>,
 {
-    type Error = Either<T::Error, E::Error>;
+    type Error = Error;
 
     fn respond(self, input: &Input) -> Result<Output, Self::Error> {
-        match self {
-            Ok(ok) => ok.respond(input).map_err(Either::Left),
-            Err(e) => e.respond(input).map_err(Either::Right),
-        }
+        self.map_err(Into::<Error>::into)?.respond(input).map_err(Into::into)
     }
 }
 
@@ -82,12 +80,12 @@ where
     L: Responder,
     R: Responder,
 {
-    type Error = Either<L::Error, R::Error>;
+    type Error = Error;
 
     fn respond(self, input: &Input) -> Result<Output, Self::Error> {
         match self {
-            Either::Left(l) => l.respond(input).map_err(Either::Left),
-            Either::Right(r) => r.respond(input).map_err(Either::Right),
+            Either::Left(l) => l.respond(input).map_err(Into::into),
+            Either::Right(r) => r.respond(input).map_err(Into::into),
         }
     }
 }
