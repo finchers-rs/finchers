@@ -6,6 +6,7 @@ extern crate http;
 extern crate mime;
 #[macro_use]
 extern crate scoped_tls;
+extern crate failure;
 
 #[cfg(feature = "from_hyper")]
 extern crate hyper;

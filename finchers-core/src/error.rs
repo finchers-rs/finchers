@@ -1,18 +1,21 @@
+use std::borrow::Cow;
+use std::fmt;
+use std::ops::Deref;
+
 use either::Either;
+use failure::{self, Fail};
 use http::{Response, StatusCode};
+
 use input::Input;
 use output::Body;
-use std::borrow::Cow;
-use std::ops::Deref;
-use std::{error, fmt};
 
 /// Trait representing error values from endpoints.
 pub trait HttpError: fmt::Debug + fmt::Display + Send + 'static {
     /// Return the HTTP status code associated with this error type.
     fn status_code(&self) -> StatusCode;
 
-    /// Return the "Error" representation.
-    fn as_error(&self) -> Option<&error::Error> {
+    /// Return the "Fail" representation.
+    fn as_fail(&self) -> Option<&Fail> {
         None
     }
 
@@ -35,10 +38,10 @@ where
         }
     }
 
-    fn as_error(&self) -> Option<&error::Error> {
+    fn as_fail(&self) -> Option<&Fail> {
         match *self {
-            Either::Left(ref e) => e.as_error(),
-            Either::Right(ref e) => e.as_error(),
+            Either::Left(ref e) => e.as_fail(),
+            Either::Right(ref e) => e.as_fail(),
         }
     }
 
@@ -52,15 +55,12 @@ where
 
 /// An HTTP error which represents "400 Bad Request".
 pub struct BadRequest {
-    inner: Either<Cow<'static, str>, Box<error::Error + Send + 'static>>,
+    inner: Either<Cow<'static, str>, failure::Error>,
 }
 
-impl<E> From<E> for BadRequest
-where
-    E: error::Error + Send + 'static,
-{
-    fn from(err: E) -> Self {
-        BadRequest::from_error(err)
+impl<E: Into<failure::Error>> From<E> for BadRequest {
+    fn from(fail: E) -> Self {
+        BadRequest::from_fail(fail)
     }
 }
 
@@ -74,12 +74,12 @@ impl BadRequest {
         }
     }
 
-    pub fn from_error<E>(cause: E) -> BadRequest
+    pub fn from_fail<E>(fail: E) -> BadRequest
     where
-        E: error::Error + Send + 'static,
+        E: Into<failure::Error>,
     {
         BadRequest {
-            inner: Either::Right(Box::new(cause)),
+            inner: Either::Right(Into::into(fail)),
         }
     }
 }
@@ -107,22 +107,19 @@ impl HttpError for BadRequest {
         StatusCode::BAD_REQUEST
     }
 
-    fn as_error(&self) -> Option<&error::Error> {
-        self.inner.as_ref().right().map(|e| &**e as &error::Error)
+    fn as_fail(&self) -> Option<&Fail> {
+        self.inner.as_ref().right().map(failure::Error::cause)
     }
 }
 
 /// An HTTP error which represents "500 Internal Server Error"
 pub struct ServerError {
-    inner: Either<Cow<'static, str>, Box<error::Error + Send + 'static>>,
+    inner: Either<Cow<'static, str>, failure::Error>,
 }
 
-impl<E> From<E> for ServerError
-where
-    E: error::Error + Send + 'static,
-{
-    fn from(err: E) -> Self {
-        ServerError::from_error(err)
+impl<E: Into<failure::Error>> From<E> for ServerError {
+    fn from(fail: E) -> Self {
+        ServerError::from_fail(fail)
     }
 }
 
@@ -136,12 +133,12 @@ impl ServerError {
         }
     }
 
-    pub fn from_error<E>(cause: E) -> ServerError
+    pub fn from_fail<E>(fail: E) -> ServerError
     where
-        E: error::Error + Send + 'static,
+        E: Into<failure::Error>,
     {
         ServerError {
-            inner: Either::Right(Box::new(cause)),
+            inner: Either::Right(Into::into(fail)),
         }
     }
 }
@@ -169,8 +166,8 @@ impl HttpError for ServerError {
         StatusCode::INTERNAL_SERVER_ERROR
     }
 
-    fn as_error(&self) -> Option<&error::Error> {
-        self.inner.as_ref().right().map(|e| &**e as &error::Error)
+    fn as_fail(&self) -> Option<&Fail> {
+        self.inner.as_ref().right().map(failure::Error::cause)
     }
 }
 
