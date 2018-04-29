@@ -7,8 +7,8 @@ use finchers_endpoint::{just, EndpointExt};
 use finchers_test::Client;
 
 #[test]
-fn test_then_1() {
-    let endpoint = just(()).then(|_| Err(NotPresent::new("an error")) as Result<(), _>);
+fn test_map_async_1() {
+    let endpoint = just(()).map_async(|_| Err(NotPresent::new("an error")) as Result<(), _>);
     let client = Client::new(endpoint);
 
     let outcome = client.get("/").run();
@@ -16,8 +16,8 @@ fn test_then_1() {
 }
 
 #[test]
-fn test_then_2() {
-    let endpoint = just(()).then(|_| Ok(()) as Result<_, NotPresent>);
+fn test_map_async_2() {
+    let endpoint = just(()).map_async(|_| Ok(()) as Result<_, NotPresent>);
     let client = Client::new(endpoint);
 
     let outcome = client.get("/").run();
