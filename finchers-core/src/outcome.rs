@@ -144,12 +144,8 @@ pub trait IntoOutcome {
 }
 
 // FIXME: replace the trait bound with `core::ops::Async`
-impl<F> IntoOutcome for F
-where
-    F: IntoFuture,
-    F::Error: Into<Error>,
-{
-    type Output = F::Item;
+impl<F: IntoFuture> IntoOutcome for F {
+    type Output = Result<F::Item, F::Error>;
     type Outcome = OutcomeFuture<F::Future>;
 
     #[inline(always)]
@@ -162,71 +158,28 @@ where
 #[derive(Debug)]
 pub struct OutcomeFuture<F>(F);
 
-impl<F> From<F> for OutcomeFuture<F>
-where
-    F: Future,
-    F::Error: Into<Error>,
-{
+impl<F: Future> From<F> for OutcomeFuture<F> {
     fn from(fut: F) -> Self {
         OutcomeFuture(fut)
     }
 }
 
-impl<F> Outcome for OutcomeFuture<F>
-where
-    F: Future,
-    F::Error: Into<Error>,
-{
-    type Output = F::Item;
+impl<F: Future> Outcome for OutcomeFuture<F> {
+    type Output = Result<F::Item, F::Error>;
 
     #[inline(always)]
     fn poll_outcome(&mut self, _: &mut Context) -> PollOutcome<Self::Output> {
-        Into::into(Future::poll(&mut self.0))
-    }
-}
-
-/// Create an outcome from a "Future".
-pub fn future<F>(future: F) -> OutcomeFuture<F::Future>
-where
-    F: IntoFuture,
-    F::Error: Into<Error>,
-{
-    OutcomeFuture::from(IntoFuture::into_future(future))
-}
-
-#[derive(Debug)]
-pub struct OutcomeResult<T, E>(Option<Result<T, E>>);
-
-impl<T, E> From<Result<T, E>> for OutcomeResult<T, E>
-where
-    E: Into<Error>,
-{
-    fn from(res: Result<T, E>) -> Self {
-        OutcomeResult(Some(res))
-    }
-}
-
-impl<T, E> Outcome for OutcomeResult<T, E>
-where
-    E: Into<Error>,
-{
-    type Output = T;
-
-    fn poll_outcome(&mut self, _: &mut Context) -> PollOutcome<Self::Output> {
-        let res = self.0.take().expect("The outcome cannot resolve/reject twice");
-        match res {
-            Ok(ok) => PollOutcome::Ready(ok),
-            Err(e) => PollOutcome::Abort(Into::into(e)),
+        match Future::poll(&mut self.0) {
+            Ok(Async::Ready(ready)) => PollOutcome::Ready(Ok(ready)),
+            Ok(Async::NotReady) => PollOutcome::Pending,
+            Err(err) => PollOutcome::Ready(Err(err)),
         }
     }
 }
 
-/// Create an outcome from a value of "Result".
-pub fn result<T, E>(res: Result<T, E>) -> OutcomeResult<T, E>
-where
-    E: Into<Error>,
-{
-    OutcomeResult::from(res)
+/// Create an outcome from a "Future".
+pub fn future<F: IntoFuture>(future: F) -> OutcomeFuture<F::Future> {
+    OutcomeFuture::from(IntoFuture::into_future(future))
 }
 
 #[derive(Debug)]

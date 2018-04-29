@@ -19,20 +19,29 @@ pub enum Response {
 }
 
 pub fn build_endpoint(app: &Application) -> impl Endpoint<Output = Json<Response>> + Send + Sync + 'static {
-    let find_todo = get(param()).then(app.with(|app, id| app.find_todo(id))).map(TheTodo);
+    let find_todo = get(param())
+        .then(app.with(|app, id| app.find_todo(id)))
+        .unwrap_ok()
+        .map(TheTodo);
 
-    let list_todos = get(just(())).then(app.with(|app, _| app.list_todos())).map(Todos);
+    let list_todos = get(just(()))
+        .then(app.with(|app, _| app.list_todos()))
+        .unwrap_ok()
+        .map(Todos);
 
     let add_todo = post(data())
         .then(app.with(|app, Json(new_todo)| app.add_todo(new_todo)))
+        .unwrap_ok()
         .map(NewTodo);
 
     let patch_todo = patch(param().and(data()))
         .then(app.with(|app, (id, Json(patch))| app.patch_todo(id, patch)))
+        .unwrap_ok()
         .map(TheTodo);
 
     let delete_todo = delete(param())
         .then(app.with(|app, id| app.delete_todo(id)))
+        .unwrap_ok()
         .map(|_| Deleted);
 
     path("api/v1/todos")
