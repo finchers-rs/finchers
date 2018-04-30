@@ -7,8 +7,9 @@ use http::header::{HeaderName, HeaderValue};
 use http::{HttpTryFrom, Method, Request, Uri};
 use std::mem;
 
+use finchers_core::endpoint::ApplyRequest;
 use finchers_core::input::RequestBody;
-use finchers_core::{apply, Apply, Endpoint, Error, Input, Never, Task};
+use finchers_core::{Endpoint, Error, Input, Never, Task};
 
 #[derive(Debug)]
 pub struct Client<E: Endpoint> {
@@ -113,7 +114,7 @@ impl<'a, E: Endpoint> ClientRequest<'a, E> {
         let input = Input::new(request);
         let body = body.unwrap_or_else(RequestBody::empty);
 
-        let apply = apply(&client.endpoint, &input, body);
+        let apply = client.endpoint.apply_request(&input, body);
         let task = TestFuture { apply, input };
 
         // TODO: replace with futures::executor
@@ -122,7 +123,7 @@ impl<'a, E: Endpoint> ClientRequest<'a, E> {
 }
 
 struct TestFuture<T> {
-    apply: Apply<T>,
+    apply: ApplyRequest<T>,
     input: Input,
 }
 
@@ -131,6 +132,6 @@ impl<T: Task> Future for TestFuture<T> {
     type Error = Never;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        Ok(self.apply.poll_ready(&self.input))
+        Ok(self.apply.poll_ready(&self.input).into())
     }
 }

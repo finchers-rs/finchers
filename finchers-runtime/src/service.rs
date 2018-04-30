@@ -8,10 +8,11 @@ use http::{Request, Response};
 use std::sync::Arc;
 use std::{fmt, io};
 
+use finchers_core::endpoint::{ApplyRequest, PollReady};
 use finchers_core::error::ServerError;
 use finchers_core::input::RequestBody;
 use finchers_core::output::{Body, Responder};
-use finchers_core::{apply, Apply, Endpoint, HttpError, Input, Task};
+use finchers_core::{Endpoint, HttpError, Input, Task};
 
 #[allow(missing_docs)]
 pub trait HttpService {
@@ -77,7 +78,7 @@ where
     fn call(&self, request: Request<Self::RequestBody>) -> Self::Future {
         let (parts, body) = request.into_parts();
         let input = Input::new(Request::from_parts(parts, ()));
-        let apply = apply(&self.endpoint, &input, body);
+        let apply = self.endpoint.apply_request(&input, body);
 
         EndpointServiceFuture {
             apply,
@@ -89,7 +90,7 @@ where
 
 #[allow(missing_debug_implementations)]
 pub struct EndpointServiceFuture<T> {
-    apply: Apply<T>,
+    apply: ApplyRequest<T>,
     input: Input,
     error_handler: ErrorHandler,
 }
@@ -110,12 +111,12 @@ where
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         let mut response = match self.apply.poll_ready(&self.input) {
-            NotReady => return Ok(NotReady),
-            Ready(Some(Ok(output))) => output
+            PollReady::Pending => return Ok(NotReady),
+            PollReady::Ready(Some(Ok(output))) => output
                 .respond(&self.input)
                 .unwrap_or_else(|err| self.handle_error(&ServerError::from_fail(err))),
-            Ready(Some(Err(err))) => self.handle_error(&*err.http_error()),
-            Ready(None) => self.handle_error(&NoRoute),
+            PollReady::Ready(Some(Err(err))) => self.handle_error(&*err.http_error()),
+            PollReady::Ready(None) => self.handle_error(&NoRoute),
         };
 
         if !response.headers().contains_key(header::SERVER) {
