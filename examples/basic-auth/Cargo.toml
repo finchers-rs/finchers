@@ -11,3 +11,4 @@ doc = false
 [dependencies]
 finchers = { path = "../.." }
 base64 = "0.9"
+http = "0.1.5"

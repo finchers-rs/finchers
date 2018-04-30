@@ -4,6 +4,7 @@ extern crate error_chain;
 extern crate finchers;
 #[macro_use]
 extern crate serde;
+extern crate http;
 
 mod api;
 mod app;

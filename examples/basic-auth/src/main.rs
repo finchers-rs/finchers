@@ -1,10 +1,11 @@
 extern crate base64;
 extern crate finchers;
+extern crate http;
 
 mod basic_auth;
 
 use basic_auth::{basic_auth, BasicAuth};
-use finchers::EndpointExt;
+use finchers::endpoint::EndpointExt;
 
 fn main() {
     let endpoint = basic_auth()

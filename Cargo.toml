@@ -38,6 +38,5 @@ finchers-http = { version = "0.11.0-dev", path = "finchers-http" }
 finchers-runtime = { version = "0.11.0-dev", path = "finchers-runtime" }
 finchers-test = { version = "0.11.0-dev", path = "finchers-test" }
 
-mime = "0.3"
+[dev-dependencies]
 http = "0.1"
-futures = "0.1"

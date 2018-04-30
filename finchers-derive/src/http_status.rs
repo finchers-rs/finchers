@@ -280,8 +280,9 @@ impl ToTokens for Context {
             #[allow(non_snake_case)]
             mod #dummy_mod {
                 extern crate finchers as _finchers;
-                use self::_finchers::http::StatusCode;
+                extern crate http as _http;
                 use self::_finchers::output::HttpStatus;
+                use self::_http::StatusCode;
 
                 impl #impl_generics HttpStatus for #ident #ty_generics #where_clause {
                     fn status_code(&self) -> StatusCode {
