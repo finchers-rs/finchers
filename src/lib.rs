@@ -56,10 +56,6 @@ extern crate finchers_endpoint;
 extern crate finchers_http;
 extern crate finchers_runtime;
 
-pub extern crate futures;
-pub extern crate http;
-pub extern crate mime;
-
 #[doc(hidden)]
 pub use finchers_derive::*;
 
@@ -97,10 +93,8 @@ pub mod runtime {
 }
 
 pub use finchers_core::{Endpoint, HttpError, Input, Never, Output, Responder};
-pub use finchers_endpoint::{EndpointExt, EndpointResultExt};
 pub use finchers_http::json::Json;
+pub use finchers_runtime::run;
 
 #[macro_use]
 mod macros;
-
-pub use finchers_runtime::run;

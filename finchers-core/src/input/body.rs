@@ -2,7 +2,7 @@ use super::{Error, ErrorKind};
 use bytes::{BufMut, Bytes, BytesMut};
 use futures::Async::*;
 use futures::{Future, Poll, Stream};
-#[cfg(feature = "from_hyper")]
+#[cfg(feature = "hyper")]
 use hyper;
 use std::ops::Deref;
 use std::{fmt, mem};
@@ -48,7 +48,7 @@ pub struct RequestBody {
 enum RequestBodyKind {
     Empty,
     Once(Option<Bytes>),
-    #[cfg(feature = "from_hyper")]
+    #[cfg(feature = "hyper")]
     Hyper(hyper::Body),
 }
 
@@ -58,7 +58,7 @@ impl fmt::Debug for RequestBody {
         match self.kind {
             Empty => f.debug_tuple("Empty").finish(),
             Once(..) => f.debug_tuple("Once").finish(),
-            #[cfg(feature = "from_hyper")]
+            #[cfg(feature = "hyper")]
             Hyper(..) => f.debug_tuple("Hyper").finish(),
         }
     }
@@ -80,7 +80,7 @@ impl RequestBody {
         }
     }
 
-    #[cfg(feature = "from_hyper")]
+    #[cfg(feature = "hyper")]
     pub fn from_hyp(body: hyper::Body) -> RequestBody {
         RequestBody {
             kind: RequestBodyKind::Hyper(body),
@@ -102,7 +102,7 @@ impl Stream for RequestBody {
         match self.kind {
             Empty => Ok(Ready(None)),
             Once(ref mut chunk) => Ok(Ready(chunk.take().map(Chunk::new))),
-            #[cfg(feature = "from_hyper")]
+            #[cfg(feature = "hyper")]
             Hyper(ref mut body) => body.poll()
                 .map(|async| async.map(|c| c.map(Chunk::from_hyp)))
                 .map_err(|err| ErrorKind::Hyper(err).into()),
@@ -116,8 +116,8 @@ pub struct Chunk(ChunkType);
 #[derive(Debug)]
 enum ChunkType {
     Shared(Bytes),
-    #[cfg(feature = "from_hyper")]
-    Hyper(::hyper::Chunk),
+    #[cfg(feature = "hyper")]
+    Hyper(hyper::Chunk),
 }
 
 impl Chunk {
@@ -128,7 +128,7 @@ impl Chunk {
         Chunk(ChunkType::Shared(chunk.into()))
     }
 
-    #[cfg(feature = "from_hyper")]
+    #[cfg(feature = "hyper")]
     pub fn from_hyp(chunk: hyper::Chunk) -> Chunk {
         Chunk(ChunkType::Hyper(chunk))
     }
@@ -138,7 +138,7 @@ impl AsRef<[u8]> for Chunk {
     fn as_ref(&self) -> &[u8] {
         match self.0 {
             ChunkType::Shared(ref b) => b.as_ref(),
-            #[cfg(feature = "from_hyper")]
+            #[cfg(feature = "hyper")]
             ChunkType::Hyper(ref c) => c.as_ref(),
         }
     }

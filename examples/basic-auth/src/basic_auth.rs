@@ -1,8 +1,8 @@
 use base64::decode;
 use finchers::endpoint::header::FromHeader;
-use finchers::http::{Response, StatusCode};
 use finchers::output::Body;
 use finchers::{Endpoint, HttpError, Input};
+use http::{Response, StatusCode};
 use std::{error, fmt};
 
 pub fn basic_auth() -> impl Endpoint<Output = BasicAuth> + Send + Sync + 'static {

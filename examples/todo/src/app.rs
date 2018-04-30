@@ -1,6 +1,6 @@
 use super::db::{self, NewTodo, PatchTodo, Todo, TodoRepository};
 use finchers::error::HttpError;
-use finchers::http::StatusCode;
+use http::StatusCode;
 
 error_chain! {
     errors {

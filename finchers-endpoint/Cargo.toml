@@ -10,7 +10,3 @@ finchers-core = { version = "0.11.0-dev", path = "../finchers-core", default-fea
 [dev-dependencies]
 finchers-http = { version = "0.11.0-dev", path = "../finchers-http" }
 finchers-test = { version = "0.11.0-dev", path = "../finchers-test" }
-
-[features]
-default = ["from_hyper"]
-from_hyper = ["finchers-core/from_hyper"]
