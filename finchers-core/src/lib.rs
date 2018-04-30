@@ -21,13 +21,11 @@ pub mod error;
 pub mod input;
 pub mod output;
 
-mod apply;
 mod never;
 mod option;
 mod result;
 
 // re-exports
-pub use apply::{apply, Apply};
 pub use endpoint::Endpoint;
 pub use error::{Error, HttpError};
 pub use input::Input;
