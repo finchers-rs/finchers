@@ -10,7 +10,11 @@ futures = "0.1"
 bytes = "0.4"
 scoped-tls = "0.1.1"
 either = "1.5.0"
-hyper = { version = "0.11.24", default-features = false, optional = true }
+
+[dependencies.hyper]
+version = "0.11.24"
+default-features = false
+optional = true
 
 [dependencies.failure]
 version = "0.1"
@@ -18,6 +22,5 @@ default-features = false
 features = ["std"]
 
 [features]
-default = ["from_hyper"]
-from_hyper = ["hyper"]
+default = ["hyper"]
 nightly = []

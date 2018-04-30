@@ -1,7 +1,7 @@
 use error::HttpError;
 use http;
 use http::StatusCode;
-#[cfg(feature = "from_hyper")]
+#[cfg(feature = "hyper")]
 use hyper;
 use mime;
 use std::{error, fmt, io};
@@ -28,7 +28,7 @@ pub enum ErrorKind {
     DecodeHeaderToStr(http::header::ToStrError),
     ParseMediaType(mime::FromStrError),
     Io(io::Error),
-    #[cfg(feature = "from_hyper")]
+    #[cfg(feature = "hyper")]
     Hyper(hyper::Error),
 }
 
@@ -38,7 +38,7 @@ impl fmt::Display for Error {
             ErrorKind::DecodeHeaderToStr(ref e) => fmt::Display::fmt(e, f),
             ErrorKind::ParseMediaType(ref e) => fmt::Display::fmt(e, f),
             ErrorKind::Io(ref e) => fmt::Display::fmt(e, f),
-            #[cfg(feature = "from_hyper")]
+            #[cfg(feature = "hyper")]
             ErrorKind::Hyper(ref e) => fmt::Display::fmt(e, f),
         }
     }
@@ -50,7 +50,7 @@ impl error::Error for Error {
             ErrorKind::DecodeHeaderToStr(ref e) => e.description(),
             ErrorKind::ParseMediaType(ref e) => e.description(),
             ErrorKind::Io(ref e) => e.description(),
-            #[cfg(feature = "from_hyper")]
+            #[cfg(feature = "hyper")]
             ErrorKind::Hyper(ref e) => e.description(),
         }
     }
@@ -60,7 +60,7 @@ impl error::Error for Error {
             ErrorKind::DecodeHeaderToStr(ref e) => e.cause(),
             ErrorKind::ParseMediaType(ref e) => e.cause(),
             ErrorKind::Io(ref e) => e.cause(),
-            #[cfg(feature = "from_hyper")]
+            #[cfg(feature = "hyper")]
             ErrorKind::Hyper(ref e) => e.cause(),
         }
     }

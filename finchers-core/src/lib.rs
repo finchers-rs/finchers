@@ -10,7 +10,7 @@ extern crate mime;
 #[macro_use]
 extern crate scoped_tls;
 
-#[cfg(feature = "from_hyper")]
+#[cfg(feature = "hyper")]
 extern crate hyper;
 
 pub mod endpoint;
