@@ -19,7 +19,7 @@ optional = true
 [dependencies.failure]
 version = "0.1"
 default-features = false
-features = ["std"]
+features = ["std", "derive"]
 
 [features]
 default = ["hyper"]

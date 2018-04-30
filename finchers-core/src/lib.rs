@@ -2,6 +2,7 @@
 
 extern crate bytes;
 extern crate either;
+#[macro_use]
 extern crate failure;
 #[macro_use]
 extern crate futures;

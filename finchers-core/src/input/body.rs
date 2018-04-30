@@ -1,7 +1,8 @@
-use super::{Error, ErrorKind};
 use bytes::{BufMut, Bytes, BytesMut};
+use error::HttpError;
 use futures::Async::*;
 use futures::{Future, Poll, Stream};
+use http::StatusCode;
 #[cfg(feature = "hyper")]
 use hyper;
 use std::ops::Deref;
@@ -19,7 +20,7 @@ enum DataState {
 
 impl Future for Data {
     type Item = Bytes;
-    type Error = Error;
+    type Error = BodyError;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         use self::DataState::*;
@@ -95,7 +96,7 @@ impl RequestBody {
 
 impl Stream for RequestBody {
     type Item = Chunk;
-    type Error = Error;
+    type Error = BodyError;
 
     fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
         use self::RequestBodyKind::*;
@@ -105,7 +106,7 @@ impl Stream for RequestBody {
             #[cfg(feature = "hyper")]
             Hyper(ref mut body) => body.poll()
                 .map(|async| async.map(|c| c.map(Chunk::from_hyp)))
-                .map_err(|err| ErrorKind::Hyper(err).into()),
+                .map_err(|err| BodyError::Hyper(err)),
         }
     }
 }
@@ -149,5 +150,18 @@ impl Deref for Chunk {
 
     fn deref(&self) -> &Self::Target {
         self.as_ref()
+    }
+}
+
+#[derive(Debug, Fail)]
+pub enum BodyError {
+    #[cfg(feature = "hyper")]
+    #[fail(display = "during receiving the chunk")]
+    Hyper(hyper::Error),
+}
+
+impl HttpError for BodyError {
+    fn status_code(&self) -> StatusCode {
+        StatusCode::INTERNAL_SERVER_ERROR
     }
 }
