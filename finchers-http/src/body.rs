@@ -1,7 +1,6 @@
 //! Components for parsing an HTTP request body.
 
 use bytes::Bytes;
-use futures::Future;
 use std::marker::PhantomData;
 use std::ops::Deref;
 use std::{fmt, mem, str};
@@ -177,7 +176,10 @@ where
                     DataTask::Recv(body.into_data())
                 }
                 DataTask::Recv(ref mut body) => {
-                    let buf = try_ready_task!(body.poll());
+                    let buf = match try_ready_task!(body.poll_ready()) {
+                        Ok(buf) => buf,
+                        Err(err) => return PollTask::Aborted(Into::into(err)),
+                    };
                     let body = match T::from_data(buf, cx.input()) {
                         Ok(body) => body,
                         Err(e) => return PollTask::Aborted(Into::into(e)),
