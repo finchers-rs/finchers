@@ -4,7 +4,6 @@ extern crate bytes;
 extern crate either;
 #[macro_use]
 extern crate failure;
-#[macro_use]
 extern crate futures;
 extern crate http;
 extern crate mime;
@@ -14,11 +13,13 @@ extern crate scoped_tls;
 #[cfg(feature = "hyper")]
 extern crate hyper;
 
+#[macro_use]
+pub mod task;
+
 pub mod endpoint;
 pub mod error;
 pub mod input;
 pub mod output;
-pub mod task;
 
 mod apply;
 mod never;
