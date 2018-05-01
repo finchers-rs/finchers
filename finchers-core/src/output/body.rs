@@ -1,9 +1,9 @@
 use bytes::Bytes;
 use futures::Async::*;
 use futures::{Poll, Stream};
-use std::io;
+use std::{fmt, io};
 
-pub struct Body {
+pub struct ResponseBody {
     inner: Inner,
 }
 
@@ -13,23 +13,33 @@ enum Inner {
     Stream(Box<Stream<Item = Bytes, Error = io::Error> + Send>),
 }
 
-impl Default for Body {
-    fn default() -> Body {
-        Body::empty()
+impl fmt::Debug for ResponseBody {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self.inner {
+            Inner::Empty => f.debug_tuple("Empty").finish(),
+            Inner::Once(ref bytes) => f.debug_tuple("Once").field(bytes).finish(),
+            Inner::Stream(..) => f.debug_tuple("Stream").finish(),
+        }
     }
 }
 
-impl From<()> for Body {
-    fn from(_: ()) -> Body {
-        Body::empty()
+impl Default for ResponseBody {
+    fn default() -> ResponseBody {
+        ResponseBody::empty()
+    }
+}
+
+impl From<()> for ResponseBody {
+    fn from(_: ()) -> ResponseBody {
+        ResponseBody::empty()
     }
 }
 
 macro_rules! impl_from_once {
     ($($t:ty),*) => {$(
-        impl From<$t> for Body {
-            fn from(body: $t) -> Body {
-                Body::once(body)
+        impl From<$t> for ResponseBody {
+            fn from(body: $t) -> ResponseBody {
+                ResponseBody::once(body)
             }
         }
     )*};
@@ -37,25 +47,25 @@ macro_rules! impl_from_once {
 
 impl_from_once!(&'static str, String, &'static [u8], Vec<u8>, Bytes);
 
-impl Body {
-    pub fn empty() -> Body {
-        Body { inner: Inner::Empty }
+impl ResponseBody {
+    pub fn empty() -> ResponseBody {
+        ResponseBody { inner: Inner::Empty }
     }
 
-    pub fn once<T>(body: T) -> Body
+    pub fn once<T>(body: T) -> ResponseBody
     where
         T: Into<Bytes>,
     {
-        Body {
+        ResponseBody {
             inner: Inner::Once(Some(body.into())),
         }
     }
 
-    pub fn wrap_stream<T>(stream: T) -> Body
+    pub fn wrap_stream<T>(stream: T) -> ResponseBody
     where
         T: Stream<Item = Bytes, Error = io::Error> + Send + 'static,
     {
-        Body {
+        ResponseBody {
             inner: Inner::Stream(Box::new(stream)),
         }
     }
@@ -69,7 +79,7 @@ impl Body {
     }
 }
 
-impl Stream for Body {
+impl Stream for ResponseBody {
     type Item = Bytes;
     type Error = io::Error;
 

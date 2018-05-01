@@ -11,7 +11,7 @@ use {mime, serde_json};
 
 use body::FromData;
 use finchers_core::error::HttpError;
-use finchers_core::output::{Body, HttpStatus, Responder};
+use finchers_core::output::{HttpStatus, Responder, ResponseBody};
 use finchers_core::{Input, Output};
 
 /// A wrapper struct representing a statically typed JSON value.
@@ -70,7 +70,7 @@ where
         let body = serde_json::to_vec(&self.0).map_err(Error::Serialize)?;
         let body_len = body.len().to_string();
 
-        let mut response = Response::new(Body::once(body));
+        let mut response = Response::new(ResponseBody::once(body));
         *response.status_mut() = self.0.status_code();
         response
             .headers_mut()
@@ -110,7 +110,7 @@ impl Responder for JsonValue {
         let body = self.value.to_string();
         let body_len = body.len().to_string();
 
-        let mut response = Response::new(Body::once(body));
+        let mut response = Response::new(ResponseBody::once(body));
         *response.status_mut() = self.status;
         response
             .headers_mut()

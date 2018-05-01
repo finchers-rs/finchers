@@ -1,7 +1,7 @@
 use error::HttpError;
 use http::{Response, StatusCode};
 use input::Input;
-use output::Body;
+use output::ResponseBody;
 use std::{error, fmt};
 
 #[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Ord, Eq)]
@@ -34,7 +34,7 @@ impl HttpError for Never {
         match *self {}
     }
 
-    fn to_response(&self, _: &Input) -> Option<Response<Body>> {
+    fn to_response(&self, _: &Input) -> Option<Response<ResponseBody>> {
         match *self {}
     }
 }

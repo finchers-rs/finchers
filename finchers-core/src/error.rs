@@ -7,7 +7,7 @@ use failure::{self, Fail};
 use http::{Response, StatusCode};
 
 use input::Input;
-use output::Body;
+use output::ResponseBody;
 
 /// Trait representing error values from endpoints.
 pub trait HttpError: fmt::Debug + fmt::Display + Send + 'static {
@@ -21,7 +21,7 @@ pub trait HttpError: fmt::Debug + fmt::Display + Send + 'static {
 
     /// Create an instance of "Response<Body>" from this error.
     #[allow(unused_variables)]
-    fn to_response(&self, input: &Input) -> Option<Response<Body>> {
+    fn to_response(&self, input: &Input) -> Option<Response<ResponseBody>> {
         None
     }
 
@@ -53,7 +53,7 @@ where
         }
     }
 
-    fn to_response(&self, input: &Input) -> Option<Response<Body>> {
+    fn to_response(&self, input: &Input) -> Option<Response<ResponseBody>> {
         match *self {
             Either::Left(ref e) => e.to_response(input),
             Either::Right(ref e) => e.to_response(input),

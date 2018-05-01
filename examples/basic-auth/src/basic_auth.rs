@@ -1,6 +1,6 @@
 use base64::decode;
 use finchers::endpoint::header::FromHeader;
-use finchers::output::Body;
+use finchers::output::ResponseBody;
 use finchers::{Endpoint, HttpError, Input};
 use http::{Response, StatusCode};
 use std::{error, fmt};
@@ -57,7 +57,7 @@ impl HttpError for Unauthorized {
         StatusCode::UNAUTHORIZED
     }
 
-    fn to_response(&self, _: &Input) -> Option<Response<Body>> {
+    fn to_response(&self, _: &Input) -> Option<Response<ResponseBody>> {
         let www_authenticate = format!("Basic realm=\"\"");
         Response::builder()
             .header("WWW-Authenticate", www_authenticate.as_str())
