@@ -51,6 +51,8 @@ impl<F1, F2> Task for AndTask<F1, F2>
 where
     F1: Task,
     F2: Task,
+    F1::Output: Send,
+    F2::Output: Send,
 {
     type Output = (F1::Output, F2::Output);
 

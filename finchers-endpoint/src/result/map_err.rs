@@ -11,7 +11,7 @@ pub struct MapErr<E, F> {
 pub fn new<E, F, U, A, B>(endpoint: E, f: F) -> MapErr<E, F>
 where
     E: Endpoint<Output = Result<A, B>>,
-    F: FnOnce(B) -> U + Clone + Send,
+    F: FnOnce(B) -> U + Clone + Send + Sync,
 {
     MapErr { endpoint, f }
 }
@@ -19,7 +19,7 @@ where
 impl<E, F, A, B, U> Endpoint for MapErr<E, F>
 where
     E: Endpoint<Output = Result<A, B>>,
-    F: FnOnce(B) -> U + Clone + Send,
+    F: FnOnce(B) -> U + Clone + Send + Sync,
 {
     type Output = Result<A, U>;
     type Task = MapErrTask<E::Task, F>;

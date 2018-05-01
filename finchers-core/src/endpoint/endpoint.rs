@@ -1,4 +1,3 @@
-use std::rc::Rc;
 use std::sync::Arc;
 
 use super::apply::ApplyRequest;
@@ -7,12 +6,12 @@ use input::{Input, RequestBody};
 use task::Task;
 
 /// Trait representing an *endpoint*.
-pub trait Endpoint {
+pub trait Endpoint: Send + Sync {
     /// The inner type associated with this endpoint.
     type Output;
 
     /// The type of value which will be returned from "Endpoint::apply".
-    type Task: Task<Output = Self::Output> + Send;
+    type Task: Task<Output = Self::Output>;
 
     /// Perform checking the incoming HTTP request and returns
     /// an instance of the associated task if matched.
@@ -34,15 +33,6 @@ impl<'a, E: Endpoint> Endpoint for &'a E {
 }
 
 impl<E: Endpoint> Endpoint for Box<E> {
-    type Output = E::Output;
-    type Task = E::Task;
-
-    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
-        (**self).apply(cx)
-    }
-}
-
-impl<E: Endpoint> Endpoint for Rc<E> {
     type Output = E::Output;
     type Task = E::Task;
 

@@ -6,7 +6,7 @@ use std::mem;
 pub fn new<E, F, R>(endpoint: E, f: F) -> MapAsync<E, F>
 where
     E: Endpoint,
-    F: FnOnce(E::Output) -> R + Clone + Send,
+    F: FnOnce(E::Output) -> R + Clone + Send + Sync,
     R: IntoTask,
     R::Task: Send,
 {
@@ -22,7 +22,7 @@ pub struct MapAsync<E, F> {
 impl<E, F, R> Endpoint for MapAsync<E, F>
 where
     E: Endpoint,
-    F: FnOnce(E::Output) -> R + Clone + Send,
+    F: FnOnce(E::Output) -> R + Clone + Send + Sync,
     R: IntoTask,
     R::Task: Send,
 {

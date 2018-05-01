@@ -101,7 +101,7 @@ pub trait EndpointExt: Endpoint + Sized {
     /// Create an endpoint which maps the returned value to a different type.
     fn map<F, U>(self, f: F) -> Map<Self, F>
     where
-        F: FnOnce(Self::Output) -> U + Clone + Send,
+        F: FnOnce(Self::Output) -> U + Clone + Send + Sync,
     {
         assert_output::<_, F::Output>(self::map::new(self, f))
     }
@@ -109,7 +109,7 @@ pub trait EndpointExt: Endpoint + Sized {
     /// Create an endpoint which do something with the output value from "Self".
     fn inspect<F>(self, f: F) -> Inspect<Self, F>
     where
-        F: FnOnce(&Self::Output) + Clone + Send,
+        F: FnOnce(&Self::Output) + Clone + Send + Sync,
     {
         assert_output::<_, Self::Output>(self::inspect::new(self, f))
     }
@@ -118,7 +118,7 @@ pub trait EndpointExt: Endpoint + Sized {
     /// from the value returned from "self".
     fn map_async<F, T>(self, f: F) -> MapAsync<Self, F>
     where
-        F: FnOnce(Self::Output) -> T + Clone + Send,
+        F: FnOnce(Self::Output) -> T + Clone + Send + Sync,
         T: IntoTask,
         T::Task: Send,
     {

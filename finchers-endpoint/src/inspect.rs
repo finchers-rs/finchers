@@ -5,7 +5,7 @@ use finchers_core::{Error, PollResult};
 pub fn new<E, F>(endpoint: E, f: F) -> Inspect<E::Endpoint, F>
 where
     E: IntoEndpoint,
-    F: FnOnce(&E::Output) + Clone + Send,
+    F: FnOnce(&E::Output) + Clone + Send + Sync,
 {
     Inspect {
         endpoint: endpoint.into_endpoint(),
@@ -22,7 +22,7 @@ pub struct Inspect<E, F> {
 impl<E, F> Endpoint for Inspect<E, F>
 where
     E: Endpoint,
-    F: FnOnce(&E::Output) + Clone + Send,
+    F: FnOnce(&E::Output) + Clone + Send + Sync,
 {
     type Output = E::Output;
     type Task = InspectTask<E::Task, F>;

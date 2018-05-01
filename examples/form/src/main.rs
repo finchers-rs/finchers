@@ -6,7 +6,7 @@ extern crate serde;
 use finchers::Endpoint;
 use finchers::output::Debug;
 
-fn endpoint() -> impl Endpoint<Output = Debug> + Send + Sync + 'static {
+fn endpoint() -> impl Endpoint<Output = Debug> + 'static {
     use finchers::Never;
     use finchers::endpoint::abort;
     use finchers::endpoint::prelude::*;

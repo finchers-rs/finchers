@@ -42,28 +42,28 @@ pub trait EndpointResultExt<A, B>: Endpoint<Output = Result<A, B>> + Sized {
 
     fn map_ok<F, U>(self, f: F) -> MapOk<Self, F>
     where
-        F: FnOnce(A) -> U + Clone + Send,
+        F: FnOnce(A) -> U + Clone + Send + Sync,
     {
         assert_output::<_, Result<U, B>>(self::map_ok::new(self, f))
     }
 
     fn map_err<F, U>(self, f: F) -> MapErr<Self, F>
     where
-        F: FnOnce(B) -> U + Clone + Send,
+        F: FnOnce(B) -> U + Clone + Send + Sync,
     {
         assert_output::<_, Result<A, U>>(self::map_err::new(self, f))
     }
 
     fn and_then<F, U>(self, f: F) -> AndThen<Self, F>
     where
-        F: FnOnce(A) -> Result<U, B> + Clone + Send,
+        F: FnOnce(A) -> Result<U, B> + Clone + Send + Sync,
     {
         assert_output::<_, Result<U, B>>(self::and_then::new(self, f))
     }
 
     fn or_else<F, U>(self, f: F) -> OrElse<Self, F>
     where
-        F: FnOnce(B) -> Result<A, U> + Clone + Send,
+        F: FnOnce(B) -> Result<A, U> + Clone + Send + Sync,
     {
         assert_output::<_, Result<A, U>>(self::or_else::new(self, f))
     }

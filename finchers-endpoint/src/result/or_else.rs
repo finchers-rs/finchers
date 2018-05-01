@@ -11,7 +11,7 @@ pub struct OrElse<E, F> {
 pub fn new<E, F, U, A, B>(endpoint: E, f: F) -> OrElse<E, F>
 where
     E: Endpoint<Output = Result<A, B>>,
-    F: FnOnce(B) -> Result<A, U> + Clone + Send,
+    F: FnOnce(B) -> Result<A, U> + Clone + Send + Sync,
 {
     OrElse { endpoint, f }
 }
@@ -19,7 +19,7 @@ where
 impl<E, F, A, B, U> Endpoint for OrElse<E, F>
 where
     E: Endpoint<Output = Result<A, B>>,
-    F: FnOnce(B) -> Result<A, U> + Clone + Send,
+    F: FnOnce(B) -> Result<A, U> + Clone + Send + Sync,
 {
     type Output = Result<A, U>;
     type Task = OrElseTask<E::Task, F>;

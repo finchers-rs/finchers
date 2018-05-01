@@ -18,14 +18,14 @@ pub trait EndpointOptionExt<T>: Endpoint<Output = Option<T>> + Sized {
 
     fn map_some<F, U>(self, f: F) -> MapSome<Self, F>
     where
-        F: FnOnce(T) -> U + Clone + Send,
+        F: FnOnce(T) -> U + Clone + Send + Sync,
     {
         assert_output::<_, Option<U>>(self::map_some::new(self, f))
     }
 
     fn ok_or_else<F, U>(self, f: F) -> OkOrElse<Self, F>
     where
-        F: FnOnce() -> U + Clone + Send,
+        F: FnOnce() -> U + Clone + Send + Sync,
     {
         assert_output::<_, Result<T, U>>(self::ok_or_else::new(self, f))
     }
