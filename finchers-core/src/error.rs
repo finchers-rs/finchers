@@ -220,9 +220,8 @@ impl<E: HttpError> From<E> for Error {
     }
 }
 
-impl Error {
-    /// Return a reference to the internal error value.
-    pub fn http_error(&self) -> &HttpError {
+impl AsRef<HttpError> for Error {
+    fn as_ref(&self) -> &HttpError {
         &*self.0
     }
 }
@@ -236,7 +235,8 @@ impl fmt::Display for Error {
 impl Deref for Error {
     type Target = HttpError;
 
+    #[inline(always)]
     fn deref(&self) -> &Self::Target {
-        self.http_error()
+        AsRef::<HttpError>::as_ref(self)
     }
 }

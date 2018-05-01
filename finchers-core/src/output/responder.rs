@@ -3,11 +3,11 @@ use std::fmt;
 
 use bytes::Bytes;
 use either::Either;
-use failure::Error;
 use http::header::HeaderValue;
 use http::{header, Response};
 
 use super::body::ResponseBody;
+use error::Error;
 use input::Input;
 use never::Never;
 
