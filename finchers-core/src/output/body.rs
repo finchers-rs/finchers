@@ -3,6 +3,7 @@ use futures::Async::*;
 use futures::{Poll, Stream};
 use std::{fmt, io};
 
+/// An asynchronous stream representing the body of HTTP response.
 pub struct ResponseBody {
     inner: Inner,
 }
@@ -48,10 +49,12 @@ macro_rules! impl_from_once {
 impl_from_once!(&'static str, String, &'static [u8], Vec<u8>, Bytes);
 
 impl ResponseBody {
+    /// Create an instance of empty "ResponseBody".
     pub fn empty() -> ResponseBody {
         ResponseBody { inner: Inner::Empty }
     }
 
+    /// Create an instance of "ResponseBody" from a chunk of bytes.
     pub fn once<T>(body: T) -> ResponseBody
     where
         T: Into<Bytes>,
@@ -61,6 +64,7 @@ impl ResponseBody {
         }
     }
 
+    /// Create an instance of "ResponseBody" from a "Stream" of bytes.
     pub fn wrap_stream<T>(stream: T) -> ResponseBody
     where
         T: Stream<Item = Bytes, Error = io::Error> + Send + 'static,

@@ -11,16 +11,17 @@ use error::Error;
 use input::Input;
 use never::Never;
 
-pub type Output = Response<ResponseBody>;
-
 const TEXT_PLAIN: &str = "text/plain; charset=utf-8";
+
+/// A type alias of value which will be returned from "Responder::respond".
+pub type Output = Response<ResponseBody>;
 
 /// Trait representing the conversion to an HTTP response.
 pub trait Responder {
-    /// The error type returned from "respond".
+    /// The type of error value which will be returned from "respond".
     type Error: Into<Error>;
 
-    /// Create an HTTP response from the value of "Self".
+    /// Consume "self" and construct a new HTTP response.
     fn respond(self, input: &Input) -> Result<Output, Self::Error>;
 }
 
