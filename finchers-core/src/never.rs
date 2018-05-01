@@ -1,7 +1,6 @@
 use error::HttpError;
-use http::{Response, StatusCode};
-use input::Input;
-use output::ResponseBody;
+use http::StatusCode;
+use http::header::{HeaderMap, HeaderValue};
 use std::{error, fmt};
 
 #[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Ord, Eq)]
@@ -34,7 +33,7 @@ impl HttpError for Never {
         match *self {}
     }
 
-    fn to_response(&self, _: &Input) -> Option<Response<ResponseBody>> {
+    fn append_headers(&self, _: &mut HeaderMap<HeaderValue>) {
         match *self {}
     }
 }

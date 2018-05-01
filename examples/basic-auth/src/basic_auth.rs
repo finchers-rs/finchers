@@ -1,8 +1,8 @@
 use base64::decode;
 use finchers::endpoint::header::FromHeader;
-use finchers::output::ResponseBody;
-use finchers::{Endpoint, HttpError, Input};
-use http::{Response, StatusCode};
+use finchers::{Endpoint, HttpError};
+use http::StatusCode;
+use http::header::{HeaderMap, HeaderValue};
 use std::{error, fmt};
 
 pub fn basic_auth() -> impl Endpoint<Output = BasicAuth> + Send + Sync + 'static {
@@ -57,12 +57,8 @@ impl HttpError for Unauthorized {
         StatusCode::UNAUTHORIZED
     }
 
-    fn to_response(&self, _: &Input) -> Option<Response<ResponseBody>> {
-        let www_authenticate = format!("Basic realm=\"\"");
-        Response::builder()
-            .header("WWW-Authenticate", www_authenticate.as_str())
-            .body(Default::default())
-            .ok()
+    fn append_headers(&self, headers: &mut HeaderMap<HeaderValue>) {
+        headers.insert("WWW-Authenticate", format!("Basic realm=\"\"").parse().unwrap());
     }
 }
 

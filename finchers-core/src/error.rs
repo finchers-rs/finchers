@@ -1,36 +1,26 @@
 use std::borrow::Cow;
 use std::fmt;
-use std::ops::Deref;
 
 use either::Either;
 use failure::{self, Fail};
-use http::{Response, StatusCode};
-
-use input::Input;
-use output::ResponseBody;
+use http::StatusCode;
+use http::header::{HeaderMap, HeaderValue};
 
 /// Trait representing error values from endpoints.
-pub trait HttpError: fmt::Debug + fmt::Display + Send + 'static {
+///
+/// The types which implements this trait will be implicitly converted to an HTTP response
+/// by the runtime.
+pub trait HttpError: fmt::Debug + fmt::Display + Send + Sync + 'static {
     /// Return the HTTP status code associated with this error type.
     fn status_code(&self) -> StatusCode;
 
-    /// Return the "Fail" representation.
+    /// Append a set of header values to the header map.
+    #[allow(unused_variables)]
+    fn append_headers(&self, headers: &mut HeaderMap<HeaderValue>) {}
+
+    /// Return the reference to a value of "Fail", if exists.
     fn as_fail(&self) -> Option<&Fail> {
         None
-    }
-
-    /// Create an instance of "Response<Body>" from this error.
-    #[allow(unused_variables)]
-    fn to_response(&self, input: &Input) -> Option<Response<ResponseBody>> {
-        None
-    }
-
-    /// Consume itself and create an "Error"
-    fn into_error(self) -> Error
-    where
-        Self: Sized,
-    {
-        Error::from(self)
     }
 }
 
@@ -50,13 +40,6 @@ where
         match *self {
             Either::Left(ref e) => e.as_fail(),
             Either::Right(ref e) => e.as_fail(),
-        }
-    }
-
-    fn to_response(&self, input: &Input) -> Option<Response<ResponseBody>> {
-        match *self {
-            Either::Left(ref e) => e.to_response(input),
-            Either::Right(ref e) => e.to_response(input),
         }
     }
 }
@@ -220,23 +203,15 @@ impl<E: HttpError> From<E> for Error {
     }
 }
 
-impl AsRef<HttpError> for Error {
-    fn as_ref(&self) -> &HttpError {
-        &*self.0
-    }
-}
-
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt(&*self.0, f)
     }
 }
 
-impl Deref for Error {
-    type Target = HttpError;
-
-    #[inline(always)]
-    fn deref(&self) -> &Self::Target {
-        AsRef::<HttpError>::as_ref(self)
+impl Error {
+    /// Returns the reference to inner "HttpError".
+    pub fn as_http_error(&self) -> &HttpError {
+        &*self.0
     }
 }

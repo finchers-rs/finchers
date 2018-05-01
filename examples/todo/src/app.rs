@@ -2,26 +2,31 @@ use super::db::{self, NewTodo, PatchTodo, Todo, TodoRepository};
 use finchers::error::HttpError;
 use http::StatusCode;
 
-error_chain! {
-    errors {
-        NoEntity {
-            description("no entity")
-            display("no entity")
-        }
-    }
-    foreign_links {
-        Database(db::Error);
+#[derive(Debug, Fail)]
+pub enum Error {
+    #[fail(display = "no entity")]
+    NoEntity,
+
+    #[fail(display = "{}", cause)]
+    Database { cause: db::Error },
+}
+
+impl From<db::Error> for Error {
+    fn from(cause: db::Error) -> Self {
+        Error::Database { cause }
     }
 }
 
 impl HttpError for Error {
     fn status_code(&self) -> StatusCode {
-        match *self.kind() {
-            ErrorKind::NoEntity => StatusCode::NOT_FOUND,
+        match *self {
+            Error::NoEntity => StatusCode::NOT_FOUND,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }
+
+pub type Result<T> = ::std::result::Result<T, Error>;
 
 #[derive(Debug, Clone)]
 pub struct Application {
@@ -30,7 +35,7 @@ pub struct Application {
 
 impl Application {
     pub fn find_todo(&self, id: u64) -> Result<Todo> {
-        self.todos.find(id)?.ok_or_else(|| ErrorKind::NoEntity.into())
+        self.todos.find(id)?.ok_or_else(|| Error::NoEntity)
     }
 
     pub fn list_todos(&self) -> Result<Vec<Todo>> {
@@ -42,11 +47,11 @@ impl Application {
     }
 
     pub fn patch_todo(&self, id: u64, patch: PatchTodo) -> Result<Todo> {
-        self.todos.patch(id, patch)?.ok_or_else(|| ErrorKind::NoEntity.into())
+        self.todos.patch(id, patch)?.ok_or_else(|| Error::NoEntity)
     }
 
     pub fn delete_todo(&self, id: u64) -> Result<()> {
-        self.todos.delete(id)?.ok_or_else(|| ErrorKind::NoEntity.into())
+        self.todos.delete(id)?.ok_or_else(|| Error::NoEntity)
     }
 
     pub fn with<F, T, R>(&self, f: F) -> impl FnOnce(T) -> R + Send + Clone + 'static

@@ -114,8 +114,8 @@ where
             PollReady::Pending => return Ok(NotReady),
             PollReady::Ready(Some(Ok(output))) => output
                 .respond(&self.input)
-                .unwrap_or_else(|err| self.handle_error(Into::<Error>::into(err).as_ref())),
-            PollReady::Ready(Some(Err(err))) => self.handle_error(err.as_ref()),
+                .unwrap_or_else(|err| self.handle_error(Into::<Error>::into(err).as_http_error())),
+            PollReady::Ready(Some(Err(err))) => self.handle_error(err.as_http_error()),
             PollReady::Ready(None) => self.handle_error(&NoRoute),
         };
 
@@ -148,21 +148,20 @@ impl HttpError for NoRoute {
 ///
 pub type ErrorHandler = fn(&HttpError, &Input) -> Response<ResponseBody>;
 
-fn default_error_handler(err: &HttpError, input: &Input) -> Response<ResponseBody> {
-    let mut response = err.to_response(input).unwrap_or_else(|| {
-        let body = err.to_string();
-        let body_len = body.len().to_string();
+fn default_error_handler(err: &HttpError, _: &Input) -> Response<ResponseBody> {
+    let body = err.to_string();
+    let body_len = body.len().to_string();
 
-        let mut response = Response::new(ResponseBody::once(body));
-        response.headers_mut().insert(
-            header::CONTENT_TYPE,
-            HeaderValue::from_static("text/plain; charset=utf-8"),
-        );
-        response.headers_mut().insert(header::CONTENT_LENGTH, unsafe {
-            HeaderValue::from_shared_unchecked(body_len.into())
-        });
-        response
-    });
+    let mut response = Response::new(ResponseBody::once(body));
     *response.status_mut() = err.status_code();
+    response.headers_mut().insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("text/plain; charset=utf-8"),
+    );
+    response.headers_mut().insert(header::CONTENT_LENGTH, unsafe {
+        HeaderValue::from_shared_unchecked(body_len.into())
+    });
+    err.append_headers(response.headers_mut());
+
     response
 }

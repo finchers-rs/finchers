@@ -1,12 +1,13 @@
 //! Components for parsing the query string and urlencoded payload.
 
 use bytes::Bytes;
+use failure::SyncFailure;
 use http::StatusCode;
 use serde::de::{self, IntoDeserializer};
+use std::fmt;
 use std::iter::FromIterator;
 use std::marker::PhantomData;
 use std::ops::Deref;
-use std::{error, fmt};
 use {mime, serde_qs};
 
 use body::FromData;
@@ -102,7 +103,11 @@ where
             .expect("The query string should be exist at this location");
         match serde_qs::from_str(query) {
             Ok(v) => PollTask::Ready(v),
-            Err(e) => PollTask::Aborted(QueryError::Parsing(e).into()),
+            Err(e) => PollTask::Aborted(
+                QueryError::Parsing {
+                    cause: SyncFailure::new(e),
+                }.into(),
+            ),
         }
     }
 }
@@ -139,7 +144,9 @@ where
             .map_err(|_| QueryError::InvalidMediaType)?
             .map_or(true, |m| *m == mime::APPLICATION_WWW_FORM_URLENCODED)
         {
-            serde_qs::from_bytes(&*body).map(Form).map_err(QueryError::Parsing)
+            serde_qs::from_bytes(&*body).map(Form).map_err(|e| QueryError::Parsing {
+                cause: SyncFailure::new(e),
+            })
         } else {
             Err(QueryError::InvalidMediaType)
         }
@@ -147,33 +154,13 @@ where
 }
 
 /// All of error kinds when receiving/parsing the urlencoded data.
-#[derive(Debug)]
+#[derive(Debug, Fail)]
 pub enum QueryError {
+    #[fail(display = "The content type should be application/www-x-urlformencoded")]
     InvalidMediaType,
-    Parsing(serde_qs::Error),
-}
 
-impl fmt::Display for QueryError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use self::QueryError::*;
-        match *self {
-            InvalidMediaType => f.write_str("The content type should be application/www-x-urlformencoded"),
-            Parsing(ref e) => e.fmt(f),
-        }
-    }
-}
-
-impl error::Error for QueryError {
-    fn description(&self) -> &str {
-        "failed to parse an urlencoded string"
-    }
-
-    fn cause(&self) -> Option<&error::Error> {
-        match *self {
-            QueryError::Parsing(ref e) => Some(&*e),
-            _ => None,
-        }
-    }
+    #[fail(display = "{}", cause)]
+    Parsing { cause: SyncFailure<serde_qs::Error> },
 }
 
 impl HttpError for QueryError {

@@ -6,6 +6,8 @@ extern crate mime;
 extern crate serde;
 extern crate serde_json;
 extern crate serde_qs;
+#[macro_use]
+extern crate failure;
 
 pub mod body;
 pub mod header;

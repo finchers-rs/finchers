@@ -1,10 +1,10 @@
 #[macro_use]
-extern crate error_chain;
-#[macro_use]
 extern crate finchers;
 #[macro_use]
 extern crate serde;
 extern crate http;
+#[macro_use]
+extern crate failure;
 
 mod api;
 mod app;
