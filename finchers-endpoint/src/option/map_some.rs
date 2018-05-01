@@ -11,7 +11,7 @@ pub struct MapSome<E, F> {
 pub fn new<E, F, U, T>(endpoint: E, f: F) -> MapSome<E, F>
 where
     E: Endpoint<Output = Option<T>>,
-    F: FnOnce(T) -> U + Clone + Send,
+    F: FnOnce(T) -> U + Clone + Send + Sync,
 {
     MapSome { endpoint, f }
 }
@@ -19,7 +19,7 @@ where
 impl<E, F, T, U> Endpoint for MapSome<E, F>
 where
     E: Endpoint<Output = Option<T>>,
-    F: FnOnce(T) -> U + Clone + Send,
+    F: FnOnce(T) -> U + Clone + Send + Sync,
 {
     type Output = Option<U>;
     type Task = MapSomeTask<E::Task, F>;

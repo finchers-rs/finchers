@@ -5,7 +5,7 @@ use finchers_core::{Error, PollResult};
 pub fn new<E, F, T>(endpoint: E, f: F) -> Map<E::Endpoint, F>
 where
     E: IntoEndpoint,
-    F: FnOnce(E::Output) -> T + Clone + Send,
+    F: FnOnce(E::Output) -> T + Clone + Send + Sync,
 {
     Map {
         endpoint: endpoint.into_endpoint(),
@@ -22,7 +22,7 @@ pub struct Map<E, F> {
 impl<E, F, T> Endpoint for Map<E, F>
 where
     E: Endpoint,
-    F: FnOnce(E::Output) -> T + Clone + Send,
+    F: FnOnce(E::Output) -> T + Clone + Send + Sync,
 {
     type Output = F::Output;
     type Task = MapTask<E::Task, F>;

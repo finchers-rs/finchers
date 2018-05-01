@@ -11,7 +11,7 @@ pub struct AndThen<E, F> {
 pub fn new<E, F, U, A, B>(endpoint: E, f: F) -> AndThen<E, F>
 where
     E: Endpoint<Output = Result<A, B>>,
-    F: FnOnce(A) -> Result<U, B> + Clone + Send,
+    F: FnOnce(A) -> Result<U, B> + Clone + Send + Sync,
 {
     AndThen { endpoint, f }
 }
@@ -19,7 +19,7 @@ where
 impl<E, F, A, B, U> Endpoint for AndThen<E, F>
 where
     E: Endpoint<Output = Result<A, B>>,
-    F: FnOnce(A) -> Result<U, B> + Clone + Send,
+    F: FnOnce(A) -> Result<U, B> + Clone + Send + Sync,
 {
     type Output = Result<U, B>;
     type Task = AndThenTask<E::Task, F>;

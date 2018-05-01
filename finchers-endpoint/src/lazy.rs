@@ -6,7 +6,7 @@ use finchers_core::task;
 
 pub fn lazy<F, T>(f: F) -> Lazy<F>
 where
-    F: Fn(&mut Context) -> Option<T>,
+    F: Fn(&mut Context) -> Option<T> + Send + Sync,
     T: Send,
 {
     Lazy { f }
@@ -19,7 +19,7 @@ pub struct Lazy<F> {
 
 impl<F, T> Endpoint for Lazy<F>
 where
-    F: Fn(&mut Context) -> Option<T>,
+    F: Fn(&mut Context) -> Option<T> + Send + Sync,
     T: Send,
 {
     type Output = T;

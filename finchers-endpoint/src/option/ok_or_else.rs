@@ -11,7 +11,7 @@ pub struct OkOrElse<E, F> {
 pub fn new<E, F, T, U>(endpoint: E, f: F) -> OkOrElse<E, F>
 where
     E: Endpoint<Output = Option<T>>,
-    F: FnOnce() -> U + Clone + Send,
+    F: FnOnce() -> U + Clone + Send + Sync,
 {
     OkOrElse { endpoint, f }
 }
@@ -19,7 +19,7 @@ where
 impl<E, F, T, U> Endpoint for OkOrElse<E, F>
 where
     E: Endpoint<Output = Option<T>>,
-    F: FnOnce() -> U + Clone + Send,
+    F: FnOnce() -> U + Clone + Send + Sync,
 {
     type Output = Result<T, U>;
     type Task = OkOrElseTask<E::Task, F>;

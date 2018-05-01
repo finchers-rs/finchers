@@ -3,7 +3,7 @@ use finchers_core::{task, HttpError, Never};
 
 pub fn abort<F, E>(f: F) -> Abort<F>
 where
-    F: Fn(&mut Context) -> E,
+    F: Fn(&mut Context) -> E + Send + Sync,
     E: HttpError,
 {
     Abort { f }
@@ -16,7 +16,7 @@ pub struct Abort<F> {
 
 impl<F, E> Endpoint for Abort<F>
 where
-    F: Fn(&mut Context) -> E,
+    F: Fn(&mut Context) -> E + Send + Sync,
     E: HttpError,
 {
     type Output = Never;

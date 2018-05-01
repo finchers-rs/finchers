@@ -42,7 +42,11 @@ pub struct AllTask<T: Task> {
     elems: Vec<MaybeDone<T>>,
 }
 
-impl<T: Task> Task for AllTask<T> {
+impl<T> Task for AllTask<T>
+where
+    T: Task,
+    T::Output: Send,
+{
     type Output = Vec<T::Output>;
 
     fn poll_task(&mut self, cx: &mut task::Context) -> PollResult<Self::Output, Error> {

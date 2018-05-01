@@ -47,7 +47,7 @@ impl<'a> Context<'a> {
 /// Trait representing the asynchronous computation after applying the endpoints.
 ///
 /// See the module level documentation for details.
-pub trait Task {
+pub trait Task: Send {
     /// The *inner* type of an output which will be returned from this task.
     type Output;
 
@@ -84,7 +84,11 @@ pub trait IntoTask {
 }
 
 // FIXME: replace the trait bound with `core::ops::Async`
-impl<F: IntoFuture> IntoTask for F {
+impl<F> IntoTask for F
+where
+    F: IntoFuture,
+    F::Future: Send,
+{
     type Output = Result<F::Item, F::Error>;
     type Task = TaskFuture<F::Future>;
 
@@ -98,13 +102,19 @@ impl<F: IntoFuture> IntoTask for F {
 #[derive(Debug)]
 pub struct TaskFuture<F>(F);
 
-impl<F: Future> From<F> for TaskFuture<F> {
+impl<F> From<F> for TaskFuture<F>
+where
+    F: Future + Send,
+{
     fn from(fut: F) -> Self {
         TaskFuture(fut)
     }
 }
 
-impl<F: Future> Task for TaskFuture<F> {
+impl<F> Task for TaskFuture<F>
+where
+    F: Future + Send,
+{
     type Output = Result<F::Item, F::Error>;
 
     #[inline(always)]
@@ -118,20 +128,24 @@ impl<F: Future> Task for TaskFuture<F> {
 }
 
 /// Create a task from a `Future`.
-pub fn future<F: IntoFuture>(future: F) -> TaskFuture<F::Future> {
+pub fn future<F>(future: F) -> TaskFuture<F::Future>
+where
+    F: IntoFuture,
+    F::Future: Send,
+{
     TaskFuture::from(IntoFuture::into_future(future))
 }
 
 #[derive(Debug)]
 pub struct Ready<T>(Option<T>);
 
-impl<T> From<T> for Ready<T> {
+impl<T: Send> From<T> for Ready<T> {
     fn from(val: T) -> Self {
         Ready(Some(val))
     }
 }
 
-impl<T> Task for Ready<T> {
+impl<T: Send> Task for Ready<T> {
     type Output = T;
 
     #[inline(always)]
@@ -142,7 +156,7 @@ impl<T> Task for Ready<T> {
 }
 
 /// Create a task which will immediately return a value of `T`.
-pub fn ready<T>(val: T) -> Ready<T> {
+pub fn ready<T: Send>(val: T) -> Ready<T> {
     Ready::from(val)
 }
 
@@ -151,13 +165,19 @@ pub struct Abort<E> {
     cause: Option<E>,
 }
 
-impl<E: Into<Error>> From<E> for Abort<E> {
+impl<E> From<E> for Abort<E>
+where
+    E: Into<Error> + Send,
+{
     fn from(cause: E) -> Self {
         Abort { cause: Some(cause) }
     }
 }
 
-impl<E: Into<Error>> Task for Abort<E> {
+impl<E> Task for Abort<E>
+where
+    E: Into<Error> + Send,
+{
     type Output = Never;
 
     #[inline(always)]
@@ -168,6 +188,9 @@ impl<E: Into<Error>> Task for Abort<E> {
 }
 
 /// Create a task which will immediately abort the computation with an error value of `E`.
-pub fn abort<E: Into<Error>>(cause: E) -> Abort<E> {
+pub fn abort<E>(cause: E) -> Abort<E>
+where
+    E: Into<Error> + Send,
+{
     Abort::from(cause)
 }

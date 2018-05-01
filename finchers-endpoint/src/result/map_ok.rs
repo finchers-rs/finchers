@@ -11,7 +11,7 @@ pub struct MapOk<E, F> {
 pub fn new<E, F, U, A, B>(endpoint: E, f: F) -> MapOk<E, F>
 where
     E: Endpoint<Output = Result<A, B>>,
-    F: FnOnce(A) -> U + Clone + Send,
+    F: FnOnce(A) -> U + Clone + Send + Sync,
 {
     MapOk { endpoint, f }
 }
@@ -19,7 +19,7 @@ where
 impl<E, F, A, B, U> Endpoint for MapOk<E, F>
 where
     E: Endpoint<Output = Result<A, B>>,
-    F: FnOnce(A) -> U + Clone + Send,
+    F: FnOnce(A) -> U + Clone + Send + Sync,
 {
     type Output = Result<U, B>;
     type Task = MapOkTask<E::Task, F>;
