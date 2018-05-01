@@ -1,6 +1,6 @@
 use bytes::Bytes;
-use futures::Async::*;
-use futures::{Poll, Stream};
+use futures::Stream;
+use poll::{Poll, PollResult};
 use std::{fmt, io};
 
 /// An asynchronous stream representing the body of HTTP response.
@@ -81,17 +81,13 @@ impl ResponseBody {
             Inner::Stream(..) => None,
         }
     }
-}
 
-impl Stream for ResponseBody {
-    type Item = Bytes;
-    type Error = io::Error;
-
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+    /// Poll an element of chunk from this stream.
+    pub fn poll_data(&mut self) -> PollResult<Option<Bytes>, io::Error> {
         match self.inner {
-            Inner::Empty => Ok(Ready(None)),
-            Inner::Once(ref mut chunk) => Ok(Ready(chunk.take())),
-            Inner::Stream(ref mut stream) => stream.poll(),
+            Inner::Empty => Poll::Ready(Ok(None)),
+            Inner::Once(ref mut chunk) => Poll::Ready(Ok(chunk.take())),
+            Inner::Stream(ref mut stream) => stream.poll().into(),
         }
     }
 }

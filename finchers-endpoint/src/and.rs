@@ -1,6 +1,7 @@
 use super::maybe_done::MaybeDone;
 use finchers_core::endpoint::{Context, Endpoint, IntoEndpoint};
-use finchers_core::task::{self, PollTask, Task};
+use finchers_core::task::{self, Task};
+use finchers_core::{Error, Poll, PollResult};
 
 pub fn new<E1, E2>(e1: E1, e2: E2) -> And<E1::Endpoint, E2::Endpoint>
 where
@@ -53,13 +54,13 @@ where
 {
     type Output = (F1::Output, F2::Output);
 
-    fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
+    fn poll_task(&mut self, cx: &mut task::Context) -> PollResult<Self::Output, Error> {
         let mut all_done = match self.f1.poll_done(cx) {
             Ok(done) => done,
             Err(e) => {
                 self.f1.erase();
                 self.f2.erase();
-                return PollTask::Aborted(e);
+                return Poll::Ready(Err(e));
             }
         };
         all_done = match self.f2.poll_done(cx) {
@@ -67,14 +68,14 @@ where
             Err(e) => {
                 self.f1.erase();
                 self.f2.erase();
-                return PollTask::Aborted(e);
+                return Poll::Ready(Err(e));
             }
         };
 
         if all_done {
-            PollTask::Ready((self.f1.take_item(), self.f2.take_item()))
+            Poll::Ready(Ok((self.f1.take_item(), self.f2.take_item())))
         } else {
-            PollTask::Pending
+            Poll::Pending
         }
     }
 }

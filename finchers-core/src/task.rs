@@ -11,115 +11,11 @@
 
 use either::Either;
 use futures::{Async, Future, IntoFuture};
-#[cfg(feature = "nightly")]
-use std::ops::Try;
 
 use error::Error;
 use input::{Input, RequestBody};
 use never::Never;
-
-/// The enum indicating the progress of `Task`.
-#[derive(Debug)]
-pub enum PollTask<T> {
-    /// The task has not ready yet.
-    Pending,
-    /// The task has returned a value.
-    Ready(T),
-    /// The task aborted with some reason.
-    Aborted(Error),
-}
-
-impl<T> PollTask<T> {
-    pub fn map<F, U>(self, f: F) -> PollTask<U>
-    where
-        F: FnOnce(T) -> U,
-    {
-        match self {
-            PollTask::Pending => PollTask::Pending,
-            PollTask::Ready(t) => PollTask::Ready(f(t)),
-            PollTask::Aborted(e) => PollTask::Aborted(e),
-        }
-    }
-
-    pub fn is_pending(&self) -> bool {
-        match *self {
-            PollTask::Pending => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_ready(&self) -> bool {
-        match *self {
-            PollTask::Ready(..) => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_aborted(&self) -> bool {
-        match *self {
-            PollTask::Aborted(..) => true,
-            _ => false,
-        }
-    }
-}
-
-impl<T> From<Async<T>> for PollTask<T> {
-    fn from(val: Async<T>) -> Self {
-        match val {
-            Async::NotReady => PollTask::Pending,
-            Async::Ready(val) => PollTask::Ready(val),
-        }
-    }
-}
-
-impl<T, E> From<Result<Async<T>, E>> for PollTask<T>
-where
-    E: Into<Error>,
-{
-    fn from(val: Result<Async<T>, E>) -> Self {
-        match val {
-            Ok(Async::NotReady) => PollTask::Pending,
-            Ok(Async::Ready(val)) => PollTask::Ready(val),
-            Err(e) => PollTask::Aborted(Into::into(e)),
-        }
-    }
-}
-
-#[cfg(feature = "nightly")]
-impl<T> Try for PollTask<T> {
-    type Ok = T;
-    type Error = Option<Error>;
-
-    fn into_result(self) -> Result<Self::Ok, Self::Error> {
-        match self {
-            PollTask::Ready(ready) => Ok(ready),
-            PollTask::Aborted(error) => Err(Some(error)),
-            PollTask::Pending => Err(None),
-        }
-    }
-
-    fn from_ok(v: Self::Ok) -> Self {
-        PollTask::Ready(v)
-    }
-
-    fn from_error(v: Self::Error) -> Self {
-        v.map_or_else(|| PollTask::Pending, |e| PollTask::Aborted(e))
-    }
-}
-
-/// A helper macro to extract the value from "PollTask".
-///
-/// Typically, this macro is used in the implementation of "Task::poll_task".
-#[macro_export]
-macro_rules! try_ready_task {
-    ($e:expr) => {
-        match PollTask::from($e) {
-            PollTask::Ready(v) => v,
-            PollTask::Aborted(e) => return PollTask::Aborted(e),
-            PollTask::Pending => return PollTask::Pending,
-        }
-    };
-}
+use poll::{Poll, PollResult};
 
 /// The contextual information during polling an task.
 pub struct Context<'a> {
@@ -156,7 +52,7 @@ pub trait Task {
     type Output;
 
     /// Perform polling this task and get its result.
-    fn poll_task(&mut self, cx: &mut Context) -> PollTask<Self::Output>;
+    fn poll_task(&mut self, cx: &mut Context) -> PollResult<Self::Output, Error>;
 }
 
 impl<L, R> Task for Either<L, R>
@@ -167,7 +63,7 @@ where
     type Output = L::Output;
 
     #[inline(always)]
-    fn poll_task(&mut self, cx: &mut Context) -> PollTask<Self::Output> {
+    fn poll_task(&mut self, cx: &mut Context) -> PollResult<Self::Output, Error> {
         match *self {
             Either::Left(ref mut t) => t.poll_task(cx),
             Either::Right(ref mut t) => t.poll_task(cx),
@@ -212,11 +108,11 @@ impl<F: Future> Task for TaskFuture<F> {
     type Output = Result<F::Item, F::Error>;
 
     #[inline(always)]
-    fn poll_task(&mut self, _: &mut Context) -> PollTask<Self::Output> {
+    fn poll_task(&mut self, _: &mut Context) -> PollResult<Self::Output, Error> {
         match Future::poll(&mut self.0) {
-            Ok(Async::Ready(ready)) => PollTask::Ready(Ok(ready)),
-            Ok(Async::NotReady) => PollTask::Pending,
-            Err(err) => PollTask::Ready(Err(err)),
+            Ok(Async::Ready(ready)) => Poll::Ready(Ok(Ok(ready))),
+            Ok(Async::NotReady) => Poll::Pending,
+            Err(err) => Poll::Ready(Ok(Err(err))),
         }
     }
 }
@@ -239,9 +135,9 @@ impl<T> Task for Ready<T> {
     type Output = T;
 
     #[inline(always)]
-    fn poll_task(&mut self, _: &mut Context) -> PollTask<Self::Output> {
+    fn poll_task(&mut self, _: &mut Context) -> PollResult<Self::Output, Error> {
         let val = self.0.take().expect("The task cannot resolve twice");
-        PollTask::Ready(val)
+        Poll::Ready(Ok(val))
     }
 }
 
@@ -265,9 +161,9 @@ impl<E: Into<Error>> Task for Abort<E> {
     type Output = Never;
 
     #[inline(always)]
-    fn poll_task(&mut self, _: &mut Context) -> PollTask<Self::Output> {
+    fn poll_task(&mut self, _: &mut Context) -> PollResult<Self::Output, Error> {
         let cause = self.cause.take().expect("The task cannot reject twice");
-        PollTask::Aborted(Into::into(cause))
+        Poll::Ready(Err(Into::into(cause)))
     }
 }
 

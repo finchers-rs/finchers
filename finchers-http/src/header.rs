@@ -4,8 +4,8 @@ use std::fmt;
 use std::marker::PhantomData;
 
 use finchers_core::endpoint::{Context, Endpoint};
-use finchers_core::task::{self, PollTask, Task};
-use finchers_core::{HttpError, Never};
+use finchers_core::task::{self, Task};
+use finchers_core::{Error, HttpError, Never, PollResult};
 
 /// Create an endpoint which parses an entry in the HTTP header.
 ///
@@ -97,13 +97,10 @@ where
 {
     type Output = Option<H>;
 
-    fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
+    fn poll_task(&mut self, cx: &mut task::Context) -> PollResult<Self::Output, Error> {
         match cx.input().request().headers().get(H::header_name()) {
-            Some(h) => match H::from_header(h.as_bytes()) {
-                Ok(h) => PollTask::Ready(Some(h)),
-                Err(e) => PollTask::Aborted(Into::into(e)),
-            },
-            None => PollTask::Ready(None),
+            Some(h) => H::from_header(h.as_bytes()).map(Some).map_err(Into::into).into(),
+            None => Ok(None).into(),
         }
     }
 }

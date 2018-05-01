@@ -1,9 +1,8 @@
-use futures::Async;
-
 use super::{Context, Endpoint};
 use error::Error;
 use input::{Input, RequestBody};
-use task::{self, PollTask, Task};
+use poll::Poll;
+use task::{self, Task};
 
 /// Create an asynchronous computation for handling an HTTP request.
 pub fn apply_request<E>(endpoint: &E, input: &Input, body: RequestBody) -> ApplyRequest<E::Task>
@@ -28,33 +27,13 @@ pub struct ApplyRequest<T> {
 
 impl<T: Task> ApplyRequest<T> {
     /// Poll the inner "Task" and return its output if available.
-    pub fn poll_ready(&mut self, input: &Input) -> PollReady<Option<Result<T::Output, Error>>> {
+    pub fn poll_ready(&mut self, input: &Input) -> Poll<Option<Result<T::Output, Error>>> {
         match self.in_flight {
             Some(ref mut f) => {
                 let mut cx = task::Context::new(input, &mut self.body);
-                match f.poll_task(&mut cx) {
-                    PollTask::Pending => PollReady::Pending,
-                    PollTask::Ready(ok) => PollReady::Ready(Some(Ok(ok))),
-                    PollTask::Aborted(err) => PollReady::Ready(Some(Err(err))),
-                }
+                f.poll_task(&mut cx).map(Some)
             }
-            None => PollReady::Ready(None),
-        }
-    }
-}
-
-// FIXME: replace with core::task::Poll
-#[derive(Debug, Copy, Clone)]
-pub enum PollReady<T> {
-    Pending,
-    Ready(T),
-}
-
-impl<T> Into<Async<T>> for PollReady<T> {
-    fn into(self) -> Async<T> {
-        match self {
-            PollReady::Pending => Async::NotReady,
-            PollReady::Ready(v) => Async::Ready(v),
+            None => Poll::Ready(None),
         }
     }
 }

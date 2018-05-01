@@ -1,6 +1,6 @@
-use finchers_core::HttpError;
 use finchers_core::endpoint::{Context, Endpoint};
-use finchers_core::task::{self, PollTask, Task};
+use finchers_core::task::{self, Task};
+use finchers_core::{Error, HttpError, PollResult};
 
 pub fn new<E, T, R>(endpoint: E) -> UnwrapOk<E>
 where
@@ -42,10 +42,8 @@ where
 {
     type Output = U;
 
-    fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
-        match try_ready_task!(self.task.poll_task(cx)) {
-            Ok(item) => PollTask::Ready(item),
-            Err(err) => PollTask::Aborted(Into::into(err)),
-        }
+    fn poll_task(&mut self, cx: &mut task::Context) -> PollResult<Self::Output, Error> {
+        let res: Result<U, E> = poll_result!(self.task.poll_task(cx));
+        res.map_err(Into::into).into()
     }
 }

@@ -12,8 +12,8 @@ use {mime, serde_qs};
 
 use body::FromData;
 use finchers_core::endpoint::{Context, Endpoint};
-use finchers_core::task::{self, PollTask, Task};
-use finchers_core::{HttpError, Input};
+use finchers_core::task::{self, Task};
+use finchers_core::{Error, HttpError, Input, Poll, PollResult};
 
 /// Create an endpoint which parse the query string in the HTTP request
 /// to the value of "T".
@@ -95,19 +95,17 @@ where
 {
     type Output = T;
 
-    fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
+    fn poll_task(&mut self, cx: &mut task::Context) -> PollResult<Self::Output, Error> {
         let query = cx.input()
             .request()
             .uri()
             .query()
             .expect("The query string should be exist at this location");
         match serde_qs::from_str(query) {
-            Ok(v) => PollTask::Ready(v),
-            Err(e) => PollTask::Aborted(
-                QueryError::Parsing {
-                    cause: SyncFailure::new(e),
-                }.into(),
-            ),
+            Ok(v) => Poll::Ready(Ok(v)),
+            Err(e) => Poll::Ready(Err(QueryError::Parsing {
+                cause: SyncFailure::new(e),
+            }.into())),
         }
     }
 }
