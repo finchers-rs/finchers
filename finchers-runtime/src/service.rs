@@ -9,9 +9,9 @@ use std::sync::Arc;
 use std::{fmt, io};
 
 use finchers_core::endpoint::{ApplyRequest, PollReady};
-use finchers_core::error::ServerError;
+use finchers_core::error::Error;
 use finchers_core::input::RequestBody;
-use finchers_core::output::{Body, Responder};
+use finchers_core::output::{Responder, ResponseBody};
 use finchers_core::{Endpoint, HttpError, Input, Task};
 
 #[allow(missing_docs)]
@@ -71,7 +71,7 @@ where
     E::Output: Responder,
 {
     type RequestBody = RequestBody;
-    type ResponseBody = Body;
+    type ResponseBody = ResponseBody;
     type Error = io::Error;
     type Future = EndpointServiceFuture<E::Task>;
 
@@ -96,7 +96,7 @@ pub struct EndpointServiceFuture<T> {
 }
 
 impl<T> EndpointServiceFuture<T> {
-    fn handle_error(&self, err: &HttpError) -> Response<Body> {
+    fn handle_error(&self, err: &HttpError) -> Response<ResponseBody> {
         (self.error_handler)(err, &self.input)
     }
 }
@@ -106,7 +106,7 @@ where
     T: Task,
     T::Output: Responder,
 {
-    type Item = Response<Body>;
+    type Item = Response<ResponseBody>;
     type Error = io::Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
@@ -114,8 +114,8 @@ where
             PollReady::Pending => return Ok(NotReady),
             PollReady::Ready(Some(Ok(output))) => output
                 .respond(&self.input)
-                .unwrap_or_else(|err| self.handle_error(&ServerError::from_fail(err))),
-            PollReady::Ready(Some(Err(err))) => self.handle_error(&*err.http_error()),
+                .unwrap_or_else(|err| self.handle_error(Into::<Error>::into(err).as_http_error())),
+            PollReady::Ready(Some(Err(err))) => self.handle_error(err.as_http_error()),
             PollReady::Ready(None) => self.handle_error(&NoRoute),
         };
 
@@ -146,23 +146,22 @@ impl HttpError for NoRoute {
 }
 
 ///
-pub type ErrorHandler = fn(&HttpError, &Input) -> Response<Body>;
+pub type ErrorHandler = fn(&HttpError, &Input) -> Response<ResponseBody>;
 
-fn default_error_handler(err: &HttpError, input: &Input) -> Response<Body> {
-    let mut response = err.to_response(input).unwrap_or_else(|| {
-        let body = err.to_string();
-        let body_len = body.len().to_string();
+fn default_error_handler(err: &HttpError, _: &Input) -> Response<ResponseBody> {
+    let body = err.to_string();
+    let body_len = body.len().to_string();
 
-        let mut response = Response::new(Body::once(body));
-        response.headers_mut().insert(
-            header::CONTENT_TYPE,
-            HeaderValue::from_static("text/plain; charset=utf-8"),
-        );
-        response.headers_mut().insert(header::CONTENT_LENGTH, unsafe {
-            HeaderValue::from_shared_unchecked(body_len.into())
-        });
-        response
-    });
+    let mut response = Response::new(ResponseBody::once(body));
     *response.status_mut() = err.status_code();
+    response.headers_mut().insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("text/plain; charset=utf-8"),
+    );
+    response.headers_mut().insert(header::CONTENT_LENGTH, unsafe {
+        HeaderValue::from_shared_unchecked(body_len.into())
+    });
+    err.append_headers(response.headers_mut());
+
     response
 }

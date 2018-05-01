@@ -1,7 +1,10 @@
 use either::Either;
 use http::StatusCode;
 
-/// Trait which represents an HTTP status associated with the types.
+/// [unstable]
+/// Trait representing the HTTP status associated with types.
+///
+/// This trait is used as a helper to define the implementation of "Responder".
 pub trait HttpStatus {
     /// Returns a HTTP status code associated with this type
     fn status_code(&self) -> StatusCode;

@@ -3,30 +3,31 @@ use std::fmt;
 
 use bytes::Bytes;
 use either::Either;
-use failure::Error;
 use http::header::HeaderValue;
 use http::{header, Response};
 
-use super::body::Body;
+use super::body::ResponseBody;
+use error::Error;
 use input::Input;
 use never::Never;
 
-pub type Output = Response<Body>;
-
 const TEXT_PLAIN: &str = "text/plain; charset=utf-8";
+
+/// A type alias of value which will be returned from "Responder::respond".
+pub type Output = Response<ResponseBody>;
 
 /// Trait representing the conversion to an HTTP response.
 pub trait Responder {
-    /// The error type returned from "respond".
+    /// The type of error value which will be returned from "respond".
     type Error: Into<Error>;
 
-    /// Create an HTTP response from the value of "Self".
+    /// Consume "self" and construct a new HTTP response.
     fn respond(self, input: &Input) -> Result<Output, Self::Error>;
 }
 
 impl<T> Responder for Response<T>
 where
-    T: Into<Body>,
+    T: Into<ResponseBody>,
 {
     type Error = Never;
 
@@ -128,7 +129,7 @@ impl Responder for Debug {
             format!("{:?}", self.value)
         };
 
-        let mut response = Response::new(Body::once(body));
+        let mut response = Response::new(ResponseBody::once(body));
         content_type(&mut response, TEXT_PLAIN);
         content_length(&mut response);
 
@@ -137,7 +138,7 @@ impl Responder for Debug {
 }
 
 fn make_response(body: Bytes, m: &'static str) -> Output {
-    let mut response = Response::new(Body::once(body));
+    let mut response = Response::new(ResponseBody::once(body));
     content_type(&mut response, m);
     content_length(&mut response);
     response
@@ -149,7 +150,7 @@ fn content_type<T>(response: &mut Response<T>, value: &'static str) {
         .insert(header::CONTENT_TYPE, HeaderValue::from_static(value));
 }
 
-fn content_length(response: &mut Response<Body>) {
+fn content_length(response: &mut Response<ResponseBody>) {
     if let Some(body_len) = response.body().len() {
         response.headers_mut().insert(header::CONTENT_LENGTH, unsafe {
             HeaderValue::from_shared_unchecked(Bytes::from(body_len.to_string()))
