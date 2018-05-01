@@ -14,16 +14,17 @@ extern crate scoped_tls;
 extern crate hyper;
 
 #[macro_use]
-pub mod task;
+mod poll;
+
+mod never;
+mod option;
+mod result;
 
 pub mod endpoint;
 pub mod error;
 pub mod input;
 pub mod output;
-
-mod never;
-mod option;
-mod result;
+pub mod task;
 
 // re-exports
 pub use endpoint::Endpoint;
@@ -32,5 +33,6 @@ pub use input::Input;
 pub use never::Never;
 pub use option::IsOption;
 pub use output::{Output, Responder};
+pub use poll::{Poll, PollResult};
 pub use result::IsResult;
 pub use task::Task;

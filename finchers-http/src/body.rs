@@ -8,8 +8,8 @@ use std::{fmt, mem, str};
 use finchers_core::endpoint::{Context, Endpoint};
 use finchers_core::error::BadRequest;
 use finchers_core::input::{self, RequestBody};
-use finchers_core::task::{self, PollTask, Task};
-use finchers_core::{HttpError, Input, Never};
+use finchers_core::task::{self, Task};
+use finchers_core::{Error, HttpError, Input, Never, Poll, PollResult};
 
 /// A reference counted UTF-8 sequence.
 pub struct BytesString(Bytes);
@@ -102,9 +102,9 @@ pub struct RawBodyTask {
 impl Task for RawBodyTask {
     type Output = RequestBody;
 
-    fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
+    fn poll_task(&mut self, cx: &mut task::Context) -> PollResult<Self::Output, Error> {
         let body = cx.body().expect("cannot take a body twice");
-        PollTask::Ready(body)
+        Poll::Ready(Ok(body))
     }
 }
 
@@ -168,7 +168,7 @@ where
 {
     type Output = T;
 
-    fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
+    fn poll_task(&mut self, cx: &mut task::Context) -> PollResult<Self::Output, Error> {
         'poll: loop {
             let next = match *self {
                 DataTask::Init => {
@@ -176,15 +176,8 @@ where
                     DataTask::Recv(body.into_data())
                 }
                 DataTask::Recv(ref mut body) => {
-                    let buf = match try_ready_task!(body.poll_ready()) {
-                        Ok(buf) => buf,
-                        Err(err) => return PollTask::Aborted(Into::into(err)),
-                    };
-                    let body = match T::from_data(buf, cx.input()) {
-                        Ok(body) => body,
-                        Err(e) => return PollTask::Aborted(Into::into(e)),
-                    };
-                    return PollTask::Ready(body);
+                    let buf = poll_result!(body.poll_ready());
+                    return T::from_data(buf, cx.input()).map_err(Into::into).into();
                 }
                 _ => panic!("cannot resolve/reject twice"),
             };

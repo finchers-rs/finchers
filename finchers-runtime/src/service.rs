@@ -1,18 +1,21 @@
 //! Components of lower-level HTTP services
 
+use bytes::Bytes;
 use futures::Async::*;
-use futures::{Future, Poll};
+use futures::{self, Future, Stream};
 use http::StatusCode;
 use http::header::{self, HeaderValue};
 use http::{Request, Response};
 use std::sync::Arc;
 use std::{fmt, io};
 
-use finchers_core::endpoint::{ApplyRequest, PollReady};
+use finchers_core::endpoint::ApplyRequest;
 use finchers_core::error::Error;
 use finchers_core::input::RequestBody;
 use finchers_core::output::{Responder, ResponseBody};
-use finchers_core::{Endpoint, HttpError, Input, Task};
+use finchers_core::{Endpoint, HttpError, Input, Poll, Task};
+
+// ==== HttpService ====
 
 #[allow(missing_docs)]
 pub trait HttpService {
@@ -71,7 +74,7 @@ where
     E::Output: Responder,
 {
     type RequestBody = RequestBody;
-    type ResponseBody = ResponseBody;
+    type ResponseBody = BodyStream;
     type Error = io::Error;
     type Future = EndpointServiceFuture<E::Task>;
 
@@ -106,17 +109,17 @@ where
     T: Task,
     T::Output: Responder,
 {
-    type Item = Response<ResponseBody>;
+    type Item = Response<BodyStream>;
     type Error = io::Error;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self) -> futures::Poll<Self::Item, Self::Error> {
         let mut response = match self.apply.poll_ready(&self.input) {
-            PollReady::Pending => return Ok(NotReady),
-            PollReady::Ready(Some(Ok(output))) => output
+            Poll::Pending => return Ok(NotReady),
+            Poll::Ready(Some(Ok(output))) => output
                 .respond(&self.input)
                 .unwrap_or_else(|err| self.handle_error(Into::<Error>::into(err).as_http_error())),
-            PollReady::Ready(Some(Err(err))) => self.handle_error(err.as_http_error()),
-            PollReady::Ready(None) => self.handle_error(&NoRoute),
+            Poll::Ready(Some(Err(err))) => self.handle_error(err.as_http_error()),
+            Poll::Ready(None) => self.handle_error(&NoRoute),
         };
 
         if !response.headers().contains_key(header::SERVER) {
@@ -126,7 +129,7 @@ where
             );
         }
 
-        Ok(Ready(response))
+        Ok(Ready(response.map(BodyStream)))
     }
 }
 
@@ -142,6 +145,18 @@ impl fmt::Display for NoRoute {
 impl HttpError for NoRoute {
     fn status_code(&self) -> StatusCode {
         StatusCode::NOT_FOUND
+    }
+}
+
+#[derive(Debug)]
+pub struct BodyStream(ResponseBody);
+
+impl Stream for BodyStream {
+    type Item = Bytes;
+    type Error = io::Error;
+
+    fn poll(&mut self) -> futures::Poll<Option<Self::Item>, Self::Error> {
+        self.0.poll_data().into()
     }
 }
 

@@ -1,5 +1,6 @@
 use finchers_core::endpoint::{Context, Endpoint, IntoEndpoint};
-use finchers_core::task::{self, PollTask, Task};
+use finchers_core::task::{self, Task};
+use finchers_core::{Error, PollResult};
 
 pub fn new<E, F, T>(endpoint: E, f: F) -> Map<E::Endpoint, F>
 where
@@ -47,8 +48,8 @@ where
 {
     type Output = U;
 
-    fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
-        self.task.poll_task(cx).map(|item| {
+    fn poll_task(&mut self, cx: &mut task::Context) -> PollResult<Self::Output, Error> {
+        self.task.poll_task(cx).map_ok(|item| {
             let f = self.f.take().expect("cannot resolve twice");
             cx.input().enter_scope(|| f(item))
         })

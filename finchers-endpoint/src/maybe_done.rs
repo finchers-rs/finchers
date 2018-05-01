@@ -1,6 +1,6 @@
 use self::MaybeDone::*;
-use finchers_core::Error;
-use finchers_core::task::{self, PollTask, Task};
+use finchers_core::task::{self, Task};
+use finchers_core::{Error, Poll};
 use std::mem;
 
 pub enum MaybeDone<T: Task> {
@@ -13,9 +13,9 @@ impl<T: Task> MaybeDone<T> {
     pub fn poll_done(&mut self, cx: &mut task::Context) -> Result<bool, Error> {
         let item = match *self {
             Pending(ref mut f) => match f.poll_task(cx) {
-                PollTask::Ready(item) => item,
-                PollTask::Pending => return Ok(false),
-                PollTask::Aborted(e) => return Err(e),
+                Poll::Ready(Ok(item)) => item,
+                Poll::Pending => return Ok(false),
+                Poll::Ready(Err(e)) => return Err(e),
             },
             Done(..) => return Ok(true),
             Gone => panic!("cannot join twice"),

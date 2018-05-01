@@ -1,12 +1,12 @@
 use bytes::{BufMut, Bytes, BytesMut};
 use error::HttpError;
-use futures::{Async, Stream};
+use futures::Stream;
 use http::StatusCode;
 #[cfg(feature = "hyper")]
 use hyper;
+use poll::{Poll, PollResult};
 use std::ops::Deref;
 use std::{fmt, mem};
-use task::PollTask;
 
 /// An asynchronous task to receive the contents of message body.
 #[derive(Debug)]
@@ -21,35 +21,23 @@ enum DataState {
 impl Data {
     /// Poll whether the all contents of the message body has been received or not.
     // FIXME: make adapt to the signature of futures2.
-    // FIXME: should we replace with `core::task::Poll` ?
-    pub fn poll_ready(&mut self) -> PollTask<Result<Bytes, BodyError>> {
+    pub fn poll_ready(&mut self) -> PollResult<Bytes, BodyError> {
         use self::DataState::*;
-        let err = match self.0 {
-            Receiving(ref mut body, ref mut buf) => 'receiving: loop {
-                while let Some(item) = try_ready_task!(body.poll_data()) {
-                    match item {
-                        Ok(item) => {
-                            buf.reserve(item.len());
-                            unsafe {
-                                buf.bytes_mut().copy_from_slice(&*item);
-                                buf.advance_mut(item.len());
-                            }
-                        }
-                        Err(err) => break 'receiving Some(err),
+        match self.0 {
+            Receiving(ref mut body, ref mut buf) => {
+                while let Some(item) = poll_result!(body.poll_data()) {
+                    buf.reserve(item.len());
+                    unsafe {
+                        buf.bytes_mut().copy_from_slice(&*item);
+                        buf.advance_mut(item.len());
                     }
                 }
-                break 'receiving None;
-            },
+            }
             Done => panic!("cannot resolve twice"),
         };
 
-        if let Some(err) = err {
-            self.0 = Done;
-            return PollTask::Ready(Err(err));
-        }
-
         match mem::replace(&mut self.0, Done) {
-            Receiving(_, buf) => PollTask::Ready(Ok(buf.freeze())),
+            Receiving(_, buf) => Poll::Ready(Ok(buf.freeze())),
             Done => panic!(),
         }
     }
@@ -104,18 +92,16 @@ impl RequestBody {
 
     /// Poll an element of "Chunk".
     // FIXME: make adapt to the signature of futures2 or std's Async
-    pub fn poll_data(&mut self) -> PollTask<Option<Result<Chunk, BodyError>>> {
+    pub fn poll_data(&mut self) -> PollResult<Option<Chunk>, BodyError> {
         use self::RequestBodyKind::*;
         match self.kind {
-            Empty => PollTask::Ready(None),
-            Once(ref mut chunk) => PollTask::Ready(chunk.take().map(Chunk::new).map(Ok)),
+            Empty => Poll::Ready(Ok(None)),
+            Once(ref mut chunk) => Poll::Ready(Ok(chunk.take().map(Chunk::new))),
             #[cfg(feature = "hyper")]
-            Hyper(ref mut body) => match body.poll() {
-                Ok(Async::Ready(Some(chunk))) => PollTask::Ready(Some(Ok(Chunk::from_hyp(chunk)))),
-                Ok(Async::Ready(None)) => PollTask::Ready(None),
-                Ok(Async::NotReady) => PollTask::Pending,
-                Err(err) => PollTask::Ready(Some(Err(BodyError::Hyper(err)))),
-            },
+            Hyper(ref mut body) => body.poll()
+                .map(|async| async.map(|chunk_opt| chunk_opt.map(Chunk::from_hyp)))
+                .map_err(BodyError::Hyper)
+                .into(),
         }
     }
 

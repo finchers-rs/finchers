@@ -2,14 +2,14 @@ extern crate finchers_core;
 extern crate futures;
 extern crate http;
 
-use futures::{Future, Poll};
+use futures::{Async, Future};
 use http::header::{HeaderName, HeaderValue};
 use http::{HttpTryFrom, Method, Request, Uri};
 use std::mem;
 
 use finchers_core::endpoint::ApplyRequest;
 use finchers_core::input::RequestBody;
-use finchers_core::{Endpoint, Error, Input, Never, Task};
+use finchers_core::{Endpoint, Error, Input, Never, Poll, Task};
 
 #[derive(Debug)]
 pub struct Client<E: Endpoint> {
@@ -131,7 +131,10 @@ impl<T: Task> Future for TestFuture<T> {
     type Item = Option<Result<T::Output, Error>>;
     type Error = Never;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        Ok(self.apply.poll_ready(&self.input).into())
+    fn poll(&mut self) -> Result<Async<Self::Item>, Self::Error> {
+        match self.apply.poll_ready(&self.input) {
+            Poll::Pending => Ok(Async::NotReady),
+            Poll::Ready(ready) => Ok(Async::Ready(ready)),
+        }
     }
 }

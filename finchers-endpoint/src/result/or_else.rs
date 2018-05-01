@@ -1,5 +1,6 @@
 use finchers_core::endpoint::{Context, Endpoint};
-use finchers_core::task::{self, PollTask, Task};
+use finchers_core::task::{self, Task};
+use finchers_core::{Error, PollResult};
 
 #[derive(Debug, Copy, Clone)]
 pub struct OrElse<E, F> {
@@ -44,8 +45,8 @@ where
 {
     type Output = Result<A, U>;
 
-    fn poll_task(&mut self, cx: &mut task::Context) -> PollTask<Self::Output> {
-        self.task.poll_task(cx).map(|item| {
+    fn poll_task(&mut self, cx: &mut task::Context) -> PollResult<Self::Output, Error> {
+        self.task.poll_task(cx).map_ok(|item| {
             let f = self.f.take().expect("cannot resolve twice");
             cx.input().enter_scope(|| item.or_else(f))
         })
