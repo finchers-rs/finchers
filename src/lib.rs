@@ -88,8 +88,9 @@ pub mod output {
 }
 
 pub mod runtime {
+    pub use finchers_runtime::endpoint::NewEndpointService;
     pub use finchers_runtime::server::Server;
-    pub use finchers_runtime::service::{EndpointService, HttpService};
+    pub use finchers_runtime::service::{HttpService, NewHttpService};
 }
 
 pub use finchers_core::{Endpoint, HttpError, Input, Never, Output, Responder};
