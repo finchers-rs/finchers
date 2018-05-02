@@ -1,3 +1,5 @@
+#![doc(html_root_url = "https://docs.rs/finchers-endpoint/0.11.0")]
+
 extern crate either;
 #[macro_use]
 extern crate finchers_core;

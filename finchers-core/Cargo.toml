@@ -1,6 +1,6 @@
 [package]
 name = "finchers-core"
-version = "0.11.0-dev"
+version = "0.11.0"
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 
 [dependencies]
