@@ -2,8 +2,8 @@
 
 mod body;
 mod responder;
-mod status;
+mod response;
 
 pub use self::body::ResponseBody;
 pub use self::responder::{Debug, Output, Responder};
-pub use self::status::HttpStatus;
+pub use self::response::HttpResponse;

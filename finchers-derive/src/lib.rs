@@ -6,11 +6,11 @@ extern crate proc_macro2;
 extern crate quote;
 extern crate syn;
 
-mod http_status;
+mod http_response;
 
 use proc_macro::TokenStream;
 
-#[proc_macro_derive(HttpStatus, attributes(status_code))]
-pub fn derive_http_status(input: TokenStream) -> TokenStream {
-    http_status::derive(input.into()).into()
+#[proc_macro_derive(HttpResponse, attributes(status_code))]
+pub fn derive_http_response(input: TokenStream) -> TokenStream {
+    http_response::derive(input.into()).into()
 }

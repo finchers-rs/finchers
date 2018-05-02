@@ -13,7 +13,7 @@ fn endpoint() -> impl Endpoint<Output = Debug> + 'static {
     use finchers::endpoint::query::{from_csv, query, Form};
     use finchers::error::BadRequest;
 
-    #[derive(Debug, Deserialize, HttpStatus)]
+    #[derive(Debug, Deserialize, HttpResponse)]
     pub struct FormParam {
         query: String,
         count: Option<usize>,

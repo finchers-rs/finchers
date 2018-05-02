@@ -10,7 +10,7 @@ use {mime, serde_json};
 
 use body::FromData;
 use finchers_core::error::HttpError;
-use finchers_core::output::{HttpStatus, Responder, ResponseBody};
+use finchers_core::output::{HttpResponse, Responder, ResponseBody};
 use finchers_core::{Input, Output};
 
 /// A wrapper struct representing a statically typed JSON value.
@@ -63,7 +63,7 @@ where
 
 impl<T> Responder for Json<T>
 where
-    T: Serialize + HttpStatus,
+    T: Serialize + HttpResponse,
 {
     type Error = JsonError;
 
@@ -73,6 +73,7 @@ where
 
         let mut response = Response::new(ResponseBody::once(body));
         *response.status_mut() = self.0.status_code();
+        self.0.append_headers(response.headers_mut());
         response
             .headers_mut()
             .insert(header::CONTENT_TYPE, HeaderValue::from_static("application/json"));

@@ -7,7 +7,7 @@ use db::*;
 
 use self::Response::*;
 
-#[derive(Debug, Serialize, HttpStatus)]
+#[derive(Debug, Serialize, HttpResponse)]
 #[serde(untagged)]
 pub enum Response {
     TheTodo(Todo),
