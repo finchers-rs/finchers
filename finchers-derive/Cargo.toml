@@ -7,6 +7,6 @@ authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 proc-macro = true
 
 [dependencies]
-syn = "0.12"
-quote = "0.4"
-proc-macro2 = "0.2"
+syn = "0.13"
+quote = "0.5"
+proc-macro2 = "0.3"

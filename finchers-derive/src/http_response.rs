@@ -1,4 +1,4 @@
-use proc_macro2::{Span, Term, TokenNode, TokenStream, TokenTree};
+use proc_macro2::{Span, Term, TokenStream, TokenTree};
 use quote::{ToTokens, Tokens};
 use std::fmt;
 use syn::{self, DeriveInput, Generics, Ident, Meta};
@@ -107,7 +107,7 @@ impl From<syn::LitInt> for StatusCode {
         let &(_, code) = SUPPORTED_STATUSES.into_iter().find(|&&(c, _)| c == n).unwrap();
         StatusCode {
             code,
-            span: literal.span,
+            span: literal.span(),
         }
     }
 }
@@ -118,7 +118,7 @@ impl From<syn::LitStr> for StatusCode {
         let &(_, code) = SUPPORTED_STATUSES.iter().find(|&&(_, s)| s == value).unwrap();
         StatusCode {
             code,
-            span: literal.span,
+            span: literal.span(),
         }
     }
 }
@@ -131,10 +131,7 @@ impl fmt::Debug for StatusCode {
 
 impl ToTokens for StatusCode {
     fn to_tokens(&self, tokens: &mut Tokens) {
-        tokens.append(TokenTree {
-            span: self.span,
-            kind: TokenNode::Term(Term::intern(self.code)),
-        });
+        tokens.append(TokenTree::Term(Term::new(self.code, self.span)));
     }
 }
 
