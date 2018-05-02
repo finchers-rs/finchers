@@ -1,3 +1,4 @@
+#![doc(html_root_url = "https://docs.rs/finchers-derive/0.11.0")]
 #![recursion_limit = "128"]
 
 extern crate proc_macro;

@@ -1,3 +1,5 @@
+#![doc(html_root_url = "https://docs.rs/finchers-test/0.11.0")]
+
 extern crate finchers_core;
 extern crate futures;
 extern crate http;

@@ -1,9 +1,9 @@
 [package]
 name = "finchers-test"
-version = "0.11.0-dev"
+version = "0.11.0"
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 
 [dependencies]
-finchers-core = { version = "0.11.0-dev", path = "../finchers-core" }
+finchers-core = { version = "0.11.0", path = "../finchers-core" }
 futures = "0.1.21"
 http = "0.1.5"

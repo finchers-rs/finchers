@@ -1,6 +1,6 @@
 [package]
 name = "finchers-runtime"
-version = "0.11.0-dev"
+version = "0.11.0"
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 
 [dependencies]
@@ -14,7 +14,7 @@ slog-async = "2.3.0"
 slog-term = "2.4.0"
 
 [dependencies.finchers-core]
-version = "0.11.0-dev"
+version = "0.11.0"
 path = "../finchers-core"
 
 [dependencies.hyper]

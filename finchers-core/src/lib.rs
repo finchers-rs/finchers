@@ -1,3 +1,4 @@
+#![doc(html_root_url = "https://docs.rs/finchers-core/0.11.0")]
 #![cfg_attr(feature = "nightly", feature(try_trait))]
 
 extern crate bytes;

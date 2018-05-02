@@ -1,6 +1,6 @@
 [package]
 name = "finchers"
-version = "0.11.0-dev" # don't forget to update html_root_url in lib.rs
+version = "0.11.0" # don't forget to update html_root_url in lib.rs
 description = "A combinator library for builidng asynchronous HTTP services"
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 license = "MIT/Apache-2.0"
@@ -31,12 +31,12 @@ members = [
 ]
 
 [dependencies]
-finchers-core = { version = "0.11.0-dev", path = "finchers-core" }
-finchers-derive = { version = "0.11.0-dev", path = "finchers-derive" }
-finchers-endpoint = { version = "0.11.0-dev", path = "finchers-endpoint" }
-finchers-http = { version = "0.11.0-dev", path = "finchers-http" }
-finchers-runtime = { version = "0.11.0-dev", path = "finchers-runtime" }
-finchers-test = { version = "0.11.0-dev", path = "finchers-test" }
+finchers-core = { version = "0.11.0", path = "finchers-core" }
+finchers-derive = { version = "0.11.0", path = "finchers-derive" }
+finchers-endpoint = { version = "0.11.0", path = "finchers-endpoint" }
+finchers-http = { version = "0.11.0", path = "finchers-http" }
+finchers-runtime = { version = "0.11.0", path = "finchers-runtime" }
+finchers-test = { version = "0.11.0", path = "finchers-test" }
 
 [dev-dependencies]
 http = "0.1"
