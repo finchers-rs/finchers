@@ -4,7 +4,6 @@ use hyper;
 use hyper::server::{service_fn, Http};
 use slog::{Drain, Level, Logger};
 use std::cell::RefCell;
-use std::io;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 use std::time::Instant;
@@ -16,9 +15,9 @@ use {slog_async, slog_term};
 use finchers_core::endpoint::Endpoint;
 use finchers_core::input::RequestBody;
 use finchers_core::output::Responder;
-use service::{HttpService, NewHttpService};
 
 use endpoint::NewEndpointService;
+use service::{HttpService, NewHttpService, Payload};
 
 /// Start the server with given endpoint and default configuration.
 pub fn run<E>(endpoint: E)
@@ -128,10 +127,11 @@ pub struct Server<S> {
 impl<S> Server<S>
 where
     S: NewHttpService<RequestBody = RequestBody> + Send + Sync + 'static,
+    S::ResponseBody: Payload + Send + 'static,
+    <S::ResponseBody as Payload>::Data: Send,
+    <S::ResponseBody as Payload>::Error: Into<hyper::Error>,
     S::Service: Send + 'static,
     S::Future: Send + 'static,
-    S::ResponseBody: Stream<Error = io::Error> + Send + 'static,
-    <S::ResponseBody as Stream>::Item: AsRef<[u8]> + Send + 'static,
     S::Error: Into<hyper::Error>,
     <S::Service as HttpService>::Future: Send + 'static,
 {
@@ -171,7 +171,7 @@ where
                 });
 
                 // FIXME: move to the root.
-                let protocol = Http::<<S::ResponseBody as Stream>::Item>::new();
+                let protocol = Http::<<S::ResponseBody as Payload>::Data>::new();
 
                 new_service
                     .new_service()
@@ -217,15 +217,14 @@ where
 #[derive(Debug)]
 struct BodyWrapper<Bd>(Bd);
 
-impl<Bd> Stream for BodyWrapper<Bd>
+impl<Bd: Payload> Stream for BodyWrapper<Bd>
 where
-    Bd: Stream<Error = io::Error>,
-    Bd::Item: AsRef<[u8]> + 'static,
+    Bd::Error: Into<hyper::Error>,
 {
-    type Item = Bd::Item;
+    type Item = Bd::Data;
     type Error = hyper::Error;
 
     fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
-        self.0.poll().map_err(Into::into)
+        self.0.poll_data().map_err(Into::into)
     }
 }

@@ -1,7 +1,7 @@
 use bytes::Bytes;
 use futures::Async::*;
 use futures::future::{self, FutureResult};
-use futures::{self, Future, Stream};
+use futures::{self, Future};
 use http::StatusCode;
 use http::header::{self, HeaderValue};
 use http::{Request, Response};
@@ -14,7 +14,16 @@ use finchers_core::input::RequestBody;
 use finchers_core::output::{Responder, ResponseBody};
 use finchers_core::{Endpoint, HttpError, Input, Poll, Task};
 
-use service::{HttpService, NewHttpService};
+use service::{HttpService, NewHttpService, Payload};
+
+impl Payload for ResponseBody {
+    type Data = Bytes;
+    type Error = io::Error;
+
+    fn poll_data(&mut self) -> futures::Poll<Option<Self::Data>, Self::Error> {
+        self.poll_data().into()
+    }
+}
 
 /// An HTTP service which wraps an `Endpoint`.
 pub struct NewEndpointService<E> {
@@ -41,7 +50,7 @@ where
     E::Output: Responder,
 {
     type RequestBody = RequestBody;
-    type ResponseBody = BodyStream;
+    type ResponseBody = ResponseBody;
     type Error = io::Error;
     type Service = EndpointService<E>;
     type InitError = io::Error;
@@ -68,7 +77,7 @@ where
     E::Output: Responder,
 {
     type RequestBody = RequestBody;
-    type ResponseBody = BodyStream;
+    type ResponseBody = ResponseBody;
     type Error = io::Error;
     type Future = EndpointServiceFuture<E::Task>;
 
@@ -103,7 +112,7 @@ where
     T: Task,
     T::Output: Responder,
 {
-    type Item = Response<BodyStream>;
+    type Item = Response<ResponseBody>;
     type Error = io::Error;
 
     fn poll(&mut self) -> futures::Poll<Self::Item, Self::Error> {
@@ -123,7 +132,7 @@ where
             );
         }
 
-        Ok(Ready(response.map(BodyStream)))
+        Ok(Ready(response))
     }
 }
 
@@ -139,18 +148,6 @@ impl fmt::Display for NoRoute {
 impl HttpError for NoRoute {
     fn status_code(&self) -> StatusCode {
         StatusCode::NOT_FOUND
-    }
-}
-
-#[derive(Debug)]
-pub struct BodyStream(ResponseBody);
-
-impl Stream for BodyStream {
-    type Item = Bytes;
-    type Error = io::Error;
-
-    fn poll(&mut self) -> futures::Poll<Option<Self::Item>, Self::Error> {
-        self.0.poll_data().into()
     }
 }
 

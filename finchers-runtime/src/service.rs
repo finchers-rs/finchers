@@ -1,6 +1,13 @@
-use futures::Future;
+use futures::{self, Future};
 use http::{Request, Response};
 use std::sync::Arc;
+
+pub trait Payload {
+    type Data: AsRef<[u8]> + 'static;
+    type Error;
+
+    fn poll_data(&mut self) -> futures::Poll<Option<Self::Data>, Self::Error>;
+}
 
 pub trait NewHttpService {
     type RequestBody;
