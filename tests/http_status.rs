@@ -2,16 +2,16 @@
 extern crate finchers;
 extern crate http;
 
-use finchers::output::HttpStatus;
+use finchers::output::HttpResponse;
 use http::StatusCode;
 
-fn assert_impl_http_response<T: HttpStatus>(t: T) -> T {
+fn assert_impl_http_response<T: HttpResponse>(t: T) -> T {
     t
 }
 
 #[test]
 fn derive_http_response_for_normal_struct() {
-    #[derive(HttpStatus)]
+    #[derive(HttpResponse)]
     #[status_code = "NOT_FOUND"]
     struct Param {}
     let param = assert_impl_http_response(Param {});
@@ -20,7 +20,7 @@ fn derive_http_response_for_normal_struct() {
 
 #[test]
 fn derive_http_response_for_generic_struct() {
-    #[derive(HttpStatus)]
+    #[derive(HttpResponse)]
     struct Param<T> {
         _value: T,
     }
@@ -30,7 +30,7 @@ fn derive_http_response_for_generic_struct() {
 
 #[test]
 fn derive_http_response_for_enum() {
-    #[derive(HttpStatus)]
+    #[derive(HttpResponse)]
     #[status_code = "CREATED"]
     enum Param {
         A(u32),

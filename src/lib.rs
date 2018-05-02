@@ -84,7 +84,7 @@ pub mod input {
 }
 
 pub mod output {
-    pub use finchers_core::output::{Debug, HttpStatus, Responder, ResponseBody};
+    pub use finchers_core::output::{Debug, HttpResponse, Responder, ResponseBody};
 }
 
 pub mod runtime {
