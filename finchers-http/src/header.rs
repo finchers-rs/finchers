@@ -16,10 +16,10 @@ use finchers_core::{Error, HttpError, Never, PollResult};
 ///
 /// ```
 /// # extern crate finchers_core;
-/// # extern crate finchers_endpoint;
+/// # extern crate finchers_ext;
 /// # extern crate finchers_http;
 /// # use finchers_http::header::{header, FromHeader};
-/// # use finchers_endpoint::{EndpointExt, EndpointResultExt, EndpointOptionExt};
+/// # use finchers_ext::{EndpointExt, EndpointResultExt, EndpointOptionExt};
 /// # use finchers_core::error::BadRequest;
 /// #
 /// pub struct APIKey(pub String);
@@ -115,10 +115,10 @@ where
 ///
 /// ```
 /// # extern crate finchers_core;
-/// # extern crate finchers_endpoint;
+/// # extern crate finchers_ext;
 /// # extern crate finchers_http;
 /// # use finchers_http::header::{header_skipped, FromHeader};
-/// # use finchers_endpoint::EndpointExt;
+/// # use finchers_ext::EndpointExt;
 /// # use finchers_core::error::BadRequest;
 /// #
 /// pub struct APIKey(pub String);

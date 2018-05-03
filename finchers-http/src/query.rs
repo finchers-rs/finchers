@@ -21,11 +21,11 @@ use finchers_core::{Error, HttpError, Input, Poll, PollResult};
 /// # Example
 ///
 /// ```
-/// # extern crate finchers_endpoint;
+/// # extern crate finchers_ext;
 /// # extern crate finchers_http;
 /// # #[macro_use] extern crate serde;
 /// # use finchers_http::query::{query, from_csv};
-/// # use finchers_endpoint::EndpointExt;
+/// # use finchers_ext::EndpointExt;
 /// #
 /// #[derive(Debug, Deserialize)]
 /// pub struct Param {
@@ -201,10 +201,10 @@ where
 ///
 /// ```
 /// # extern crate finchers_http;
-/// # extern crate finchers_endpoint;
+/// # extern crate finchers_ext;
 /// # #[macro_use] extern crate serde;
 /// # use finchers_http::query::{query, from_csv};
-/// # use finchers_endpoint::EndpointExt;
+/// # use finchers_ext::EndpointExt;
 /// #
 /// #[derive(Debug, Deserialize)]
 /// pub struct Params {

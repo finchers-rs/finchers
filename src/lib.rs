@@ -54,7 +54,7 @@ extern crate finchers_core;
 #[allow(unused_imports)]
 #[macro_use]
 extern crate finchers_derive;
-extern crate finchers_endpoint;
+extern crate finchers_ext;
 extern crate finchers_http;
 extern crate finchers_runtime;
 
@@ -67,13 +67,13 @@ pub mod error {
 
 pub mod endpoint {
     pub use finchers_core::endpoint::{Endpoint, IntoEndpoint};
-    pub use finchers_endpoint::{abort, all, just, lazy, EndpointExt, EndpointOptionExt, EndpointResultExt};
+    pub use finchers_ext::{abort, all, just, lazy, EndpointExt, EndpointOptionExt, EndpointResultExt};
     pub use finchers_http::{body, header, method, path, query, FromData, FromHeader, FromSegment, FromSegments};
 
     /// The "prelude" for building endpoints
     pub mod prelude {
         pub use finchers_core::endpoint::{Endpoint, IntoEndpoint};
-        pub use finchers_endpoint::{EndpointExt, EndpointOptionExt, EndpointResultExt};
+        pub use finchers_ext::{EndpointExt, EndpointOptionExt, EndpointResultExt};
         pub use finchers_http::body::{data, raw_body};
         pub use finchers_http::header::header;
         pub use finchers_http::method::{delete, get, head, patch, post, put};
