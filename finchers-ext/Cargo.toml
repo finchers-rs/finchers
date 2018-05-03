@@ -1,0 +1,19 @@
+[package]
+name = "finchers-ext"
+version = "0.11.0"
+authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
+license = "MIT/Apache-2.0"
+repository = "https://github.com/finchers-rs/finchers.git"
+homepage = "https://finchers-rs.github.io"
+documentation = "https://docs.rs/finchers-ext"
+description = """
+Extensions for constructing Endpoints
+"""
+
+[dependencies]
+finchers-core = { version = "0.11.0", path = "../finchers-core", default-features = false }
+either = { version = "1.5.0", default-features = false }
+
+[dev-dependencies]
+finchers-http = { version = "0.11.0", path = "../finchers-http" }
+finchers-test = { version = "0.11.0", path = "../finchers-test" }

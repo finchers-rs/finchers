@@ -20,7 +20,7 @@ maintenance = { status = "actively-developed" }
 members = [
   "finchers-core",
   "finchers-derive",
-  "finchers-endpoint",
+  "finchers-ext",
   "finchers-http",
   "finchers-runtime",
   "finchers-test",
@@ -33,7 +33,7 @@ members = [
 [dependencies]
 finchers-core = { version = "0.11.0", path = "finchers-core" }
 finchers-derive = { version = "0.11.0", path = "finchers-derive" }
-finchers-endpoint = { version = "0.11.0", path = "finchers-endpoint" }
+finchers-ext = { version = "0.11.0", path = "finchers-ext" }
 finchers-http = { version = "0.11.0", path = "finchers-http" }
 finchers-runtime = { version = "0.11.0", path = "finchers-runtime" }
 finchers-test = { version = "0.11.0", path = "finchers-test" }

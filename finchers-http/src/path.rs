@@ -24,9 +24,9 @@ use finchers_core::task;
 ///
 /// ```
 /// # extern crate finchers_http;
-/// # extern crate finchers_endpoint;
+/// # extern crate finchers_ext;
 /// # use finchers_http::path::path;
-/// # use finchers_endpoint::{just, EndpointExt};
+/// # use finchers_ext::{just, EndpointExt};
 /// # fn main() {
 /// let endpoint = path("foo").and(just("matched"));
 /// # }
@@ -36,9 +36,9 @@ use finchers_core::task;
 ///
 /// ```
 /// # extern crate finchers_http;
-/// # extern crate finchers_endpoint;
+/// # extern crate finchers_ext;
 /// # use finchers_http::path::path;
-/// # use finchers_endpoint::{just, EndpointExt};
+/// # use finchers_ext::{just, EndpointExt};
 /// # fn main() {
 /// let endpoint = path("foo/bar").and(just("matched"));
 /// # }
@@ -48,9 +48,9 @@ use finchers_core::task;
 ///
 /// ```
 /// # extern crate finchers_http;
-/// # extern crate finchers_endpoint;
+/// # extern crate finchers_ext;
 /// # use finchers_http::path::path;
-/// # use finchers_endpoint::{just, EndpointExt};
+/// # use finchers_ext::{just, EndpointExt};
 /// # fn main() {
 /// let endpoint = path("*").and(just("matched"));
 /// # }
@@ -162,8 +162,8 @@ impl error::Error for ParseMatchError {
 ///
 /// ```
 /// # extern crate finchers_http;
-/// # extern crate finchers_endpoint;
-/// # use finchers_endpoint::EndpointExt;
+/// # extern crate finchers_ext;
+/// # use finchers_ext::EndpointExt;
 /// # use finchers_http::path::param;
 /// # fn main() {
 /// let endpoint = param()
@@ -175,10 +175,10 @@ impl error::Error for ParseMatchError {
 ///
 /// ```
 /// # extern crate finchers_core;
-/// # extern crate finchers_endpoint;
+/// # extern crate finchers_ext;
 /// # extern crate finchers_http;
 /// # use finchers_core::error::BadRequest;
-/// # use finchers_endpoint::{EndpointExt, EndpointResultExt, EndpointOptionExt};
+/// # use finchers_ext::{EndpointExt, EndpointResultExt, EndpointOptionExt};
 /// # use finchers_http::path::{param, FromSegment};
 /// # fn main() {
 /// let endpoint = param()
@@ -287,9 +287,9 @@ impl<T: FromSegment> FromSegment for Result<T, T::Error> {
 /// # Example
 ///
 /// ```
-/// # extern crate finchers_endpoint;
+/// # extern crate finchers_ext;
 /// # extern crate finchers_http;
-/// # use finchers_endpoint::EndpointExt;
+/// # use finchers_ext::EndpointExt;
 /// # use finchers_http::path::params;
 /// # use std::path::PathBuf;
 /// # fn main() {
