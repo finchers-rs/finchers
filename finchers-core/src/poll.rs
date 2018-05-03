@@ -9,11 +9,28 @@ pub type PollResult<T, E> = Poll<Result<T, E>>;
 // FIXME: replace with core::task::Poll
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Poll<T> {
+    /// The task has just been finished with a returned value of `T`.
     Ready(T),
+
+    /// The task is not ready and should be scheduled to be awoken by the executor.
     Pending,
 }
 
 impl<T> Poll<T> {
+    /// Return whether the value is `Pending`.
+    pub fn is_pending(&self) -> bool {
+        match *self {
+            Poll::Pending => true,
+            _ => false,
+        }
+    }
+
+    /// Return whether the value is `Ready`.
+    pub fn is_ready(&self) -> bool {
+        !self.is_pending()
+    }
+
+    /// Maps the value to a new type with given function.
     pub fn map<F, U>(self, f: F) -> Poll<U>
     where
         F: FnOnce(T) -> U,
@@ -23,20 +40,10 @@ impl<T> Poll<T> {
             Poll::Ready(t) => Poll::Ready(f(t)),
         }
     }
-
-    pub fn is_pending(&self) -> bool {
-        match *self {
-            Poll::Pending => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_ready(&self) -> bool {
-        !self.is_pending()
-    }
 }
 
 impl<T, E> Poll<Result<T, E>> {
+    /// Return whether the value is `Ready(Ok(t))`.
     pub fn is_ok(&self) -> bool {
         match *self {
             Poll::Ready(Ok(..)) => true,
@@ -44,6 +51,7 @@ impl<T, E> Poll<Result<T, E>> {
         }
     }
 
+    /// Return whether the value is `Ready(Err(t))`.
     pub fn is_err(&self) -> bool {
         match *self {
             Poll::Ready(Err(..)) => true,
@@ -51,24 +59,20 @@ impl<T, E> Poll<Result<T, E>> {
         }
     }
 
+    /// Maps the value to a new type with given function if the value is `Ok`.
     pub fn map_ok<F, U>(self, f: F) -> Poll<Result<U, E>>
     where
         F: FnOnce(T) -> U,
     {
-        match self {
-            Poll::Pending => Poll::Pending,
-            Poll::Ready(t) => Poll::Ready(t.map(f)),
-        }
+        self.map(|t| t.map(f))
     }
 
+    /// Maps the value to a new type with given function if the value is `Err`.
     pub fn map_err<F, U>(self, f: F) -> Poll<Result<T, U>>
     where
         F: FnOnce(E) -> U,
     {
-        match self {
-            Poll::Pending => Poll::Pending,
-            Poll::Ready(t) => Poll::Ready(t.map_err(f)),
-        }
+        self.map(|t| t.map_err(f))
     }
 }
 

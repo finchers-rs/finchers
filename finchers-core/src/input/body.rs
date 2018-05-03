@@ -68,12 +68,14 @@ impl fmt::Debug for RequestBody {
 }
 
 impl RequestBody {
+    /// Create an instance of empty `RequestBody`.
     pub fn empty() -> RequestBody {
         RequestBody {
             kind: RequestBodyKind::Empty,
         }
     }
 
+    /// Create an instance of `RequestBody` from a chunk of bytes.
     pub fn once<T>(body: T) -> RequestBody
     where
         T: Into<Bytes>,
@@ -83,6 +85,7 @@ impl RequestBody {
         }
     }
 
+    /// Create an instance of `RequestBody` from `hyper::Body`.
     #[cfg(feature = "hyper")]
     pub fn from_hyp(body: hyper::Body) -> RequestBody {
         RequestBody {
@@ -90,7 +93,7 @@ impl RequestBody {
         }
     }
 
-    /// Poll an element of "Chunk".
+    /// Poll an element of `Chunk`.
     // FIXME: make adapt to the signature of futures2 or std's Async
     pub fn poll_data(&mut self) -> PollResult<Option<Chunk>, BodyError> {
         use self::RequestBodyKind::*;
@@ -105,7 +108,7 @@ impl RequestBody {
         }
     }
 
-    /// Convert the instance of itself to a "Data".
+    /// Convert the instance of itself to a `Data`.
     pub fn into_data(self) -> Data {
         // TODO: reserve the capacity of content-length
         Data(DataState::Receiving(self, BytesMut::new()))
@@ -124,6 +127,7 @@ enum ChunkType {
 }
 
 impl Chunk {
+    #[allow(missing_docs)]
     pub fn new<T>(chunk: T) -> Chunk
     where
         T: Into<Bytes>,
@@ -131,6 +135,7 @@ impl Chunk {
         Chunk(ChunkType::Shared(chunk.into()))
     }
 
+    #[allow(missing_docs)]
     #[cfg(feature = "hyper")]
     pub fn from_hyp(chunk: hyper::Chunk) -> Chunk {
         Chunk(ChunkType::Hyper(chunk))
@@ -155,8 +160,10 @@ impl Deref for Chunk {
     }
 }
 
+/// An error type which will returned at receiving the message body.
 #[derive(Debug, Fail)]
 pub enum BodyError {
+    #[allow(missing_docs)]
     #[cfg(feature = "hyper")]
     #[fail(display = "during receiving the chunk")]
     Hyper(hyper::Error),

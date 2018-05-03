@@ -1,5 +1,11 @@
-#![doc(html_root_url = "https://docs.rs/finchers-core/0.11.0")]
 #![cfg_attr(feature = "nightly", feature(try_trait))]
+
+//! Core primitives for constructing asynchronous HTTP services
+
+#![doc(html_root_url = "https://docs.rs/finchers-core/0.11.0")]
+#![deny(missing_docs)]
+#![deny(missing_debug_implementations)]
+#![deny(warnings)]
 
 extern crate bytes;
 extern crate either;

@@ -13,15 +13,15 @@ use never::Never;
 
 const TEXT_PLAIN: &str = "text/plain; charset=utf-8";
 
-/// A type alias of value which will be returned from "Responder::respond".
+/// A type alias of value which will be returned from `Responder`.
 pub type Output = Response<ResponseBody>;
 
 /// Trait representing the conversion to an HTTP response.
 pub trait Responder {
-    /// The type of error value which will be returned from "respond".
+    /// The type of error value which will be returned from `respond`.
     type Error: Into<Error>;
 
-    /// Consume "self" and construct a new HTTP response.
+    /// Consume `self` and construct a new HTTP response.
     fn respond(self, input: &Input) -> Result<Output, Self::Error>;
 }
 
@@ -93,15 +93,16 @@ where
 
 /// A helper struct for creating the response from types which implements `fmt::Debug`.
 ///
-/// This wrapper is only for debugging and should not use in the production code.
+/// NOTE: This wrapper is only for debugging and should not use in the production code.
+#[derive(Debug)]
 pub struct Debug {
     value: Box<fmt::Debug + Send + 'static>,
     pretty: bool,
 }
 
 impl Debug {
-    /// Create an instance of "Debug" from an value
-    /// whose type has an implementation of "fmt::Debug".
+    /// Create an instance of `Debug` from an value whose type has an implementation of
+    /// `fmt::Debug`.
     pub fn new<T>(value: T) -> Debug
     where
         T: fmt::Debug + Send + 'static,
@@ -112,7 +113,7 @@ impl Debug {
         }
     }
 
-    /// Set whether this responder uses the pretty-printed specifier (":?") or not.
+    /// Set whether this responder uses the pretty-printed specifier (`"{:#?}"`) or not.
     pub fn pretty(mut self, enabled: bool) -> Self {
         self.pretty = enabled;
         self

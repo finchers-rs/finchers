@@ -5,12 +5,12 @@ use super::context::Context;
 use input::{Input, RequestBody};
 use task::Task;
 
-/// Trait representing an *endpoint*.
+/// Trait representing an endpoint.
 pub trait Endpoint: Send + Sync {
     /// The inner type associated with this endpoint.
     type Output;
 
-    /// The type of value which will be returned from "Endpoint::apply".
+    /// The type of value which will be returned from `apply`.
     type Task: Task<Output = Self::Output>;
 
     /// Perform checking the incoming HTTP request and returns
@@ -50,15 +50,15 @@ impl<E: Endpoint> Endpoint for Arc<E> {
     }
 }
 
-/// Abstraction of types to be convert to an `Endpoint`.
+/// Trait representing the transformation into an `Endpoint`.
 pub trait IntoEndpoint {
-    /// The return type
+    /// The inner type of associated `Endpoint`.
     type Output;
 
-    /// The type of value returned from `into_endpoint`.
+    /// The type of transformed `Endpoint`.
     type Endpoint: Endpoint<Output = Self::Output>;
 
-    /// Convert itself into `Self::Endpoint`.
+    /// Consume itself and transform into an `Endpoint`.
     fn into_endpoint(self) -> Self::Endpoint;
 }
 

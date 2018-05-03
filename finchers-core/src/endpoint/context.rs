@@ -16,17 +16,18 @@ impl<'a> Context<'a> {
         }
     }
 
+    /// Return the reference to `Input`.
     pub fn input(&self) -> &'a Input {
         self.input
     }
 
-    /// Returns the reference of remaining path segments
+    /// Return the reference to the instance of `Segments`.
     pub fn segments(&mut self) -> &mut Segments<'a> {
         &mut self.segments
     }
 }
 
-/// An iterator of remaning path segments.
+/// An iterator over the remaining path segments.
 #[derive(Debug, Copy, Clone)]
 pub struct Segments<'a> {
     path: &'a str,
@@ -95,7 +96,7 @@ impl<'a> Iterator for Segments<'a> {
     }
 }
 
-/// A path segment in HTTP requests
+/// A path segment in the HTTP requests.
 #[derive(Debug, Copy, Clone)]
 pub struct Segment<'a> {
     s: &'a str,
@@ -120,13 +121,13 @@ impl<'a> Segment<'a> {
         self.s
     }
 
-    /// Returns the start position of this segment in the original path
+    /// Returns the start position of this segment in the original path.
     #[inline]
     pub fn start(&self) -> usize {
         self.start
     }
 
-    /// Returns the end position of this segment in the original path
+    /// Returns the end position of this segment in the original path.
     #[inline]
     pub fn end(&self) -> usize {
         self.end

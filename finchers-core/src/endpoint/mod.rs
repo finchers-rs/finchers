@@ -1,3 +1,5 @@
+//! Components for constructing `Endpoint`.
+
 mod apply;
 mod context;
 mod endpoint;

@@ -26,7 +26,7 @@ pub struct ApplyRequest<T> {
 }
 
 impl<T: Task> ApplyRequest<T> {
-    /// Poll the inner "Task" and return its output if available.
+    /// Poll the inner `Task` and return its output if available.
     pub fn poll_ready(&mut self, input: &Input) -> Poll<Option<Result<T::Output, Error>>> {
         match self.in_flight {
             Some(ref mut f) => {
