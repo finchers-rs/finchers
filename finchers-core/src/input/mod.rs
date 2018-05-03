@@ -1,3 +1,5 @@
+//! Components for parsing the incoming HTTP request.
+
 mod body;
 mod input;
 

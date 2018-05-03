@@ -1,8 +1,8 @@
-//! Components for constructing asynchronous computations which will be returned from "Endpoint"s.
+//! Components for constructing asynchronous computations which will be returned from `Endpoint`s.
 //!
 //! The main trait in this module is `Task`.
 //! This trait is an abstraction of asynchronous computations which will be returned from endpoints.
-//! The role of this trait is very close to "futures" and hence its design intentionally resembles
+//! The role of this trait is very close to `futures` and hence its design intentionally resembles
 //! `Future`. However, some differences are exist for specializing to the purpose of HTTP handling.
 //!
 //! This trait does not provide any combinators for composing complicate computations.
@@ -18,6 +18,7 @@ use never::Never;
 use poll::{Poll, PollResult};
 
 /// The contextual information during polling an task.
+#[derive(Debug)]
 pub struct Context<'a> {
     input: &'a Input,
     body: &'a mut Option<RequestBody>,
@@ -25,19 +26,19 @@ pub struct Context<'a> {
 }
 
 impl<'a> Context<'a> {
-    /// Create an instance of "Context" from components.
+    /// Create an instance of `Context` from components.
     #[inline]
     pub fn new(input: &'a Input, body: &'a mut Option<RequestBody>) -> Context<'a> {
         Context { input, body }
     }
 
-    /// Return the reference to "Input" at the current request.
+    /// Return the reference to `Input` at the current request.
     #[inline]
     pub fn input(&self) -> &Input {
         self.input
     }
 
-    /// Take the instance of "RequestBody" at the current request if available.
+    /// Take the instance of `RequestBody` at the current request if available.
     #[inline]
     pub fn body(&mut self) -> Option<RequestBody> {
         self.body.take()
@@ -71,7 +72,7 @@ where
     }
 }
 
-/// Trait representing the conversion to a "Task".
+/// Trait representing the conversion to a `Task`.
 pub trait IntoTask {
     /// The type of *output* value.
     type Output;
@@ -79,7 +80,7 @@ pub trait IntoTask {
     /// The type of value to be converted.
     type Task: Task<Output = Self::Output>;
 
-    /// Perform conversion itself to "Task".
+    /// Perform conversion itself into a `Task`.
     fn into_task(self) -> Self::Task;
 }
 
@@ -136,6 +137,7 @@ where
     TaskFuture::from(IntoFuture::into_future(future))
 }
 
+/// A `Task` which will immediately return a value of `T`.
 #[derive(Debug)]
 pub struct Ready<T>(Option<T>);
 
@@ -160,6 +162,7 @@ pub fn ready<T: Send>(val: T) -> Ready<T> {
     Ready::from(val)
 }
 
+/// A `Task` which will immediately abort with an error value of `E`.
 #[derive(Debug)]
 pub struct Abort<E> {
     cause: Option<E>,

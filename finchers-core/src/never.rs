@@ -3,10 +3,15 @@ use http::StatusCode;
 use http::header::{HeaderMap, HeaderValue};
 use std::{error, fmt};
 
+/// A type which has no possible values.
+// FIXME: replace with futures_core::Never
 #[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Ord, Eq)]
 pub enum Never {}
 
 impl Never {
+    /// Consume itself and transform into an arbitrary type.
+    ///
+    /// NOTE: This function has never been actually called because the possible values don't exist.
     pub fn never_into<T>(self) -> T {
         match self {}
     }

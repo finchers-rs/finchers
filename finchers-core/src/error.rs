@@ -1,3 +1,5 @@
+//! Error primitives.
+
 use std::borrow::Cow;
 use std::fmt;
 
@@ -18,7 +20,7 @@ pub trait HttpError: fmt::Debug + fmt::Display + Send + Sync + 'static {
     #[allow(unused_variables)]
     fn append_headers(&self, headers: &mut HeaderMap<HeaderValue>) {}
 
-    /// Return the reference to a value of "Fail", if exists.
+    /// Return the reference to a value of `Fail` if exists.
     fn as_fail(&self) -> Option<&Fail> {
         None
     }
@@ -44,7 +46,7 @@ where
     }
 }
 
-/// An HTTP error which represents "400 Bad Request".
+/// An HTTP error which represents `400 Bad Request`.
 pub struct BadRequest {
     inner: Either<Cow<'static, str>, failure::Error>,
 }
@@ -56,6 +58,7 @@ impl<E: Into<failure::Error>> From<E> for BadRequest {
 }
 
 impl BadRequest {
+    #[allow(missing_docs)]
     pub fn new<S>(message: S) -> BadRequest
     where
         S: Into<Cow<'static, str>>,
@@ -65,6 +68,7 @@ impl BadRequest {
         }
     }
 
+    #[allow(missing_docs)]
     pub fn from_fail<E>(fail: E) -> BadRequest
     where
         E: Into<failure::Error>,
@@ -103,7 +107,7 @@ impl HttpError for BadRequest {
     }
 }
 
-/// An HTTP error which represents "500 Internal Server Error"
+/// An HTTP error which represents `500 Internal Server Error`
 pub struct ServerError {
     inner: Either<Cow<'static, str>, failure::Error>,
 }
@@ -115,6 +119,7 @@ impl<E: Into<failure::Error>> From<E> for ServerError {
 }
 
 impl ServerError {
+    #[allow(missing_docs)]
     pub fn new<S>(message: S) -> ServerError
     where
         S: Into<Cow<'static, str>>,
@@ -124,6 +129,7 @@ impl ServerError {
         }
     }
 
+    #[allow(missing_docs)]
     pub fn from_fail<E>(fail: E) -> ServerError
     where
         E: Into<failure::Error>,
@@ -164,13 +170,14 @@ impl HttpError for ServerError {
 
 /// An error type indicating that a necessary elements was not given from the client.
 ///
-/// This error value will return "400 Bad Request" as the HTTP status code.
+/// This error value will return `400 Bad Request` as the HTTP status code.
 #[derive(Debug)]
 pub struct NotPresent {
     message: Cow<'static, str>,
 }
 
 impl NotPresent {
+    #[allow(missing_docs)]
     pub fn new<S>(message: S) -> NotPresent
     where
         S: Into<Cow<'static, str>>,
@@ -193,7 +200,7 @@ impl HttpError for NotPresent {
     }
 }
 
-/// A type which holds a value of "HttpError" in a type-erased form.
+/// A type which holds a value of `HttpError` in a type-erased form.
 #[derive(Debug)]
 pub struct Error(Box<HttpError>);
 
@@ -210,7 +217,7 @@ impl fmt::Display for Error {
 }
 
 impl Error {
-    /// Returns the reference to inner "HttpError".
+    /// Returns the reference to inner `HttpError`.
     pub fn as_http_error(&self) -> &HttpError {
         &*self.0
     }
