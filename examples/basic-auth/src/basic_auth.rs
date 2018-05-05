@@ -8,7 +8,7 @@ use std::{error, fmt};
 pub fn basic_auth() -> impl Endpoint<Output = BasicAuth> + 'static {
     use finchers::endpoint::header::header;
     use finchers::endpoint::prelude::*;
-    header().ok_or_else(|| Unauthorized).unwrap_ok()
+    header().map_err(|_| Unauthorized).unwrap_ok()
 }
 
 #[derive(Debug)]
@@ -20,9 +20,7 @@ pub struct BasicAuth {
 impl FromHeader for BasicAuth {
     type Error = Unauthorized;
 
-    fn header_name() -> &'static str {
-        "Authorization"
-    }
+    const NAME: &'static str = "Authorization";
 
     fn from_header(input: &[u8]) -> Result<Self, Self::Error> {
         if input.get(0..6) != Some(b"Basic ") {
