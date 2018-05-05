@@ -6,8 +6,8 @@ mod ok_or_else;
 pub use self::map_some::MapSome;
 pub use self::ok_or_else::OkOrElse;
 
-use common::assert_output;
 use finchers_core::Endpoint;
+use finchers_core::endpoint::assert_output;
 
 /// A set of extension methods which is available when the output is value is an `Option`.
 pub trait EndpointOptionExt<T>: Endpoint<Output = Option<T>> + Sized {

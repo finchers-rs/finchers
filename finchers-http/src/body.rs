@@ -1,75 +1,22 @@
 //! Components for parsing an HTTP request body.
 
-use bytes::Bytes;
+use bytes::{Bytes, BytesMut};
+use http::StatusCode;
 use std::marker::PhantomData;
-use std::ops::Deref;
-use std::{fmt, mem, str};
+use std::{fmt, mem};
 
-use finchers_core::endpoint::{Context, Endpoint};
+use finchers_core::endpoint::{assert_output, Context, Endpoint};
 use finchers_core::error::BadRequest;
-use finchers_core::input::{self, RequestBody};
+use finchers_core::input::RequestBody;
 use finchers_core::task::{self, Task};
 use finchers_core::{Error, HttpError, Input, Never, Poll, PollResult};
 
-/// A reference counted UTF-8 sequence.
-pub struct BytesString(Bytes);
-
-impl fmt::Debug for BytesString {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Debug::fmt(self.as_str(), f)
-    }
-}
-
-impl AsRef<str> for BytesString {
-    fn as_ref(&self) -> &str {
-        self.as_str()
-    }
-}
-
-impl Deref for BytesString {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        self.as_str()
-    }
-}
-
-impl Into<Bytes> for BytesString {
-    fn into(self) -> Bytes {
-        self.0
-    }
-}
-
-impl Into<String> for BytesString {
-    fn into(self) -> String {
-        self.as_str().to_owned()
-    }
-}
-
-impl BytesString {
-    pub fn from_static(s: &'static str) -> BytesString {
-        unsafe { Self::from_shared_unchecked(Bytes::from_static(s.as_bytes())) }
-    }
-
-    pub fn from_shared(bytes: Bytes) -> Result<BytesString, str::Utf8Error> {
-        let _ = str::from_utf8(&*bytes)?;
-        Ok(unsafe { Self::from_shared_unchecked(bytes) })
-    }
-
-    pub unsafe fn from_shared_unchecked(bytes: Bytes) -> BytesString {
-        BytesString(bytes)
-    }
-
-    pub fn as_str(&self) -> &str {
-        unsafe { mem::transmute::<&[u8], _>(self.0.as_ref()) }
-    }
-
-    // TODO: add method creating substrings
-}
-
-/// Creates an endpoint for taking the instance of `BodyStream`
+/// Creates an endpoint which will take the instance of `RequestBody` from the context.
+///
+/// If the instance has already been stolen by another task, this endpoint will return
+/// a `None`.
 pub fn raw_body() -> RawBody {
-    RawBody { _priv: () }
+    assert_output::<_, RequestBody>(RawBody { _priv: () })
 }
 
 #[allow(missing_docs)]
@@ -103,51 +50,49 @@ impl Task for RawBodyTask {
     type Output = RequestBody;
 
     fn poll_task(&mut self, cx: &mut task::Context) -> PollResult<Self::Output, Error> {
-        let body = cx.body().expect("cannot take a body twice");
-        Poll::Ready(Ok(body))
+        Poll::Ready(cx.body().ok_or_else(|| EmptyBody.into()))
     }
 }
 
-/// Creates an endpoint for parsing the incoming request body into the value of `T`
-pub fn data<T>() -> Data<T>
+/// Creates an endpoint which will poll the all contents of the message body
+/// from the client and transform the received bytes into a value of `T`.
+pub fn body<T>() -> Body<T>
 where
-    T: FromData,
-    T::Error: HttpError,
+    T: FromBody,
 {
-    Data { _marker: PhantomData }
+    assert_output::<_, Result<T, T::Error>>(Body { _marker: PhantomData })
 }
 
 #[allow(missing_docs)]
-pub struct Data<T> {
+pub struct Body<T> {
     _marker: PhantomData<fn() -> T>,
 }
 
-impl<T> Copy for Data<T> {}
+impl<T> Copy for Body<T> {}
 
-impl<T> Clone for Data<T> {
+impl<T> Clone for Body<T> {
     #[inline]
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<T> fmt::Debug for Data<T> {
+impl<T> fmt::Debug for Body<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("Data").finish()
+        f.debug_struct("Body").finish()
     }
 }
 
-impl<T> Endpoint for Data<T>
+impl<T> Endpoint for Body<T>
 where
-    T: FromData,
-    T::Error: HttpError,
+    T: FromBody,
 {
-    type Output = T;
-    type Task = DataTask<T>;
+    type Output = Result<T, T::Error>;
+    type Task = BodyTask<T>;
 
     fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
         match T::is_match(cx.input()) {
-            true => Some(DataTask::Init),
+            true => Some(BodyTask::Init(PhantomData)),
             false => None,
         }
     }
@@ -155,40 +100,65 @@ where
 
 #[doc(hidden)]
 #[allow(missing_debug_implementations)]
-pub enum DataTask<T> {
-    Init,
-    Recv(input::Data),
-    Done(PhantomData<fn() -> T>),
+pub enum BodyTask<T> {
+    Init(PhantomData<fn() -> T>),
+    Receiving(RequestBody, BytesMut),
+    Done,
 }
 
-impl<T> Task for DataTask<T>
+impl<T> Task for BodyTask<T>
 where
-    T: FromData,
-    T::Error: HttpError,
+    T: FromBody,
 {
-    type Output = T;
+    type Output = Result<T, T::Error>;
 
     fn poll_task(&mut self, cx: &mut task::Context) -> PollResult<Self::Output, Error> {
+        use self::BodyTask::*;
         'poll: loop {
-            let next = match *self {
-                DataTask::Init => {
-                    let body = cx.body().expect("The body has already taken");
-                    DataTask::Recv(body.into_data())
-                }
-                DataTask::Recv(ref mut body) => {
-                    let buf = poll_result!(body.poll_ready());
-                    return T::from_data(buf, cx.input()).map_err(Into::into).into();
-                }
-                _ => panic!("cannot resolve/reject twice"),
+            let err = match *self {
+                Init(..) => None,
+                Receiving(ref mut body, ref mut buf) => 'receiving: loop {
+                    let item = match poll!(body.poll_data()) {
+                        Ok(Some(data)) => data,
+                        Ok(None) => break 'receiving None,
+                        Err(err) => break 'receiving Some(err),
+                    };
+                    buf.extend_from_slice(&*item);
+                },
+                Done => panic!("cannot resolve/reject twice"),
             };
-            *self = next;
+
+            let ready = match (mem::replace(self, Done), err) {
+                (_, Some(err)) => Err(err.into()),
+                (Init(..), _) => match cx.body() {
+                    Some(body) => {
+                        *self = Receiving(body, BytesMut::new());
+                        continue 'poll;
+                    }
+                    None => Err(EmptyBody.into()),
+                },
+                (Receiving(_, buf), _) => Ok(T::from_body(buf.freeze(), cx.input())),
+                _ => panic!(),
+            };
+
+            break 'poll Poll::Ready(ready);
         }
     }
 }
 
-/// Trait representing the conversion from receiverd message body.
-pub trait FromData: 'static + Sized {
-    /// The error type returned from `from_data`.
+#[derive(Debug, Fail)]
+#[fail(display = "The instance of RequestBody has already taken")]
+struct EmptyBody;
+
+impl HttpError for EmptyBody {
+    fn status_code(&self) -> StatusCode {
+        StatusCode::INTERNAL_SERVER_ERROR
+    }
+}
+
+/// Trait representing the transformation from a message body.
+pub trait FromBody: 'static + Sized {
+    /// The error type which will be returned from `from_data`.
     type Error;
 
     /// Returns whether the incoming request matches to this type or not.
@@ -198,47 +168,21 @@ pub trait FromData: 'static + Sized {
     }
 
     /// Performs conversion from raw bytes into itself.
-    fn from_data(body: Bytes, input: &Input) -> Result<Self, Self::Error>;
+    fn from_body(body: Bytes, input: &Input) -> Result<Self, Self::Error>;
 }
 
-impl FromData for Bytes {
+impl FromBody for Bytes {
     type Error = Never;
 
-    fn from_data(data: Bytes, _: &Input) -> Result<Self, Self::Error> {
-        Ok(data)
+    fn from_body(body: Bytes, _: &Input) -> Result<Self, Self::Error> {
+        Ok(body)
     }
 }
 
-impl FromData for BytesString {
+impl FromBody for String {
     type Error = BadRequest;
 
-    fn from_data(data: Bytes, _: &Input) -> Result<Self, Self::Error> {
-        BytesString::from_shared(data).map_err(|_| BadRequest::new("failed to parse the message body"))
-    }
-}
-
-impl FromData for String {
-    type Error = BadRequest;
-
-    fn from_data(data: Bytes, _: &Input) -> Result<Self, Self::Error> {
-        BytesString::from_shared(data)
-            .map(Into::into)
-            .map_err(|_| BadRequest::new("failed to parse the message body"))
-    }
-}
-
-impl<T: FromData> FromData for Option<T> {
-    type Error = Never;
-
-    fn from_data(data: Bytes, input: &Input) -> Result<Self, Self::Error> {
-        Ok(T::from_data(data, input).ok())
-    }
-}
-
-impl<T: FromData> FromData for Result<T, T::Error> {
-    type Error = Never;
-
-    fn from_data(data: Bytes, input: &Input) -> Result<Self, Self::Error> {
-        Ok(T::from_data(data, input))
+    fn from_body(body: Bytes, _: &Input) -> Result<Self, Self::Error> {
+        String::from_utf8(body.to_vec()).map_err(|_| BadRequest::new("failed to parse the message body"))
     }
 }

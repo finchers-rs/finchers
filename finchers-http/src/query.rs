@@ -10,7 +10,7 @@ use std::marker::PhantomData;
 use std::ops::Deref;
 use {mime, serde_qs};
 
-use body::FromData;
+use body::FromBody;
 use finchers_core::endpoint::{Context, Endpoint};
 use finchers_core::task::{self, Task};
 use finchers_core::{Error, HttpError, Input, Poll, PollResult};
@@ -130,13 +130,13 @@ impl<F> Deref for Form<F> {
     }
 }
 
-impl<F> FromData for Form<F>
+impl<F> FromBody for Form<F>
 where
     F: de::DeserializeOwned + 'static,
 {
     type Error = QueryError;
 
-    fn from_data(body: Bytes, input: &Input) -> Result<Self, Self::Error> {
+    fn from_body(body: Bytes, input: &Input) -> Result<Self, Self::Error> {
         if input
             .media_type()
             .map_err(|_| QueryError::InvalidMediaType)?

@@ -14,7 +14,7 @@ pub use self::map_ok::MapOk;
 pub use self::or_else::OrElse;
 pub use self::unwrap_ok::UnwrapOk;
 
-use common::assert_output;
+use finchers_core::endpoint::assert_output;
 use finchers_core::{Endpoint, Error, IsResult};
 
 /// A set of extension methods which is available when the output value is a `Result`.

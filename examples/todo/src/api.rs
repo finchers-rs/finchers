@@ -29,12 +29,12 @@ pub fn build_endpoint(app: &Application) -> impl Endpoint<Output = Json<Response
         .unwrap_ok()
         .map(Todos);
 
-    let add_todo = post(data())
+    let add_todo = post(body().unwrap_ok())
         .map_async(app.with(|app, Json(new_todo)| app.add_todo(new_todo)))
         .unwrap_ok()
         .map(NewTodo);
 
-    let patch_todo = patch(param().and(data()))
+    let patch_todo = patch(param().and(body().unwrap_ok()))
         .map_async(app.with(|app, (id, Json(patch))| app.patch_todo(id, patch)))
         .unwrap_ok()
         .map(TheTodo);

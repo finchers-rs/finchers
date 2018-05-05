@@ -15,7 +15,6 @@ pub mod result;
 mod abort;
 mod all;
 mod and;
-mod common;
 mod inspect;
 mod just;
 mod lazy;
@@ -46,8 +45,7 @@ pub use result::EndpointResultExt;
 
 // ==== EndpointExt ===
 
-use common::assert_output;
-use finchers_core::endpoint::{Endpoint, IntoEndpoint};
+use finchers_core::endpoint::{assert_output, Endpoint, IntoEndpoint};
 use finchers_core::task::IntoTask;
 
 /// A set of extension methods used for composing complicate endpoints.

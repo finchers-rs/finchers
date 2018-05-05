@@ -26,7 +26,7 @@ fn endpoint() -> impl Endpoint<Output = Debug> + 'static {
         // Parse the query string when GET request.
         get(query()),
         // Parse the message body when POST request.
-        post(data()).map(Form::into_inner),
+        post(body().unwrap_ok()).map(Form::into_inner),
         // TODO: add an endpoint for reporting the param error.
         abort(|_| BadRequest::new("Empty parameter")).map(Never::never_into),
     ]

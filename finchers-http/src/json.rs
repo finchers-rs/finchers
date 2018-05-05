@@ -8,7 +8,7 @@ use serde::ser::Serialize;
 use std::ops::Deref;
 use {mime, serde_json};
 
-use body::FromData;
+use body::FromBody;
 use finchers_core::error::HttpError;
 use finchers_core::output::{HttpResponse, Responder, ResponseBody};
 use finchers_core::{Input, Output};
@@ -40,13 +40,13 @@ impl<T> Deref for Json<T> {
     }
 }
 
-impl<T> FromData for Json<T>
+impl<T> FromBody for Json<T>
 where
     T: DeserializeOwned + 'static,
 {
     type Error = JsonError;
 
-    fn from_data(body: Bytes, input: &Input) -> Result<Self, Self::Error> {
+    fn from_body(body: Bytes, input: &Input) -> Result<Self, Self::Error> {
         if input
             .media_type()
             .map_err(|_| JsonError::InvalidMediaType)?
