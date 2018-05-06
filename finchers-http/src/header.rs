@@ -1,4 +1,4 @@
-//! Components for accessing of HTTP headers
+//! Components for parsing the HTTP headers.
 
 use failure::Fail;
 use http::StatusCode;

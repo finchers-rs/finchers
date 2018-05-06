@@ -1,4 +1,4 @@
-//! Components for parsing an HTTP request body.
+//! Components for parsing the HTTP request body.
 
 use bytes::{Bytes, BytesMut};
 use http::StatusCode;
