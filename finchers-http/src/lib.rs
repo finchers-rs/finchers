@@ -10,6 +10,8 @@ extern crate serde_json;
 extern crate serde_qs;
 #[macro_use]
 extern crate failure;
+#[macro_use]
+extern crate percent_encoding;
 
 pub mod body;
 pub mod header;

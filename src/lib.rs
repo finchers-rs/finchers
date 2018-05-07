@@ -32,7 +32,7 @@
 //!     use finchers::endpoint::prelude::*;
 //!
 //!     path("api/v1").right(choice![
-//!         get(param())
+//!         get(param().unwrap_ok())
 //!             .map(|id: u64| format!("GET: id={}", id)),
 //!         post(body().unwrap_ok())
 //!             .map(|data: String| format!("POST: body={}", data)),

@@ -6,7 +6,7 @@ mod endpoint;
 
 // re-exports
 pub use self::apply::ApplyRequest;
-pub use self::context::{Context, Segment, Segments};
+pub use self::context::{Context, EncodedStr, Segment, Segments};
 pub use self::endpoint::{Endpoint, IntoEndpoint};
 
 /// An identity function for giving additional trait bound to an endpoint.alloc
