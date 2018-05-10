@@ -122,7 +122,8 @@ impl Endpoint for MatchPath {
             Segments(ref segments) => {
                 let mut matched = true;
                 for segment in segments {
-                    matched = matched && cx.segments().next()?.as_encoded_str().as_raw() == *segment;
+                    // FIXME: impl PartialEq for EncodedStr
+                    matched = matched && cx.segments().next()?.as_encoded_str().as_bytes() == segment.as_bytes();
                 }
                 if matched {
                     Some(task::ready(()))
@@ -288,7 +289,7 @@ macro_rules! impl_from_segment_from_str {
 
             #[inline]
             fn from_segment(segment: Segment) -> Result<Self, Self::Error> {
-                let s = segment.as_encoded_str().decode_utf8().map_err(|cause| FromSegmentError::Decode{cause})?;
+                let s = segment.as_encoded_str().percent_decode().map_err(|cause| FromSegmentError::Decode{cause})?;
                 FromStr::from_str(&*s).map_err(|cause| FromSegmentError::Parse{cause})
             }
         }
@@ -312,7 +313,7 @@ impl FromSegment for String {
 
     #[inline]
     fn from_segment(segment: Segment) -> Result<Self, Self::Error> {
-        Ok(segment.as_encoded_str().decode_utf8_lossy().into_owned())
+        Ok(segment.as_encoded_str().percent_decode_lossy().into_owned())
     }
 }
 

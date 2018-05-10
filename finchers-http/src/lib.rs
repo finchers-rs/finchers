@@ -23,3 +23,4 @@ pub mod query;
 pub use body::FromBody;
 pub use header::FromHeader;
 pub use path::{FromSegment, FromSegments};
+pub use query::FromQuery;

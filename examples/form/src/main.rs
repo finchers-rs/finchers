@@ -7,11 +7,8 @@ use finchers::Endpoint;
 use finchers::output::Debug;
 
 fn endpoint() -> impl Endpoint<Output = Debug> + 'static {
-    use finchers::Never;
-    use finchers::endpoint::abort;
     use finchers::endpoint::prelude::*;
-    use finchers::endpoint::query::{from_csv, query, Form};
-    use finchers::error::BadRequest;
+    use finchers::endpoint::query::{from_csv, query, Form, Serde};
 
     #[derive(Debug, Deserialize, HttpResponse)]
     pub struct FormParam {
@@ -24,11 +21,9 @@ fn endpoint() -> impl Endpoint<Output = Debug> + 'static {
     // Create an endpoint for parsing the form-urlencoded parameter in the request.
     let urlencoded_param = choice![
         // Parse the query string when GET request.
-        get(query()),
+        get(query().unwrap_ok()).map(Serde::into_inner),
         // Parse the message body when POST request.
-        post(body().unwrap_ok()).map(Form::into_inner),
-        // TODO: add an endpoint for reporting the param error.
-        abort(|_| BadRequest::new("Empty parameter")).map(Never::never_into),
+        post(body().unwrap_ok()).map(|Form(Serde(param))| param),
     ]
     // annotate to the endpoint that the inner type is FormParam.
     .as_t::<FormParam>();
