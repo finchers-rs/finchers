@@ -147,6 +147,8 @@ impl<T, E> Try for Poll<Result<T, E>> {
 
 // An opaque type for implementation of Try
 #[cfg(feature = "nightly")]
+#[allow(missing_docs)]
+#[allow(missing_debug_implementations)]
 pub enum PollError<E> {
     Pending,
     Error(E),

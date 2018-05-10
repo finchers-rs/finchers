@@ -1,12 +1,14 @@
 use bytes::{BufMut, Bytes, BytesMut};
 use error::HttpError;
-use futures::Stream;
 use http::StatusCode;
-#[cfg(feature = "hyper")]
-use hyper;
 use poll::{Poll, PollResult};
 use std::ops::Deref;
 use std::{fmt, mem};
+
+#[cfg(feature = "hyper")]
+use futures::Stream;
+#[cfg(feature = "hyper")]
+use hyper;
 
 /// An asynchronous task to receive the contents of message body.
 #[derive(Debug)]
@@ -167,6 +169,10 @@ pub enum BodyError {
     #[cfg(feature = "hyper")]
     #[fail(display = "during receiving the chunk")]
     Hyper(hyper::Error),
+
+    #[doc(hidden)]
+    #[fail(display = "dummy for derivation of Fail")]
+    __Dummy(()),
 }
 
 impl HttpError for BodyError {
