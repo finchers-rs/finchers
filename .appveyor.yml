@@ -7,12 +7,10 @@ branches:
 environment:
   matrix:
     - TARGET: x86_64-pc-windows-msvc
-      TOOLCHAIN: beta
-    - TARGET: x86_64-pc-windows-gnu
+      TOOLCHAIN: stable
+    - TARGET: x86_64-pc-windows-msvc
       TOOLCHAIN: beta
     - TARGET: x86_64-pc-windows-msvc
-      TOOLCHAIN: nightly
-    - TARGET: x86_64-pc-windows-gnu
       TOOLCHAIN: nightly
 
 matrix:
