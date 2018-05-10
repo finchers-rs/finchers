@@ -31,5 +31,5 @@ test_script:
   - cargo clean
   - cargo test --all
   - if [%TOOLCHAIN%]==[nightly] (
-      cargo test -p finchers-core --features nightly
+      cargo test --manifest-path finchers-core/Cargo.toml --features nightly
     )
