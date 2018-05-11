@@ -19,6 +19,7 @@ mod inspect;
 mod just;
 mod lazy;
 mod left;
+mod lift;
 mod map;
 mod map_async;
 mod maybe_done;
@@ -33,6 +34,7 @@ pub use inspect::Inspect;
 pub use just::{just, Just};
 pub use lazy::{lazy, Lazy};
 pub use left::Left;
+pub use lift::Lift;
 pub use map::Map;
 pub use map_async::MapAsync;
 pub use or::Or;
@@ -97,6 +99,11 @@ pub trait EndpointExt: Endpoint + Sized {
         E: IntoEndpoint<Output = Self::Output>,
     {
         assert_output::<_, Self::Output>(self::or::new(self, e))
+    }
+
+    /// Create an endpoint which returns `None` if the inner endpoint skips the request.
+    fn lift(self) -> Lift<Self> {
+        assert_output::<_, Option<Self::Output>>(self::lift::new(self))
     }
 
     /// Create an endpoint which maps the returned value to a different type.
