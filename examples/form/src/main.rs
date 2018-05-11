@@ -9,6 +9,7 @@ use finchers::output::Debug;
 fn endpoint() -> impl Endpoint<Output = Debug> + 'static {
     use finchers::endpoint::prelude::*;
     use finchers::endpoint::query::{from_csv, query, Form, Serde};
+    use finchers::error::BadRequest;
 
     #[derive(Debug, Deserialize, HttpResponse)]
     pub struct FormParam {
@@ -24,9 +25,10 @@ fn endpoint() -> impl Endpoint<Output = Debug> + 'static {
         get(query().unwrap_ok()).map(Serde::into_inner),
         // Parse the message body when POST request.
         post(body().unwrap_ok()).map(|Form(Serde(param))| param),
-    ]
-    // annotate to the endpoint that the inner type is FormParam.
-    .as_t::<FormParam>();
+    ].lift()
+        .ok_or_else(|| BadRequest::new("Invalid Method"))
+        .unwrap_ok()
+        .as_t::<FormParam>();
 
     path("search")
         .right(urlencoded_param)
