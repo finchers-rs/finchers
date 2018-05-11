@@ -145,12 +145,15 @@ where
 /// All of error kinds when receiving/parsing the urlencoded data.
 #[derive(Debug, Fail)]
 pub enum QueryError<E> {
+    #[allow(missing_docs)]
     #[fail(display = "The query string is not exist in the request")]
     MissingQuery,
 
+    #[allow(missing_docs)]
     #[fail(display = "The content type must be application/www-x-urlformencoded")]
     InvalidMediaType,
 
+    #[allow(missing_docs)]
     #[fail(display = "{}", cause)]
     Parse { cause: E },
 }

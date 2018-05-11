@@ -267,6 +267,7 @@ pub trait FromSegment: 'static + Sized {
     fn from_segment(segment: Segment) -> Result<Self, Self::Error>;
 }
 
+#[allow(missing_docs)]
 #[derive(Debug, Fail)]
 pub enum FromSegmentError<E> {
     #[fail(display = "{}", cause)]

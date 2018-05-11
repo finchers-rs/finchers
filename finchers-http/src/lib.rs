@@ -1,4 +1,9 @@
+//! Basic endpoints and utilities for parsing HTTP requests
+
 #![doc(html_root_url = "https://docs.rs/finchers-http/0.11.0")]
+#![deny(missing_docs)]
+#![deny(missing_debug_implementations)]
+#![deny(warnings)]
 
 extern crate bytes;
 #[macro_use]

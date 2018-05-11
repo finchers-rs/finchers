@@ -82,6 +82,7 @@ where
 }
 
 #[doc(hidden)]
+#[allow(missing_debug_implementations)]
 pub struct HeaderTask<H> {
     _marker: PhantomData<fn() -> H>,
 }
@@ -110,6 +111,7 @@ pub enum HeaderError<E> {
 
     /// Failed to parse the header value to a given type.
     #[fail(display = "Failed to parse a header value: {}", cause)]
+    #[allow(missing_docs)]
     InvalidValue { cause: E },
 }
 

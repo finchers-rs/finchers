@@ -102,6 +102,7 @@ impl From<serde_json::Value> for JsonValue {
 }
 
 impl JsonValue {
+    #[allow(missing_docs)]
     pub fn new(value: serde_json::Value, status: StatusCode) -> JsonValue {
         JsonValue { value, status }
     }
@@ -130,9 +131,11 @@ impl Responder for JsonValue {
 /// An error type which will occur during transforming a payload to a JSON value.
 #[derive(Debug, Fail)]
 pub enum JsonParseError {
+    #[allow(missing_docs)]
     #[fail(display = "The value of `Content-type' is invalid")]
     InvalidMediaType,
 
+    #[allow(missing_docs)]
     #[fail(display = "Failed to parse the payload to a JSON value")]
     Parse { cause: serde_json::Error },
 }
