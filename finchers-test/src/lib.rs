@@ -1,4 +1,9 @@
+//! A testing framework for Finchers.
+
 #![doc(html_root_url = "https://docs.rs/finchers-test/0.11.0")]
+#![deny(missing_docs)]
+#![deny(missing_debug_implementations)]
+#![deny(warnings)]
 
 extern crate finchers_core;
 extern crate futures;
@@ -13,27 +18,19 @@ use finchers_core::endpoint::ApplyRequest;
 use finchers_core::input::RequestBody;
 use finchers_core::{Endpoint, Error, Input, Never, Poll, Task};
 
+/// A wrapper struct of an endpoint which adds the facility for testing.
 #[derive(Debug)]
 pub struct Client<E: Endpoint> {
     endpoint: E,
 }
 
-macro_rules! impl_constructors {
-    ($($METHOD:ident => $name:ident,)*) => {$(
-        pub fn $name<'a, U>(&'a self, uri: U) -> ClientRequest<'a, E>
-        where
-            Uri: HttpTryFrom<U>,
-        {
-            self.request(Method::$METHOD, uri)
-        }
-    )*};
-}
-
 impl<E: Endpoint> Client<E> {
+    /// Create a new instance of `Client` from a given endpoint.
     pub fn new(endpoint: E) -> Client<E> {
         Client { endpoint }
     }
 
+    /// Create a dummy request with given HTTP method and URI.
     pub fn request<'a, M, U>(&'a self, method: M, uri: U) -> ClientRequest<'a, E>
     where
         Method: HttpTryFrom<M>,
@@ -48,17 +45,46 @@ impl<E: Endpoint> Client<E> {
         client.uri(uri);
         client
     }
+}
 
+macro_rules! impl_constructors {
+    ($(
+        $(#[$doc:meta])*
+        $METHOD:ident => $name:ident,
+    )*) => {$(
+        $(#[$doc])*
+        pub fn $name<'a, U>(&'a self, uri: U) -> ClientRequest<'a, E>
+        where
+            Uri: HttpTryFrom<U>,
+        {
+            self.request(Method::$METHOD, uri)
+        }
+    )*};
+}
+
+impl<E: Endpoint> Client<E> {
     impl_constructors! {
+        /// Create a dummy `GET` request with given URI.
         GET => get,
+
+        /// Create a dummy `POST` request with given URI.
         POST => post,
+
+        /// Create a dummy `PUT` request with given URI.
         PUT => put,
+
+        /// Create a dummy `HEAD` request with given URI.
         HEAD => head,
+
+        /// Create a dummy `DELETE` request with given URI.
         DELETE => delete,
+
+        /// Create a dummy `PATCH` request with given URI.
         PATCH => patch,
     }
 }
 
+/// A builder of dummy HTTP request.
 #[derive(Debug)]
 pub struct ClientRequest<'a, E: Endpoint + 'a> {
     client: &'a Client<E>,
@@ -67,6 +93,10 @@ pub struct ClientRequest<'a, E: Endpoint + 'a> {
 }
 
 impl<'a, E: Endpoint> ClientRequest<'a, E> {
+    /// Overwrite the HTTP method of this dummy request with given value.
+    ///
+    /// # Panics
+    /// This method will panic if the parameter is invalid HTTP method.
     pub fn method<M>(&mut self, method: M) -> &mut ClientRequest<'a, E>
     where
         Method: HttpTryFrom<M>,
@@ -75,6 +105,10 @@ impl<'a, E: Endpoint> ClientRequest<'a, E> {
         self
     }
 
+    /// Overwrite the URI of this dummy request with given value.
+    ///
+    /// # Panics
+    /// This method will panic if the parameter is invalid HTTP method.
     pub fn uri<U>(&mut self, uri: U) -> &mut ClientRequest<'a, E>
     where
         Uri: HttpTryFrom<U>,
@@ -83,6 +117,10 @@ impl<'a, E: Endpoint> ClientRequest<'a, E> {
         self
     }
 
+    /// Append the given header entry into this dummy request.
+    ///
+    /// # Panics
+    /// This method will panic if the given header name or value is invalid.
     pub fn header<K, V>(&mut self, name: K, value: V) -> &mut ClientRequest<'a, E>
     where
         HeaderName: HttpTryFrom<K>,
@@ -94,6 +132,7 @@ impl<'a, E: Endpoint> ClientRequest<'a, E> {
         self
     }
 
+    /// Overwrite the message body of this dummy request with given instance.
     pub fn body(&mut self, body: RequestBody) -> &mut ClientRequest<'a, E> {
         self.body = Some(body);
         self
@@ -110,6 +149,7 @@ impl<'a, E: Endpoint> ClientRequest<'a, E> {
         )
     }
 
+    /// Apply this dummy request to the associated endpoint and get its response.
     pub fn run(&mut self) -> Option<Result<E::Output, Error>> {
         let ClientRequest { client, request, body } = self.take();
 
