@@ -32,9 +32,9 @@
 //!     use finchers::endpoint::prelude::*;
 //!
 //!     path("api/v1").right(choice![
-//!         get(param())
+//!         get(param().unwrap_ok())
 //!             .map(|id: u64| format!("GET: id={}", id)),
-//!         post(data())
+//!         post(body().unwrap_ok())
 //!             .map(|data: String| format!("POST: body={}", data)),
 //!     ])
 //! }
@@ -68,13 +68,13 @@ pub mod error {
 pub mod endpoint {
     pub use finchers_core::endpoint::{Endpoint, IntoEndpoint};
     pub use finchers_ext::{abort, all, just, lazy, EndpointExt, EndpointOptionExt, EndpointResultExt};
-    pub use finchers_http::{body, header, method, path, query, FromData, FromHeader, FromSegment, FromSegments};
+    pub use finchers_http::{body, header, method, path, query, FromBody, FromHeader, FromSegment, FromSegments};
 
     /// The "prelude" for building endpoints
     pub mod prelude {
         pub use finchers_core::endpoint::{Endpoint, IntoEndpoint};
         pub use finchers_ext::{EndpointExt, EndpointOptionExt, EndpointResultExt};
-        pub use finchers_http::body::{data, raw_body};
+        pub use finchers_http::body::{body, raw_body};
         pub use finchers_http::header::header;
         pub use finchers_http::method::{delete, get, head, patch, post, put};
         pub use finchers_http::path::{param, params, path};
@@ -82,7 +82,7 @@ pub mod endpoint {
 }
 
 pub mod input {
-    pub use finchers_core::input::{Chunk, Data, Input, RequestBody};
+    pub use finchers_core::input::{Data, Input, RequestBody};
 }
 
 pub mod output {

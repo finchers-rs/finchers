@@ -1,5 +1,9 @@
 use Input;
-use std::ops::Deref;
+use percent_encoding::percent_decode;
+use std::borrow::Cow;
+use std::fmt;
+use std::ops::Range;
+use std::str::{self, Utf8Error};
 
 /// A context during the routing.
 #[derive(Debug, Clone)]
@@ -76,18 +80,22 @@ impl<'a> Iterator for Segments<'a> {
         }
         if let Some(offset) = self.path[self.pos..].find('/') {
             let segment = Segment {
-                s: &self.path[self.pos..self.pos + offset],
-                start: self.pos,
-                end: self.pos + offset,
+                s: self.path,
+                range: Range {
+                    start: self.pos,
+                    end: self.pos + offset,
+                },
             };
             self.pos += offset + 1;
             self.popped += 1;
             Some(segment)
         } else {
             let segment = Segment {
-                s: &self.path[self.pos..],
-                start: self.pos,
-                end: self.path.len(),
+                s: self.path,
+                range: Range {
+                    start: self.pos,
+                    end: self.path.len(),
+                },
             };
             self.pos = self.path.len();
             self.popped += 1;
@@ -97,63 +105,109 @@ impl<'a> Iterator for Segments<'a> {
 }
 
 /// A path segment in the HTTP requests.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub struct Segment<'a> {
     s: &'a str,
-    start: usize,
-    end: usize,
-}
-
-impl<'a> From<&'a str> for Segment<'a> {
-    fn from(s: &'a str) -> Self {
-        Segment {
-            s,
-            start: 0,
-            end: s.len(),
-        }
-    }
+    range: Range<usize>,
 }
 
 impl<'a> Segment<'a> {
-    /// Yields the underlying `str` slice.
-    #[inline]
-    pub fn as_str(&self) -> &'a str {
-        self.s
+    /// Create a `Segment` from a pair of path string and the range of segment.
+    pub fn new(s: &'a str, range: Range<usize>) -> Segment<'a> {
+        Segment { s, range }
     }
 
-    /// Returns the start position of this segment in the original path.
-    #[inline]
-    pub fn start(&self) -> usize {
-        self.start
+    /// Return an `EncodedStr` from this segment.
+    pub fn as_encoded_str(&self) -> &'a EncodedStr {
+        unsafe { EncodedStr::new_unchecked(self.s[self.range.clone()].as_bytes()) }
     }
 
-    /// Returns the end position of this segment in the original path.
+    /// Returns the range of this segment in the original path.
     #[inline]
-    pub fn end(&self) -> usize {
-        self.end
+    pub fn as_range(&self) -> Range<usize> {
+        self.range.clone()
     }
 }
 
-impl<'a> AsRef<[u8]> for Segment<'a> {
-    #[inline]
+/// A percent-encoded string.
+#[repr(C)]
+pub struct EncodedStr([u8]);
+
+impl fmt::Debug for EncodedStr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_tuple("EncodedStr").field(&&self.0).finish()
+    }
+}
+
+impl AsRef<[u8]> for EncodedStr {
+    #[inline(always)]
     fn as_ref(&self) -> &[u8] {
-        self.as_str().as_bytes()
+        self.as_bytes()
     }
 }
 
-impl<'a> AsRef<str> for Segment<'a> {
+impl EncodedStr {
+    /// Create a new instance of `EncodedStr` from an encoded `str`.
+    ///
+    /// # Safety
+    /// The given string must be a percent-encoded sequence.
+    #[inline(always)]
+    pub unsafe fn new_unchecked(s: &[u8]) -> &EncodedStr {
+        &*(s as *const [u8] as *const EncodedStr)
+    }
+
+    /// Return the reference to the underling `[u8]` of this value.
+    #[inline(always)]
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.0
+    }
+
+    /// Decode this encoded string as an UTF-8 string.
     #[inline]
-    fn as_ref(&self) -> &str {
-        self.as_str()
+    pub fn percent_decode(&self) -> Result<Cow<str>, Utf8Error> {
+        percent_decode(&self.0).decode_utf8()
+    }
+
+    /// Decode this encoded string as an UTF-8 string.
+    ///
+    /// This method will not fail and the invalid UTF-8 characters will be
+    /// replaced to � (U+FFFD).
+    #[inline]
+    pub fn percent_decode_lossy(&self) -> Cow<str> {
+        percent_decode(&self.0).decode_utf8_lossy()
+    }
+
+    /// Decode this encoded string as an UTF-8 string.
+    ///
+    /// This method will replace the plus ('+') character with a half-width space
+    /// before decoding.
+    #[inline]
+    pub fn url_decode(&self) -> Result<Cow<str>, Utf8Error> {
+        let replaced = replace_plus(&self.0);
+        let v = match percent_decode(&*replaced).if_any() {
+            Some(v) => v,
+            None => match replaced {
+                Cow::Borrowed(b) => return str::from_utf8(b).map(Cow::Borrowed),
+                Cow::Owned(v) => v,
+            },
+        };
+        String::from_utf8(v).map(Cow::Owned).map_err(|e| e.utf8_error())
     }
 }
 
-impl<'a> Deref for Segment<'a> {
-    type Target = str;
-
-    #[inline]
-    fn deref(&self) -> &str {
-        self.as_str()
+fn replace_plus<'a>(input: &'a [u8]) -> Cow<'a, [u8]> {
+    match input.iter().position(|&b| b == b'+') {
+        None => Cow::Borrowed(input),
+        Some(pos) => {
+            let mut replaced = input.to_owned();
+            replaced[pos] = b' ';
+            replaced[pos + 1..].iter_mut().for_each(|b| {
+                if *b == b'+' {
+                    *b = b' ';
+                }
+            });
+            Cow::Owned(replaced)
+        }
     }
 }
 
@@ -165,20 +219,26 @@ mod tests {
     fn test_segments() {
         let mut segments = Segments::from("/foo/bar.txt");
         assert_eq!(segments.remaining_path(), "foo/bar.txt");
-        assert_eq!(segments.next().map(|s| s.as_str()), Some("foo"));
+        assert_eq!(
+            segments.next().map(|s| s.as_encoded_str().as_bytes()),
+            Some(&b"foo"[..])
+        );
         assert_eq!(segments.remaining_path(), "bar.txt");
-        assert_eq!(segments.next().map(|s| s.as_str()), Some("bar.txt"));
+        assert_eq!(
+            segments.next().map(|s| s.as_encoded_str().as_bytes()),
+            Some(&b"bar.txt"[..])
+        );
         assert_eq!(segments.remaining_path(), "");
-        assert_eq!(segments.next().map(|s| s.as_str()), None);
+        assert_eq!(segments.next().map(|s| s.as_encoded_str().as_bytes()), None);
         assert_eq!(segments.remaining_path(), "");
-        assert_eq!(segments.next().map(|s| s.as_str()), None);
+        assert_eq!(segments.next().map(|s| s.as_encoded_str().as_bytes()), None);
     }
 
     #[test]
     fn test_segments_from_root_path() {
         let mut segments = Segments::from("/");
         assert_eq!(segments.remaining_path(), "");
-        assert_eq!(segments.next().map(|s| s.as_str()), None);
+        assert_eq!(segments.next().map(|s| s.as_encoded_str().as_bytes()), None);
     }
 
 }

@@ -1,16 +1,15 @@
-//! Components for accessing of HTTP headers
+//! Components for parsing the HTTP headers.
 
+use failure::Fail;
+use http::StatusCode;
 use std::fmt;
 use std::marker::PhantomData;
 
-use finchers_core::endpoint::{Context, Endpoint};
+use finchers_core::endpoint::{assert_output, Context, Endpoint};
 use finchers_core::task::{self, Task};
-use finchers_core::{Error, HttpError, Never, PollResult};
+use finchers_core::{Error, HttpError, Poll, PollResult};
 
 /// Create an endpoint which parses an entry in the HTTP header.
-///
-/// This endpoint will always accept the request even if the header
-/// value is not exist.
 ///
 /// # Example
 ///
@@ -20,36 +19,29 @@ use finchers_core::{Error, HttpError, Never, PollResult};
 /// # extern crate finchers_http;
 /// # use finchers_http::header::{header, FromHeader};
 /// # use finchers_ext::{EndpointExt, EndpointResultExt, EndpointOptionExt};
-/// # use finchers_core::error::BadRequest;
+/// # use std::string::FromUtf8Error;
 /// #
 /// pub struct APIKey(pub String);
 ///
 /// impl FromHeader for APIKey {
-///     type Error = BadRequest;
+///     type Error = FromUtf8Error;
 ///
-///     fn header_name() -> &'static str { "X-API-Key" }
+///     const NAME: &'static str = "X-API-Key";
 ///
 ///     fn from_header(s: &[u8]) -> Result<Self, Self::Error> {
-///         String::from_utf8(s.to_owned())
-///             .map(APIKey)
-///             .map_err(|_| BadRequest::new("Invalid API key"))
+///         String::from_utf8(s.to_owned()).map(APIKey)
 ///     }
 /// }
 ///
 /// # fn main() {
-/// // impl Endpoint<Item = APIKey>
-/// let api_key = header()
-///     .ok_or_else(|| BadRequest::new("Missing API key"))
-///     .unwrap_ok()
-///     .as_t::<APIKey>();
+/// let api_key = header::<APIKey>().unwrap_ok();
 /// # }
 /// ```
 pub fn header<H>() -> Header<H>
 where
     H: FromHeader,
-    H::Error: HttpError,
 {
-    Header { _marker: PhantomData }
+    assert_output::<_, Result<H, HeaderError<H::Error>>>(Header { _marker: PhantomData })
 }
 
 #[allow(missing_docs)]
@@ -75,17 +67,22 @@ impl<H> fmt::Debug for Header<H> {
 impl<H> Endpoint for Header<H>
 where
     H: FromHeader,
-    H::Error: HttpError,
 {
-    type Output = Option<H>;
+    type Output = Result<H, HeaderError<H::Error>>;
     type Task = HeaderTask<H>;
 
-    fn apply(&self, _: &mut Context) -> Option<Self::Task> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
+        if H::ALLOW_SKIP {
+            if !cx.input().request().headers().contains_key(H::NAME) {
+                return None;
+            }
+        }
         Some(HeaderTask { _marker: PhantomData })
     }
 }
 
 #[doc(hidden)]
+#[allow(missing_debug_implementations)]
 pub struct HeaderTask<H> {
     _marker: PhantomData<fn() -> H>,
 }
@@ -93,132 +90,63 @@ pub struct HeaderTask<H> {
 impl<H> Task for HeaderTask<H>
 where
     H: FromHeader,
-    H::Error: HttpError,
 {
-    type Output = Option<H>;
+    type Output = Result<H, HeaderError<H::Error>>;
 
     fn poll_task(&mut self, cx: &mut task::Context) -> PollResult<Self::Output, Error> {
-        match cx.input().request().headers().get(H::header_name()) {
-            Some(h) => H::from_header(h.as_bytes()).map(Some).map_err(Into::into).into(),
-            None => Ok(None).into(),
-        }
+        let ready = match cx.input().request().headers().get(H::NAME) {
+            Some(h) => H::from_header(h.as_bytes()).map_err(|cause| HeaderError::InvalidValue { cause }),
+            None => H::default().ok_or_else(|| HeaderError::MissingValue),
+        };
+        Poll::Ready(Ok(ready))
     }
 }
 
-/// Create an endpoint which parses an entry in the HTTP header.
-///
-/// This endpoint will perform convesion the header value *before* creating
-/// a task. If the conversion is failed or the header value is not exist,
-/// it will skip the request.
-///
-/// # Example
-///
-/// ```
-/// # extern crate finchers_core;
-/// # extern crate finchers_ext;
-/// # extern crate finchers_http;
-/// # use finchers_http::header::{header_skipped, FromHeader};
-/// # use finchers_ext::EndpointExt;
-/// # use finchers_core::error::BadRequest;
-/// #
-/// pub struct APIKey(pub String);
-///
-/// impl FromHeader for APIKey {
-///     type Error = BadRequest;
-///
-///     fn header_name() -> &'static str { "X-API-Key" }
-///
-///     fn from_header(s: &[u8]) -> Result<Self, Self::Error> {
-///         String::from_utf8(s.to_owned())
-///             .map(APIKey)
-///             .map_err(|_| BadRequest::new("invalid API key"))
-///     }
-/// }
-///
-/// # fn main() {
-/// let api_key = header_skipped().map(|APIKey(key)| key);
-/// # }
-/// ```
-pub fn header_skipped<H>() -> HeaderSkipped<H>
-where
-    H: FromHeader + Send,
-{
-    HeaderSkipped { _marker: PhantomData }
+/// All kinds of error which will be returned from `Header<H>`.
+#[derive(Debug, Fail)]
+pub enum HeaderError<E> {
+    /// The required header value was missing in the incoming request.
+    #[fail(display = "Missing header value")]
+    MissingValue,
+
+    /// Failed to parse the header value to a given type.
+    #[fail(display = "Failed to parse a header value: {}", cause)]
+    #[allow(missing_docs)]
+    InvalidValue { cause: E },
 }
 
-#[allow(missing_docs)]
-pub struct HeaderSkipped<H> {
-    _marker: PhantomData<fn() -> H>,
-}
-
-impl<H> Copy for HeaderSkipped<H> {}
-
-impl<H> Clone for HeaderSkipped<H> {
-    #[inline]
-    fn clone(&self) -> Self {
-        *self
+impl<E: Fail> HttpError for HeaderError<E> {
+    fn status_code(&self) -> StatusCode {
+        StatusCode::BAD_REQUEST
     }
-}
 
-impl<H> fmt::Debug for HeaderSkipped<H> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("HeaderSkipped").finish()
-    }
-}
-
-impl<H> Endpoint for HeaderSkipped<H>
-where
-    H: FromHeader + Send,
-{
-    type Output = H;
-    type Task = task::Ready<H>;
-
-    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
-        cx.input()
-            .request()
-            .headers()
-            .get(H::header_name())
-            .and_then(|h| H::from_header(h.as_bytes()).ok())
-            .map(task::ready)
+    fn as_fail(&self) -> Option<&Fail> {
+        Some(self)
     }
 }
 
 /// Trait representing the conversion from an entry of HTTP header.
-pub trait FromHeader: 'static + Sized {
-    /// The error type which will be returned from "from_header".
+pub trait FromHeader: Sized {
+    /// The error type which will be returned from `from_header`.
     type Error;
 
-    /// Return the name of HTTP header associated with this type.
-    fn header_name() -> &'static str;
+    /// The name of HTTP header associated with this type.
+    const NAME: &'static str;
 
-    /// Perform conversion from a bytes to "Self".
+    /// The flag whether the endpoint will skip the request if the header value is missing.
+    ///
+    /// If the value of this flag is `false`, the endpoint will always accept the request
+    /// and will return an error if the header value is missing.
+    const ALLOW_SKIP: bool = true;
+
+    /// Perform conversion from a byte sequence to a value of `Self`.
     fn from_header(s: &[u8]) -> Result<Self, Self::Error>;
-}
 
-impl<H: FromHeader> FromHeader for Option<H> {
-    type Error = Never;
-
-    #[inline]
-    fn header_name() -> &'static str {
-        H::header_name()
-    }
-
-    #[inline]
-    fn from_header(s: &[u8]) -> Result<Self, Self::Error> {
-        Ok(H::from_header(s).ok())
-    }
-}
-
-impl<H: FromHeader> FromHeader for Result<H, H::Error> {
-    type Error = Never;
-
-    #[inline]
-    fn header_name() -> &'static str {
-        H::header_name()
-    }
-
-    #[inline]
-    fn from_header(s: &[u8]) -> Result<Self, Self::Error> {
-        Ok(H::from_header(s))
+    /// Return the default value of Self used if the header value is missing.
+    ///
+    /// If the returned value is `None`, it means that the header value is required and
+    /// an error will be returned from the endpoint if the value is missing.
+    fn default() -> Option<Self> {
+        None
     }
 }

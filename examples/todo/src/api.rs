@@ -19,30 +19,29 @@ pub enum Response {
 }
 
 pub fn build_endpoint(app: &Application) -> impl Endpoint<Output = Json<Response>> + 'static {
-    let find_todo = get(param())
-        .map_async(app.with(|app, id| app.find_todo(id)))
-        .unwrap_ok()
-        .map(TheTodo);
+    let todo_id = param().unwrap_ok();
+    let new_todo = body().unwrap_ok().map(Json::into_inner);
+    let patch_todo = body().unwrap_ok().map(Json::into_inner);
+
+    let find_todo = get(todo_id)
+        .map_async(app.with(|app, id| app.find_todo(id).map(TheTodo)))
+        .unwrap_ok();
 
     let list_todos = get(just(()))
-        .map_async(app.with(|app, _| app.list_todos()))
-        .unwrap_ok()
-        .map(Todos);
+        .map_async(app.with(|app, _| app.list_todos().map(Todos)))
+        .unwrap_ok();
 
-    let add_todo = post(data())
-        .map_async(app.with(|app, Json(new_todo)| app.add_todo(new_todo)))
-        .unwrap_ok()
-        .map(NewTodo);
+    let add_todo = post(new_todo)
+        .map_async(app.with(|app, new_todo| app.add_todo(new_todo).map(NewTodo)))
+        .unwrap_ok();
 
-    let patch_todo = patch(param().and(data()))
-        .map_async(app.with(|app, (id, Json(patch))| app.patch_todo(id, patch)))
-        .unwrap_ok()
-        .map(TheTodo);
+    let patch_todo = patch(todo_id.and(patch_todo))
+        .map_async(app.with(|app, (id, patch)| app.patch_todo(id, patch).map(TheTodo)))
+        .unwrap_ok();
 
-    let delete_todo = delete(param())
-        .map_async(app.with(|app, id| app.delete_todo(id)))
-        .unwrap_ok()
-        .map(|_| Deleted);
+    let delete_todo = delete(todo_id)
+        .map_async(app.with(|app, id| app.delete_todo(id).and(Ok(Deleted))))
+        .unwrap_ok();
 
     path("api/v1/todos")
         .right(choice![find_todo, list_todos, add_todo, patch_todo, delete_todo,])

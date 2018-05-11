@@ -1,49 +1,14 @@
-use bytes::{BufMut, Bytes, BytesMut};
+use bytes::Bytes;
 use error::HttpError;
 use http::StatusCode;
 use poll::{Poll, PollResult};
+use std::fmt;
 use std::ops::Deref;
-use std::{fmt, mem};
 
 #[cfg(feature = "hyper")]
 use futures::Stream;
 #[cfg(feature = "hyper")]
 use hyper;
-
-/// An asynchronous task to receive the contents of message body.
-#[derive(Debug)]
-pub struct Data(DataState);
-
-#[derive(Debug)]
-enum DataState {
-    Receiving(RequestBody, BytesMut),
-    Done,
-}
-
-impl Data {
-    /// Poll whether the all contents of the message body has been received or not.
-    // FIXME: make adapt to the signature of futures2.
-    pub fn poll_ready(&mut self) -> PollResult<Bytes, BodyError> {
-        use self::DataState::*;
-        match self.0 {
-            Receiving(ref mut body, ref mut buf) => {
-                while let Some(item) = poll_result!(body.poll_data()) {
-                    buf.reserve(item.len());
-                    unsafe {
-                        buf.bytes_mut().copy_from_slice(&*item);
-                        buf.advance_mut(item.len());
-                    }
-                }
-            }
-            Done => panic!("cannot resolve twice"),
-        };
-
-        match mem::replace(&mut self.0, Done) {
-            Receiving(_, buf) => Poll::Ready(Ok(buf.freeze())),
-            Done => panic!(),
-        }
-    }
-}
 
 /// An asyncrhonous stream to receive the chunks of incoming request body.
 pub struct RequestBody {
@@ -97,29 +62,23 @@ impl RequestBody {
 
     /// Poll an element of `Chunk`.
     // FIXME: make adapt to the signature of futures2 or std's Async
-    pub fn poll_data(&mut self) -> PollResult<Option<Chunk>, BodyError> {
+    pub fn poll_data(&mut self) -> PollResult<Option<Data>, PollDataError> {
         use self::RequestBodyKind::*;
         match self.kind {
             Empty => Poll::Ready(Ok(None)),
-            Once(ref mut chunk) => Poll::Ready(Ok(chunk.take().map(Chunk::new))),
+            Once(ref mut chunk) => Poll::Ready(Ok(chunk.take().map(Data::new))),
             #[cfg(feature = "hyper")]
             Hyper(ref mut body) => body.poll()
-                .map(|async| async.map(|chunk_opt| chunk_opt.map(Chunk::from_hyp)))
-                .map_err(BodyError::Hyper)
+                .map(|async| async.map(|chunk_opt| chunk_opt.map(Data::from_hyp)))
+                .map_err(PollDataError::Hyper)
                 .into(),
         }
-    }
-
-    /// Convert the instance of itself to a `Data`.
-    pub fn into_data(self) -> Data {
-        // TODO: reserve the capacity of content-length
-        Data(DataState::Receiving(self, BytesMut::new()))
     }
 }
 
 /// A chunk of bytes in the incoming message body.
 #[derive(Debug)]
-pub struct Chunk(ChunkType);
+pub struct Data(ChunkType);
 
 #[derive(Debug)]
 enum ChunkType {
@@ -128,23 +87,23 @@ enum ChunkType {
     Hyper(hyper::Chunk),
 }
 
-impl Chunk {
+impl Data {
     #[allow(missing_docs)]
-    pub fn new<T>(chunk: T) -> Chunk
+    pub fn new<T>(chunk: T) -> Data
     where
         T: Into<Bytes>,
     {
-        Chunk(ChunkType::Shared(chunk.into()))
+        Data(ChunkType::Shared(chunk.into()))
     }
 
     #[allow(missing_docs)]
     #[cfg(feature = "hyper")]
-    pub fn from_hyp(chunk: hyper::Chunk) -> Chunk {
-        Chunk(ChunkType::Hyper(chunk))
+    pub fn from_hyp(chunk: hyper::Chunk) -> Data {
+        Data(ChunkType::Hyper(chunk))
     }
 }
 
-impl AsRef<[u8]> for Chunk {
+impl AsRef<[u8]> for Data {
     fn as_ref(&self) -> &[u8] {
         match self.0 {
             ChunkType::Shared(ref b) => b.as_ref(),
@@ -154,7 +113,7 @@ impl AsRef<[u8]> for Chunk {
     }
 }
 
-impl Deref for Chunk {
+impl Deref for Data {
     type Target = [u8];
 
     fn deref(&self) -> &Self::Target {
@@ -164,7 +123,7 @@ impl Deref for Chunk {
 
 /// An error type which will returned at receiving the message body.
 #[derive(Debug, Fail)]
-pub enum BodyError {
+pub enum PollDataError {
     #[allow(missing_docs)]
     #[cfg(feature = "hyper")]
     #[fail(display = "during receiving the chunk")]
@@ -175,7 +134,7 @@ pub enum BodyError {
     __Dummy(()),
 }
 
-impl HttpError for BodyError {
+impl HttpError for PollDataError {
     fn status_code(&self) -> StatusCode {
         StatusCode::INTERNAL_SERVER_ERROR
     }

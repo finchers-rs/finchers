@@ -1,13 +1,17 @@
 //! Components for parsing request path
 
+use failure::Fail;
+use http::StatusCode;
+use percent_encoding::{percent_encode, DEFAULT_ENCODE_SET};
 use std::marker::PhantomData;
+use std::ops::Range;
 use std::path::PathBuf;
-use std::str::FromStr;
-use std::{error, fmt};
+use std::str::{FromStr, Utf8Error};
+use std::{error, fmt, net};
 
-use finchers_core::Never;
 use finchers_core::endpoint::{Context, Endpoint, Segment, Segments};
-use finchers_core::task;
+use finchers_core::task::{self, Task};
+use finchers_core::{Error, HttpError, Never, Poll, PollResult};
 
 // ==== MatchPath =====
 
@@ -65,6 +69,12 @@ pub struct MatchPath {
     kind: MatchPathKind,
 }
 
+define_encode_set! {
+    /// The encode set for MatchPath
+    #[doc(hidden)]
+    pub MATCH_PATH_ENCODE_SET = [DEFAULT_ENCODE_SET] | {'/'}
+}
+
 impl MatchPath {
     /// Create an instance of `MatchPath` from given string.
     pub fn from_str(s: &str) -> Result<MatchPath, ParseMatchError> {
@@ -78,7 +88,8 @@ impl MatchPath {
                 if segment.is_empty() {
                     return Err(ParseMatchError::EmptyString);
                 }
-                segments.push(segment.into());
+                let encoded = percent_encode(segment.as_bytes(), MATCH_PATH_ENCODE_SET).to_string();
+                segments.push(encoded);
             }
             Segments(segments)
         };
@@ -111,7 +122,8 @@ impl Endpoint for MatchPath {
             Segments(ref segments) => {
                 let mut matched = true;
                 for segment in segments {
-                    matched = matched && *cx.segments().next()? == *segment;
+                    // FIXME: impl PartialEq for EncodedStr
+                    matched = matched && cx.segments().next()?.as_encoded_str().as_bytes() == segment.as_bytes();
                 }
                 if matched {
                     Some(task::ready(()))
@@ -163,11 +175,12 @@ impl error::Error for ParseMatchError {
 /// ```
 /// # extern crate finchers_http;
 /// # extern crate finchers_ext;
-/// # use finchers_ext::EndpointExt;
+/// # use finchers_ext::{EndpointExt, EndpointResultExt, EndpointOptionExt};
 /// # use finchers_http::path::param;
 /// # fn main() {
 /// let endpoint = param()
-///     .map(|id: i32| format!("id={}", id));
+///     .map_ok(|id: i32| format!("id={}", id))
+///     .unwrap_ok();
 /// # }
 /// ```
 ///
@@ -216,14 +229,32 @@ impl<T> fmt::Debug for Param<T> {
 
 impl<T> Endpoint for Param<T>
 where
-    T: FromSegment + Send,
+    T: FromSegment,
 {
-    type Output = T;
-    type Task = task::Ready<Self::Output>;
+    type Output = Result<T, T::Error>;
+    type Task = ParamTask<T>;
 
     fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
-        let s = cx.segments().next()?;
-        T::from_segment(s).map(task::ready).ok()
+        Some(ParamTask {
+            range: cx.segments().next()?.as_range(),
+            _marker: PhantomData,
+        })
+    }
+}
+
+#[doc(hidden)]
+#[allow(missing_debug_implementations)]
+pub struct ParamTask<T> {
+    range: Range<usize>,
+    _marker: PhantomData<fn() -> T>,
+}
+
+impl<T: FromSegment> Task for ParamTask<T> {
+    type Output = Result<T, T::Error>;
+
+    fn poll_task(&mut self, cx: &mut task::Context) -> PollResult<Self::Output, Error> {
+        let s = Segment::new(cx.input().request().uri().path(), self.range.clone());
+        Poll::Ready(Ok(T::from_segment(s)))
     }
 }
 
@@ -236,44 +267,54 @@ pub trait FromSegment: 'static + Sized {
     fn from_segment(segment: Segment) -> Result<Self, Self::Error>;
 }
 
+#[allow(missing_docs)]
+#[derive(Debug, Fail)]
+pub enum FromSegmentError<E> {
+    #[fail(display = "{}", cause)]
+    Decode { cause: Utf8Error },
+
+    #[fail(display = "{}", cause)]
+    Parse { cause: E },
+}
+
+impl<E: Fail> HttpError for FromSegmentError<E> {
+    fn status_code(&self) -> StatusCode {
+        StatusCode::BAD_REQUEST
+    }
+}
+
 macro_rules! impl_from_segment_from_str {
     ($($t:ty,)*) => {$(
         impl FromSegment for $t {
-            type Error = <$t as FromStr>::Err;
+            type Error = FromSegmentError<<$t as FromStr>::Err>;
 
             #[inline]
             fn from_segment(segment: Segment) -> Result<Self, Self::Error> {
-                FromStr::from_str(&*segment)
+                let s = segment.as_encoded_str().percent_decode().map_err(|cause| FromSegmentError::Decode{cause})?;
+                FromStr::from_str(&*s).map_err(|cause| FromSegmentError::Parse{cause})
             }
         }
     )*};
 }
 
 impl_from_segment_from_str! {
-    String, bool, f32, f64,
+    bool, f32, f64,
     i8, i16, i32, i64, isize,
     u8, u16, u32, u64, usize,
-    ::std::net::IpAddr,
-    ::std::net::Ipv4Addr,
-    ::std::net::Ipv6Addr,
-    ::std::net::SocketAddr,
-    ::std::net::SocketAddrV4,
-    ::std::net::SocketAddrV6,
+    net::IpAddr,
+    net::Ipv4Addr,
+    net::Ipv6Addr,
+    net::SocketAddr,
+    net::SocketAddrV4,
+    net::SocketAddrV6,
 }
 
-impl<T: FromSegment> FromSegment for Option<T> {
+impl FromSegment for String {
     type Error = Never;
 
+    #[inline]
     fn from_segment(segment: Segment) -> Result<Self, Self::Error> {
-        Ok(T::from_segment(segment).ok())
-    }
-}
-
-impl<T: FromSegment> FromSegment for Result<T, T::Error> {
-    type Error = Never;
-
-    fn from_segment(segment: Segment) -> Result<Self, Self::Error> {
-        Ok(T::from_segment(segment))
+        Ok(segment.as_encoded_str().percent_decode_lossy().into_owned())
     }
 }
 

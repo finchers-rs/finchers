@@ -1,6 +1,7 @@
 //! Components for parsing the JSON payload and converting to JSON values.
 
 use bytes::Bytes;
+use failure::Fail;
 use http::header::HeaderValue;
 use http::{header, Response, StatusCode};
 use serde::de::DeserializeOwned;
@@ -8,10 +9,10 @@ use serde::ser::Serialize;
 use std::ops::Deref;
 use {mime, serde_json};
 
-use body::FromData;
+use body::FromBody;
 use finchers_core::error::HttpError;
 use finchers_core::output::{HttpResponse, Responder, ResponseBody};
-use finchers_core::{Input, Output};
+use finchers_core::{Input, Never, Output};
 
 /// A wrapper struct representing a statically typed JSON value.
 #[derive(Debug)]
@@ -40,23 +41,23 @@ impl<T> Deref for Json<T> {
     }
 }
 
-impl<T> FromData for Json<T>
+impl<T> FromBody for Json<T>
 where
     T: DeserializeOwned + 'static,
 {
-    type Error = JsonError;
+    type Error = JsonParseError;
 
-    fn from_data(body: Bytes, input: &Input) -> Result<Self, Self::Error> {
+    fn from_body(body: Bytes, input: &Input) -> Result<Self, Self::Error> {
         if input
             .media_type()
-            .map_err(|_| JsonError::InvalidMediaType)?
+            .map_err(|_| JsonParseError::InvalidMediaType)?
             .map_or(true, |m| *m == mime::APPLICATION_JSON)
         {
             serde_json::from_slice(&*body)
                 .map(Json)
-                .map_err(|cause| JsonError::InvalidBody { cause })
+                .map_err(|cause| JsonParseError::Parse { cause })
         } else {
-            Err(JsonError::InvalidMediaType)
+            Err(JsonParseError::InvalidMediaType)
         }
     }
 }
@@ -65,10 +66,10 @@ impl<T> Responder for Json<T>
 where
     T: Serialize + HttpResponse,
 {
-    type Error = JsonError;
+    type Error = JsonSerializeError;
 
     fn respond(self, _: &Input) -> Result<Output, Self::Error> {
-        let body = serde_json::to_vec(&self.0).map_err(|cause| JsonError::Serialize { cause })?;
+        let body = serde_json::to_vec(&self.0).map_err(|cause| JsonSerializeError { cause })?;
         let body_len = body.len().to_string();
 
         let mut response = Response::new(ResponseBody::once(body));
@@ -80,6 +81,7 @@ where
         response.headers_mut().insert(header::CONTENT_LENGTH, unsafe {
             HeaderValue::from_shared_unchecked(body_len.into())
         });
+
         Ok(response)
     }
 }
@@ -100,13 +102,14 @@ impl From<serde_json::Value> for JsonValue {
 }
 
 impl JsonValue {
+    #[allow(missing_docs)]
     pub fn new(value: serde_json::Value, status: StatusCode) -> JsonValue {
         JsonValue { value, status }
     }
 }
 
 impl Responder for JsonValue {
-    type Error = JsonError;
+    type Error = Never;
 
     fn respond(self, _: &Input) -> Result<Output, Self::Error> {
         let body = self.value.to_string();
@@ -125,24 +128,45 @@ impl Responder for JsonValue {
     }
 }
 
-/// All error kinds when receiving/parsing the JSON data.
+/// An error type which will occur during transforming a payload to a JSON value.
 #[derive(Debug, Fail)]
-pub enum JsonError {
+pub enum JsonParseError {
+    #[allow(missing_docs)]
     #[fail(display = "The value of `Content-type' is invalid")]
     InvalidMediaType,
 
-    #[fail(display = "bad JSON data")]
-    InvalidBody { cause: serde_json::Error },
-
-    #[fail(display = "failed to serialize to JSON value")]
-    Serialize { cause: serde_json::Error },
+    #[allow(missing_docs)]
+    #[fail(display = "Failed to parse the payload to a JSON value")]
+    Parse { cause: serde_json::Error },
 }
 
-impl HttpError for JsonError {
+impl HttpError for JsonParseError {
     fn status_code(&self) -> StatusCode {
-        match *self {
-            JsonError::InvalidBody { .. } | JsonError::InvalidMediaType => StatusCode::BAD_REQUEST,
-            JsonError::Serialize { .. } => StatusCode::INTERNAL_SERVER_ERROR,
-        }
+        StatusCode::BAD_REQUEST
+    }
+}
+
+/// An error type which will occur during serialize to a JSON value.
+#[derive(Debug, Fail)]
+#[fail(display = "failed to serialize to JSON value: {}", cause)]
+pub struct JsonSerializeError {
+    cause: serde_json::Error,
+}
+
+impl Deref for JsonSerializeError {
+    type Target = serde_json::Error;
+
+    fn deref(&self) -> &Self::Target {
+        &self.cause
+    }
+}
+
+impl HttpError for JsonSerializeError {
+    fn status_code(&self) -> StatusCode {
+        StatusCode::INTERNAL_SERVER_ERROR
+    }
+
+    fn as_fail(&self) -> Option<&Fail> {
+        Some(self)
     }
 }

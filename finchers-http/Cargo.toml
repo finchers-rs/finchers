@@ -2,6 +2,13 @@
 name = "finchers-http"
 version = "0.11.0"
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
+license = "MIT/Apache-2.0"
+repository = "https://github.com/finchers-rs/finchers.git"
+homepage = "https://finchers-rs.github.io"
+documentation = "https://docs.rs/finchers-http"
+description = """
+Basic endpoints and utilities for parsing HTTP requests
+"""
 
 [dependencies]
 finchers-core = { version = "0.11.0", path = "../finchers-core" }
@@ -12,6 +19,7 @@ serde_qs = "0.4"
 serde_json = "1.0"
 bytes = "0.4"
 failure = "0.1"
+percent-encoding = "1.0"
 
 [dev-dependencies]
 finchers-ext = { version = "0.11.0", path = "../finchers-ext" }
