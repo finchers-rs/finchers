@@ -11,7 +11,6 @@ use std::sync::Arc;
 use std::{fmt, io};
 
 use finchers_core::endpoint::ApplyRequest;
-use finchers_core::error::Error;
 use finchers_core::input::RequestBody;
 use finchers_core::output::{Responder, ResponseBody};
 use finchers_core::{Endpoint, HttpError, Input, Poll, Task};
@@ -149,7 +148,7 @@ where
             Poll::Pending => return Ok(NotReady),
             Poll::Ready(Some(Ok(output))) => output
                 .respond(&self.input)
-                .unwrap_or_else(|err| self.handle_error(Into::<Error>::into(err).as_http_error())),
+                .unwrap_or_else(|err| self.handle_error(err.as_http_error())),
             Poll::Ready(Some(Err(err))) => self.handle_error(err.as_http_error()),
             Poll::Ready(None) => self.handle_error(&NoRoute),
         };

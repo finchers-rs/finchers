@@ -9,7 +9,6 @@ use http::{header, Response};
 use super::body::ResponseBody;
 use error::Error;
 use input::Input;
-use never::Never;
 
 const TEXT_PLAIN: &str = "text/plain; charset=utf-8";
 
@@ -18,44 +17,33 @@ pub type Output = Response<ResponseBody>;
 
 /// Trait representing the conversion to an HTTP response.
 pub trait Responder {
-    /// The type of error value which will be returned from `respond`.
-    type Error: Into<Error>;
-
     /// Consume `self` and construct a new HTTP response.
-    fn respond(self, input: &Input) -> Result<Output, Self::Error>;
+    fn respond(self, input: &Input) -> Result<Output, Error>;
 }
 
 impl<T> Responder for Response<T>
 where
     T: Into<ResponseBody>,
 {
-    type Error = Never;
-
-    fn respond(self, _: &Input) -> Result<Output, Self::Error> {
+    fn respond(self, _: &Input) -> Result<Output, Error> {
         Ok(self.map(Into::into))
     }
 }
 
 impl Responder for &'static str {
-    type Error = Never;
-
-    fn respond(self, _: &Input) -> Result<Output, Self::Error> {
+    fn respond(self, _: &Input) -> Result<Output, Error> {
         Ok(make_response(Bytes::from_static(self.as_bytes()), TEXT_PLAIN))
     }
 }
 
 impl Responder for String {
-    type Error = Never;
-
-    fn respond(self, _: &Input) -> Result<Output, Self::Error> {
+    fn respond(self, _: &Input) -> Result<Output, Error> {
         Ok(make_response(Bytes::from(self), TEXT_PLAIN))
     }
 }
 
 impl Responder for Cow<'static, str> {
-    type Error = Never;
-
-    fn respond(self, _: &Input) -> Result<Output, Self::Error> {
+    fn respond(self, _: &Input) -> Result<Output, Error> {
         let body = match self {
             Cow::Borrowed(s) => Bytes::from_static(s.as_bytes()),
             Cow::Owned(s) => Bytes::from(s),
@@ -69,9 +57,7 @@ where
     T: Responder,
     E: Into<Error>,
 {
-    type Error = Error;
-
-    fn respond(self, input: &Input) -> Result<Output, Self::Error> {
+    fn respond(self, input: &Input) -> Result<Output, Error> {
         self.map_err(Into::<Error>::into)?.respond(input).map_err(Into::into)
     }
 }
@@ -81,12 +67,10 @@ where
     L: Responder,
     R: Responder,
 {
-    type Error = Error;
-
-    fn respond(self, input: &Input) -> Result<Output, Self::Error> {
+    fn respond(self, input: &Input) -> Result<Output, Error> {
         match self {
-            Either::Left(l) => l.respond(input).map_err(Into::into),
-            Either::Right(r) => r.respond(input).map_err(Into::into),
+            Either::Left(l) => l.respond(input),
+            Either::Right(r) => r.respond(input),
         }
     }
 }
@@ -121,9 +105,7 @@ impl Debug {
 }
 
 impl Responder for Debug {
-    type Error = Never;
-
-    fn respond(self, _: &Input) -> Result<Output, Self::Error> {
+    fn respond(self, _: &Input) -> Result<Output, Error> {
         let body = if self.pretty {
             format!("{:#?}", self.value)
         } else {
