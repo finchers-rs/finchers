@@ -33,5 +33,5 @@ fn test_body_1() {
     let client = Client::new(&endpoint);
     let outcome = client.post("/").body(RequestBody::once(MESSAGE)).run();
 
-    assert_eq!(outcome.and_then(Result::ok), Some(MESSAGE.into()));
+    assert_eq!(outcome.ok(), Some(MESSAGE.into()));
 }

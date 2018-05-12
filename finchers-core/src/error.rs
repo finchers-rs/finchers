@@ -200,25 +200,56 @@ impl HttpError for NotPresent {
     }
 }
 
+#[derive(Debug, Fail)]
+#[fail(display = "no route")]
+struct NoRoute;
+
+impl HttpError for NoRoute {
+    fn status_code(&self) -> StatusCode {
+        StatusCode::NOT_FOUND
+    }
+}
+
 /// A type which holds a value of `HttpError` in a type-erased form.
 #[derive(Debug)]
-pub struct Error(Box<HttpError>);
+pub struct Error {
+    inner: Either<Box<HttpError>, NoRoute>,
+}
 
 impl<E: HttpError> From<E> for Error {
     fn from(err: E) -> Self {
-        Error(Box::new(err))
+        Error {
+            inner: Either::Left(Box::new(err)),
+        }
     }
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(&*self.0, f)
+        match self.inner {
+            Either::Left(ref e) => fmt::Display::fmt(&*e, f),
+            Either::Right(ref e) => fmt::Display::fmt(e, f),
+        }
     }
 }
 
 impl Error {
+    pub(crate) fn skipped() -> Error {
+        Error {
+            inner: Either::Right(NoRoute),
+        }
+    }
+
+    #[allow(missing_docs)]
+    pub fn is_skipped(&self) -> bool {
+        self.inner.is_right()
+    }
+
     /// Returns the reference to inner `HttpError`.
     pub fn as_http_error(&self) -> &HttpError {
-        &*self.0
+        match self.inner {
+            Either::Left(ref e) => &**e,
+            Either::Right(ref e) => &*e as &HttpError,
+        }
     }
 }
