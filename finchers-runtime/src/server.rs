@@ -1,7 +1,10 @@
-use futures::{Future, Poll, Stream};
+//! Components for managing HTTP server.
+
+use failure::Fail;
+use futures::{Async, Future, Poll, Stream};
 use http;
 use hyper;
-use hyper::server::{service_fn, Http};
+use hyper::server::{self, Http};
 use slog::{Drain, Level, Logger};
 use std::cell::RefCell;
 use std::net::{IpAddr, SocketAddr};
@@ -12,24 +15,11 @@ use tokio;
 use tokio::net::TcpListener;
 use {slog_async, slog_term};
 
-use finchers_core::endpoint::Endpoint;
 use finchers_core::input::RequestBody;
-use finchers_core::output::Responder;
-
-use endpoint::NewEndpointService;
 use service::{HttpService, NewHttpService, Payload};
 
-/// Start the server with given endpoint and default configuration.
-pub fn run<E>(endpoint: E)
-where
-    E: Endpoint + 'static,
-    E::Output: Responder,
-{
-    let config = Config::from_env();
-    let new_service = NewEndpointService::new(endpoint);
-    Server::new(new_service, config).run();
-}
-
+/// All kinds of logging mode of `Server`.
+#[allow(missing_docs)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Mode {
     Silent,
@@ -94,10 +84,12 @@ impl Config {
         self.cli = Some(cli);
     }
 
+    #[allow(missing_docs)]
     pub fn addr(&self) -> SocketAddr {
         self.addr
     }
 
+    #[allow(missing_docs)]
     pub fn mode(&self) -> Mode {
         self.mode
     }
@@ -118,6 +110,7 @@ impl Config {
     }
 }
 
+/// A builder for running the HTTP server based on given HTTP service and configuration.
 #[derive(Debug)]
 pub struct Server<S> {
     new_service: S,
@@ -134,6 +127,7 @@ where
     S::Future: Send + 'static,
     S::Error: Into<hyper::Error>,
     <S::Service as HttpService>::Future: Send + 'static,
+    S::InitError: Fail,
 {
     /// Create a new launcher from given service.
     pub fn new(new_service: S, config: Config) -> Server<S> {
@@ -142,7 +136,7 @@ where
 
     /// Start the HTTP server with given configurations
     #[inline]
-    pub fn run(self) {
+    pub fn launch(self) {
         let Server { new_service, config } = self;
         let new_service = Arc::new(new_service);
 
@@ -156,68 +150,115 @@ where
                 ::std::process::exit(1);
             }
         };
+        let incoming = listener.incoming().map_err({
+            let logger = logger.clone();
+            move |err| trace!(logger, "failed to accept a TCP connection: {}", err)
+        });
 
-        let server = listener
-            .incoming()
-            .map_err({
-                let logger = logger.clone();
-                move |err| trace!(logger, "failed to accept: {}", err)
-            })
-            .for_each(move |stream| {
-                let logger = logger.new(o! {
-                    "ip_addr" => stream.peer_addr()
-                        .map(|addr| addr.to_string())
-                        .unwrap_or_else(|_| "<error>".into()),
-                });
-
-                // FIXME: move to the root.
-                let protocol = Http::<<S::ResponseBody as Payload>::Data>::new();
-
-                new_service
-                    .new_service()
-                    .map_err(|_e| eprintln!("TODO: log"))
-                    .and_then(move |service| {
-                        // FIXME: remove RefCell
-                        let service = RefCell::new(service);
-
-                        let service = service_fn(move |request: hyper::Request<hyper::Body>| {
-                            let request = http::Request::from(request).map(RequestBody::from_hyp);
-
-                            let logger = logger.new(o!{
-                                "method" => request.method().to_string(),
-                                "path" => request.uri().path().to_owned(),
-                            });
-                            let start = Instant::now();
-
-                            service
-                                .borrow_mut()
-                                .call(request)
-                                .map(|response| hyper::Response::from(response.map(BodyWrapper)))
-                                .map_err(Into::into)
-                                .inspect(move |response| {
-                                    let end = Instant::now();
-                                    let duration = end - start;
-                                    info!(
-                                        logger,
-                                        "{} ({} ms)",
-                                        response.status(),
-                                        duration.as_secs() / 10 + duration.subsec_nanos() as u64 / 1_000_000,
-                                    );
-                                })
-                        });
-                        let conn = protocol.serve_connection(stream, service);
-                        conn.map(|_conn| ()).map_err(|_| ())
-                    })
+        let server = incoming.for_each(move |stream| {
+            let logger = logger.new(o! {
+                "ip_addr" => stream.peer_addr()
+                    .map(|addr| addr.to_string())
+                    .unwrap_or_else(|_| "<error>".into()),
             });
+
+            new_service
+                .new_service()
+                .map_err({
+                    let logger = logger.clone();
+                    move |e| error!(logger, "failed to create a new service: {}", e)
+                })
+                .and_then(move |service| {
+                    let wrapped_service = WrappedService {
+                        service: RefCell::new(service),
+                        logger: logger.clone(),
+                    };
+                    let protocol = Http::<<S::ResponseBody as Payload>::Data>::new();
+                    let conn = protocol.serve_connection(stream, wrapped_service);
+
+                    conn.map_err(move |e| error!(logger, "during serving a connection: {}", e))
+                })
+        });
 
         tokio::run(server);
     }
 }
 
-#[derive(Debug)]
-struct BodyWrapper<Bd>(Bd);
+scoped_thread_local!(static LOGGER: Logger);
 
-impl<Bd: Payload> Stream for BodyWrapper<Bd>
+/// Execute a closure with the reference to `Logger` associated with the current scope.
+pub fn with_logger<F, R>(f: F) -> R
+where
+    F: FnOnce(&Logger) -> R,
+{
+    LOGGER.with(|logger| f(logger))
+}
+
+#[derive(Debug)]
+struct WrappedService<S> {
+    // FIXME: remove RefCell
+    service: RefCell<S>,
+    logger: Logger,
+}
+
+impl<S> server::Service for WrappedService<S>
+where
+    S: HttpService<RequestBody = RequestBody>,
+    S::Error: Into<hyper::Error> + 'static,
+    S::ResponseBody: Payload,
+    S::Future: Send + 'static,
+{
+    type Request = hyper::Request;
+    type Response = hyper::Response<WrappedBody<S::ResponseBody>>;
+    type Error = hyper::Error;
+    type Future = WrappedServiceFuture<S::Future>;
+
+    fn call(&self, request: Self::Request) -> Self::Future {
+        let request = http::Request::from(request).map(RequestBody::from_hyp);
+        let logger = self.logger.new(o!{
+            "method" => request.method().to_string(),
+            "path" => request.uri().path().to_owned(),
+        });
+
+        let start = Instant::now();
+        let future = LOGGER.set(&logger, || self.service.borrow_mut().call(request));
+        WrappedServiceFuture { future, logger, start }
+    }
+}
+
+#[allow(missing_debug_implementations)]
+struct WrappedServiceFuture<F> {
+    future: F,
+    logger: Logger,
+    start: Instant,
+}
+
+impl<F, Bd> Future for WrappedServiceFuture<F>
+where
+    F: Future<Item = http::Response<Bd>>,
+    Bd: Payload,
+    F::Error: Into<hyper::Error> + 'static,
+{
+    type Item = hyper::Response<WrappedBody<Bd>>;
+    type Error = hyper::Error;
+
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        let response = {
+            let future = &mut self.future;
+            try_ready!(LOGGER.set(&self.logger, || future.poll().map_err(Into::<hyper::Error>::into)))
+        };
+        let end = Instant::now();
+        let duration = end - self.start;
+        let duration_msec = duration.as_secs() * 10 + duration.subsec_nanos() as u64 / 1_000_000;
+        info!(self.logger, "{} ({} ms)", response.status(), duration_msec);
+        Ok(Async::Ready(hyper::Response::from(response.map(WrappedBody))))
+    }
+}
+
+#[derive(Debug)]
+struct WrappedBody<Bd>(Bd);
+
+impl<Bd: Payload> Stream for WrappedBody<Bd>
 where
     Bd::Error: Into<hyper::Error>,
 {
