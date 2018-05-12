@@ -150,7 +150,7 @@ impl<'a, E: Endpoint> ClientRequest<'a, E> {
     }
 
     /// Apply this dummy request to the associated endpoint and get its response.
-    pub fn run(&mut self) -> Option<Result<E::Output, Error>> {
+    pub fn run(&mut self) -> Result<E::Output, Error> {
         let ClientRequest { client, request, body } = self.take();
 
         let input = Input::new(request);
@@ -170,7 +170,7 @@ struct TestFuture<T> {
 }
 
 impl<T: Task> Future for TestFuture<T> {
-    type Item = Option<Result<T::Output, Error>>;
+    type Item = Result<T::Output, Error>;
     type Error = Never;
 
     fn poll(&mut self) -> Result<Async<Self::Item>, Self::Error> {

@@ -4,14 +4,12 @@ use bytes::Bytes;
 use futures::Async::*;
 use futures::future::{self, FutureResult};
 use futures::{self, Future};
-use http::StatusCode;
 use http::header::{self, HeaderValue};
 use http::{Request, Response};
 use std::sync::Arc;
 use std::{fmt, io};
 
 use finchers_core::endpoint::ApplyRequest;
-use finchers_core::error::Error;
 use finchers_core::input::RequestBody;
 use finchers_core::output::{Responder, ResponseBody};
 use finchers_core::{Endpoint, HttpError, Input, Poll, Task};
@@ -145,14 +143,12 @@ where
     type Error = io::Error;
 
     fn poll(&mut self) -> futures::Poll<Self::Item, Self::Error> {
-        let mut response = match self.apply.poll_ready(&self.input) {
+        let output = match self.apply.poll_ready(&self.input) {
             Poll::Pending => return Ok(NotReady),
-            Poll::Ready(Some(Ok(output))) => output
-                .respond(&self.input)
-                .unwrap_or_else(|err| self.handle_error(Into::<Error>::into(err).as_http_error())),
-            Poll::Ready(Some(Err(err))) => self.handle_error(err.as_http_error()),
-            Poll::Ready(None) => self.handle_error(&NoRoute),
+            Poll::Ready(output) => output.and_then(|output| output.respond(&self.input)),
         };
+
+        let mut response = output.unwrap_or_else(|err| self.handle_error(err.as_http_error()));
 
         if !response.headers().contains_key(header::SERVER) {
             response.headers_mut().insert(
@@ -162,21 +158,6 @@ where
         }
 
         Ok(Ready(response))
-    }
-}
-
-#[derive(Debug)]
-struct NoRoute;
-
-impl fmt::Display for NoRoute {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str("no route")
-    }
-}
-
-impl HttpError for NoRoute {
-    fn status_code(&self) -> StatusCode {
-        StatusCode::NOT_FOUND
     }
 }
 

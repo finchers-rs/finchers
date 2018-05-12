@@ -12,5 +12,5 @@ fn test_abort() {
     let client = Client::new(abort(|_| NotPresent::new("")).map(Never::never_into::<()>));
 
     let outcome = client.get("/").run();
-    assert!(outcome.map_or(false, |r| r.is_err()));
+    assert!(outcome.err().map_or(false, |e| !e.is_skipped()));
 }

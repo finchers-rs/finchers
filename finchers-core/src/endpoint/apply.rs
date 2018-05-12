@@ -27,13 +27,13 @@ pub struct ApplyRequest<T> {
 
 impl<T: Task> ApplyRequest<T> {
     /// Poll the inner `Task` and return its output if available.
-    pub fn poll_ready(&mut self, input: &Input) -> Poll<Option<Result<T::Output, Error>>> {
+    pub fn poll_ready(&mut self, input: &Input) -> Poll<Result<T::Output, Error>> {
         match self.in_flight {
             Some(ref mut f) => {
                 let mut cx = task::Context::new(input, &mut self.body);
-                f.poll_task(&mut cx).map(Some)
+                f.poll_task(&mut cx)
             }
-            None => Poll::Ready(None),
+            None => Poll::Ready(Err(Error::skipped())),
         }
     }
 }

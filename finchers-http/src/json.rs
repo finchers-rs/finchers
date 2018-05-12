@@ -12,7 +12,7 @@ use {mime, serde_json};
 use body::FromBody;
 use finchers_core::error::HttpError;
 use finchers_core::output::{HttpResponse, Responder, ResponseBody};
-use finchers_core::{Input, Never, Output};
+use finchers_core::{Error, Input, Output};
 
 /// A wrapper struct representing a statically typed JSON value.
 #[derive(Debug)]
@@ -66,9 +66,7 @@ impl<T> Responder for Json<T>
 where
     T: Serialize + HttpResponse,
 {
-    type Error = JsonSerializeError;
-
-    fn respond(self, _: &Input) -> Result<Output, Self::Error> {
+    fn respond(self, _: &Input) -> Result<Output, Error> {
         let body = serde_json::to_vec(&self.0).map_err(|cause| JsonSerializeError { cause })?;
         let body_len = body.len().to_string();
 
@@ -109,9 +107,7 @@ impl JsonValue {
 }
 
 impl Responder for JsonValue {
-    type Error = Never;
-
-    fn respond(self, _: &Input) -> Result<Output, Self::Error> {
+    fn respond(self, _: &Input) -> Result<Output, Error> {
         let body = self.value.to_string();
         let body_len = body.len().to_string();
 

@@ -9,6 +9,6 @@ fn test_as_ok() {
     let endpoint = just::<Result<_, ()>>(Ok("foo")).as_ok::<&str>();
     let client = Client::new(endpoint);
 
-    let outcome: Option<Result<&str, ()>> = client.get("/").run().and_then(Result::ok);
-    assert_eq!(outcome, Some(Ok("foo")));
+    let outcome: Result<Result<&str, ()>, _> = client.get("/").run();
+    assert_eq!(outcome.ok(), Some(Ok("foo")));
 }
