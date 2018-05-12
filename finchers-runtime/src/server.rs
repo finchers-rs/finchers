@@ -1,3 +1,5 @@
+//! Components for managing HTTP server.
+
 use failure::Fail;
 use futures::{Async, Future, Poll, Stream};
 use http;
@@ -16,6 +18,8 @@ use {slog_async, slog_term};
 use finchers_core::input::RequestBody;
 use service::{HttpService, NewHttpService, Payload};
 
+/// All kinds of logging mode of `Server`.
+#[allow(missing_docs)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Mode {
     Silent,
@@ -80,10 +84,12 @@ impl Config {
         self.cli = Some(cli);
     }
 
+    #[allow(missing_docs)]
     pub fn addr(&self) -> SocketAddr {
         self.addr
     }
 
+    #[allow(missing_docs)]
     pub fn mode(&self) -> Mode {
         self.mode
     }
@@ -104,6 +110,7 @@ impl Config {
     }
 }
 
+/// A builder for running the HTTP server based on given HTTP service and configuration.
 #[derive(Debug)]
 pub struct Server<S> {
     new_service: S,

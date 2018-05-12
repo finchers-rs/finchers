@@ -1,4 +1,9 @@
+//! Runtime support for Finchers, which supports serving asynchronous HTTP services.
+
 #![doc(html_root_url = "https://docs.rs/finchers-runtime/0.11.0")]
+#![deny(missing_docs)]
+#![deny(missing_debug_implementations)]
+#![deny(warnings)]
 
 extern crate finchers_core;
 
