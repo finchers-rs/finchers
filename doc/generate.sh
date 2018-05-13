@@ -10,4 +10,4 @@ echo ">> $(pwd)"
 set -x
 bundle install
 bundle exec jekyll build -d "$DEST"
-# mdbook build -d "$DEST/guide" ./guide/
+mdbook build -d "$DEST/guide" ./guide/

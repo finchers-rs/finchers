@@ -17,6 +17,7 @@ The concept and design was highly inspired by [`finch`](https://github.com/finag
 
 ## Documentation
 
+* [User Guide][user-guide]
 * [API documentation (released)][released-api]
 * [API documentation (master)][master-api]
 
