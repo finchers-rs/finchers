@@ -11,12 +11,9 @@
 //!
 //! # References
 //!
-//! * [User Guide][user-guide]
 //! * [API documentation (released)][released-api]
 //! * [API documentation (master)][master-api]
 //!
-//!
-//! [user-guide]: https://finchers-rs.github.io/guide
 //! [released-api]: https://docs.rs/finchers/*/finchers
 //! [master-api]: https://finchers-rs.github.io/api/finchers/
 //!
@@ -49,6 +46,9 @@
 //! ```
 
 #![doc(html_root_url = "https://docs.rs/finchers/0.11.0")]
+#![deny(missing_docs)]
+#![deny(missing_debug_implementations)]
+#![deny(warnings)]
 
 extern crate finchers_core;
 #[allow(unused_imports)]
@@ -61,10 +61,12 @@ extern crate finchers_runtime;
 #[doc(hidden)]
 pub use finchers_derive::*;
 
+#[allow(missing_docs)]
 pub mod error {
     pub use finchers_core::error::{BadRequest, HttpError, ServerError};
 }
 
+#[allow(missing_docs)]
 pub mod endpoint {
     pub use finchers_core::endpoint::{Endpoint, IntoEndpoint};
     pub use finchers_ext::{abort, all, just, lazy, EndpointExt, EndpointOptionExt, EndpointResultExt};
@@ -81,14 +83,17 @@ pub mod endpoint {
     }
 }
 
+#[allow(missing_docs)]
 pub mod input {
     pub use finchers_core::input::{Data, Input, RequestBody};
 }
 
+#[allow(missing_docs)]
 pub mod output {
     pub use finchers_core::output::{Debug, HttpResponse, Responder, ResponseBody};
 }
 
+#[allow(missing_docs)]
 pub mod runtime {
     pub use finchers_runtime::endpoint::NewEndpointService;
     pub use finchers_runtime::server::Server;
