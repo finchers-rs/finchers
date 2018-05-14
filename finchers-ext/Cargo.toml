@@ -15,5 +15,4 @@ finchers-core = { version = "0.11.0", path = "../finchers-core", default-feature
 either = { version = "1.5.0", default-features = false }
 
 [dev-dependencies]
-finchers-http = { version = "0.11.0", path = "../finchers-http" }
 finchers-test = { version = "0.11.0", path = "../finchers-test" }

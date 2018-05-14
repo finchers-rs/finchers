@@ -11,6 +11,12 @@ documentation = "https://docs.rs/finchers"
 keywords = ["finchers", "web", "framework", "server"]
 categories = ["web-programming::http-server"]
 
+include = [
+  "Cargo.toml",
+  "src/**/*",
+  "tests/**/*",
+]
+
 [badges]
 travis-ci = { repository = "finchers-rs/finchers" }
 coveralls = { repository = "finchers-rs/finchers" }

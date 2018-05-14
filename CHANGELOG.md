@@ -1,3 +1,19 @@
+<a name="0.11.0"></a>
+## 0.11.0 (2018-05-14)
+
+**WARNING**
+
+This version does not have the barkward comatiblity with 0.10.x and the changes are not omitted.
+
+The rough differences from the previous version are as follows:
+
+* Switch to multiple crate configuration
+* Remove the associated type `Error` from `Endpoint`
+* E.g.
+
+This version intends to take a snapshot. It will be upgraded to the next minor version when the core
+dependencies (futures, tokio and hyper) will be upgraded.
+
 <a name="0.10.1"></a>
 ### 0.10.1 (2017-12-28)
 
