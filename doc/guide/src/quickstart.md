@@ -24,7 +24,7 @@ For example, you will run the simple example as follows:
 ```shell-session
 $ git clone https://github.com/finchers-rs/finchers.git
 $ cd finchers
-$ cargo run -p todo
+$ cargo run -p example-todo
 ```
 
 More examples are located in the directory [`examples/`][examples].
