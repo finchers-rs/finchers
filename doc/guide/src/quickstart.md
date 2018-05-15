@@ -13,7 +13,7 @@ The recommended way to manage Rust toolchains is using the official toolchain ma
 $ curl -sSf https://sh.rustup.rs | sh
 ```
 
-Finchers requires the stable version of Rust, 1.23 or higher.
+Finchers requires the stable version of Rust, 1.26 or higher.
 
 ## Running Examples
 
