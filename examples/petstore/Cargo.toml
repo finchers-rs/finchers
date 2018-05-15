@@ -1,0 +1,16 @@
+[package]
+name = "example-petstore"
+version = "0.0.0"
+authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
+publish = false
+
+[[bin]]
+name = "petstore"
+path = "src/main.rs"
+doc = false
+
+[dependencies]
+finchers = { path = "../.." }
+futures = "0.1"
+serde = { version = "1.0", features = ["derive"] }
+chrono = { version = "0.4", features = ["serde"] }
