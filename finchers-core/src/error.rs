@@ -5,8 +5,8 @@ use std::fmt;
 
 use either::Either;
 use failure::{self, Fail};
-use http::StatusCode;
 use http::header::{HeaderMap, HeaderValue};
+use http::StatusCode;
 
 /// Trait representing error values from endpoints.
 ///
@@ -103,7 +103,7 @@ impl HttpError for BadRequest {
     }
 
     fn as_fail(&self) -> Option<&Fail> {
-        self.inner.as_ref().right().map(failure::Error::cause)
+        self.inner.as_ref().right().map(failure::Error::as_fail)
     }
 }
 
@@ -164,7 +164,7 @@ impl HttpError for ServerError {
     }
 
     fn as_fail(&self) -> Option<&Fail> {
-        self.inner.as_ref().right().map(failure::Error::cause)
+        self.inner.as_ref().right().map(failure::Error::as_fail)
     }
 }
 

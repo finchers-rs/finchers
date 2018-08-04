@@ -67,8 +67,12 @@ pub mod error {
 
 pub mod endpoint {
     pub use finchers_core::endpoint::{Endpoint, IntoEndpoint};
-    pub use finchers_ext::{abort, all, just, lazy, EndpointExt, EndpointOptionExt, EndpointResultExt};
-    pub use finchers_http::{body, header, method, path, query, FromBody, FromHeader, FromSegment, FromSegments};
+    pub use finchers_ext::{
+        abort, all, just, lazy, EndpointExt, EndpointOptionExt, EndpointResultExt,
+    };
+    pub use finchers_http::{
+        body, header, method, path, query, FromBody, FromHeader, FromSegment, FromSegments,
+    };
 
     /// The "prelude" for building endpoints
     pub mod prelude {

@@ -89,8 +89,4 @@ pub trait EndpointResultExt<A, B>: Endpoint<Output = Result<A, B>> + Sized {
     }
 }
 
-impl<E, A, B> EndpointResultExt<A, B> for E
-where
-    E: Endpoint<Output = Result<A, B>>,
-{
-}
+impl<E, A, B> EndpointResultExt<A, B> for E where E: Endpoint<Output = Result<A, B>> {}

@@ -27,33 +27,28 @@ matrix:
         - rustup component add rustfmt-preview
       script:
         - cargo clean
+        - cargo fmt -- --check
         - cargo test --all
         - cargo test -p finchers-core --no-default-features
       after_success:
-        - cargo fmt -- --write-mode=diff
         - bash <(curl https://raw.githubusercontent.com/xd009642/tarpaulin/master/travis-install.sh)
         - USE_SKEPTIC=1 cargo tarpaulin --ciserver travis-ci --coveralls $TRAVIS_JOB_ID --all
 
     - rust: beta
-      before_script:
-        - rustup component add rustfmt-preview
       script:
         - cargo clean
         - cargo test --all
         - cargo test --manifest-path finchers-core/Cargo.toml --no-default-features
-      after_success:
-        - cargo fmt -- --write-mode=diff
 
     - rust: nightly
       before_script:
-        - rustup component add rustfmt-preview
+        - rustup component add clippy-preview
       script:
         - cargo clean
         - cargo test --all
         - cargo test --manifest-path finchers-core/Cargo.toml --no-default-features
         - cargo test --manifest-path finchers-core/Cargo.toml --features "nightly"
-      after_success:
-        - cargo fmt -- --write-mode=diff
+        - cargo clippy
 
     - rust: stable
       env: MDBOOK_VERSION=0.1.7

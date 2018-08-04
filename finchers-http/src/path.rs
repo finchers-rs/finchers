@@ -123,7 +123,8 @@ impl Endpoint for MatchPath {
                 let mut matched = true;
                 for segment in segments {
                     // FIXME: impl PartialEq for EncodedStr
-                    matched = matched && cx.segments().next()?.as_encoded_str().as_bytes() == segment.as_bytes();
+                    matched = matched
+                        && cx.segments().next()?.as_encoded_str().as_bytes() == segment.as_bytes();
                 }
                 if matched {
                     Some(task::ready(()))
@@ -204,7 +205,9 @@ pub fn param<T>() -> Param<T>
 where
     T: FromSegment + Send,
 {
-    Param { _marker: PhantomData }
+    Param {
+        _marker: PhantomData,
+    }
 }
 
 #[allow(missing_docs)]
@@ -269,7 +272,7 @@ pub trait FromSegment: 'static + Sized {
 
 #[allow(missing_docs)]
 #[derive(Debug, Fail)]
-pub enum FromSegmentError<E> {
+pub enum FromSegmentError<E: Fail> {
     #[fail(display = "{}", cause)]
     Decode { cause: Utf8Error },
 
@@ -342,7 +345,9 @@ pub fn params<T>() -> Params<T>
 where
     T: FromSegments + Send,
 {
-    Params { _marker: PhantomData }
+    Params {
+        _marker: PhantomData,
+    }
 }
 
 #[allow(missing_docs)]
@@ -446,13 +451,19 @@ mod tests {
     fn test_match_multi_segments() {
         assert_eq!(
             MatchPath::from_str("foo/bar").map(|m| m.kind),
-            Ok(MatchPathKind::Segments(vec!["foo".to_owned(), "bar".to_owned()]))
+            Ok(MatchPathKind::Segments(vec![
+                "foo".to_owned(),
+                "bar".to_owned(),
+            ]))
         );
     }
 
     #[test]
     fn test_match_all_segments() {
-        assert_eq!(MatchPath::from_str("*").map(|m| m.kind), Ok(MatchPathKind::AllSegments));
+        assert_eq!(
+            MatchPath::from_str("*").map(|m| m.kind),
+            Ok(MatchPathKind::AllSegments)
+        );
     }
 
     #[test]

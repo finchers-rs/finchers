@@ -17,7 +17,7 @@ futures = "0.1"
 bytes = "0.4"
 scoped-tls = "0.1.1"
 either = "1.5.0"
-failure = "0.1"
+failure = "0.1.2"
 percent-encoding = "1.0"
 
 [dependencies.hyper]

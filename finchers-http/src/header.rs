@@ -40,8 +40,11 @@ use finchers_core::{Error, HttpError, Poll, PollResult};
 pub fn header<H>() -> Header<H>
 where
     H: FromHeader,
+    H::Error: Fail,
 {
-    assert_output::<_, Result<H, HeaderError<H::Error>>>(Header { _marker: PhantomData })
+    assert_output::<_, Result<H, HeaderError<H::Error>>>(Header {
+        _marker: PhantomData,
+    })
 }
 
 #[allow(missing_docs)]
@@ -67,6 +70,7 @@ impl<H> fmt::Debug for Header<H> {
 impl<H> Endpoint for Header<H>
 where
     H: FromHeader,
+    H::Error: Fail,
 {
     type Output = Result<H, HeaderError<H::Error>>;
     type Task = HeaderTask<H>;
@@ -77,7 +81,9 @@ where
                 return None;
             }
         }
-        Some(HeaderTask { _marker: PhantomData })
+        Some(HeaderTask {
+            _marker: PhantomData,
+        })
     }
 }
 
@@ -90,12 +96,15 @@ pub struct HeaderTask<H> {
 impl<H> Task for HeaderTask<H>
 where
     H: FromHeader,
+    H::Error: Fail,
 {
     type Output = Result<H, HeaderError<H::Error>>;
 
     fn poll_task(&mut self, cx: &mut task::Context) -> PollResult<Self::Output, Error> {
         let ready = match cx.input().request().headers().get(H::NAME) {
-            Some(h) => H::from_header(h.as_bytes()).map_err(|cause| HeaderError::InvalidValue { cause }),
+            Some(h) => {
+                H::from_header(h.as_bytes()).map_err(|cause| HeaderError::InvalidValue { cause })
+            }
             None => H::default().ok_or_else(|| HeaderError::MissingValue),
         };
         Poll::Ready(Ok(ready))
@@ -104,7 +113,7 @@ where
 
 /// All kinds of error which will be returned from `Header<H>`.
 #[derive(Debug, Fail)]
-pub enum HeaderError<E> {
+pub enum HeaderError<E: Fail> {
     /// The required header value was missing in the incoming request.
     #[fail(display = "Missing header value")]
     MissingValue,

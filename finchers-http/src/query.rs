@@ -45,7 +45,9 @@ pub fn query<T>() -> Query<T>
 where
     T: FromQuery,
 {
-    Query { _marker: PhantomData }
+    Query {
+        _marker: PhantomData,
+    }
 }
 
 #[allow(missing_docs)]
@@ -71,12 +73,15 @@ impl<T> fmt::Debug for Query<T> {
 impl<T> Endpoint for Query<T>
 where
     T: FromQuery,
+    T::Error: Fail,
 {
     type Output = Result<T, QueryError<T::Error>>;
     type Task = QueryTask<T>;
 
     fn apply(&self, _: &mut Context) -> Option<Self::Task> {
-        Some(QueryTask { _marker: PhantomData })
+        Some(QueryTask {
+            _marker: PhantomData,
+        })
     }
 }
 
@@ -89,12 +94,15 @@ pub struct QueryTask<T> {
 impl<T> Task for QueryTask<T>
 where
     T: FromQuery,
+    T::Error: Fail,
 {
     type Output = Result<T, QueryError<T::Error>>;
 
     fn poll_task(&mut self, cx: &mut task::Context) -> PollResult<Self::Output, Error> {
         let ready = match cx.input().request().uri().query() {
-            Some(query) => T::from_query(QueryItems::new(query)).map_err(|cause| QueryError::Parse { cause }),
+            Some(query) => {
+                T::from_query(QueryItems::new(query)).map_err(|cause| QueryError::Parse { cause })
+            }
             None => Err(QueryError::MissingQuery),
         };
         Poll::Ready(Ok(ready))
@@ -124,6 +132,7 @@ impl<F> Deref for Form<F> {
 impl<F> FromBody for Form<F>
 where
     F: FromQuery + 'static,
+    F::Error: Fail,
 {
     type Error = QueryError<F::Error>;
 
@@ -144,7 +153,7 @@ where
 
 /// All of error kinds when receiving/parsing the urlencoded data.
 #[derive(Debug, Fail)]
-pub enum QueryError<E> {
+pub enum QueryError<E: Fail> {
     #[allow(missing_docs)]
     #[fail(display = "The query string is not exist in the request")]
     MissingQuery,
@@ -184,7 +193,9 @@ impl<'a> QueryItems<'a> {
     ///
     /// The input must be a valid HTTP query.
     pub fn new<S: AsRef<[u8]> + ?Sized>(input: &'a S) -> QueryItems<'a> {
-        QueryItems { input: input.as_ref() }
+        QueryItems {
+            input: input.as_ref(),
+        }
     }
 
     /// Returns a slice of bytes which contains the remaining query items.
@@ -214,7 +225,12 @@ impl<'a> Iterator for QueryItems<'a> {
             let mut s = seq.splitn(2, |&b| b == b'=');
             let name = s.next().unwrap();
             let value = s.next().unwrap_or(&[]);
-            break unsafe { Some((EncodedStr::new_unchecked(name), EncodedStr::new_unchecked(value))) };
+            break unsafe {
+                Some((
+                    EncodedStr::new_unchecked(name),
+                    EncodedStr::new_unchecked(value),
+                ))
+            };
         }
     }
 }
@@ -287,5 +303,7 @@ where
     I: FromIterator<T>,
     T: de::Deserialize<'de>,
 {
-    de.deserialize_str(CSVSeqVisitor { _marker: PhantomData })
+    de.deserialize_str(CSVSeqVisitor {
+        _marker: PhantomData,
+    })
 }

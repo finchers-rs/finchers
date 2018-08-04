@@ -1,8 +1,8 @@
 use base64::decode;
 use finchers::endpoint::header::FromHeader;
 use finchers::{Endpoint, HttpError};
-use http::StatusCode;
 use http::header::{HeaderMap, HeaderValue};
+use http::StatusCode;
 use std::{error, fmt};
 
 pub fn basic_auth() -> impl Endpoint<Output = BasicAuth> + 'static {
@@ -29,7 +29,10 @@ impl FromHeader for BasicAuth {
         let decoded = decode(&input[6..]).map_err(|_| Unauthorized)?;
         let decoded_str = String::from_utf8(decoded).map_err(|_| Unauthorized)?;
         let mut elems = decoded_str.splitn(2, ':');
-        let username = elems.next().map(ToOwned::to_owned).ok_or_else(|| Unauthorized)?;
+        let username = elems
+            .next()
+            .map(ToOwned::to_owned)
+            .ok_or_else(|| Unauthorized)?;
         let password = elems.next().map(ToOwned::to_owned);
         Ok(BasicAuth { username, password })
     }
@@ -56,7 +59,10 @@ impl HttpError for Unauthorized {
     }
 
     fn append_headers(&self, headers: &mut HeaderMap<HeaderValue>) {
-        headers.insert("WWW-Authenticate", format!("Basic realm=\"\"").parse().unwrap());
+        headers.insert(
+            "WWW-Authenticate",
+            format!("Basic realm=\"\"").parse().unwrap(),
+        );
     }
 }
 

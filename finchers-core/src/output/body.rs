@@ -51,7 +51,9 @@ impl_from_once!(&'static str, String, &'static [u8], Vec<u8>, Bytes);
 impl ResponseBody {
     /// Create an instance of empty `ResponseBody`.
     pub fn empty() -> ResponseBody {
-        ResponseBody { inner: Inner::Empty }
+        ResponseBody {
+            inner: Inner::Empty,
+        }
     }
 
     /// Create an instance of `ResponseBody` from a chunk of bytes.

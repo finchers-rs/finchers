@@ -60,7 +60,9 @@ pub fn body<T>() -> Body<T>
 where
     T: FromBody,
 {
-    assert_output::<_, Result<T, T::Error>>(Body { _marker: PhantomData })
+    assert_output::<_, Result<T, T::Error>>(Body {
+        _marker: PhantomData,
+    })
 }
 
 #[allow(missing_docs)]
@@ -183,6 +185,7 @@ impl FromBody for String {
     type Error = BadRequest;
 
     fn from_body(body: Bytes, _: &Input) -> Result<Self, Self::Error> {
-        String::from_utf8(body.to_vec()).map_err(|_| BadRequest::new("failed to parse the message body"))
+        String::from_utf8(body.to_vec())
+            .map_err(|_| BadRequest::new("failed to parse the message body"))
     }
 }

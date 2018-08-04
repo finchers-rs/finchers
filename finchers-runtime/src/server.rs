@@ -131,13 +131,19 @@ where
 {
     /// Create a new launcher from given service.
     pub fn new(new_service: S, config: Config) -> Server<S> {
-        Server { new_service, config }
+        Server {
+            new_service,
+            config,
+        }
     }
 
     /// Start the HTTP server with given configurations
     #[inline]
     pub fn launch(self) {
-        let Server { new_service, config } = self;
+        let Server {
+            new_service,
+            config,
+        } = self;
         let new_service = Arc::new(new_service);
 
         let logger = config.logger();
@@ -222,7 +228,11 @@ where
 
         let start = Instant::now();
         let future = LOGGER.set(&logger, || self.service.borrow_mut().call(request));
-        WrappedServiceFuture { future, logger, start }
+        WrappedServiceFuture {
+            future,
+            logger,
+            start,
+        }
     }
 }
 
@@ -245,13 +255,17 @@ where
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         let response = {
             let future = &mut self.future;
-            try_ready!(LOGGER.set(&self.logger, || future.poll().map_err(Into::<hyper::Error>::into)))
+            try_ready!(LOGGER.set(&self.logger, || {
+                future.poll().map_err(Into::<hyper::Error>::into)
+            }))
         };
         let end = Instant::now();
         let duration = end - self.start;
         let duration_msec = duration.as_secs() * 10 + duration.subsec_nanos() as u64 / 1_000_000;
         info!(self.logger, "{} ({} ms)", response.status(), duration_msec);
-        Ok(Async::Ready(hyper::Response::from(response.map(WrappedBody))))
+        Ok(Async::Ready(hyper::Response::from(
+            response.map(WrappedBody),
+        )))
     }
 }
 

@@ -3,7 +3,6 @@
 #![doc(html_root_url = "https://docs.rs/finchers-test/0.11.0")]
 #![deny(missing_docs)]
 #![deny(missing_debug_implementations)]
-#![deny(warnings)]
 
 extern crate finchers_core;
 extern crate futures;
@@ -151,7 +150,11 @@ impl<'a, E: Endpoint> ClientRequest<'a, E> {
 
     /// Apply this dummy request to the associated endpoint and get its response.
     pub fn run(&mut self) -> Result<E::Output, Error> {
-        let ClientRequest { client, request, body } = self.take();
+        let ClientRequest {
+            client,
+            request,
+            body,
+        } = self.take();
 
         let input = Input::new(request);
         let body = body.unwrap_or_else(RequestBody::empty);

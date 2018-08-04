@@ -51,7 +51,9 @@ where
     T::Output: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("AllTask").field("elems", &self.elems).finish()
+        f.debug_struct("AllTask")
+            .field("elems", &self.elems)
+            .finish()
     }
 }
 

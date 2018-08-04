@@ -8,7 +8,9 @@ use finchers_test::Client;
 
 #[test]
 fn test_or_1() {
-    let endpoint = path("foo").right(just("foo")).or(path("bar").right(just("bar")));
+    let endpoint = path("foo")
+        .right(just("foo"))
+        .or(path("bar").right(just("bar")));
     let client = Client::new(endpoint);
 
     let outcome = client.get("/foo").run();

@@ -3,8 +3,8 @@ extern crate finchers;
 #[macro_use]
 extern crate serde;
 
-use finchers::Endpoint;
 use finchers::output::Debug;
+use finchers::Endpoint;
 
 fn endpoint() -> impl Endpoint<Output = Debug> + 'static {
     use finchers::endpoint::prelude::*;

@@ -1,6 +1,6 @@
-use finchers::Json;
 use finchers::endpoint::just;
 use finchers::endpoint::prelude::*;
+use finchers::Json;
 
 use app::Application;
 use db::*;
@@ -44,6 +44,12 @@ pub fn build_endpoint(app: &Application) -> impl Endpoint<Output = Json<Response
         .unwrap_ok();
 
     path("api/v1/todos")
-        .right(choice![find_todo, list_todos, add_todo, patch_todo, delete_todo,])
+        .right(choice![
+            find_todo,
+            list_todos,
+            add_todo,
+            patch_todo,
+            delete_todo,
+        ])
         .map(Json::from)
 }

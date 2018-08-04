@@ -104,7 +104,10 @@ impl From<syn::LitInt> for StatusCode {
             }
             _ => panic!("Unsupported type for status code"),
         };
-        let &(_, code) = SUPPORTED_STATUSES.into_iter().find(|&&(c, _)| c == n).unwrap();
+        let &(_, code) = SUPPORTED_STATUSES
+            .into_iter()
+            .find(|&&(c, _)| c == n)
+            .unwrap();
         StatusCode {
             code,
             span: literal.span(),
@@ -115,7 +118,10 @@ impl From<syn::LitInt> for StatusCode {
 impl From<syn::LitStr> for StatusCode {
     fn from(literal: syn::LitStr) -> StatusCode {
         let value = literal.value();
-        let &(_, code) = SUPPORTED_STATUSES.iter().find(|&&(_, s)| s == value).unwrap();
+        let &(_, code) = SUPPORTED_STATUSES
+            .iter()
+            .find(|&&(_, s)| s == value)
+            .unwrap();
         StatusCode {
             code,
             span: literal.span(),
@@ -178,7 +184,10 @@ impl Body {
                         status_code,
                     });
                 }
-                Body::Enum { status_code, variants }
+                Body::Enum {
+                    status_code,
+                    variants,
+                }
             }
             syn::Data::Union(..) => panic!("union does not supported"),
         }

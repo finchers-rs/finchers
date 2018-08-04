@@ -1,8 +1,8 @@
 #![allow(missing_docs)]
 
-use finchers_core::Endpoint;
 use finchers_core::endpoint::Context;
 use finchers_core::task;
+use finchers_core::Endpoint;
 
 /// Create an endpoint which applies the given function to the incoming request and returns
 /// an immediate value of `T`.

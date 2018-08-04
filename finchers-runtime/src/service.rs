@@ -31,7 +31,11 @@ pub trait NewHttpService {
     type Error;
 
     /// The type of `HttpService` to be created by this factory.
-    type Service: HttpService<RequestBody = Self::RequestBody, ResponseBody = Self::ResponseBody, Error = Self::Error>;
+    type Service: HttpService<
+        RequestBody = Self::RequestBody,
+        ResponseBody = Self::ResponseBody,
+        Error = Self::Error,
+    >;
 
     /// The type of error which will occur during creating an HTTP service.
     type InitError;
