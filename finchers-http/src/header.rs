@@ -41,7 +41,9 @@ pub fn header<H>() -> Header<H>
 where
     H: FromHeader,
 {
-    assert_output::<_, Result<H, HeaderError<H::Error>>>(Header { _marker: PhantomData })
+    assert_output::<_, Result<H, HeaderError<H::Error>>>(Header {
+        _marker: PhantomData,
+    })
 }
 
 #[allow(missing_docs)]
@@ -77,7 +79,9 @@ where
                 return None;
             }
         }
-        Some(HeaderTask { _marker: PhantomData })
+        Some(HeaderTask {
+            _marker: PhantomData,
+        })
     }
 }
 
@@ -95,7 +99,9 @@ where
 
     fn poll_task(&mut self, cx: &mut task::Context) -> PollResult<Self::Output, Error> {
         let ready = match cx.input().request().headers().get(H::NAME) {
-            Some(h) => H::from_header(h.as_bytes()).map_err(|cause| HeaderError::InvalidValue { cause }),
+            Some(h) => {
+                H::from_header(h.as_bytes()).map_err(|cause| HeaderError::InvalidValue { cause })
+            }
             None => H::default().ok_or_else(|| HeaderError::MissingValue),
         };
         Poll::Ready(Ok(ready))

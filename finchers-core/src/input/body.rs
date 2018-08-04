@@ -68,7 +68,8 @@ impl RequestBody {
             Empty => Poll::Ready(Ok(None)),
             Once(ref mut chunk) => Poll::Ready(Ok(chunk.take().map(Data::new))),
             #[cfg(feature = "hyper")]
-            Hyper(ref mut body) => body.poll()
+            Hyper(ref mut body) => body
+                .poll()
                 .map(|async| async.map(|chunk_opt| chunk_opt.map(Data::from_hyp)))
                 .map_err(PollDataError::Hyper)
                 .into(),

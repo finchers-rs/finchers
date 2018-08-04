@@ -8,8 +8,9 @@ use basic_auth::{basic_auth, BasicAuth};
 use finchers::endpoint::EndpointExt;
 
 fn main() {
-    let endpoint = basic_auth()
-        .map(|BasicAuth { username, password }| format!("Hello, \"{}\" (password={:?})", username, password));
+    let endpoint = basic_auth().map(|BasicAuth { username, password }| {
+        format!("Hello, \"{}\" (password={:?})", username, password)
+    });
 
     finchers::run(endpoint);
 }

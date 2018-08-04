@@ -5,8 +5,8 @@ extern crate finchers_test;
 use finchers_ext::{just, EndpointExt};
 use finchers_test::Client;
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
 #[test]
 fn test_inspect() {

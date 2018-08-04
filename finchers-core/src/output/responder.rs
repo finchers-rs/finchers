@@ -32,7 +32,10 @@ where
 
 impl Responder for &'static str {
     fn respond(self, _: &Input) -> Result<Output, Error> {
-        Ok(make_response(Bytes::from_static(self.as_bytes()), TEXT_PLAIN))
+        Ok(make_response(
+            Bytes::from_static(self.as_bytes()),
+            TEXT_PLAIN,
+        ))
     }
 }
 
@@ -58,7 +61,9 @@ where
     E: Into<Error>,
 {
     fn respond(self, input: &Input) -> Result<Output, Error> {
-        self.map_err(Into::<Error>::into)?.respond(input).map_err(Into::into)
+        self.map_err(Into::<Error>::into)?
+            .respond(input)
+            .map_err(Into::into)
     }
 }
 
@@ -135,8 +140,10 @@ fn content_type<T>(response: &mut Response<T>, value: &'static str) {
 
 fn content_length(response: &mut Response<ResponseBody>) {
     if let Some(body_len) = response.body().len() {
-        response.headers_mut().insert(header::CONTENT_LENGTH, unsafe {
-            HeaderValue::from_shared_unchecked(Bytes::from(body_len.to_string()))
-        });
+        response
+            .headers_mut()
+            .insert(header::CONTENT_LENGTH, unsafe {
+                HeaderValue::from_shared_unchecked(Bytes::from(body_len.to_string()))
+            });
     }
 }

@@ -73,12 +73,15 @@ where
         let mut response = Response::new(ResponseBody::once(body));
         *response.status_mut() = self.0.status_code();
         self.0.append_headers(response.headers_mut());
+        response.headers_mut().insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/json"),
+        );
         response
             .headers_mut()
-            .insert(header::CONTENT_TYPE, HeaderValue::from_static("application/json"));
-        response.headers_mut().insert(header::CONTENT_LENGTH, unsafe {
-            HeaderValue::from_shared_unchecked(body_len.into())
-        });
+            .insert(header::CONTENT_LENGTH, unsafe {
+                HeaderValue::from_shared_unchecked(body_len.into())
+            });
 
         Ok(response)
     }
@@ -113,12 +116,15 @@ impl Responder for JsonValue {
 
         let mut response = Response::new(ResponseBody::once(body));
         *response.status_mut() = self.status;
+        response.headers_mut().insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/json"),
+        );
         response
             .headers_mut()
-            .insert(header::CONTENT_TYPE, HeaderValue::from_static("application/json"));
-        response.headers_mut().insert(header::CONTENT_LENGTH, unsafe {
-            HeaderValue::from_shared_unchecked(body_len.into())
-        });
+            .insert(header::CONTENT_LENGTH, unsafe {
+                HeaderValue::from_shared_unchecked(body_len.into())
+            });
 
         Ok(response)
     }

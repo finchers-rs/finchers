@@ -17,7 +17,9 @@ impl FromBody for SomeData {
     type Error = ();
 
     fn from_body(bytes: Bytes, _: &Input) -> Result<Self, Self::Error> {
-        String::from_utf8(bytes.to_vec()).map(SomeData).map_err(|_| ())
+        String::from_utf8(bytes.to_vec())
+            .map(SomeData)
+            .map_err(|_| ())
     }
 }
 

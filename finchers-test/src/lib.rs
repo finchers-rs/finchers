@@ -151,7 +151,11 @@ impl<'a, E: Endpoint> ClientRequest<'a, E> {
 
     /// Apply this dummy request to the associated endpoint and get its response.
     pub fn run(&mut self) -> Result<E::Output, Error> {
-        let ClientRequest { client, request, body } = self.take();
+        let ClientRequest {
+            client,
+            request,
+            body,
+        } = self.take();
 
         let input = Input::new(request);
         let body = body.unwrap_or_else(RequestBody::empty);

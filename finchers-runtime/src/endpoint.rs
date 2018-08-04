@@ -1,8 +1,8 @@
 //! The components to construct an asynchronous HTTP service from the `Endpoint`.
 
 use bytes::Bytes;
-use futures::Async::*;
 use futures::future::{self, FutureResult};
+use futures::Async::*;
 use futures::{self, Future};
 use http::header::{self, HeaderValue};
 use http::{Request, Response};
@@ -174,9 +174,11 @@ fn default_error_handler(err: &HttpError, _: &Input) -> Response<ResponseBody> {
         header::CONTENT_TYPE,
         HeaderValue::from_static("text/plain; charset=utf-8"),
     );
-    response.headers_mut().insert(header::CONTENT_LENGTH, unsafe {
-        HeaderValue::from_shared_unchecked(body_len.into())
-    });
+    response
+        .headers_mut()
+        .insert(header::CONTENT_LENGTH, unsafe {
+            HeaderValue::from_shared_unchecked(body_len.into())
+        });
     err.append_headers(response.headers_mut());
 
     response

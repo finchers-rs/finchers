@@ -45,7 +45,9 @@ pub fn query<T>() -> Query<T>
 where
     T: FromQuery,
 {
-    Query { _marker: PhantomData }
+    Query {
+        _marker: PhantomData,
+    }
 }
 
 #[allow(missing_docs)]
@@ -76,7 +78,9 @@ where
     type Task = QueryTask<T>;
 
     fn apply(&self, _: &mut Context) -> Option<Self::Task> {
-        Some(QueryTask { _marker: PhantomData })
+        Some(QueryTask {
+            _marker: PhantomData,
+        })
     }
 }
 
@@ -94,7 +98,9 @@ where
 
     fn poll_task(&mut self, cx: &mut task::Context) -> PollResult<Self::Output, Error> {
         let ready = match cx.input().request().uri().query() {
-            Some(query) => T::from_query(QueryItems::new(query)).map_err(|cause| QueryError::Parse { cause }),
+            Some(query) => {
+                T::from_query(QueryItems::new(query)).map_err(|cause| QueryError::Parse { cause })
+            }
             None => Err(QueryError::MissingQuery),
         };
         Poll::Ready(Ok(ready))
@@ -184,7 +190,9 @@ impl<'a> QueryItems<'a> {
     ///
     /// The input must be a valid HTTP query.
     pub fn new<S: AsRef<[u8]> + ?Sized>(input: &'a S) -> QueryItems<'a> {
-        QueryItems { input: input.as_ref() }
+        QueryItems {
+            input: input.as_ref(),
+        }
     }
 
     /// Returns a slice of bytes which contains the remaining query items.
@@ -214,7 +222,12 @@ impl<'a> Iterator for QueryItems<'a> {
             let mut s = seq.splitn(2, |&b| b == b'=');
             let name = s.next().unwrap();
             let value = s.next().unwrap_or(&[]);
-            break unsafe { Some((EncodedStr::new_unchecked(name), EncodedStr::new_unchecked(value))) };
+            break unsafe {
+                Some((
+                    EncodedStr::new_unchecked(name),
+                    EncodedStr::new_unchecked(value),
+                ))
+            };
         }
     }
 }
@@ -287,5 +300,7 @@ where
     I: FromIterator<T>,
     T: de::Deserialize<'de>,
 {
-    de.deserialize_str(CSVSeqVisitor { _marker: PhantomData })
+    de.deserialize_str(CSVSeqVisitor {
+        _marker: PhantomData,
+    })
 }

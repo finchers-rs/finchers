@@ -1,6 +1,6 @@
-use finchers_core::Endpoint;
 use finchers_core::endpoint::Context;
 use finchers_core::task;
+use finchers_core::Endpoint;
 
 /// Create an endpoint which immediately returns a value of `T`.
 pub fn just<T>(x: T) -> Just<T>

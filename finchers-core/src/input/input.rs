@@ -63,7 +63,9 @@ impl Input {
 
         if media_type.is_none() {
             if let Some(raw) = self.request().headers().get(header::CONTENT_TYPE) {
-                let raw_str = raw.to_str().map_err(|cause| InvalidMediaType::DecodeToStr { cause })?;
+                let raw_str = raw
+                    .to_str()
+                    .map_err(|cause| InvalidMediaType::DecodeToStr { cause })?;
                 let mime = raw_str
                     .parse()
                     .map_err(|cause| InvalidMediaType::ParseToMime { cause })?;

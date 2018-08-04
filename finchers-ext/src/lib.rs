@@ -71,7 +71,9 @@ pub trait EndpointExt: Endpoint + Sized {
         Self::Output: Send,
         E::Output: Send,
     {
-        assert_output::<_, (Self::Output, <E::Endpoint as Endpoint>::Output)>(self::and::new(self, e))
+        assert_output::<_, (Self::Output, <E::Endpoint as Endpoint>::Output)>(self::and::new(
+            self, e,
+        ))
     }
 
     /// Create an endpoint which evaluates `self` and `e` and returns the task of `self` if matched.

@@ -1,6 +1,6 @@
 use either::Either;
-use http::StatusCode;
 use http::header::{HeaderMap, HeaderValue};
+use http::StatusCode;
 
 /// Trait representing additional information for constructing an HTTP response.
 ///
@@ -24,23 +24,7 @@ macro_rules! impl_status {
     )*};
 }
 
-impl_status!(
-    bool,
-    char,
-    f32,
-    f64,
-    String,
-    i8,
-    i16,
-    i32,
-    i64,
-    isize,
-    u8,
-    u16,
-    u32,
-    u64,
-    usize
-);
+impl_status!(bool, char, f32, f64, String, i8, i16, i32, i64, isize, u8, u16, u32, u64, usize);
 
 impl<L, R> HttpResponse for Either<L, R>
 where

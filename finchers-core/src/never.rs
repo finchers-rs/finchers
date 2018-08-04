@@ -1,6 +1,6 @@
 use error::HttpError;
-use http::StatusCode;
 use http::header::{HeaderMap, HeaderValue};
+use http::StatusCode;
 use std::{error, fmt};
 
 /// A type which has no possible values.

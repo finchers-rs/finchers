@@ -2,8 +2,8 @@ extern crate finchers_core;
 extern crate finchers_ext;
 extern crate finchers_test;
 
-use finchers_core::Never;
 use finchers_core::error::NotPresent;
+use finchers_core::Never;
 use finchers_ext::{abort, EndpointExt};
 use finchers_test::Client;
 

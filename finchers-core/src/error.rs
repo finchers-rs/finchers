@@ -5,8 +5,8 @@ use std::fmt;
 
 use either::Either;
 use failure::{self, Fail};
-use http::StatusCode;
 use http::header::{HeaderMap, HeaderValue};
+use http::StatusCode;
 
 /// Trait representing error values from endpoints.
 ///
