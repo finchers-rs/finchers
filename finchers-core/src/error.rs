@@ -103,7 +103,7 @@ impl HttpError for BadRequest {
     }
 
     fn as_fail(&self) -> Option<&Fail> {
-        self.inner.as_ref().right().map(failure::Error::cause)
+        self.inner.as_ref().right().map(failure::Error::as_fail)
     }
 }
 
@@ -164,7 +164,7 @@ impl HttpError for ServerError {
     }
 
     fn as_fail(&self) -> Option<&Fail> {
-        self.inner.as_ref().right().map(failure::Error::cause)
+        self.inner.as_ref().right().map(failure::Error::as_fail)
     }
 }
 

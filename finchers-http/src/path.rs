@@ -272,7 +272,7 @@ pub trait FromSegment: 'static + Sized {
 
 #[allow(missing_docs)]
 #[derive(Debug, Fail)]
-pub enum FromSegmentError<E> {
+pub enum FromSegmentError<E: Fail> {
     #[fail(display = "{}", cause)]
     Decode { cause: Utf8Error },
 

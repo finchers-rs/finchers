@@ -73,6 +73,7 @@ impl<T> fmt::Debug for Query<T> {
 impl<T> Endpoint for Query<T>
 where
     T: FromQuery,
+    T::Error: Fail,
 {
     type Output = Result<T, QueryError<T::Error>>;
     type Task = QueryTask<T>;
@@ -93,6 +94,7 @@ pub struct QueryTask<T> {
 impl<T> Task for QueryTask<T>
 where
     T: FromQuery,
+    T::Error: Fail,
 {
     type Output = Result<T, QueryError<T::Error>>;
 
@@ -130,6 +132,7 @@ impl<F> Deref for Form<F> {
 impl<F> FromBody for Form<F>
 where
     F: FromQuery + 'static,
+    F::Error: Fail,
 {
     type Error = QueryError<F::Error>;
 
@@ -150,7 +153,7 @@ where
 
 /// All of error kinds when receiving/parsing the urlencoded data.
 #[derive(Debug, Fail)]
-pub enum QueryError<E> {
+pub enum QueryError<E: Fail> {
     #[allow(missing_docs)]
     #[fail(display = "The query string is not exist in the request")]
     MissingQuery,

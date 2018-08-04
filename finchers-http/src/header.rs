@@ -40,6 +40,7 @@ use finchers_core::{Error, HttpError, Poll, PollResult};
 pub fn header<H>() -> Header<H>
 where
     H: FromHeader,
+    H::Error: Fail,
 {
     assert_output::<_, Result<H, HeaderError<H::Error>>>(Header {
         _marker: PhantomData,
@@ -69,6 +70,7 @@ impl<H> fmt::Debug for Header<H> {
 impl<H> Endpoint for Header<H>
 where
     H: FromHeader,
+    H::Error: Fail,
 {
     type Output = Result<H, HeaderError<H::Error>>;
     type Task = HeaderTask<H>;
@@ -94,6 +96,7 @@ pub struct HeaderTask<H> {
 impl<H> Task for HeaderTask<H>
 where
     H: FromHeader,
+    H::Error: Fail,
 {
     type Output = Result<H, HeaderError<H::Error>>;
 
@@ -110,7 +113,7 @@ where
 
 /// All kinds of error which will be returned from `Header<H>`.
 #[derive(Debug, Fail)]
-pub enum HeaderError<E> {
+pub enum HeaderError<E: Fail> {
     /// The required header value was missing in the incoming request.
     #[fail(display = "Missing header value")]
     MissingValue,

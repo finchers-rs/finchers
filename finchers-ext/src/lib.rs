@@ -3,7 +3,6 @@
 #![doc(html_root_url = "https://docs.rs/finchers-ext/0.11.0")]
 #![deny(missing_docs)]
 #![deny(missing_debug_implementations)]
-#![deny(warnings)]
 
 extern crate either;
 #[macro_use]
