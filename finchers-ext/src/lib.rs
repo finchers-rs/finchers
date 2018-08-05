@@ -1,3 +1,5 @@
+#![feature(rust_2018_preview)]
+
 //! Extensions for constructing Endpoints
 
 #![doc(html_root_url = "https://docs.rs/finchers-ext/0.11.0")]
@@ -26,23 +28,23 @@ mod or;
 mod right;
 
 // re-exports
-pub use abort::{abort, Abort};
-pub use all::{all, All};
-pub use and::And;
-pub use inspect::Inspect;
-pub use just::{just, Just};
-pub use lazy::{lazy, Lazy};
-pub use left::Left;
-pub use lift::Lift;
-pub use map::Map;
-pub use map_async::MapAsync;
-pub use or::Or;
-pub use right::Right;
+pub use crate::abort::{abort, Abort};
+pub use crate::all::{all, All};
+pub use crate::and::And;
+pub use crate::inspect::Inspect;
+pub use crate::just::{just, Just};
+pub use crate::lazy::{lazy, Lazy};
+pub use crate::left::Left;
+pub use crate::lift::Lift;
+pub use crate::map::Map;
+pub use crate::map_async::MapAsync;
+pub use crate::or::Or;
+pub use crate::right::Right;
 
 #[doc(inline)]
-pub use option::EndpointOptionExt;
+pub use crate::option::EndpointOptionExt;
 #[doc(inline)]
-pub use result::EndpointResultExt;
+pub use crate::result::EndpointResultExt;
 
 // ==== EndpointExt ===
 

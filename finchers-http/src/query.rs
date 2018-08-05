@@ -10,7 +10,7 @@ use std::marker::PhantomData;
 use std::ops::Deref;
 use {mime, serde_qs};
 
-use body::FromBody;
+use crate::body::FromBody;
 use finchers_core::endpoint::{Context, EncodedStr, Endpoint};
 use finchers_core::input::with_get_cx;
 use finchers_core::task::Task;

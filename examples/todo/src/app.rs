@@ -68,13 +68,11 @@ pub fn new() -> Application {
     todos
         .add(NewTodo {
             title: "Read TRPL".to_string(),
-        })
-        .unwrap();
+        }).unwrap();
     todos
         .add(NewTodo {
             title: "Eat breakfast".to_string(),
-        })
-        .unwrap();
+        }).unwrap();
 
     Application { todos }
 }

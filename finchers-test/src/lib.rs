@@ -1,3 +1,5 @@
+#![feature(rust_2018_preview)]
+
 //! A testing framework for Finchers.
 
 #![doc(html_root_url = "https://docs.rs/finchers-test/0.11.0")]

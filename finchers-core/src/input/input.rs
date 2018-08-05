@@ -1,4 +1,4 @@
-use error::HttpError;
+use crate::error::HttpError;
 use failure::Fail;
 use http::{self, header, Request, StatusCode};
 use mime::{self, Mime};

@@ -1,4 +1,5 @@
 #![cfg_attr(feature = "nightly", feature(try_trait))]
+#![feature(rust_2018_preview)]
 
 //! Core primitives for constructing asynchronous HTTP services
 
@@ -32,12 +33,12 @@ pub mod output;
 pub mod task;
 
 // re-exports
-pub use endpoint::Endpoint;
-pub use error::{Error, HttpError};
-pub use input::Input;
-pub use never::Never;
-pub use option::IsOption;
-pub use output::{Output, Responder};
-pub use poll::{Poll, PollResult};
-pub use result::IsResult;
-pub use task::Task;
+pub use crate::endpoint::Endpoint;
+pub use crate::error::{Error, HttpError};
+pub use crate::input::Input;
+pub use crate::never::Never;
+pub use crate::option::IsOption;
+pub use crate::output::{Output, Responder};
+pub use crate::poll::{Poll, PollResult};
+pub use crate::result::IsResult;
+pub use crate::task::Task;

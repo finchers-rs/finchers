@@ -1,9 +1,8 @@
-use std::sync::Arc;
-
 use super::apply::ApplyRequest;
 use super::context::Context;
-use input::Input;
-use task::Task;
+use crate::input::Input;
+use crate::task::Task;
+use std::sync::Arc;
 
 /// Trait representing an endpoint.
 pub trait Endpoint: Send + Sync {

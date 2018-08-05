@@ -1,8 +1,8 @@
 use super::{Context, Endpoint};
-use error::Error;
-use input::{with_set_cx, Input};
-use poll::Poll;
-use task::Task;
+use crate::error::Error;
+use crate::input::{with_set_cx, Input};
+use crate::poll::Poll;
+use crate::task::Task;
 
 /// Create an asynchronous computation for handling an HTTP request.
 pub fn apply_request<E>(endpoint: &E, input: &Input) -> ApplyRequest<E::Task>
