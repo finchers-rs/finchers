@@ -28,10 +28,9 @@ use crate::{Error, HttpError, Never, Poll, PollResult};
 /// Matches to a single segment:
 ///
 /// ```
-/// # extern crate finchers_http;
-/// # extern crate finchers_ext;
-/// # use finchers_http::path::path;
-/// # use finchers_ext::{just, EndpointExt};
+/// #![feature(rust_2018_preview)]
+/// # use finchers_core::http::path::path;
+/// # use finchers_core::ext::{just, EndpointExt};
 /// # fn main() {
 /// let endpoint = path("foo").and(just("matched"));
 /// # }
@@ -40,10 +39,9 @@ use crate::{Error, HttpError, Never, Poll, PollResult};
 /// Matches to multiple segments:
 ///
 /// ```
-/// # extern crate finchers_http;
-/// # extern crate finchers_ext;
-/// # use finchers_http::path::path;
-/// # use finchers_ext::{just, EndpointExt};
+/// #![feature(rust_2018_preview)]
+/// # use finchers_core::http::path::path;
+/// # use finchers_core::ext::{just, EndpointExt};
 /// # fn main() {
 /// let endpoint = path("foo/bar").and(just("matched"));
 /// # }
@@ -52,10 +50,9 @@ use crate::{Error, HttpError, Never, Poll, PollResult};
 /// Matches to all remaining segments:
 ///
 /// ```
-/// # extern crate finchers_http;
-/// # extern crate finchers_ext;
-/// # use finchers_http::path::path;
-/// # use finchers_ext::{just, EndpointExt};
+/// #![feature(rust_2018_preview)]
+/// # use finchers_core::http::path::path;
+/// # use finchers_core::ext::{just, EndpointExt};
 /// # fn main() {
 /// let endpoint = path("*").and(just("matched"));
 /// # }
@@ -175,10 +172,9 @@ impl error::Error for ParseMatchError {
 /// # Example
 ///
 /// ```
-/// # extern crate finchers_http;
-/// # extern crate finchers_ext;
-/// # use finchers_ext::{EndpointExt, EndpointResultExt, EndpointOptionExt};
-/// # use finchers_http::path::param;
+/// #![feature(rust_2018_preview)]
+/// # use finchers_core::ext::{EndpointExt, EndpointResultExt, EndpointOptionExt};
+/// # use finchers_core::http::path::param;
 /// # fn main() {
 /// let endpoint = param()
 ///     .map_ok(|id: i32| format!("id={}", id))
@@ -189,12 +185,10 @@ impl error::Error for ParseMatchError {
 /// Custom handling for the conversion error:
 ///
 /// ```
-/// # extern crate finchers_core;
-/// # extern crate finchers_ext;
-/// # extern crate finchers_http;
+/// #![feature(rust_2018_preview)]
 /// # use finchers_core::error::BadRequest;
-/// # use finchers_ext::{EndpointExt, EndpointResultExt, EndpointOptionExt};
-/// # use finchers_http::path::{param, FromSegment};
+/// # use finchers_core::ext::{EndpointExt, EndpointResultExt, EndpointOptionExt};
+/// # use finchers_core::http::path::{param, FromSegment};
 /// # fn main() {
 /// let endpoint = param()
 ///     .map_err(|_| BadRequest::new("invalid id"))
@@ -334,10 +328,9 @@ impl FromSegment for String {
 /// # Example
 ///
 /// ```
-/// # extern crate finchers_ext;
-/// # extern crate finchers_http;
-/// # use finchers_ext::EndpointExt;
-/// # use finchers_http::path::params;
+/// #![feature(rust_2018_preview)]
+/// # use finchers_core::ext::EndpointExt;
+/// # use finchers_core::http::path::params;
 /// # use std::path::PathBuf;
 /// # fn main() {
 /// let endpoint = params()

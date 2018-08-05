@@ -15,11 +15,9 @@ use crate::{Error, HttpError, Poll, PollResult};
 /// # Example
 ///
 /// ```
-/// # extern crate finchers_core;
-/// # extern crate finchers_ext;
-/// # extern crate finchers_http;
-/// # use finchers_http::header::{header, FromHeader};
-/// # use finchers_ext::{EndpointExt, EndpointResultExt, EndpointOptionExt};
+/// #![feature(rust_2018_preview)]
+/// # use finchers_core::http::header::{header, FromHeader};
+/// # use finchers_core::ext::{EndpointExt, EndpointResultExt, EndpointOptionExt};
 /// # use std::string::FromUtf8Error;
 /// #
 /// pub struct APIKey(pub String);

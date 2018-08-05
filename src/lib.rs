@@ -23,13 +23,13 @@
 //! # Example
 //!
 //! ```rust
-//! #[macro_use]
-//! extern crate finchers;
+//! #![feature(rust_2018_preview)]
 //!
 //! use finchers::Endpoint;
 //!
 //! fn build_endpoint() -> impl Endpoint<Output = String> + 'static {
 //!     use finchers::endpoint::prelude::*;
+//!     use finchers::choice;
 //!
 //!     path("api/v1").right(choice![
 //!         get(param().unwrap_ok())
@@ -42,7 +42,7 @@
 //! fn main() {
 //!     let endpoint = build_endpoint();
 //!
-//! # std::thread::spawn(move || {
+//! # std::mem::drop(move || {
 //!     finchers::run(endpoint);
 //! # });
 //! }

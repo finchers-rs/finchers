@@ -22,11 +22,10 @@ use crate::{Error, HttpError, Input, Poll, PollResult};
 /// # Example
 ///
 /// ```
-/// # extern crate finchers_ext;
-/// # extern crate finchers_http;
-/// # #[macro_use] extern crate serde;
-/// # use finchers_http::query::{query, from_csv, Serde};
-/// # use finchers_ext::{EndpointExt, EndpointResultExt, EndpointOptionExt};
+/// #![feature(rust_2018_preview)]
+/// # use finchers_core::http::query::{query, from_csv, Serde};
+/// # use finchers_core::ext::{EndpointExt, EndpointResultExt, EndpointOptionExt};
+/// # use serde::Deserialize;
 /// #
 /// #[derive(Debug, Deserialize)]
 /// pub struct Param {
