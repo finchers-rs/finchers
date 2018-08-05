@@ -1,7 +1,6 @@
 //! Components for parsing the HTTP request body.
 
 use bytes::{Bytes, BytesMut};
-use http::StatusCode;
 use std::marker::PhantomData;
 use std::{fmt, mem};
 
@@ -9,7 +8,7 @@ use finchers_core::endpoint::{assert_output, Context, Endpoint};
 use finchers_core::error::BadRequest;
 use finchers_core::input::{with_get_cx, RequestBody};
 use finchers_core::task::Task;
-use finchers_core::{Error, HttpError, Input, Never, Poll, PollResult};
+use finchers_core::{Error, Input, Never, Poll, PollResult};
 
 /// Creates an endpoint which will take the instance of `RequestBody` from the context.
 ///
@@ -50,9 +49,7 @@ impl Task for RawBodyTask {
     type Output = RequestBody;
 
     fn poll_task(&mut self) -> PollResult<Self::Output, Error> {
-        Poll::Ready(with_get_cx(|input| {
-            input.body().ok_or_else(|| EmptyBody.into())
-        }))
+        Poll::Ready(Ok(with_get_cx(|input| input.body_mut().take())))
     }
 }
 
@@ -134,13 +131,11 @@ where
 
             let ready = match (mem::replace(self, Done), err) {
                 (_, Some(err)) => Err(err.into()),
-                (Init(..), _) => match with_get_cx(|input| input.body()) {
-                    Some(body) => {
-                        *self = Receiving(body, BytesMut::new());
-                        continue 'poll;
-                    }
-                    None => Err(EmptyBody.into()),
-                },
+                (Init(..), _) => {
+                    let body = with_get_cx(|input| input.body_mut().take());
+                    *self = Receiving(body, BytesMut::new());
+                    continue 'poll;
+                }
                 (Receiving(_, buf), _) => {
                     Ok(with_get_cx(|input| T::from_body(buf.freeze(), input)))
                 }
@@ -149,16 +144,6 @@ where
 
             break 'poll Poll::Ready(ready);
         }
-    }
-}
-
-#[derive(Debug, Fail)]
-#[fail(display = "The instance of RequestBody has already taken")]
-struct EmptyBody;
-
-impl HttpError for EmptyBody {
-    fn status_code(&self) -> StatusCode {
-        StatusCode::INTERNAL_SERVER_ERROR
     }
 }
 

@@ -37,8 +37,7 @@ impl<E: Endpoint> Client<E> {
     {
         let mut client = ClientRequest {
             client: self,
-            request: Request::new(()),
-            body: None,
+            request: Request::new(RequestBody::empty()),
         };
         client.method(method);
         client.uri(uri);
@@ -87,8 +86,7 @@ impl<E: Endpoint> Client<E> {
 #[derive(Debug)]
 pub struct ClientRequest<'a, E: Endpoint + 'a> {
     client: &'a Client<E>,
-    request: Request<()>,
-    body: Option<RequestBody>,
+    request: Request<RequestBody>,
 }
 
 impl<'a, E: Endpoint> ClientRequest<'a, E> {
@@ -133,7 +131,7 @@ impl<'a, E: Endpoint> ClientRequest<'a, E> {
 
     /// Overwrite the message body of this dummy request with given instance.
     pub fn body(&mut self, body: RequestBody) -> &mut ClientRequest<'a, E> {
-        self.body = Some(body);
+        mem::replace(self.request.body_mut(), body);
         self
     }
 
@@ -142,22 +140,16 @@ impl<'a, E: Endpoint> ClientRequest<'a, E> {
             self,
             ClientRequest {
                 client: self.client,
-                request: http::Request::new(()),
-                body: None,
+                request: http::Request::new(RequestBody::empty()),
             },
         )
     }
 
     /// Apply this dummy request to the associated endpoint and get its response.
     pub fn run(&mut self) -> Result<E::Output, Error> {
-        let ClientRequest {
-            client,
-            request,
-            body,
-        } = self.take();
+        let ClientRequest { client, request } = self.take();
 
-        let body = body.unwrap_or_else(RequestBody::empty);
-        let input = Input::new(request, body);
+        let input = Input::new(request);
 
         let apply = client.endpoint.apply_request(&input);
         let task = TestFuture { apply, input };

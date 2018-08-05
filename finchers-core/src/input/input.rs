@@ -3,6 +3,7 @@ use failure::Fail;
 use http::{self, header, Request, StatusCode};
 use mime::{self, Mime};
 use std::cell::UnsafeCell;
+use std::ops::{Deref, DerefMut};
 
 use super::RequestBody;
 
@@ -11,8 +12,7 @@ use super::RequestBody;
 /// The value is used throughout the processing in `Endpoint` and `Task`.
 #[derive(Debug)]
 pub struct Input {
-    request: Request<()>,
-    body: Option<RequestBody>,
+    request: Request<RequestBody>,
     media_type: UnsafeCell<Option<Mime>>,
 }
 
@@ -21,23 +21,22 @@ impl Input {
     ///
     /// Some fields remain uninitialized and their values are set when the corresponding
     /// method will be called.
-    pub fn new(request: Request<()>, body: RequestBody) -> Input {
+    pub fn new(request: Request<impl Into<RequestBody>>) -> Input {
         Input {
-            request,
-            body: Some(body),
+            request: request.map(Into::into),
             media_type: UnsafeCell::new(None),
         }
     }
 
     /// Return a shared reference to the value of raw HTTP request without the message body.
-    pub fn request(&self) -> &Request<()> {
+    pub fn request(&self) -> &Request<RequestBody> {
         &self.request
     }
 
-    /// Take the instance of `RequestBody` at the current request if available.
+    /// Return a mutable reference to the value of raw HTTP request without the message body.
     #[inline]
-    pub fn body(&mut self) -> Option<RequestBody> {
-        self.body.take()
+    pub fn request_mut(&mut self) -> &mut Request<RequestBody> {
+        &mut self.request
     }
 
     /// Return the reference to the parsed media type in the request header.
@@ -61,6 +60,20 @@ impl Input {
         }
 
         Ok((&*media_type).as_ref())
+    }
+}
+
+impl Deref for Input {
+    type Target = Request<RequestBody>;
+
+    fn deref(&self) -> &Self::Target {
+        self.request()
+    }
+}
+
+impl DerefMut for Input {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.request_mut()
     }
 }
 

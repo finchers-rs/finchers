@@ -108,8 +108,7 @@ where
     type Future = EndpointServiceFuture<E::Task>;
 
     fn call(&mut self, request: Request<Self::RequestBody>) -> Self::Future {
-        let (parts, body) = request.into_parts();
-        let input = Input::new(Request::from_parts(parts, ()), body);
+        let input = Input::new(request);
         let apply = self.endpoint.apply_request(&input);
 
         EndpointServiceFuture {
