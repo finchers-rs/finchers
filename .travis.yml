@@ -65,7 +65,7 @@ matrix:
         provider: pages
         skip_cleanup: true
         github_token: $GH_TOKEN
-        repo: finchers-rs/finchers-rs
+        repo: finchers-rs/finchers
         target_branch: gh-pages
         local_dir: target/doc
         on:
