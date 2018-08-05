@@ -13,8 +13,6 @@ extern crate failure;
 extern crate futures;
 extern crate http;
 extern crate mime;
-#[macro_use]
-extern crate scoped_tls;
 extern crate percent_encoding;
 
 #[cfg(feature = "hyper")]

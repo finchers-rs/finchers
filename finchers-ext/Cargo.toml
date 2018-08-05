@@ -1,6 +1,6 @@
 [package]
 name = "finchers-ext"
-version = "0.11.0"
+version = "0.12.0-dev"
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 license = "MIT/Apache-2.0"
 repository = "https://github.com/finchers-rs/finchers.git"
@@ -11,8 +11,8 @@ Extensions for constructing Endpoints
 """
 
 [dependencies]
-finchers-core = { version = "0.11.0", path = "../finchers-core", default-features = false }
+finchers-core = { version = "0.12.0-dev", path = "../finchers-core", default-features = false }
 either = { version = "1.5.0", default-features = false }
 
 [dev-dependencies]
-finchers-test = { version = "0.11.0", path = "../finchers-test" }
+finchers-test = { version = "0.12.0-dev", path = "../finchers-test" }

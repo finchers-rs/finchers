@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 
 use finchers_core::endpoint::{Context, Endpoint};
-use finchers_core::task::{self, Task};
+use finchers_core::task::Task;
 use finchers_core::{Error, Poll, PollResult};
 
 pub fn new<E, T, R>(endpoint: E) -> UnwrapOk<E>
@@ -44,8 +44,8 @@ where
 {
     type Output = U;
 
-    fn poll_task(&mut self, cx: &mut task::Context) -> PollResult<Self::Output, Error> {
-        let res: Result<U, E> = poll_result!(self.task.poll_task(cx));
+    fn poll_task(&mut self) -> PollResult<Self::Output, Error> {
+        let res: Result<U, E> = poll_result!(self.task.poll_task());
         Poll::Ready(res.map_err(Into::into))
     }
 }

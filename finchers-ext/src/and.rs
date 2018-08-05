@@ -2,7 +2,7 @@
 
 use super::maybe_done::MaybeDone;
 use finchers_core::endpoint::{Context, Endpoint, IntoEndpoint};
-use finchers_core::task::{self, Task};
+use finchers_core::task::Task;
 use finchers_core::{Error, Poll, PollResult};
 use std::fmt;
 
@@ -74,8 +74,8 @@ where
 {
     type Output = (F1::Output, F2::Output);
 
-    fn poll_task(&mut self, cx: &mut task::Context) -> PollResult<Self::Output, Error> {
-        let mut all_done = match self.f1.poll_done(cx) {
+    fn poll_task(&mut self) -> PollResult<Self::Output, Error> {
+        let mut all_done = match self.f1.poll_done() {
             Ok(done) => done,
             Err(e) => {
                 self.f1.erase();
@@ -83,7 +83,7 @@ where
                 return Poll::Ready(Err(e));
             }
         };
-        all_done = match self.f2.poll_done(cx) {
+        all_done = match self.f2.poll_done() {
             Ok(done) => all_done && done,
             Err(e) => {
                 self.f1.erase();

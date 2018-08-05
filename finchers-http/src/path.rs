@@ -10,6 +10,7 @@ use std::str::{FromStr, Utf8Error};
 use std::{error, fmt, net};
 
 use finchers_core::endpoint::{Context, Endpoint, Segment, Segments};
+use finchers_core::input::with_get_cx;
 use finchers_core::task::{self, Task};
 use finchers_core::{Error, HttpError, Never, Poll, PollResult};
 
@@ -255,9 +256,11 @@ pub struct ParamTask<T> {
 impl<T: FromSegment> Task for ParamTask<T> {
     type Output = Result<T, T::Error>;
 
-    fn poll_task(&mut self, cx: &mut task::Context) -> PollResult<Self::Output, Error> {
-        let s = Segment::new(cx.input().request().uri().path(), self.range.clone());
-        Poll::Ready(Ok(T::from_segment(s)))
+    fn poll_task(&mut self) -> PollResult<Self::Output, Error> {
+        with_get_cx(|input| {
+            let s = Segment::new(input.request().uri().path(), self.range.clone());
+            Poll::Ready(Ok(T::from_segment(s)))
+        })
     }
 }
 

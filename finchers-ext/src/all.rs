@@ -1,6 +1,6 @@
 use super::maybe_done::MaybeDone;
 use finchers_core::endpoint::{Context, Endpoint, IntoEndpoint};
-use finchers_core::task::{self, Task};
+use finchers_core::task::Task;
 use finchers_core::{Error, Poll, PollResult};
 use std::{fmt, mem};
 
@@ -64,10 +64,10 @@ where
 {
     type Output = Vec<T::Output>;
 
-    fn poll_task(&mut self, cx: &mut task::Context) -> PollResult<Self::Output, Error> {
+    fn poll_task(&mut self) -> PollResult<Self::Output, Error> {
         let mut all_done = true;
         for i in 0..self.elems.len() {
-            match self.elems[i].poll_done(cx) {
+            match self.elems[i].poll_done() {
                 Ok(done) => all_done = all_done & done,
                 Err(e) => {
                     self.elems = Vec::new();

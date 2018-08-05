@@ -3,6 +3,7 @@ use error::HttpError;
 use http::StatusCode;
 use poll::{Poll, PollResult};
 use std::fmt;
+use std::mem;
 use std::ops::Deref;
 
 #[cfg(feature = "hyper")]
@@ -20,6 +21,7 @@ enum RequestBodyKind {
     Once(Option<Bytes>),
     #[cfg(feature = "hyper")]
     Hyper(hyper::Body),
+    Gone,
 }
 
 impl fmt::Debug for RequestBody {
@@ -30,6 +32,7 @@ impl fmt::Debug for RequestBody {
             Once(..) => f.debug_tuple("Once").finish(),
             #[cfg(feature = "hyper")]
             Hyper(..) => f.debug_tuple("Hyper").finish(),
+            Gone => f.debug_tuple("Gone").finish(),
         }
     }
 }
@@ -73,6 +76,14 @@ impl RequestBody {
                 .map(|async| async.map(|chunk_opt| chunk_opt.map(Data::from_hyp)))
                 .map_err(PollDataError::Hyper)
                 .into(),
+            Gone => panic!("The request body is invalid"),
+        }
+    }
+
+    #[allow(missing_docs)]
+    pub fn take(&mut self) -> RequestBody {
+        RequestBody {
+            kind: mem::replace(&mut self.kind, RequestBodyKind::Gone),
         }
     }
 }

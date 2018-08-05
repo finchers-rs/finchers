@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 
 use finchers_core::endpoint::{Context, Endpoint};
-use finchers_core::task::{self, IntoTask, Task};
+use finchers_core::task::{IntoTask, Task};
 use finchers_core::{Error, Poll, PollResult};
 use std::mem;
 
@@ -59,26 +59,24 @@ where
 {
     type Output = R::Output;
 
-    fn poll_task(&mut self, cx: &mut task::Context) -> PollResult<Self::Output, Error> {
+    fn poll_task(&mut self) -> PollResult<Self::Output, Error> {
         use self::MapAsyncTask::*;
         loop {
             // TODO: optimize
             match mem::replace(self, Done) {
-                First(mut task, f) => match task.poll_task(cx) {
+                First(mut task, f) => match task.poll_task() {
                     Poll::Pending => {
                         *self = First(task, f);
                         return Poll::Pending;
                     }
                     Poll::Ready(Ok(r)) => {
-                        cx.input().enter_scope(|| {
-                            *self = Second(f(r).into_task());
-                        });
+                        *self = Second(f(r).into_task());
                         continue;
                     }
                     Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
                 },
                 Second(mut fut) => {
-                    return match fut.poll_task(cx) {
+                    return match fut.poll_task() {
                         Poll::Pending => {
                             *self = Second(fut);
                             Poll::Pending

@@ -1,6 +1,6 @@
 [package]
 name = "finchers-core"
-version = "0.11.0"
+version = "0.12.0-dev"
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 license = "MIT/Apache-2.0"
 repository = "https://github.com/finchers-rs/finchers.git"
@@ -15,7 +15,6 @@ mime = "0.3"
 http = "0.1"
 futures = "0.1"
 bytes = "0.4"
-scoped-tls = "0.1.1"
 either = "1.5.0"
 failure = "0.1.2"
 percent-encoding = "1.0"

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use super::apply::ApplyRequest;
 use super::context::Context;
-use input::{Input, RequestBody};
+use input::Input;
 use task::Task;
 
 /// Trait representing an endpoint.
@@ -18,8 +18,8 @@ pub trait Endpoint: Send + Sync {
     fn apply(&self, cx: &mut Context) -> Option<Self::Task>;
 
     /// Create an asyncrhonous computation from a request.
-    fn apply_request(&self, input: &Input, body: RequestBody) -> ApplyRequest<Self::Task> {
-        super::apply::apply_request(self, input, body)
+    fn apply_request(&self, input: &Input) -> ApplyRequest<Self::Task> {
+        super::apply::apply_request(self, input)
     }
 }
 
