@@ -12,7 +12,8 @@ use {mime, serde_qs};
 
 use body::FromBody;
 use finchers_core::endpoint::{Context, EncodedStr, Endpoint};
-use finchers_core::task::{self, Task};
+use finchers_core::input::with_get_cx;
+use finchers_core::task::Task;
 use finchers_core::{Error, HttpError, Input, Poll, PollResult};
 
 /// Create an endpoint which parse the query string in the HTTP request
@@ -98,13 +99,13 @@ where
 {
     type Output = Result<T, QueryError<T::Error>>;
 
-    fn poll_task(&mut self, cx: &mut task::Context) -> PollResult<Self::Output, Error> {
-        let ready = match cx.input().request().uri().query() {
+    fn poll_task(&mut self) -> PollResult<Self::Output, Error> {
+        let ready = with_get_cx(|input| match input.request().uri().query() {
             Some(query) => {
                 T::from_query(QueryItems::new(query)).map_err(|cause| QueryError::Parse { cause })
             }
             None => Err(QueryError::MissingQuery),
-        };
+        });
         Poll::Ready(Ok(ready))
     }
 }

@@ -1,5 +1,5 @@
 use self::MaybeDone::*;
-use finchers_core::task::{self, Task};
+use finchers_core::task::Task;
 use finchers_core::{Error, Poll};
 use std::mem;
 
@@ -11,9 +11,9 @@ pub enum MaybeDone<T: Task> {
 }
 
 impl<T: Task> MaybeDone<T> {
-    pub fn poll_done(&mut self, cx: &mut task::Context) -> Result<bool, Error> {
+    pub fn poll_done(&mut self) -> Result<bool, Error> {
         let item = match *self {
-            Pending(ref mut f) => match f.poll_task(cx) {
+            Pending(ref mut f) => match f.poll_task() {
                 Poll::Ready(Ok(item)) => item,
                 Poll::Pending => return Ok(false),
                 Poll::Ready(Err(e)) => return Err(e),

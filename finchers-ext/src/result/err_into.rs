@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 
 use finchers_core::endpoint::{Context, Endpoint};
-use finchers_core::task::{self, Task};
+use finchers_core::task::Task;
 use finchers_core::{Error, PollResult};
 use std::marker::PhantomData;
 
@@ -51,9 +51,9 @@ where
 {
     type Output = Result<A, U>;
 
-    fn poll_task(&mut self, cx: &mut task::Context) -> PollResult<Self::Output, Error> {
+    fn poll_task(&mut self) -> PollResult<Self::Output, Error> {
         self.task
-            .poll_task(cx)
+            .poll_task()
             .map_ok(|item| item.map_err(Into::into))
     }
 }

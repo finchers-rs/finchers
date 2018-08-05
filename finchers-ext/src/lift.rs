@@ -1,5 +1,5 @@
 use finchers_core::endpoint::{Context, Endpoint, IntoEndpoint};
-use finchers_core::task::{self, Task};
+use finchers_core::task::Task;
 use finchers_core::{Error, Poll, PollResult};
 
 pub fn new<E>(endpoint: E) -> Lift<E::Endpoint>
@@ -42,9 +42,9 @@ where
 {
     type Output = Option<T::Output>;
 
-    fn poll_task(&mut self, cx: &mut task::Context) -> PollResult<Self::Output, Error> {
+    fn poll_task(&mut self) -> PollResult<Self::Output, Error> {
         match self.task {
-            Some(ref mut t) => t.poll_task(cx).map_ok(Some),
+            Some(ref mut t) => t.poll_task().map_ok(Some),
             None => Poll::Ready(Ok(None)),
         }
     }

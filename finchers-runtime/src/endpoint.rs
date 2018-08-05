@@ -109,8 +109,8 @@ where
 
     fn call(&mut self, request: Request<Self::RequestBody>) -> Self::Future {
         let (parts, body) = request.into_parts();
-        let input = Input::new(Request::from_parts(parts, ()));
-        let apply = self.endpoint.apply_request(&input, body);
+        let input = Input::new(Request::from_parts(parts, ()), body);
+        let apply = self.endpoint.apply_request(&input);
 
         EndpointServiceFuture {
             apply,
@@ -143,7 +143,7 @@ where
     type Error = io::Error;
 
     fn poll(&mut self) -> futures::Poll<Self::Item, Self::Error> {
-        let output = match self.apply.poll_ready(&self.input) {
+        let output = match self.apply.poll_ready(&mut self.input) {
             Poll::Pending => return Ok(NotReady),
             Poll::Ready(output) => output.and_then(|output| output.respond(&self.input)),
         };

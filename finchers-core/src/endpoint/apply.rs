@@ -1,19 +1,16 @@
 use super::{Context, Endpoint};
 use error::Error;
-use input::{Input, RequestBody};
+use input::{with_set_cx, Input};
 use poll::Poll;
-use task::{self, Task};
+use task::Task;
 
 /// Create an asynchronous computation for handling an HTTP request.
-pub fn apply_request<E>(endpoint: &E, input: &Input, body: RequestBody) -> ApplyRequest<E::Task>
+pub fn apply_request<E>(endpoint: &E, input: &Input) -> ApplyRequest<E::Task>
 where
     E: Endpoint + ?Sized,
 {
     let in_flight = endpoint.apply(&mut Context::new(input));
-    ApplyRequest {
-        in_flight,
-        body: Some(body),
-    }
+    ApplyRequest { in_flight }
 }
 
 /// An asynchronous computation created by the endpoint.
@@ -22,17 +19,13 @@ where
 #[derive(Debug)]
 pub struct ApplyRequest<T> {
     in_flight: Option<T>,
-    body: Option<RequestBody>,
 }
 
 impl<T: Task> ApplyRequest<T> {
     /// Poll the inner `Task` and return its output if available.
-    pub fn poll_ready(&mut self, input: &Input) -> Poll<Result<T::Output, Error>> {
+    pub fn poll_ready(&mut self, input: &mut Input) -> Poll<Result<T::Output, Error>> {
         match self.in_flight {
-            Some(ref mut f) => {
-                let mut cx = task::Context::new(input, &mut self.body);
-                f.poll_task(&mut cx)
-            }
+            Some(ref mut f) => with_set_cx(input, || f.poll_task()),
             None => Poll::Ready(Err(Error::skipped())),
         }
     }

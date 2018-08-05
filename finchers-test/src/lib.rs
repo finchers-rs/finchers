@@ -156,10 +156,10 @@ impl<'a, E: Endpoint> ClientRequest<'a, E> {
             body,
         } = self.take();
 
-        let input = Input::new(request);
         let body = body.unwrap_or_else(RequestBody::empty);
+        let input = Input::new(request, body);
 
-        let apply = client.endpoint.apply_request(&input, body);
+        let apply = client.endpoint.apply_request(&input);
         let task = TestFuture { apply, input };
 
         // TODO: replace with futures::executor
@@ -177,7 +177,7 @@ impl<T: Task> Future for TestFuture<T> {
     type Error = Never;
 
     fn poll(&mut self) -> Result<Async<Self::Item>, Self::Error> {
-        match self.apply.poll_ready(&self.input) {
+        match self.apply.poll_ready(&mut self.input) {
             Poll::Pending => Ok(Async::NotReady),
             Poll::Ready(ready) => Ok(Async::Ready(ready)),
         }

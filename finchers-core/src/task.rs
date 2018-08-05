@@ -13,37 +13,8 @@ use either::Either;
 use futures::{Async, Future, IntoFuture};
 
 use error::Error;
-use input::{Input, RequestBody};
 use never::Never;
 use poll::{Poll, PollResult};
-
-/// The contextual information during polling an task.
-#[derive(Debug)]
-pub struct Context<'a> {
-    input: &'a Input,
-    body: &'a mut Option<RequestBody>,
-    // FIXME: add `futures::task::Context`
-}
-
-impl<'a> Context<'a> {
-    /// Create an instance of `Context` from components.
-    #[inline]
-    pub fn new(input: &'a Input, body: &'a mut Option<RequestBody>) -> Context<'a> {
-        Context { input, body }
-    }
-
-    /// Return the reference to `Input` at the current request.
-    #[inline]
-    pub fn input(&self) -> &Input {
-        self.input
-    }
-
-    /// Take the instance of `RequestBody` at the current request if available.
-    #[inline]
-    pub fn body(&mut self) -> Option<RequestBody> {
-        self.body.take()
-    }
-}
 
 /// Trait representing the asynchronous computation after applying the endpoints.
 ///
@@ -53,7 +24,7 @@ pub trait Task: Send {
     type Output;
 
     /// Perform polling this task and get its result.
-    fn poll_task(&mut self, cx: &mut Context) -> PollResult<Self::Output, Error>;
+    fn poll_task(&mut self) -> PollResult<Self::Output, Error>;
 }
 
 impl<L, R> Task for Either<L, R>
@@ -64,10 +35,10 @@ where
     type Output = L::Output;
 
     #[inline(always)]
-    fn poll_task(&mut self, cx: &mut Context) -> PollResult<Self::Output, Error> {
+    fn poll_task(&mut self) -> PollResult<Self::Output, Error> {
         match *self {
-            Either::Left(ref mut t) => t.poll_task(cx),
-            Either::Right(ref mut t) => t.poll_task(cx),
+            Either::Left(ref mut t) => t.poll_task(),
+            Either::Right(ref mut t) => t.poll_task(),
         }
     }
 }
@@ -119,7 +90,7 @@ where
     type Output = Result<F::Item, F::Error>;
 
     #[inline(always)]
-    fn poll_task(&mut self, _: &mut Context) -> PollResult<Self::Output, Error> {
+    fn poll_task(&mut self) -> PollResult<Self::Output, Error> {
         match Future::poll(&mut self.0) {
             Ok(Async::Ready(ready)) => Poll::Ready(Ok(Ok(ready))),
             Ok(Async::NotReady) => Poll::Pending,
@@ -151,7 +122,7 @@ impl<T: Send> Task for Ready<T> {
     type Output = T;
 
     #[inline(always)]
-    fn poll_task(&mut self, _: &mut Context) -> PollResult<Self::Output, Error> {
+    fn poll_task(&mut self) -> PollResult<Self::Output, Error> {
         let val = self.0.take().expect("The task cannot resolve twice");
         Poll::Ready(Ok(val))
     }
@@ -184,7 +155,7 @@ where
     type Output = Never;
 
     #[inline(always)]
-    fn poll_task(&mut self, _: &mut Context) -> PollResult<Self::Output, Error> {
+    fn poll_task(&mut self) -> PollResult<Self::Output, Error> {
         let cause = self.cause.take().expect("The task cannot reject twice");
         Poll::Ready(Err(Into::into(cause)))
     }

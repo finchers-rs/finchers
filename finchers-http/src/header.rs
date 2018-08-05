@@ -6,7 +6,8 @@ use std::fmt;
 use std::marker::PhantomData;
 
 use finchers_core::endpoint::{assert_output, Context, Endpoint};
-use finchers_core::task::{self, Task};
+use finchers_core::input::with_get_cx;
+use finchers_core::task::Task;
 use finchers_core::{Error, HttpError, Poll, PollResult};
 
 /// Create an endpoint which parses an entry in the HTTP header.
@@ -100,13 +101,13 @@ where
 {
     type Output = Result<H, HeaderError<H::Error>>;
 
-    fn poll_task(&mut self, cx: &mut task::Context) -> PollResult<Self::Output, Error> {
-        let ready = match cx.input().request().headers().get(H::NAME) {
+    fn poll_task(&mut self) -> PollResult<Self::Output, Error> {
+        let ready = with_get_cx(|input| match input.request().headers().get(H::NAME) {
             Some(h) => {
                 H::from_header(h.as_bytes()).map_err(|cause| HeaderError::InvalidValue { cause })
             }
             None => H::default().ok_or_else(|| HeaderError::MissingValue),
-        };
+        });
         Poll::Ready(Ok(ready))
     }
 }

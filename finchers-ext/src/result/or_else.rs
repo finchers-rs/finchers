@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 
 use finchers_core::endpoint::{Context, Endpoint};
-use finchers_core::task::{self, Task};
+use finchers_core::task::Task;
 use finchers_core::{Error, PollResult};
 
 #[derive(Debug, Copy, Clone)]
@@ -47,10 +47,10 @@ where
 {
     type Output = Result<A, U>;
 
-    fn poll_task(&mut self, cx: &mut task::Context) -> PollResult<Self::Output, Error> {
-        self.task.poll_task(cx).map_ok(|item| {
+    fn poll_task(&mut self) -> PollResult<Self::Output, Error> {
+        self.task.poll_task().map_ok(|item| {
             let f = self.f.take().expect("cannot resolve twice");
-            cx.input().enter_scope(|| item.or_else(f))
+            item.or_else(f)
         })
     }
 }

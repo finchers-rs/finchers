@@ -7,8 +7,8 @@ use std::{fmt, mem};
 
 use finchers_core::endpoint::{assert_output, Context, Endpoint};
 use finchers_core::error::BadRequest;
-use finchers_core::input::RequestBody;
-use finchers_core::task::{self, Task};
+use finchers_core::input::{with_get_cx, RequestBody};
+use finchers_core::task::Task;
 use finchers_core::{Error, HttpError, Input, Never, Poll, PollResult};
 
 /// Creates an endpoint which will take the instance of `RequestBody` from the context.
@@ -49,8 +49,10 @@ pub struct RawBodyTask {
 impl Task for RawBodyTask {
     type Output = RequestBody;
 
-    fn poll_task(&mut self, cx: &mut task::Context) -> PollResult<Self::Output, Error> {
-        Poll::Ready(cx.body().ok_or_else(|| EmptyBody.into()))
+    fn poll_task(&mut self) -> PollResult<Self::Output, Error> {
+        Poll::Ready(with_get_cx(|input| {
+            input.body().ok_or_else(|| EmptyBody.into())
+        }))
     }
 }
 
@@ -114,7 +116,7 @@ where
 {
     type Output = Result<T, T::Error>;
 
-    fn poll_task(&mut self, cx: &mut task::Context) -> PollResult<Self::Output, Error> {
+    fn poll_task(&mut self) -> PollResult<Self::Output, Error> {
         use self::BodyTask::*;
         'poll: loop {
             let err = match *self {
@@ -132,14 +134,16 @@ where
 
             let ready = match (mem::replace(self, Done), err) {
                 (_, Some(err)) => Err(err.into()),
-                (Init(..), _) => match cx.body() {
+                (Init(..), _) => match with_get_cx(|input| input.body()) {
                     Some(body) => {
                         *self = Receiving(body, BytesMut::new());
                         continue 'poll;
                     }
                     None => Err(EmptyBody.into()),
                 },
-                (Receiving(_, buf), _) => Ok(T::from_body(buf.freeze(), cx.input())),
+                (Receiving(_, buf), _) => {
+                    Ok(with_get_cx(|input| T::from_body(buf.freeze(), input)))
+                }
                 _ => panic!(),
             };
 
