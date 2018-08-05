@@ -15,57 +15,58 @@ branches:
 
 matrix:
   allow_failures:
-    - rust: nightly
+    # - rust: nightly
   include:
-    - rust: stable
-      sudo: required
-      addons:
-        apt:
-          packages:
-            - libssl-dev
+    # - rust: stable
+    #   sudo: required
+    #   addons:
+    #     apt:
+    #       packages:
+    #         - libssl-dev
+    #   before_script:
+    #     - rustup component add rustfmt-preview
+    #   script:
+    #     - cargo clean
+    #     - cargo fmt -- --check
+    #     - cargo test --all
+    #     - cargo test -p finchers-core --no-default-features
+    #   after_success:
+    #     - bash <(curl https://raw.githubusercontent.com/xd009642/tarpaulin/master/travis-install.sh)
+    #     - USE_SKEPTIC=1 cargo tarpaulin --ciserver travis-ci --coveralls $TRAVIS_JOB_ID --all
+
+    # - rust: beta
+    #   script:
+    #     - cargo clean
+    #     - cargo test --all
+    #     - cargo test --manifest-path finchers-core/Cargo.toml --no-default-features
+
+    - rust: nightly
       before_script:
         - rustup component add rustfmt-preview
-      script:
-        - cargo clean
-        - cargo fmt -- --check
-        - cargo test --all
-        - cargo test -p finchers-core --no-default-features
-      after_success:
-        - bash <(curl https://raw.githubusercontent.com/xd009642/tarpaulin/master/travis-install.sh)
-        - USE_SKEPTIC=1 cargo tarpaulin --ciserver travis-ci --coveralls $TRAVIS_JOB_ID --all
-
-    - rust: beta
-      script:
-        - cargo clean
-        - cargo test --all
-        - cargo test --manifest-path finchers-core/Cargo.toml --no-default-features
-
-    - rust: nightly
-      before_script:
         - rustup component add clippy-preview
       script:
         - cargo clean
+        - cargo fmt -- --check
         - cargo test --all
         - cargo test --manifest-path finchers-core/Cargo.toml --no-default-features
         - cargo test --manifest-path finchers-core/Cargo.toml --features "nightly"
         - cargo clippy
 
-    - rust: stable
+    - rust: nightly
       env: MDBOOK_VERSION=0.1.7
       before_script:
         - cargo install mdbook --version "$MDBOOK_VERSION" || true
       script:
         - cargo clean
-        - cargo doc --all --no-deps
-        - bash doc/generate.sh
-        - cp -a target/doc doc-upload/api
-        - rm -f doc-upload/api/.lock
+        - cargo doc --all
+        - mdbook build -d target/doc/guide ./guide/
+        - rm -f target/doc/.lock
       deploy:
         provider: pages
         skip_cleanup: true
         github_token: $GH_TOKEN
-        repo: finchers-rs/finchers-rs.github.io
-        target_branch: master
-        local_dir: doc-upload
+        repo: finchers-rs/finchers-rs
+        target_branch: gh-pages
+        local_dir: target/doc
         on:
           branch: master

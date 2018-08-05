@@ -7,8 +7,8 @@ use http::header::HeaderValue;
 use http::{header, Response};
 
 use super::body::ResponseBody;
-use error::Error;
-use input::Input;
+use crate::error::Error;
+use crate::input::Input;
 
 const TEXT_PLAIN: &str = "text/plain; charset=utf-8";
 

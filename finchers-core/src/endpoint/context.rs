@@ -1,9 +1,9 @@
+use crate::input::Input;
 use percent_encoding::percent_decode;
 use std::borrow::Cow;
 use std::fmt;
 use std::ops::Range;
 use std::str::{self, Utf8Error};
-use Input;
 
 /// A context during the routing.
 #[derive(Debug, Clone)]

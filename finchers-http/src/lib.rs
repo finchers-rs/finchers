@@ -1,3 +1,5 @@
+#![feature(rust_2018_preview)]
+
 //! Basic endpoints and utilities for parsing HTTP requests
 
 #![doc(html_root_url = "https://docs.rs/finchers-http/0.11.0")]
@@ -24,7 +26,7 @@ pub mod method;
 pub mod path;
 pub mod query;
 
-pub use body::FromBody;
-pub use header::FromHeader;
-pub use path::{FromSegment, FromSegments};
-pub use query::FromQuery;
+pub use crate::body::FromBody;
+pub use crate::header::FromHeader;
+pub use crate::path::{FromSegment, FromSegments};
+pub use crate::query::FromQuery;

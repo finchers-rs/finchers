@@ -1,7 +1,7 @@
 use bytes::Bytes;
-use error::HttpError;
+use crate::error::HttpError;
+use crate::poll::{Poll, PollResult};
 use http::StatusCode;
-use poll::{Poll, PollResult};
 use std::fmt;
 use std::mem;
 use std::ops::Deref;
@@ -73,7 +73,7 @@ impl RequestBody {
             #[cfg(feature = "hyper")]
             Hyper(ref mut body) => body
                 .poll()
-                .map(|async| async.map(|chunk_opt| chunk_opt.map(Data::from_hyp)))
+                .map(|x| x.map(|chunk_opt| chunk_opt.map(Data::from_hyp)))
                 .map_err(PollDataError::Hyper)
                 .into(),
             Gone => panic!("The request body is invalid"),

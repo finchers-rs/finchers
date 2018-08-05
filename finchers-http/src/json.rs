@@ -9,7 +9,7 @@ use serde::ser::Serialize;
 use std::ops::Deref;
 use {mime, serde_json};
 
-use body::FromBody;
+use crate::body::FromBody;
 use finchers_core::error::HttpError;
 use finchers_core::output::{HttpResponse, Responder, ResponseBody};
 use finchers_core::{Error, Input, Output};

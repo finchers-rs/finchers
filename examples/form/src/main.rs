@@ -26,9 +26,9 @@ fn endpoint() -> impl Endpoint<Output = Debug> + 'static {
         // Parse the message body when POST request.
         post(body().unwrap_ok()).map(|Form(Serde(param))| param),
     ].lift()
-        .ok_or_else(|| BadRequest::new("Invalid Method"))
-        .unwrap_ok()
-        .as_t::<FormParam>();
+    .ok_or_else(|| BadRequest::new("Invalid Method"))
+    .unwrap_ok()
+    .as_t::<FormParam>();
 
     path("search")
         .right(urlencoded_param)

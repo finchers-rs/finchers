@@ -1,4 +1,4 @@
-use error::HttpError;
+use crate::error::HttpError;
 use http::header::{HeaderMap, HeaderValue};
 use http::StatusCode;
 use std::{error, fmt};

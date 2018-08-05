@@ -50,6 +50,5 @@ pub fn build_endpoint(app: &Application) -> impl Endpoint<Output = Json<Response
             add_todo,
             patch_todo,
             delete_todo,
-        ])
-        .map(Json::from)
+        ]).map(Json::from)
 }

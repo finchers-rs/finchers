@@ -1,6 +1,6 @@
 use bytes::Bytes;
+use crate::poll::{Poll, PollResult};
 use futures::Stream;
-use poll::{Poll, PollResult};
 use std::{fmt, io};
 
 /// An asynchronous stream representing the body of HTTP response.

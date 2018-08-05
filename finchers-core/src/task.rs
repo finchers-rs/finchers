@@ -12,9 +12,9 @@
 use either::Either;
 use futures::{Async, Future, IntoFuture};
 
-use error::Error;
-use never::Never;
-use poll::{Poll, PollResult};
+use crate::error::Error;
+use crate::never::Never;
+use crate::poll::{Poll, PollResult};
 
 /// Trait representing the asynchronous computation after applying the endpoints.
 ///

@@ -173,8 +173,7 @@ where
                 .map_err({
                     let logger = logger.clone();
                     move |e| error!(logger, "failed to create a new service: {}", e)
-                })
-                .and_then(move |service| {
+                }).and_then(move |service| {
                     let wrapped_service = WrappedService {
                         service: RefCell::new(service),
                         logger: logger.clone(),
