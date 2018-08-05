@@ -29,7 +29,7 @@ macro_rules! choice {
 
 #[cfg(test)]
 mod tests {
-    use finchers_http::path::path;
+    use finchers_core::http::path::path;
 
     #[test]
     #[allow(unused_variables)]
