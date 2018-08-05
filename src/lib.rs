@@ -23,13 +23,13 @@
 //! # Example
 //!
 //! ```rust
-//! #[macro_use]
-//! extern crate finchers;
+//! #![feature(rust_2018_preview)]
 //!
 //! use finchers::Endpoint;
 //!
 //! fn build_endpoint() -> impl Endpoint<Output = String> + 'static {
 //!     use finchers::endpoint::prelude::*;
+//!     use finchers::choice;
 //!
 //!     path("api/v1").right(choice![
 //!         get(param().unwrap_ok())
@@ -42,21 +42,15 @@
 //! fn main() {
 //!     let endpoint = build_endpoint();
 //!
-//! # std::thread::spawn(move || {
+//! # std::mem::drop(move || {
 //!     finchers::run(endpoint);
 //! # });
 //! }
 //! ```
 
+#![feature(rust_preview_2018)]
+#![feature(use_extern_macros)]
 #![doc(html_root_url = "https://docs.rs/finchers/0.11.0")]
-
-extern crate finchers_core;
-#[allow(unused_imports)]
-#[macro_use]
-extern crate finchers_derive;
-extern crate finchers_ext;
-extern crate finchers_http;
-extern crate finchers_runtime;
 
 #[doc(hidden)]
 pub use finchers_derive::*;
@@ -67,21 +61,21 @@ pub mod error {
 
 pub mod endpoint {
     pub use finchers_core::endpoint::{Endpoint, IntoEndpoint};
-    pub use finchers_ext::{
+    pub use finchers_core::ext::{
         abort, all, just, lazy, EndpointExt, EndpointOptionExt, EndpointResultExt,
     };
-    pub use finchers_http::{
+    pub use finchers_core::http::{
         body, header, method, path, query, FromBody, FromHeader, FromSegment, FromSegments,
     };
 
     /// The "prelude" for building endpoints
     pub mod prelude {
         pub use finchers_core::endpoint::{Endpoint, IntoEndpoint};
-        pub use finchers_ext::{EndpointExt, EndpointOptionExt, EndpointResultExt};
-        pub use finchers_http::body::{body, raw_body};
-        pub use finchers_http::header::header;
-        pub use finchers_http::method::{delete, get, head, patch, post, put};
-        pub use finchers_http::path::{param, params, path};
+        pub use finchers_core::ext::{EndpointExt, EndpointOptionExt, EndpointResultExt};
+        pub use finchers_core::http::body::{body, raw_body};
+        pub use finchers_core::http::header::header;
+        pub use finchers_core::http::method::{delete, get, head, patch, post, put};
+        pub use finchers_core::http::path::{param, params, path};
     }
 }
 
@@ -99,8 +93,8 @@ pub mod runtime {
     pub use finchers_runtime::service::{HttpService, NewHttpService};
 }
 
+pub use finchers_core::http::json::Json;
 pub use finchers_core::{Endpoint, HttpError, Input, Never, Output, Responder};
-pub use finchers_http::json::Json;
 pub use finchers_runtime::run;
 
 #[macro_use]

@@ -29,10 +29,7 @@ maintenance = { status = "actively-developed" }
 members = [
   "finchers-core",
   "finchers-derive",
-  "finchers-ext",
-  "finchers-http",
   "finchers-runtime",
-  "finchers-test",
 
   "examples/basic-auth",
   "examples/form",
@@ -42,10 +39,8 @@ members = [
 [dependencies]
 finchers-core = { version = "0.12.0-dev", path = "finchers-core" }
 finchers-derive = { version = "0.12.0-dev", path = "finchers-derive" }
-finchers-ext = { version = "0.12.0-dev", path = "finchers-ext" }
-finchers-http = { version = "0.12.0-dev", path = "finchers-http" }
 finchers-runtime = { version = "0.12.0-dev", path = "finchers-runtime" }
-finchers-test = { version = "0.12.0-dev", path = "finchers-test" }
 
 [dev-dependencies]
+bytes = "0.4"
 http = "0.1"

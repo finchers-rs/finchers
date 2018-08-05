@@ -1,6 +1,6 @@
 use crate::error::HttpError;
 use failure::Fail;
-use http::{self, header, Request, StatusCode};
+use http::{header, Request, StatusCode};
 use mime::{self, Mime};
 use std::cell::UnsafeCell;
 use std::ops::{Deref, DerefMut};
@@ -82,7 +82,7 @@ impl DerefMut for Input {
 pub enum InvalidMediaType {
     #[allow(missing_docs)]
     #[fail(display = "Content-type is invalid: {}", cause)]
-    DecodeToStr { cause: http::header::ToStrError },
+    DecodeToStr { cause: header::ToStrError },
 
     #[allow(missing_docs)]
     #[fail(display = "Content-type is invalid: {}", cause)]

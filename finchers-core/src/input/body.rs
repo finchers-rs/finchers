@@ -1,10 +1,12 @@
 use bytes::Bytes;
-use crate::error::HttpError;
-use crate::poll::{Poll, PollResult};
+use failure::Fail;
 use http::StatusCode;
 use std::fmt;
 use std::mem;
 use std::ops::Deref;
+
+use crate::error::HttpError;
+use crate::poll::{Poll, PollResult};
 
 #[cfg(feature = "hyper")]
 use futures::Stream;

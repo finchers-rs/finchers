@@ -24,6 +24,7 @@ extern crate slog_async;
 extern crate slog_term;
 
 pub mod endpoint;
+pub mod local;
 pub mod server;
 pub mod service;
 
