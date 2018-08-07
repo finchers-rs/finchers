@@ -13,6 +13,7 @@ impl Drop for SetOnDrop {
     }
 }
 
+#[doc(hidden)]
 pub fn with_set_cx<R>(current: &mut Input, f: impl FnOnce() -> R) -> R {
     CX.with(|cx| cx.set(NonNull::new(current)));
     let _reset = SetOnDrop(None);

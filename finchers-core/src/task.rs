@@ -19,7 +19,7 @@ use crate::poll::{Poll, PollResult};
 /// Trait representing the asynchronous computation after applying the endpoints.
 ///
 /// See the module level documentation for details.
-pub trait Task: Send {
+pub trait Task {
     /// The *inner* type of an output which will be returned from this task.
     type Output;
 
@@ -56,11 +56,7 @@ pub trait IntoTask {
 }
 
 // FIXME: replace the trait bound with `core::ops::Async`
-impl<F> IntoTask for F
-where
-    F: IntoFuture,
-    F::Future: Send,
-{
+impl<F: IntoFuture> IntoTask for F {
     type Output = Result<F::Item, F::Error>;
     type Task = TaskFuture<F::Future>;
 
@@ -74,19 +70,13 @@ where
 #[derive(Debug)]
 pub struct TaskFuture<F>(F);
 
-impl<F> From<F> for TaskFuture<F>
-where
-    F: Future + Send,
-{
+impl<F: Future> From<F> for TaskFuture<F> {
     fn from(fut: F) -> Self {
         TaskFuture(fut)
     }
 }
 
-impl<F> Task for TaskFuture<F>
-where
-    F: Future + Send,
-{
+impl<F: Future> Task for TaskFuture<F> {
     type Output = Result<F::Item, F::Error>;
 
     #[inline(always)]
@@ -100,11 +90,7 @@ where
 }
 
 /// Create a task from a `Future`.
-pub fn future<F>(future: F) -> TaskFuture<F::Future>
-where
-    F: IntoFuture,
-    F::Future: Send,
-{
+pub fn future<F: IntoFuture>(future: F) -> TaskFuture<F::Future> {
     TaskFuture::from(IntoFuture::into_future(future))
 }
 
@@ -112,13 +98,13 @@ where
 #[derive(Debug)]
 pub struct Ready<T>(Option<T>);
 
-impl<T: Send> From<T> for Ready<T> {
+impl<T> From<T> for Ready<T> {
     fn from(val: T) -> Self {
         Ready(Some(val))
     }
 }
 
-impl<T: Send> Task for Ready<T> {
+impl<T> Task for Ready<T> {
     type Output = T;
 
     #[inline(always)]
@@ -129,7 +115,7 @@ impl<T: Send> Task for Ready<T> {
 }
 
 /// Create a task which will immediately return a value of `T`.
-pub fn ready<T: Send>(val: T) -> Ready<T> {
+pub fn ready<T>(val: T) -> Ready<T> {
     Ready::from(val)
 }
 
@@ -141,7 +127,7 @@ pub struct Abort<E> {
 
 impl<E> From<E> for Abort<E>
 where
-    E: Into<Error> + Send,
+    E: Into<Error>,
 {
     fn from(cause: E) -> Self {
         Abort { cause: Some(cause) }
@@ -150,7 +136,7 @@ where
 
 impl<E> Task for Abort<E>
 where
-    E: Into<Error> + Send,
+    E: Into<Error>,
 {
     type Output = Never;
 
@@ -164,7 +150,7 @@ where
 /// Create a task which will immediately abort the computation with an error value of `E`.
 pub fn abort<E>(cause: E) -> Abort<E>
 where
-    E: Into<Error> + Send,
+    E: Into<Error>,
 {
     Abort::from(cause)
 }

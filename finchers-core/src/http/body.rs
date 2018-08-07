@@ -4,7 +4,7 @@ use bytes::{Bytes, BytesMut};
 use std::marker::PhantomData;
 use std::{fmt, mem};
 
-use crate::endpoint::{assert_output, Context, Endpoint};
+use crate::endpoint::{assert_output, Context, EndpointBase};
 use crate::error::BadRequest;
 use crate::input::{with_get_cx, RequestBody};
 use crate::task::Task;
@@ -30,7 +30,7 @@ impl fmt::Debug for RawBody {
     }
 }
 
-impl Endpoint for RawBody {
+impl EndpointBase for RawBody {
     type Output = RequestBody;
     type Task = RawBodyTask;
 
@@ -84,7 +84,7 @@ impl<T> fmt::Debug for Body<T> {
     }
 }
 
-impl<T> Endpoint for Body<T>
+impl<T> EndpointBase for Body<T>
 where
     T: FromBody,
 {

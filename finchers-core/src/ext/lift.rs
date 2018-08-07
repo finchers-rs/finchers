@@ -1,4 +1,4 @@
-use crate::endpoint::{Context, Endpoint, IntoEndpoint};
+use crate::endpoint::{Context, EndpointBase, IntoEndpoint};
 use crate::task::Task;
 use crate::{Error, Poll, PollResult};
 
@@ -17,9 +17,9 @@ pub struct Lift<E> {
     endpoint: E,
 }
 
-impl<E> Endpoint for Lift<E>
+impl<E> EndpointBase for Lift<E>
 where
-    E: Endpoint,
+    E: EndpointBase,
 {
     type Output = Option<E::Output>;
     type Task = LiftTask<E::Task>;

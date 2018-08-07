@@ -1,13 +1,13 @@
 #![allow(missing_docs)]
 
-use crate::endpoint::{Context, Endpoint, IntoEndpoint};
+use crate::endpoint::{Context, EndpointBase, IntoEndpoint};
 use crate::task::Task;
 use crate::{Error, PollResult};
 
 pub fn new<E, F>(endpoint: E, f: F) -> Inspect<E::Endpoint, F>
 where
     E: IntoEndpoint,
-    F: FnOnce(&E::Output) + Clone + Send + Sync,
+    F: FnOnce(&E::Output) + Clone,
 {
     Inspect {
         endpoint: endpoint.into_endpoint(),
@@ -21,10 +21,10 @@ pub struct Inspect<E, F> {
     f: F,
 }
 
-impl<E, F> Endpoint for Inspect<E, F>
+impl<E, F> EndpointBase for Inspect<E, F>
 where
-    E: Endpoint,
-    F: FnOnce(&E::Output) + Clone + Send + Sync,
+    E: EndpointBase,
+    F: FnOnce(&E::Output) + Clone,
 {
     type Output = E::Output;
     type Task = InspectTask<E::Task, F>;
@@ -45,8 +45,8 @@ pub struct InspectTask<T, F> {
 
 impl<T, F> Task for InspectTask<T, F>
 where
-    T: Task + Send,
-    F: FnOnce(&T::Output) + Send,
+    T: Task,
+    F: FnOnce(&T::Output),
 {
     type Output = T::Output;
 

@@ -5,7 +5,7 @@ use http::StatusCode;
 use std::fmt;
 use std::marker::PhantomData;
 
-use crate::endpoint::{assert_output, Context, Endpoint};
+use crate::endpoint::{assert_output, Context, EndpointBase};
 use crate::input::with_get_cx;
 use crate::task::Task;
 use crate::{Error, HttpError, Poll, PollResult};
@@ -66,7 +66,7 @@ impl<H> fmt::Debug for Header<H> {
     }
 }
 
-impl<H> Endpoint for Header<H>
+impl<H> EndpointBase for Header<H>
 where
     H: FromHeader,
     H::Error: Fail,

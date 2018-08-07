@@ -1,13 +1,13 @@
-use super::{Context, Endpoint};
-use crate::error::Error;
-use crate::input::{with_set_cx, Input};
-use crate::poll::Poll;
-use crate::task::Task;
+use finchers_core::endpoint::{Context, EndpointBase};
+use finchers_core::error::Error;
+use finchers_core::input::{with_set_cx, Input};
+use finchers_core::task::Task;
+use finchers_core::Poll;
 
 /// Create an asynchronous computation for handling an HTTP request.
 pub fn apply_request<E>(endpoint: &E, input: &Input) -> ApplyRequest<E::Task>
 where
-    E: Endpoint + ?Sized,
+    E: EndpointBase + ?Sized,
 {
     let in_flight = endpoint.apply(&mut Context::new(input));
     ApplyRequest { in_flight }

@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 
-use crate::endpoint::{Context, Endpoint};
+use crate::endpoint::{Context, EndpointBase};
 use crate::task::Task;
 use crate::{Error, PollResult};
 use std::marker::PhantomData;
@@ -13,7 +13,7 @@ pub struct ErrInto<E, T> {
 
 pub fn new<E, U, A, B>(endpoint: E) -> ErrInto<E, U>
 where
-    E: Endpoint<Output = Result<A, B>>,
+    E: EndpointBase<Output = Result<A, B>>,
     B: Into<U>,
 {
     ErrInto {
@@ -22,9 +22,9 @@ where
     }
 }
 
-impl<E, A, B, U> Endpoint for ErrInto<E, U>
+impl<E, A, B, U> EndpointBase for ErrInto<E, U>
 where
-    E: Endpoint<Output = Result<A, B>>,
+    E: EndpointBase<Output = Result<A, B>>,
     B: Into<U>,
 {
     type Output = Result<A, U>;
@@ -46,7 +46,7 @@ pub struct ErrIntoTask<T, U> {
 
 impl<T, U, A, B> Task for ErrIntoTask<T, U>
 where
-    T: Task<Output = Result<A, B>> + Send,
+    T: Task<Output = Result<A, B>>,
     B: Into<U>,
 {
     type Output = Result<A, U>;

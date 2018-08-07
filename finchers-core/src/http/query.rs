@@ -10,7 +10,7 @@ use std::marker::PhantomData;
 use std::ops::Deref;
 use {mime, serde_qs};
 
-use crate::endpoint::{Context, EncodedStr, Endpoint};
+use crate::endpoint::{Context, EncodedStr, EndpointBase};
 use crate::http::body::FromBody;
 use crate::input::with_get_cx;
 use crate::task::Task;
@@ -70,7 +70,7 @@ impl<T> fmt::Debug for Query<T> {
     }
 }
 
-impl<T> Endpoint for Query<T>
+impl<T> EndpointBase for Query<T>
 where
     T: FromQuery,
     T::Error: Fail,

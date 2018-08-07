@@ -38,16 +38,16 @@ pub use self::result::EndpointResultExt;
 
 // ==== EndpointExt ===
 
-use crate::endpoint::{assert_output, Endpoint, IntoEndpoint};
+use crate::endpoint::{assert_output, EndpointBase, IntoEndpoint};
 use crate::task::IntoTask;
 
 /// A set of extension methods used for composing complicate endpoints.
-pub trait EndpointExt: Endpoint + Sized {
+pub trait EndpointExt: EndpointBase + Sized {
     /// Annotate that the associated type `Output` is equal to `T`.
     #[inline(always)]
     fn as_t<T>(self) -> Self
     where
-        Self: Endpoint<Output = T>,
+        Self: EndpointBase<Output = T>,
     {
         self
     }
@@ -59,10 +59,8 @@ pub trait EndpointExt: Endpoint + Sized {
     fn and<E>(self, e: E) -> And<Self, E::Endpoint>
     where
         E: IntoEndpoint,
-        Self::Output: Send,
-        E::Output: Send,
     {
-        assert_output::<_, (Self::Output, <E::Endpoint as Endpoint>::Output)>(self::and::new(
+        assert_output::<_, (Self::Output, <E::Endpoint as EndpointBase>::Output)>(self::and::new(
             self, e,
         ))
     }
@@ -102,7 +100,7 @@ pub trait EndpointExt: Endpoint + Sized {
     /// Create an endpoint which maps the returned value to a different type.
     fn map<F, U>(self, f: F) -> Map<Self, F>
     where
-        F: FnOnce(Self::Output) -> U + Clone + Send + Sync,
+        F: FnOnce(Self::Output) -> U + Clone,
     {
         assert_output::<_, F::Output>(self::map::new(self, f))
     }
@@ -110,7 +108,7 @@ pub trait EndpointExt: Endpoint + Sized {
     /// Create an endpoint which do something with the output value from `self`.
     fn inspect<F>(self, f: F) -> Inspect<Self, F>
     where
-        F: FnOnce(&Self::Output) + Clone + Send + Sync,
+        F: FnOnce(&Self::Output) + Clone,
     {
         assert_output::<_, Self::Output>(self::inspect::new(self, f))
     }
@@ -119,12 +117,11 @@ pub trait EndpointExt: Endpoint + Sized {
     /// from the value returned from `self`.
     fn map_async<F, T>(self, f: F) -> MapAsync<Self, F>
     where
-        F: FnOnce(Self::Output) -> T + Clone + Send + Sync,
+        F: FnOnce(Self::Output) -> T + Clone,
         T: IntoTask,
-        T::Task: Send,
     {
         assert_output::<_, T::Output>(self::map_async::new(self, f))
     }
 }
 
-impl<E: Endpoint> EndpointExt for E {}
+impl<E: EndpointBase> EndpointExt for E {}

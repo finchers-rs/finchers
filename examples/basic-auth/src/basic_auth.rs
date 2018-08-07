@@ -1,15 +1,9 @@
 use base64::decode;
 use finchers::endpoint::header::FromHeader;
-use finchers::{Endpoint, HttpError};
+use finchers::HttpError;
 use http::header::{HeaderMap, HeaderValue};
 use http::StatusCode;
 use std::{error, fmt};
-
-pub fn basic_auth() -> impl Endpoint<Output = BasicAuth> + 'static {
-    use finchers::endpoint::header::header;
-    use finchers::endpoint::prelude::*;
-    header().map_err(|_| Unauthorized).unwrap_ok()
-}
 
 #[derive(Debug)]
 pub struct BasicAuth {

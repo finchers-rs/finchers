@@ -1,12 +1,8 @@
-use crate::endpoint::Context;
+use crate::endpoint::{Context, EndpointBase};
 use crate::task;
-use crate::Endpoint;
 
 /// Create an endpoint which immediately returns a value of `T`.
-pub fn just<T>(x: T) -> Just<T>
-where
-    T: Clone + Send + Sync,
-{
+pub fn just<T: Clone>(x: T) -> Just<T> {
     Just { x }
 }
 
@@ -16,10 +12,7 @@ pub struct Just<T> {
     x: T,
 }
 
-impl<T> Endpoint for Just<T>
-where
-    T: Clone + Send + Sync,
-{
+impl<T: Clone> EndpointBase for Just<T> {
     type Output = T;
     type Task = task::Ready<T>;
 

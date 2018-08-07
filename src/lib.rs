@@ -60,7 +60,7 @@ pub mod error {
 }
 
 pub mod endpoint {
-    pub use finchers_core::endpoint::{Endpoint, IntoEndpoint};
+    pub use finchers_core::endpoint::{Endpoint, EndpointBase, IntoEndpoint};
     pub use finchers_core::ext::{
         abort, all, just, lazy, EndpointExt, EndpointOptionExt, EndpointResultExt,
     };
@@ -93,8 +93,9 @@ pub mod runtime {
     pub use finchers_runtime::service::{HttpService, NewHttpService};
 }
 
+pub use finchers_core::endpoint::{Endpoint, EndpointBase};
 pub use finchers_core::http::json::Json;
-pub use finchers_core::{Endpoint, HttpError, Input, Never, Output, Responder};
+pub use finchers_core::{HttpError, Input, Never, Output, Responder};
 pub use finchers_runtime::run;
 
 #[macro_use]

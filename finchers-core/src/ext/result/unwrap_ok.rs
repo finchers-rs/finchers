@@ -1,12 +1,12 @@
 #![allow(missing_docs)]
 
-use crate::endpoint::{Context, Endpoint};
+use crate::endpoint::{Context, EndpointBase};
 use crate::task::Task;
 use crate::{Error, Poll, PollResult};
 
 pub fn new<E, T, R>(endpoint: E) -> UnwrapOk<E>
 where
-    E: Endpoint<Output = Result<T, R>>,
+    E: EndpointBase<Output = Result<T, R>>,
     R: Into<Error>,
 {
     UnwrapOk { endpoint }
@@ -17,9 +17,9 @@ pub struct UnwrapOk<E> {
     endpoint: E,
 }
 
-impl<E, T, R> Endpoint for UnwrapOk<E>
+impl<E, T, R> EndpointBase for UnwrapOk<E>
 where
-    E: Endpoint<Output = Result<T, R>>,
+    E: EndpointBase<Output = Result<T, R>>,
     R: Into<Error>,
 {
     type Output = T;
@@ -39,7 +39,7 @@ pub struct UnwrapOkTask<T> {
 
 impl<T, U, E> Task for UnwrapOkTask<T>
 where
-    T: Task<Output = Result<U, E>> + Send,
+    T: Task<Output = Result<U, E>>,
     E: Into<Error>,
 {
     type Output = U;

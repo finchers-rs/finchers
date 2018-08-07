@@ -1,18 +1,20 @@
 #![allow(missing_docs)]
 
-use crate::endpoint::{Context, Endpoint};
+use crate::endpoint::{Context, EndpointBase, IntoEndpoint};
 use crate::task::{IntoTask, Task};
 use crate::{Error, Poll, PollResult};
 use std::mem;
 
-pub fn new<E, F, R>(endpoint: E, f: F) -> MapAsync<E, F>
+pub fn new<E, F, R>(endpoint: E, f: F) -> MapAsync<E::Endpoint, F>
 where
-    E: Endpoint,
-    F: FnOnce(E::Output) -> R + Clone + Send + Sync,
+    E: IntoEndpoint,
+    F: FnOnce(E::Output) -> R + Clone,
     R: IntoTask,
-    R::Task: Send,
 {
-    MapAsync { endpoint, f }
+    MapAsync {
+        endpoint: endpoint.into_endpoint(),
+        f,
+    }
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -21,12 +23,11 @@ pub struct MapAsync<E, F> {
     f: F,
 }
 
-impl<E, F, R> Endpoint for MapAsync<E, F>
+impl<E, F, R> EndpointBase for MapAsync<E, F>
 where
-    E: Endpoint,
-    F: FnOnce(E::Output) -> R + Clone + Send + Sync,
+    E: EndpointBase,
+    F: FnOnce(E::Output) -> R + Clone,
     R: IntoTask,
-    R::Task: Send,
 {
     type Output = R::Output;
     type Task = MapAsyncTask<E::Task, F, R>;
@@ -41,9 +42,8 @@ where
 pub enum MapAsyncTask<T, F, R>
 where
     T: Task,
-    F: FnOnce(T::Output) -> R + Send,
+    F: FnOnce(T::Output) -> R,
     R: IntoTask,
-    R::Task: Send,
 {
     First(T, F),
     Second(R::Task),
@@ -53,9 +53,8 @@ where
 impl<T, F, R> Task for MapAsyncTask<T, F, R>
 where
     T: Task,
-    F: FnOnce(T::Output) -> R + Send,
+    F: FnOnce(T::Output) -> R,
     R: IntoTask,
-    R::Task: Send,
 {
     type Output = R::Output;
 

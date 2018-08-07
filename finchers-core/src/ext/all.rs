@@ -1,5 +1,5 @@
 use super::maybe_done::MaybeDone;
-use crate::endpoint::{Context, Endpoint, IntoEndpoint};
+use crate::endpoint::{Context, EndpointBase, IntoEndpoint};
 use crate::task::Task;
 use crate::{Error, Poll, PollResult};
 use std::{fmt, mem};
@@ -9,7 +9,6 @@ pub fn all<I>(iter: I) -> All<<I::Item as IntoEndpoint>::Endpoint>
 where
     I: IntoIterator,
     I::Item: IntoEndpoint,
-    <I::Item as IntoEndpoint>::Output: Send,
 {
     All {
         inner: iter.into_iter().map(IntoEndpoint::into_endpoint).collect(),
@@ -22,10 +21,9 @@ pub struct All<E> {
     inner: Vec<E>,
 }
 
-impl<E> Endpoint for All<E>
+impl<E> EndpointBase for All<E>
 where
-    E: Endpoint,
-    E::Output: Send,
+    E: EndpointBase,
 {
     type Output = Vec<E::Output>;
     type Task = AllTask<E::Task>;
@@ -60,7 +58,6 @@ where
 impl<T> Task for AllTask<T>
 where
     T: Task,
-    T::Output: Send,
 {
     type Output = Vec<T::Output>;
 

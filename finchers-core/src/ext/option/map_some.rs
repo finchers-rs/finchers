@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 
-use crate::endpoint::{Context, Endpoint};
+use crate::endpoint::{Context, EndpointBase};
 use crate::task::Task;
 use crate::{Error, Poll};
 
@@ -12,16 +12,16 @@ pub struct MapSome<E, F> {
 
 pub fn new<E, F, U, T>(endpoint: E, f: F) -> MapSome<E, F>
 where
-    E: Endpoint<Output = Option<T>>,
-    F: FnOnce(T) -> U + Clone + Send + Sync,
+    E: EndpointBase<Output = Option<T>>,
+    F: FnOnce(T) -> U + Clone,
 {
     MapSome { endpoint, f }
 }
 
-impl<E, F, T, U> Endpoint for MapSome<E, F>
+impl<E, F, T, U> EndpointBase for MapSome<E, F>
 where
-    E: Endpoint<Output = Option<T>>,
-    F: FnOnce(T) -> U + Clone + Send + Sync,
+    E: EndpointBase<Output = Option<T>>,
+    F: FnOnce(T) -> U + Clone,
 {
     type Output = Option<U>;
     type Task = MapSomeTask<E::Task, F>;
@@ -42,8 +42,8 @@ pub struct MapSomeTask<T, F> {
 
 impl<T, F, A, U> Task for MapSomeTask<T, F>
 where
-    T: Task<Output = Option<A>> + Send,
-    F: FnOnce(A) -> U + Send,
+    T: Task<Output = Option<A>>,
+    F: FnOnce(A) -> U,
 {
     type Output = Option<U>;
 

@@ -14,11 +14,11 @@ pub use self::map_ok::MapOk;
 pub use self::or_else::OrElse;
 pub use self::unwrap_ok::UnwrapOk;
 
-use crate::endpoint::assert_output;
-use crate::{Endpoint, Error, IsResult};
+use crate::endpoint::{assert_output, EndpointBase};
+use crate::{Error, IsResult};
 
 /// A set of extension methods which is available when the output value is a `Result`.
-pub trait EndpointResultExt<A, B>: Endpoint<Output = Result<A, B>> + Sized {
+pub trait EndpointResultExt<A, B>: EndpointBase<Output = Result<A, B>> + Sized {
     /// Annotate that the successful type of associated type `Output` is equal to `T`.
     #[inline(always)]
     fn as_ok<T>(self) -> Self
@@ -40,7 +40,7 @@ pub trait EndpointResultExt<A, B>: Endpoint<Output = Result<A, B>> + Sized {
     /// Create an endpoint which will map the successful value to a new type with given function.
     fn map_ok<F, U>(self, f: F) -> MapOk<Self, F>
     where
-        F: FnOnce(A) -> U + Clone + Send + Sync,
+        F: FnOnce(A) -> U + Clone,
     {
         assert_output::<_, Result<U, B>>(self::map_ok::new(self, f))
     }
@@ -48,7 +48,7 @@ pub trait EndpointResultExt<A, B>: Endpoint<Output = Result<A, B>> + Sized {
     /// Create an endpoint which will map the error value to a new type with given function.
     fn map_err<F, U>(self, f: F) -> MapErr<Self, F>
     where
-        F: FnOnce(B) -> U + Clone + Send + Sync,
+        F: FnOnce(B) -> U + Clone,
     {
         assert_output::<_, Result<A, U>>(self::map_err::new(self, f))
     }
@@ -64,7 +64,7 @@ pub trait EndpointResultExt<A, B>: Endpoint<Output = Result<A, B>> + Sized {
     /// Create an endpoint which will map the successful value to a `Result` with given function.
     fn and_then<F, U>(self, f: F) -> AndThen<Self, F>
     where
-        F: FnOnce(A) -> Result<U, B> + Clone + Send + Sync,
+        F: FnOnce(A) -> Result<U, B> + Clone,
     {
         assert_output::<_, Result<U, B>>(self::and_then::new(self, f))
     }
@@ -72,7 +72,7 @@ pub trait EndpointResultExt<A, B>: Endpoint<Output = Result<A, B>> + Sized {
     /// Create an endpoint which will map the error value to a `Result` with given function.
     fn or_else<F, U>(self, f: F) -> OrElse<Self, F>
     where
-        F: FnOnce(B) -> Result<A, U> + Clone + Send + Sync,
+        F: FnOnce(B) -> Result<A, U> + Clone,
     {
         assert_output::<_, Result<A, U>>(self::or_else::new(self, f))
     }
@@ -89,4 +89,4 @@ pub trait EndpointResultExt<A, B>: Endpoint<Output = Result<A, B>> + Sized {
     }
 }
 
-impl<E, A, B> EndpointResultExt<A, B> for E where E: Endpoint<Output = Result<A, B>> {}
+impl<E, A, B> EndpointResultExt<A, B> for E where E: EndpointBase<Output = Result<A, B>> {}

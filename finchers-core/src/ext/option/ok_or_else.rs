@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 
-use crate::endpoint::{Context, Endpoint};
+use crate::endpoint::{Context, EndpointBase};
 use crate::task::Task;
 use crate::{Error, Poll};
 
@@ -12,16 +12,16 @@ pub struct OkOrElse<E, F> {
 
 pub fn new<E, F, T, U>(endpoint: E, f: F) -> OkOrElse<E, F>
 where
-    E: Endpoint<Output = Option<T>>,
-    F: FnOnce() -> U + Clone + Send + Sync,
+    E: EndpointBase<Output = Option<T>>,
+    F: FnOnce() -> U + Clone,
 {
     OkOrElse { endpoint, f }
 }
 
-impl<E, F, T, U> Endpoint for OkOrElse<E, F>
+impl<E, F, T, U> EndpointBase for OkOrElse<E, F>
 where
-    E: Endpoint<Output = Option<T>>,
-    F: FnOnce() -> U + Clone + Send + Sync,
+    E: EndpointBase<Output = Option<T>>,
+    F: FnOnce() -> U + Clone,
 {
     type Output = Result<T, U>;
     type Task = OkOrElseTask<E::Task, F>;
@@ -42,8 +42,8 @@ pub struct OkOrElseTask<T, F> {
 
 impl<T, F, A, U> Task for OkOrElseTask<T, F>
 where
-    T: Task<Output = Option<A>> + Send,
-    F: FnOnce() -> U + Send,
+    T: Task<Output = Option<A>>,
+    F: FnOnce() -> U,
 {
     type Output = Result<A, U>;
 

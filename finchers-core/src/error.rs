@@ -234,7 +234,8 @@ impl fmt::Display for Error {
 }
 
 impl Error {
-    pub(crate) fn skipped() -> Error {
+    #[doc(hidden)]
+    pub fn skipped() -> Error {
         Error {
             inner: Either::Right(NoRoute),
         }

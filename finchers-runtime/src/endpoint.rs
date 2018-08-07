@@ -9,11 +9,12 @@ use http::{Request, Response};
 use std::sync::Arc;
 use std::{fmt, io};
 
-use finchers_core::endpoint::ApplyRequest;
+use finchers_core::endpoint::{Context, EndpointBase};
 use finchers_core::input::RequestBody;
 use finchers_core::output::{Responder, ResponseBody};
 use finchers_core::{Endpoint, HttpError, Input, Poll, Task};
 
+use apply::{apply_request, ApplyRequest};
 use service::{HttpService, NewHttpService, Payload};
 
 // FIXME: move the implementation to finchers-core after replacing `Payload` with `hyper::Payload`.
@@ -23,6 +24,30 @@ impl Payload for ResponseBody {
 
     fn poll_data(&mut self) -> futures::Poll<Option<Self::Data>, Self::Error> {
         self.poll_data().into()
+    }
+}
+
+trait EndpointLiftExt {
+    fn lift(&self) -> Lift<Self>;
+}
+
+impl<E> EndpointLiftExt for E
+where
+    E: Endpoint,
+{
+    fn lift(&self) -> Lift<Self> {
+        Lift(self)
+    }
+}
+
+struct Lift<'a, E: 'a + ?Sized>(&'a E);
+
+impl<'a, E: 'a + ?Sized + Endpoint> EndpointBase for Lift<'a, E> {
+    type Output = E::Output;
+    type Task = E::Task;
+
+    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
+        self.0.apply(cx)
     }
 }
 
@@ -43,7 +68,6 @@ impl<E: fmt::Debug> fmt::Debug for NewEndpointService<E> {
 impl<E> NewEndpointService<E>
 where
     E: Endpoint,
-    E::Output: Responder,
 {
     /// Create a new `NewEndpointService` from an endpoint.
     pub fn new(endpoint: E) -> NewEndpointService<E> {
@@ -62,7 +86,6 @@ where
 impl<E> NewHttpService for NewEndpointService<E>
 where
     E: Endpoint,
-    E::Output: Responder,
 {
     type RequestBody = RequestBody;
     type ResponseBody = ResponseBody;
@@ -100,7 +123,6 @@ impl<E: fmt::Debug> fmt::Debug for EndpointService<E> {
 impl<E> HttpService for EndpointService<E>
 where
     E: Endpoint,
-    E::Output: Responder,
 {
     type RequestBody = RequestBody;
     type ResponseBody = ResponseBody;
@@ -109,7 +131,7 @@ where
 
     fn call(&mut self, request: Request<Self::RequestBody>) -> Self::Future {
         let input = Input::new(request);
-        let apply = self.endpoint.apply_request(&input);
+        let apply = apply_request(&self.endpoint.lift(), &input);
 
         EndpointServiceFuture {
             apply,

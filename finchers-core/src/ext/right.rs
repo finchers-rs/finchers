@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 
-use crate::endpoint::{Context, Endpoint, IntoEndpoint};
+use crate::endpoint::{Context, EndpointBase, IntoEndpoint};
 
 pub fn new<E1, E2>(e1: E1, e2: E2) -> Right<E1::Endpoint, E2::Endpoint>
 where
@@ -19,10 +19,10 @@ pub struct Right<E1, E2> {
     e2: E2,
 }
 
-impl<E1, E2> Endpoint for Right<E1, E2>
+impl<E1, E2> EndpointBase for Right<E1, E2>
 where
-    E1: Endpoint,
-    E2: Endpoint,
+    E1: EndpointBase,
+    E2: EndpointBase,
 {
     type Output = E2::Output;
     type Task = E2::Task;

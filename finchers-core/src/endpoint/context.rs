@@ -13,7 +13,8 @@ pub struct Context<'a> {
 }
 
 impl<'a> Context<'a> {
-    pub(crate) fn new(input: &'a Input) -> Self {
+    #[doc(hidden)]
+    pub fn new(input: &'a Input) -> Self {
         Context {
             input: input,
             segments: Segments::from(input.request().uri().path()),
