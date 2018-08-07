@@ -168,7 +168,7 @@ impl<E: fmt::Display> fmt::Display for BodyError<E> {
 
 impl<E: Fail> Fail for BodyError<E> {}
 
-impl<E: Fail> HttpError for BodyError<E> {
+impl<E: HttpError> HttpError for BodyError<E> {
     fn status_code(&self) -> StatusCode {
         match self {
             BodyError::Parse { .. } => StatusCode::BAD_REQUEST,
