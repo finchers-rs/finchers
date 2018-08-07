@@ -30,15 +30,15 @@ pub trait Task {
 impl<L, R> Task for Either<L, R>
 where
     L: Task,
-    R: Task<Output = L::Output>,
+    R: Task,
 {
-    type Output = L::Output;
+    type Output = Either<L::Output, R::Output>;
 
     #[inline(always)]
     fn poll_task(&mut self) -> PollResult<Self::Output, Error> {
         match *self {
-            Either::Left(ref mut t) => t.poll_task(),
-            Either::Right(ref mut t) => t.poll_task(),
+            Either::Left(ref mut t) => t.poll_task().map_ok(Either::Left),
+            Either::Right(ref mut t) => t.poll_task().map_ok(Either::Right),
         }
     }
 }

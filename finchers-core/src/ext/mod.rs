@@ -40,6 +40,7 @@ pub use self::result::EndpointResultExt;
 
 use crate::endpoint::{assert_output, EndpointBase, IntoEndpoint};
 use crate::task::IntoTask;
+use either::Either;
 
 /// A set of extension methods used for composing complicate endpoints.
 pub trait EndpointExt: EndpointBase + Sized {
@@ -87,9 +88,9 @@ pub trait EndpointExt: EndpointBase + Sized {
     /// from either `self` or `e` matched "better" to the input.
     fn or<E>(self, e: E) -> Or<Self, E::Endpoint>
     where
-        E: IntoEndpoint<Output = Self::Output>,
+        E: IntoEndpoint,
     {
-        assert_output::<_, Self::Output>(self::or::new(self, e))
+        assert_output::<_, Either<Self::Output, E::Output>>(self::or::new(self, e))
     }
 
     /// Create an endpoint which returns `None` if the inner endpoint skips the request.
