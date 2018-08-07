@@ -5,17 +5,42 @@ mod err_into;
 mod map_err;
 mod map_ok;
 mod or_else;
-mod unwrap_ok;
 
 pub use self::and_then::AndThen;
 pub use self::err_into::ErrInto;
 pub use self::map_err::MapErr;
 pub use self::map_ok::MapOk;
 pub use self::or_else::OrElse;
-pub use self::unwrap_ok::UnwrapOk;
 
 use crate::endpoint::{assert_output, EndpointBase};
-use crate::{Error, IsResult};
+
+/// A helper trait enforcing that the type is `Result`.
+pub trait IsResult: sealed::Sealed {
+    /// The type of success value.
+    type Ok;
+
+    /// The type of error value.
+    type Err;
+
+    /// Consume itself and get the value of `Result`.
+    fn into_result(self) -> Result<Self::Ok, Self::Err>;
+}
+
+impl<T, E> IsResult for Result<T, E> {
+    type Ok = T;
+    type Err = E;
+
+    #[inline(always)]
+    fn into_result(self) -> Result<Self::Ok, Self::Err> {
+        self
+    }
+}
+
+mod sealed {
+    pub trait Sealed {}
+
+    impl<T, E> Sealed for Result<T, E> {}
+}
 
 /// A set of extension methods which is available when the output value is a `Result`.
 pub trait EndpointResultExt<A, B>: EndpointBase<Output = Result<A, B>> + Sized {
@@ -75,17 +100,6 @@ pub trait EndpointResultExt<A, B>: EndpointBase<Output = Result<A, B>> + Sized {
         F: FnOnce(B) -> Result<A, U> + Clone,
     {
         assert_output::<_, Result<A, U>>(self::or_else::new(self, f))
-    }
-
-    /// Create an endpoint which will return the content of an `Ok`.
-    ///
-    /// The term "unwrap" does not means that an unwinding will occur if the value is an `Err`.
-    /// Instead, the error value will be converted to an `Error` and handled the state internally.
-    fn unwrap_ok(self) -> UnwrapOk<Self>
-    where
-        B: Into<Error>,
-    {
-        assert_output::<_, A>(self::unwrap_ok::new(self))
     }
 }
 

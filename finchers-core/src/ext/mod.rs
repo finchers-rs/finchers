@@ -3,7 +3,6 @@
 pub mod option;
 pub mod result;
 
-mod abort;
 mod all;
 mod and;
 mod inspect;
@@ -18,7 +17,6 @@ mod or;
 mod right;
 
 // re-exports
-pub use self::abort::{abort, Abort};
 pub use self::all::{all, All};
 pub use self::and::And;
 pub use self::inspect::Inspect;

@@ -1,8 +1,8 @@
 #![allow(missing_docs)]
 
 use crate::endpoint::{Context, EndpointBase, IntoEndpoint};
+use crate::poll::Poll;
 use crate::task::Task;
-use crate::{Error, PollResult};
 
 pub fn new<E, F>(endpoint: E, f: F) -> Inspect<E::Endpoint, F>
 where
@@ -50,8 +50,8 @@ where
 {
     type Output = T::Output;
 
-    fn poll_task(&mut self) -> PollResult<Self::Output, Error> {
-        self.task.poll_task().map_ok(|item| {
+    fn poll_task(&mut self) -> Poll<Self::Output> {
+        self.task.poll_task().map(|item| {
             let f = self.f.take().expect("cannot resolve twice");
             f(&item);
             item

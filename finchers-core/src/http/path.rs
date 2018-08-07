@@ -12,7 +12,7 @@ use std::{error, fmt, net};
 use crate::endpoint::{Context, EndpointBase, Segment, Segments};
 use crate::input::with_get_cx;
 use crate::task::{self, Task};
-use crate::{Error, HttpError, Never, Poll, PollResult};
+use crate::{HttpError, Never, Poll};
 
 // ==== MatchPath =====
 
@@ -250,10 +250,10 @@ pub struct ParamTask<T> {
 impl<T: FromSegment> Task for ParamTask<T> {
     type Output = Result<T, T::Error>;
 
-    fn poll_task(&mut self) -> PollResult<Self::Output, Error> {
+    fn poll_task(&mut self) -> Poll<Self::Output> {
         with_get_cx(|input| {
             let s = Segment::new(input.request().uri().path(), self.range.clone());
-            Poll::Ready(Ok(T::from_segment(s)))
+            Poll::Ready(T::from_segment(s))
         })
     }
 }

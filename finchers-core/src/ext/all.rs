@@ -1,7 +1,7 @@
 use super::maybe_done::MaybeDone;
 use crate::endpoint::{Context, EndpointBase, IntoEndpoint};
+use crate::poll::Poll;
 use crate::task::Task;
-use crate::{Error, Poll, PollResult};
 use std::{fmt, mem};
 
 /// Create an endpoint which evaluates the all endpoint in the given collection sequentially.
@@ -61,15 +61,11 @@ where
 {
     type Output = Vec<T::Output>;
 
-    fn poll_task(&mut self) -> PollResult<Self::Output, Error> {
+    fn poll_task(&mut self) -> Poll<Self::Output> {
         let mut all_done = true;
         for i in 0..self.elems.len() {
             match self.elems[i].poll_done() {
-                Ok(done) => all_done = all_done & done,
-                Err(e) => {
-                    self.elems = Vec::new();
-                    return Poll::Ready(Err(e));
-                }
+                done => all_done = all_done & done,
             }
         }
         if all_done {
@@ -77,7 +73,7 @@ where
                 .into_iter()
                 .map(|mut m| m.take_item())
                 .collect();
-            Into::into(Ok(elems))
+            Poll::Ready(elems)
         } else {
             Poll::Pending
         }

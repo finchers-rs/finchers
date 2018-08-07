@@ -7,7 +7,7 @@ use std::mem;
 
 use finchers_core::endpoint::EndpointBase;
 use finchers_core::input::RequestBody;
-use finchers_core::{Error, Input, Never, Poll, Task};
+use finchers_core::{Input, Never, Poll, Task};
 
 use apply::{apply_request, ApplyRequest};
 
@@ -140,7 +140,7 @@ impl<'a, E: EndpointBase> ClientRequest<'a, E> {
     }
 
     /// Apply this dummy request to the associated endpoint and get its response.
-    pub fn run(&mut self) -> Result<E::Output, Error> {
+    pub fn run(&mut self) -> Option<E::Output> {
         let ClientRequest { client, request } = self.take();
 
         let input = Input::new(request);
@@ -159,7 +159,7 @@ struct TestFuture<T> {
 }
 
 impl<T: Task> Future for TestFuture<T> {
-    type Item = Result<T::Output, Error>;
+    type Item = Option<T::Output>;
     type Error = Never;
 
     fn poll(&mut self) -> Result<Async<Self::Item>, Self::Error> {

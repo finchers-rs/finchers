@@ -1,6 +1,6 @@
 use self::MaybeDone::*;
+use crate::poll::Poll;
 use crate::task::Task;
-use crate::{Error, Poll};
 use std::mem;
 
 #[derive(Debug)]
@@ -11,18 +11,17 @@ pub enum MaybeDone<T: Task> {
 }
 
 impl<T: Task> MaybeDone<T> {
-    pub fn poll_done(&mut self) -> Result<bool, Error> {
+    pub fn poll_done(&mut self) -> bool {
         let item = match *self {
             Pending(ref mut f) => match f.poll_task() {
-                Poll::Ready(Ok(item)) => item,
-                Poll::Pending => return Ok(false),
-                Poll::Ready(Err(e)) => return Err(e),
+                Poll::Ready(item) => item,
+                Poll::Pending => return false,
             },
-            Done(..) => return Ok(true),
+            Done(..) => return true,
             Gone => panic!("cannot join twice"),
         };
         *self = Done(item);
-        Ok(true)
+        true
     }
 
     pub fn take_item(&mut self) -> T::Output {
@@ -30,9 +29,5 @@ impl<T: Task> MaybeDone<T> {
             Done(item) => item,
             _ => panic!(),
         }
-    }
-
-    pub fn erase(&mut self) {
-        *self = Gone;
     }
 }

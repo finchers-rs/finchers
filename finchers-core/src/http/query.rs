@@ -14,7 +14,7 @@ use crate::endpoint::{Context, EncodedStr, EndpointBase};
 use crate::http::body::FromBody;
 use crate::input::with_get_cx;
 use crate::task::Task;
-use crate::{Error, HttpError, Input, Poll, PollResult};
+use crate::{HttpError, Input, Poll};
 
 /// Create an endpoint which parse the query string in the HTTP request
 /// to the value of `T`.
@@ -98,14 +98,13 @@ where
 {
     type Output = Result<T, QueryError<T::Error>>;
 
-    fn poll_task(&mut self) -> PollResult<Self::Output, Error> {
-        let ready = with_get_cx(|input| match input.request().uri().query() {
+    fn poll_task(&mut self) -> Poll<Self::Output> {
+        Poll::Ready(with_get_cx(|input| match input.request().uri().query() {
             Some(query) => {
                 T::from_query(QueryItems::new(query)).map_err(|cause| QueryError::Parse { cause })
             }
             None => Err(QueryError::MissingQuery),
-        });
-        Poll::Ready(Ok(ready))
+        }))
     }
 }
 

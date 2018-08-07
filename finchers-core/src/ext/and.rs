@@ -2,8 +2,8 @@
 
 use super::maybe_done::MaybeDone;
 use crate::endpoint::{Context, EndpointBase, IntoEndpoint};
+use crate::poll::Poll;
 use crate::task::Task;
-use crate::{Error, Poll, PollResult};
 use std::fmt;
 
 pub fn new<E1, E2>(e1: E1, e2: E2) -> And<E1::Endpoint, E2::Endpoint>
@@ -68,26 +68,12 @@ where
 {
     type Output = (F1::Output, F2::Output);
 
-    fn poll_task(&mut self) -> PollResult<Self::Output, Error> {
-        let mut all_done = match self.f1.poll_done() {
-            Ok(done) => done,
-            Err(e) => {
-                self.f1.erase();
-                self.f2.erase();
-                return Poll::Ready(Err(e));
-            }
-        };
-        all_done = match self.f2.poll_done() {
-            Ok(done) => all_done && done,
-            Err(e) => {
-                self.f1.erase();
-                self.f2.erase();
-                return Poll::Ready(Err(e));
-            }
-        };
+    fn poll_task(&mut self) -> Poll<Self::Output> {
+        let mut all_done = self.f1.poll_done();
+        all_done = all_done && self.f2.poll_done();
 
         if all_done {
-            Poll::Ready(Ok((self.f1.take_item(), self.f2.take_item())))
+            Poll::Ready((self.f1.take_item(), self.f2.take_item()))
         } else {
             Poll::Pending
         }

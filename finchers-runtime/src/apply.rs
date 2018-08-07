@@ -1,5 +1,4 @@
 use finchers_core::endpoint::{Context, EndpointBase};
-use finchers_core::error::Error;
 use finchers_core::input::{with_set_cx, Input};
 use finchers_core::task::Task;
 use finchers_core::Poll;
@@ -23,10 +22,10 @@ pub struct ApplyRequest<T> {
 
 impl<T: Task> ApplyRequest<T> {
     /// Poll the inner `Task` and return its output if available.
-    pub fn poll_ready(&mut self, input: &mut Input) -> Poll<Result<T::Output, Error>> {
+    pub fn poll_ready(&mut self, input: &mut Input) -> Poll<Option<T::Output>> {
         match self.in_flight {
-            Some(ref mut f) => with_set_cx(input, || f.poll_task()),
-            None => Poll::Ready(Err(Error::skipped())),
+            Some(ref mut f) => with_set_cx(input, || f.poll_task().map(Some)),
+            None => Poll::Ready(None),
         }
     }
 }

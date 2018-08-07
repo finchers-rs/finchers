@@ -1,8 +1,8 @@
 #![allow(missing_docs)]
 
 use crate::endpoint::{Context, EndpointBase};
+use crate::poll::Poll;
 use crate::task::Task;
-use crate::{Error, PollResult};
 use std::marker::PhantomData;
 
 #[derive(Debug, Copy, Clone)]
@@ -51,9 +51,7 @@ where
 {
     type Output = Result<A, U>;
 
-    fn poll_task(&mut self) -> PollResult<Self::Output, Error> {
-        self.task
-            .poll_task()
-            .map_ok(|item| item.map_err(Into::into))
+    fn poll_task(&mut self) -> Poll<Self::Output> {
+        self.task.poll_task().map(|item| item.map_err(Into::into))
     }
 }

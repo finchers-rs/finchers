@@ -12,7 +12,7 @@ use std::{fmt, io};
 use finchers_core::endpoint::{Context, EndpointBase};
 use finchers_core::input::RequestBody;
 use finchers_core::output::{Responder, ResponseBody};
-use finchers_core::{Endpoint, HttpError, Input, Poll, Task};
+use finchers_core::{Endpoint, Error, HttpError, Input, Poll, Task};
 
 use apply::{apply_request, ApplyRequest};
 use service::{HttpService, NewHttpService, Payload};
@@ -166,7 +166,8 @@ where
     fn poll(&mut self) -> futures::Poll<Self::Item, Self::Error> {
         let output = match self.apply.poll_ready(&mut self.input) {
             Poll::Pending => return Ok(NotReady),
-            Poll::Ready(output) => output.and_then(|output| output.respond(&self.input)),
+            Poll::Ready(Some(output)) => output.respond(&self.input),
+            Poll::Ready(None) => Err(Error::skipped()),
         };
 
         let mut response = output.unwrap_or_else(|err| self.handle_error(err.as_http_error()));

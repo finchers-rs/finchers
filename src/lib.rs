@@ -62,7 +62,7 @@ pub mod error {
 pub mod endpoint {
     pub use finchers_core::endpoint::{Endpoint, EndpointBase, IntoEndpoint};
     pub use finchers_core::ext::{
-        abort, all, just, lazy, EndpointExt, EndpointOptionExt, EndpointResultExt,
+        all, just, lazy, EndpointExt, EndpointOptionExt, EndpointResultExt,
     };
     pub use finchers_core::http::{
         body, header, method, path, query, FromBody, FromHeader, FromSegment, FromSegments,

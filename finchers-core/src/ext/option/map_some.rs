@@ -1,8 +1,8 @@
 #![allow(missing_docs)]
 
 use crate::endpoint::{Context, EndpointBase};
+use crate::poll::Poll;
 use crate::task::Task;
-use crate::{Error, Poll};
 
 #[derive(Debug, Copy, Clone)]
 pub struct MapSome<E, F> {
@@ -47,8 +47,8 @@ where
 {
     type Output = Option<U>;
 
-    fn poll_task(&mut self) -> Poll<Result<Self::Output, Error>> {
-        self.task.poll_task().map_ok(|item| {
+    fn poll_task(&mut self) -> Poll<Self::Output> {
+        self.task.poll_task().map(|item| {
             let f = self.f.take().expect("cannot resolve twice");
             item.map(f)
         })

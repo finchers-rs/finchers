@@ -6,7 +6,7 @@ use std::mem;
 use std::ops::Deref;
 
 use crate::error::HttpError;
-use crate::poll::{Poll, PollResult};
+use crate::poll::Poll;
 
 #[cfg(feature = "hyper")]
 use futures::Stream;
@@ -67,7 +67,7 @@ impl RequestBody {
 
     /// Poll an element of `Chunk`.
     // FIXME: make adapt to the signature of futures2 or std's Async
-    pub fn poll_data(&mut self) -> PollResult<Option<Data>, PollDataError> {
+    pub fn poll_data(&mut self) -> Poll<Result<Option<Data>, PollDataError>> {
         use self::RequestBodyKind::*;
         match self.kind {
             Empty => Poll::Ready(Ok(None)),

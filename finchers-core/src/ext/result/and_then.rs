@@ -1,8 +1,8 @@
 #![allow(missing_docs)]
 
 use crate::endpoint::{Context, EndpointBase};
+use crate::poll::Poll;
 use crate::task::Task;
-use crate::{Error, PollResult};
 
 #[derive(Debug, Copy, Clone)]
 pub struct AndThen<E, F> {
@@ -47,8 +47,8 @@ where
 {
     type Output = Result<U, B>;
 
-    fn poll_task(&mut self) -> PollResult<Self::Output, Error> {
-        self.task.poll_task().map_ok(|item| {
+    fn poll_task(&mut self) -> Poll<Self::Output> {
+        self.task.poll_task().map(|item| {
             let f = self.f.take().expect("cannot resolve twice");
             item.and_then(f)
         })

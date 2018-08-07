@@ -9,12 +9,9 @@
 //! Such combinations are usually performed indirectly by the endpoints or by wrapping the value of
 //! `Future`.
 
+use crate::poll::Poll;
 use either::Either;
 use futures::{Async, Future, IntoFuture};
-
-use crate::error::Error;
-use crate::never::Never;
-use crate::poll::{Poll, PollResult};
 
 /// Trait representing the asynchronous computation after applying the endpoints.
 ///
@@ -24,7 +21,7 @@ pub trait Task {
     type Output;
 
     /// Perform polling this task and get its result.
-    fn poll_task(&mut self) -> PollResult<Self::Output, Error>;
+    fn poll_task(&mut self) -> Poll<Self::Output>;
 }
 
 impl<L, R> Task for Either<L, R>
@@ -35,10 +32,10 @@ where
     type Output = Either<L::Output, R::Output>;
 
     #[inline(always)]
-    fn poll_task(&mut self) -> PollResult<Self::Output, Error> {
+    fn poll_task(&mut self) -> Poll<Self::Output> {
         match *self {
-            Either::Left(ref mut t) => t.poll_task().map_ok(Either::Left),
-            Either::Right(ref mut t) => t.poll_task().map_ok(Either::Right),
+            Either::Left(ref mut t) => t.poll_task().map(Either::Left),
+            Either::Right(ref mut t) => t.poll_task().map(Either::Right),
         }
     }
 }
@@ -80,11 +77,11 @@ impl<F: Future> Task for TaskFuture<F> {
     type Output = Result<F::Item, F::Error>;
 
     #[inline(always)]
-    fn poll_task(&mut self) -> PollResult<Self::Output, Error> {
+    fn poll_task(&mut self) -> Poll<Self::Output> {
         match Future::poll(&mut self.0) {
-            Ok(Async::Ready(ready)) => Poll::Ready(Ok(Ok(ready))),
+            Ok(Async::Ready(ready)) => Poll::Ready(Ok(ready)),
             Ok(Async::NotReady) => Poll::Pending,
-            Err(err) => Poll::Ready(Ok(Err(err))),
+            Err(err) => Poll::Ready(Err(err)),
         }
     }
 }
@@ -108,49 +105,13 @@ impl<T> Task for Ready<T> {
     type Output = T;
 
     #[inline(always)]
-    fn poll_task(&mut self) -> PollResult<Self::Output, Error> {
+    fn poll_task(&mut self) -> Poll<Self::Output> {
         let val = self.0.take().expect("The task cannot resolve twice");
-        Poll::Ready(Ok(val))
+        Poll::Ready(val)
     }
 }
 
 /// Create a task which will immediately return a value of `T`.
 pub fn ready<T>(val: T) -> Ready<T> {
     Ready::from(val)
-}
-
-/// A `Task` which will immediately abort with an error value of `E`.
-#[derive(Debug)]
-pub struct Abort<E> {
-    cause: Option<E>,
-}
-
-impl<E> From<E> for Abort<E>
-where
-    E: Into<Error>,
-{
-    fn from(cause: E) -> Self {
-        Abort { cause: Some(cause) }
-    }
-}
-
-impl<E> Task for Abort<E>
-where
-    E: Into<Error>,
-{
-    type Output = Never;
-
-    #[inline(always)]
-    fn poll_task(&mut self) -> PollResult<Self::Output, Error> {
-        let cause = self.cause.take().expect("The task cannot reject twice");
-        Poll::Ready(Err(Into::into(cause)))
-    }
-}
-
-/// Create a task which will immediately abort the computation with an error value of `E`.
-pub fn abort<E>(cause: E) -> Abort<E>
-where
-    E: Into<Error>,
-{
-    Abort::from(cause)
 }

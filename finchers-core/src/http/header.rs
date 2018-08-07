@@ -8,7 +8,7 @@ use std::marker::PhantomData;
 use crate::endpoint::{assert_output, Context, EndpointBase};
 use crate::input::with_get_cx;
 use crate::task::Task;
-use crate::{Error, HttpError, Poll, PollResult};
+use crate::{HttpError, Poll};
 
 /// Create an endpoint which parses an entry in the HTTP header.
 ///
@@ -99,14 +99,14 @@ where
 {
     type Output = Result<H, HeaderError<H::Error>>;
 
-    fn poll_task(&mut self) -> PollResult<Self::Output, Error> {
-        let ready = with_get_cx(|input| match input.request().headers().get(H::NAME) {
-            Some(h) => {
-                H::from_header(h.as_bytes()).map_err(|cause| HeaderError::InvalidValue { cause })
+    fn poll_task(&mut self) -> Poll<Self::Output> {
+        Poll::Ready(with_get_cx(|input| {
+            match input.request().headers().get(H::NAME) {
+                Some(h) => H::from_header(h.as_bytes())
+                    .map_err(|cause| HeaderError::InvalidValue { cause }),
+                None => H::default().ok_or_else(|| HeaderError::MissingValue),
             }
-            None => H::default().ok_or_else(|| HeaderError::MissingValue),
-        });
-        Poll::Ready(Ok(ready))
+        }))
     }
 }
 

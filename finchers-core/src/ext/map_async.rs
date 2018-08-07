@@ -1,8 +1,8 @@
 #![allow(missing_docs)]
 
 use crate::endpoint::{Context, EndpointBase, IntoEndpoint};
+use crate::poll::Poll;
 use crate::task::{IntoTask, Task};
-use crate::{Error, Poll, PollResult};
 use std::mem;
 
 pub fn new<E, F, R>(endpoint: E, f: F) -> MapAsync<E::Endpoint, F>
@@ -58,7 +58,7 @@ where
 {
     type Output = R::Output;
 
-    fn poll_task(&mut self) -> PollResult<Self::Output, Error> {
+    fn poll_task(&mut self) -> Poll<Self::Output> {
         use self::MapAsyncTask::*;
         loop {
             // TODO: optimize
@@ -68,11 +68,10 @@ where
                         *self = First(task, f);
                         return Poll::Pending;
                     }
-                    Poll::Ready(Ok(r)) => {
+                    Poll::Ready(r) => {
                         *self = Second(f(r).into_task());
                         continue;
                     }
-                    Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
                 },
                 Second(mut fut) => {
                     return match fut.poll_task() {
