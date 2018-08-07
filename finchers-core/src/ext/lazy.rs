@@ -1,8 +1,7 @@
 #![allow(missing_docs)]
 
-use crate::endpoint::Context;
+use crate::endpoint::{Context, EndpointBase};
 use crate::task;
-use crate::Endpoint;
 
 /// Create an endpoint which applies the given function to the incoming request and returns
 /// an immediate value of `T`.
@@ -21,7 +20,7 @@ pub struct Lazy<F> {
     f: F,
 }
 
-impl<F, T> Endpoint for Lazy<F>
+impl<F, T> EndpointBase for Lazy<F>
 where
     F: Fn(&mut Context) -> Option<T> + Send + Sync,
     T: Send,

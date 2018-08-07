@@ -1,12 +1,12 @@
 #![allow(missing_docs)]
 
-use crate::endpoint::{Context, Endpoint, IntoEndpoint};
+use crate::endpoint::{Context, EndpointBase, IntoEndpoint};
 use either::Either;
 
 pub fn new<E1, E2>(e1: E1, e2: E2) -> Or<E1::Endpoint, E2::Endpoint>
 where
     E1: IntoEndpoint,
-    E2: IntoEndpoint<Output = E1::Output>,
+    E2: IntoEndpoint,
 {
     Or {
         e1: e1.into_endpoint(),
@@ -20,12 +20,12 @@ pub struct Or<E1, E2> {
     e2: E2,
 }
 
-impl<E1, E2> Endpoint for Or<E1, E2>
+impl<E1, E2> EndpointBase for Or<E1, E2>
 where
-    E1: Endpoint,
-    E2: Endpoint<Output = E1::Output>,
+    E1: EndpointBase,
+    E2: EndpointBase,
 {
-    type Output = E1::Output;
+    type Output = Either<E1::Output, E2::Output>;
     type Task = Either<E1::Task, E2::Task>;
 
     fn apply(&self, cx2: &mut Context) -> Option<Self::Task> {

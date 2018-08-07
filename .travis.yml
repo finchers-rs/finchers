@@ -47,9 +47,7 @@ matrix:
       script:
         - cargo clean
         - cargo fmt -- --check
-        - cargo test --all
-        - cargo test --manifest-path finchers-core/Cargo.toml --no-default-features
-        - cargo test --manifest-path finchers-core/Cargo.toml --features "nightly"
+        - cargo test
         - cargo clippy
 
     - rust: nightly

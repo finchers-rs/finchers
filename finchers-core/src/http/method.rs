@@ -1,16 +1,16 @@
 //! Components for checking the HTTP method.
 
-use crate::endpoint::{Context, Endpoint, IntoEndpoint};
+use crate::endpoint::{Context, EndpointBase, IntoEndpoint};
 use http::Method;
 
 #[allow(missing_docs)]
 #[derive(Debug, Clone)]
-pub struct MatchMethod<E: Endpoint> {
+pub struct MatchMethod<E: EndpointBase> {
     method: Method,
     endpoint: E,
 }
 
-impl<E: Endpoint> Endpoint for MatchMethod<E> {
+impl<E: EndpointBase> EndpointBase for MatchMethod<E> {
     type Output = E::Output;
     type Task = E::Task;
 
@@ -56,7 +56,7 @@ macro_rules! define_method {
             endpoint: E,
         }
 
-        impl<E: Endpoint> Endpoint for $Endpoint<E> {
+        impl<E: EndpointBase> EndpointBase for $Endpoint<E> {
             type Output = E::Output;
             type Task = E::Task;
 

@@ -1,6 +1,6 @@
-use crate::endpoint::{Context, Endpoint, IntoEndpoint};
+use crate::endpoint::{Context, EndpointBase, IntoEndpoint};
+use crate::poll::Poll;
 use crate::task::Task;
-use crate::{Error, Poll, PollResult};
 
 pub fn new<E>(endpoint: E) -> Lift<E::Endpoint>
 where
@@ -17,9 +17,9 @@ pub struct Lift<E> {
     endpoint: E,
 }
 
-impl<E> Endpoint for Lift<E>
+impl<E> EndpointBase for Lift<E>
 where
-    E: Endpoint,
+    E: EndpointBase,
 {
     type Output = Option<E::Output>;
     type Task = LiftTask<E::Task>;
@@ -42,10 +42,10 @@ where
 {
     type Output = Option<T::Output>;
 
-    fn poll_task(&mut self) -> PollResult<Self::Output, Error> {
+    fn poll_task(&mut self) -> Poll<Self::Output> {
         match self.task {
-            Some(ref mut t) => t.poll_task().map_ok(Some),
-            None => Poll::Ready(Ok(None)),
+            Some(ref mut t) => t.poll_task().map(Some),
+            None => Poll::Ready(None),
         }
     }
 }

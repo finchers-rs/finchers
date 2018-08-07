@@ -1,8 +1,8 @@
 #![allow(missing_docs)]
 
-use crate::endpoint::{Context, Endpoint};
+use crate::endpoint::{Context, EndpointBase};
+use crate::poll::Poll;
 use crate::task::Task;
-use crate::{Error, PollResult};
 
 #[derive(Debug, Copy, Clone)]
 pub struct MapOk<E, F> {
@@ -12,16 +12,16 @@ pub struct MapOk<E, F> {
 
 pub fn new<E, F, U, A, B>(endpoint: E, f: F) -> MapOk<E, F>
 where
-    E: Endpoint<Output = Result<A, B>>,
-    F: FnOnce(A) -> U + Clone + Send + Sync,
+    E: EndpointBase<Output = Result<A, B>>,
+    F: FnOnce(A) -> U + Clone,
 {
     MapOk { endpoint, f }
 }
 
-impl<E, F, A, B, U> Endpoint for MapOk<E, F>
+impl<E, F, A, B, U> EndpointBase for MapOk<E, F>
 where
-    E: Endpoint<Output = Result<A, B>>,
-    F: FnOnce(A) -> U + Clone + Send + Sync,
+    E: EndpointBase<Output = Result<A, B>>,
+    F: FnOnce(A) -> U + Clone,
 {
     type Output = Result<U, B>;
     type Task = MapOkTask<E::Task, F>;
@@ -42,13 +42,13 @@ pub struct MapOkTask<T, F> {
 
 impl<T, F, U, A, B> Task for MapOkTask<T, F>
 where
-    T: Task<Output = Result<A, B>> + Send,
-    F: FnOnce(A) -> U + Send,
+    T: Task<Output = Result<A, B>>,
+    F: FnOnce(A) -> U,
 {
     type Output = Result<U, B>;
 
-    fn poll_task(&mut self) -> PollResult<Self::Output, Error> {
-        self.task.poll_task().map_ok(|item| {
+    fn poll_task(&mut self) -> Poll<Self::Output> {
+        self.task.poll_task().map(|item| {
             let f = self.f.take().expect("cannot resolve twice");
             item.map(f)
         })

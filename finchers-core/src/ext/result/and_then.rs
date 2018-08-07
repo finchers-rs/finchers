@@ -1,8 +1,8 @@
 #![allow(missing_docs)]
 
-use crate::endpoint::{Context, Endpoint};
+use crate::endpoint::{Context, EndpointBase};
+use crate::poll::Poll;
 use crate::task::Task;
-use crate::{Error, PollResult};
 
 #[derive(Debug, Copy, Clone)]
 pub struct AndThen<E, F> {
@@ -12,16 +12,16 @@ pub struct AndThen<E, F> {
 
 pub fn new<E, F, U, A, B>(endpoint: E, f: F) -> AndThen<E, F>
 where
-    E: Endpoint<Output = Result<A, B>>,
-    F: FnOnce(A) -> Result<U, B> + Clone + Send + Sync,
+    E: EndpointBase<Output = Result<A, B>>,
+    F: FnOnce(A) -> Result<U, B> + Clone,
 {
     AndThen { endpoint, f }
 }
 
-impl<E, F, A, B, U> Endpoint for AndThen<E, F>
+impl<E, F, A, B, U> EndpointBase for AndThen<E, F>
 where
-    E: Endpoint<Output = Result<A, B>>,
-    F: FnOnce(A) -> Result<U, B> + Clone + Send + Sync,
+    E: EndpointBase<Output = Result<A, B>>,
+    F: FnOnce(A) -> Result<U, B> + Clone,
 {
     type Output = Result<U, B>;
     type Task = AndThenTask<E::Task, F>;
@@ -42,13 +42,13 @@ pub struct AndThenTask<T, F> {
 
 impl<T, F, U, A, B> Task for AndThenTask<T, F>
 where
-    T: Task<Output = Result<A, B>> + Send,
-    F: FnOnce(A) -> Result<U, B> + Send,
+    T: Task<Output = Result<A, B>>,
+    F: FnOnce(A) -> Result<U, B>,
 {
     type Output = Result<U, B>;
 
-    fn poll_task(&mut self) -> PollResult<Self::Output, Error> {
-        self.task.poll_task().map_ok(|item| {
+    fn poll_task(&mut self) -> Poll<Self::Output> {
+        self.task.poll_task().map(|item| {
             let f = self.f.take().expect("cannot resolve twice");
             item.and_then(f)
         })

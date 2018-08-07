@@ -9,5 +9,5 @@ fn test_map_async_2() {
     let client = Client::new(endpoint);
 
     let output = client.get("/").run();
-    assert!(output.is_ok());
+    assert!(output.is_some());
 }

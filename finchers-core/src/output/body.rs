@@ -1,5 +1,5 @@
 use bytes::Bytes;
-use crate::poll::{Poll, PollResult};
+use crate::poll::Poll;
 use futures::Stream;
 use std::{fmt, io};
 
@@ -86,7 +86,7 @@ impl ResponseBody {
     }
 
     /// Poll an element of chunk from this stream.
-    pub fn poll_data(&mut self) -> PollResult<Option<Bytes>, io::Error> {
+    pub fn poll_data(&mut self) -> Poll<io::Result<Option<Bytes>>> {
         match self.inner {
             Inner::Empty => Poll::Ready(Ok(None)),
             Inner::Once(ref mut chunk) => Poll::Ready(Ok(chunk.take())),

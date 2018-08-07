@@ -22,20 +22,20 @@
 //!
 //! # Example
 //!
-//! ```rust
+//! ```ignore
 //! #![feature(rust_2018_preview)]
 //!
 //! use finchers::Endpoint;
 //!
-//! fn build_endpoint() -> impl Endpoint<Output = String> + 'static {
+//! fn build_endpoint() -> impl Endpoint {
 //!     use finchers::endpoint::prelude::*;
 //!     use finchers::choice;
 //!
 //!     path("api/v1").right(choice![
-//!         get(param().unwrap_ok())
-//!             .map(|id: u64| format!("GET: id={}", id)),
-//!         post(body().unwrap_ok())
-//!             .map(|data: String| format!("POST: body={}", data)),
+//!         get(param())
+//!             .map_ok(|id: u64| format!("GET: id={}", id)),
+//!         post(body())
+//!             .map_ok(|data: String| format!("POST: body={}", data)),
 //!     ])
 //! }
 //!
@@ -60,9 +60,9 @@ pub mod error {
 }
 
 pub mod endpoint {
-    pub use finchers_core::endpoint::{Endpoint, IntoEndpoint};
+    pub use finchers_core::endpoint::{Endpoint, EndpointBase, IntoEndpoint};
     pub use finchers_core::ext::{
-        abort, all, just, lazy, EndpointExt, EndpointOptionExt, EndpointResultExt,
+        all, just, lazy, EndpointExt, EndpointOptionExt, EndpointResultExt,
     };
     pub use finchers_core::http::{
         body, header, method, path, query, FromBody, FromHeader, FromSegment, FromSegments,
@@ -93,8 +93,9 @@ pub mod runtime {
     pub use finchers_runtime::service::{HttpService, NewHttpService};
 }
 
+pub use finchers_core::endpoint::{Endpoint, EndpointBase};
 pub use finchers_core::http::json::Json;
-pub use finchers_core::{Endpoint, HttpError, Input, Never, Output, Responder};
+pub use finchers_core::{HttpError, Input, Never, Output, Responder};
 pub use finchers_runtime::run;
 
 #[macro_use]

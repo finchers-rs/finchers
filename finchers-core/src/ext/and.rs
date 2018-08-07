@@ -1,17 +1,15 @@
 #![allow(missing_docs)]
 
 use super::maybe_done::MaybeDone;
-use crate::endpoint::{Context, Endpoint, IntoEndpoint};
+use crate::endpoint::{Context, EndpointBase, IntoEndpoint};
+use crate::poll::Poll;
 use crate::task::Task;
-use crate::{Error, Poll, PollResult};
 use std::fmt;
 
 pub fn new<E1, E2>(e1: E1, e2: E2) -> And<E1::Endpoint, E2::Endpoint>
 where
     E1: IntoEndpoint,
     E2: IntoEndpoint,
-    E1::Output: Send,
-    E2::Output: Send,
 {
     And {
         e1: e1.into_endpoint(),
@@ -25,12 +23,10 @@ pub struct And<E1, E2> {
     e2: E2,
 }
 
-impl<E1, E2> Endpoint for And<E1, E2>
+impl<E1, E2> EndpointBase for And<E1, E2>
 where
-    E1: Endpoint,
-    E2: Endpoint,
-    E1::Output: Send,
-    E2::Output: Send,
+    E1: EndpointBase,
+    E2: EndpointBase,
 {
     type Output = (E1::Output, E2::Output);
     type Task = AndTask<E1::Task, E2::Task>;
@@ -69,31 +65,15 @@ impl<F1, F2> Task for AndTask<F1, F2>
 where
     F1: Task,
     F2: Task,
-    F1::Output: Send,
-    F2::Output: Send,
 {
     type Output = (F1::Output, F2::Output);
 
-    fn poll_task(&mut self) -> PollResult<Self::Output, Error> {
-        let mut all_done = match self.f1.poll_done() {
-            Ok(done) => done,
-            Err(e) => {
-                self.f1.erase();
-                self.f2.erase();
-                return Poll::Ready(Err(e));
-            }
-        };
-        all_done = match self.f2.poll_done() {
-            Ok(done) => all_done && done,
-            Err(e) => {
-                self.f1.erase();
-                self.f2.erase();
-                return Poll::Ready(Err(e));
-            }
-        };
+    fn poll_task(&mut self) -> Poll<Self::Output> {
+        let mut all_done = self.f1.poll_done();
+        all_done = all_done && self.f2.poll_done();
 
         if all_done {
-            Poll::Ready(Ok((self.f1.take_item(), self.f2.take_item())))
+            Poll::Ready((self.f1.take_item(), self.f2.take_item()))
         } else {
             Poll::Pending
         }

@@ -1,7 +1,7 @@
 use super::maybe_done::MaybeDone;
-use crate::endpoint::{Context, Endpoint, IntoEndpoint};
+use crate::endpoint::{Context, EndpointBase, IntoEndpoint};
+use crate::poll::Poll;
 use crate::task::Task;
-use crate::{Error, Poll, PollResult};
 use std::{fmt, mem};
 
 /// Create an endpoint which evaluates the all endpoint in the given collection sequentially.
@@ -9,7 +9,6 @@ pub fn all<I>(iter: I) -> All<<I::Item as IntoEndpoint>::Endpoint>
 where
     I: IntoIterator,
     I::Item: IntoEndpoint,
-    <I::Item as IntoEndpoint>::Output: Send,
 {
     All {
         inner: iter.into_iter().map(IntoEndpoint::into_endpoint).collect(),
@@ -22,10 +21,9 @@ pub struct All<E> {
     inner: Vec<E>,
 }
 
-impl<E> Endpoint for All<E>
+impl<E> EndpointBase for All<E>
 where
-    E: Endpoint,
-    E::Output: Send,
+    E: EndpointBase,
 {
     type Output = Vec<E::Output>;
     type Task = AllTask<E::Task>;
@@ -60,19 +58,14 @@ where
 impl<T> Task for AllTask<T>
 where
     T: Task,
-    T::Output: Send,
 {
     type Output = Vec<T::Output>;
 
-    fn poll_task(&mut self) -> PollResult<Self::Output, Error> {
+    fn poll_task(&mut self) -> Poll<Self::Output> {
         let mut all_done = true;
         for i in 0..self.elems.len() {
             match self.elems[i].poll_done() {
-                Ok(done) => all_done = all_done & done,
-                Err(e) => {
-                    self.elems = Vec::new();
-                    return Poll::Ready(Err(e));
-                }
+                done => all_done = all_done & done,
             }
         }
         if all_done {
@@ -80,7 +73,7 @@ where
                 .into_iter()
                 .map(|mut m| m.take_item())
                 .collect();
-            Into::into(Ok(elems))
+            Poll::Ready(elems)
         } else {
             Poll::Pending
         }

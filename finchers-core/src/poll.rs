@@ -2,9 +2,6 @@ use futures::{self, Async};
 #[cfg(feature = "nightly")]
 use std::ops::Try;
 
-/// A type alias of `Poll<Result<T, E>>`.
-pub type PollResult<T, E> = Poll<Result<T, E>>;
-
 /// An enum which indicates whether a value is ready or not.
 // FIXME: replace with core::task::Poll
 #[derive(Debug, Copy, Clone, PartialEq)]

@@ -9,10 +9,10 @@ use std::path::PathBuf;
 use std::str::{FromStr, Utf8Error};
 use std::{error, fmt, net};
 
-use crate::endpoint::{Context, Endpoint, Segment, Segments};
+use crate::endpoint::{Context, EndpointBase, Segment, Segments};
 use crate::input::with_get_cx;
 use crate::task::{self, Task};
-use crate::{Error, HttpError, Never, Poll, PollResult};
+use crate::{HttpError, Never, Poll};
 
 // ==== MatchPath =====
 
@@ -110,7 +110,7 @@ pub enum MatchPathKind {
     AllSegments,
 }
 
-impl Endpoint for MatchPath {
+impl EndpointBase for MatchPath {
     type Output = ();
     type Task = task::Ready<Self::Output>;
 
@@ -198,7 +198,7 @@ impl error::Error for ParseMatchError {
 /// ```
 pub fn param<T>() -> Param<T>
 where
-    T: FromSegment + Send,
+    T: FromSegment,
 {
     Param {
         _marker: PhantomData,
@@ -225,7 +225,7 @@ impl<T> fmt::Debug for Param<T> {
     }
 }
 
-impl<T> Endpoint for Param<T>
+impl<T> EndpointBase for Param<T>
 where
     T: FromSegment,
 {
@@ -250,10 +250,10 @@ pub struct ParamTask<T> {
 impl<T: FromSegment> Task for ParamTask<T> {
     type Output = Result<T, T::Error>;
 
-    fn poll_task(&mut self) -> PollResult<Self::Output, Error> {
+    fn poll_task(&mut self) -> Poll<Self::Output> {
         with_get_cx(|input| {
             let s = Segment::new(input.request().uri().path(), self.range.clone());
-            Poll::Ready(Ok(T::from_segment(s)))
+            Poll::Ready(T::from_segment(s))
         })
     }
 }
@@ -339,7 +339,7 @@ impl FromSegment for String {
 /// ```
 pub fn params<T>() -> Params<T>
 where
-    T: FromSegments + Send,
+    T: FromSegments,
 {
     Params {
         _marker: PhantomData,
@@ -366,9 +366,9 @@ impl<T> fmt::Debug for Params<T> {
     }
 }
 
-impl<T> Endpoint for Params<T>
+impl<T> EndpointBase for Params<T>
 where
-    T: FromSegments + Send,
+    T: FromSegments,
 {
     type Output = T;
     type Task = task::Ready<Self::Output>;

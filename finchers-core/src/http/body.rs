@@ -1,14 +1,17 @@
 //! Components for parsing the HTTP request body.
 
 use bytes::{Bytes, BytesMut};
+use failure::Fail;
+use http::StatusCode;
 use std::marker::PhantomData;
 use std::{fmt, mem};
 
-use crate::endpoint::{assert_output, Context, Endpoint};
+use crate::endpoint::{assert_output, Context, EndpointBase};
 use crate::error::BadRequest;
-use crate::input::{with_get_cx, RequestBody};
+use crate::error::HttpError;
+use crate::input::{with_get_cx, PollDataError, RequestBody};
 use crate::task::Task;
-use crate::{Error, Input, Never, Poll, PollResult};
+use crate::{Input, Never, Poll};
 
 /// Creates an endpoint which will take the instance of `RequestBody` from the context.
 ///
@@ -30,7 +33,7 @@ impl fmt::Debug for RawBody {
     }
 }
 
-impl Endpoint for RawBody {
+impl EndpointBase for RawBody {
     type Output = RequestBody;
     type Task = RawBodyTask;
 
@@ -48,8 +51,8 @@ pub struct RawBodyTask {
 impl Task for RawBodyTask {
     type Output = RequestBody;
 
-    fn poll_task(&mut self) -> PollResult<Self::Output, Error> {
-        Poll::Ready(Ok(with_get_cx(|input| input.body_mut().take())))
+    fn poll_task(&mut self) -> Poll<Self::Output> {
+        Poll::Ready(with_get_cx(|input| input.body_mut().take()))
     }
 }
 
@@ -59,7 +62,7 @@ pub fn body<T>() -> Body<T>
 where
     T: FromBody,
 {
-    assert_output::<_, Result<T, T::Error>>(Body {
+    assert_output::<_, Result<T, BodyError<T::Error>>>(Body {
         _marker: PhantomData,
     })
 }
@@ -84,11 +87,11 @@ impl<T> fmt::Debug for Body<T> {
     }
 }
 
-impl<T> Endpoint for Body<T>
+impl<T> EndpointBase for Body<T>
 where
     T: FromBody,
 {
-    type Output = Result<T, T::Error>;
+    type Output = Result<T, BodyError<T::Error>>;
     type Task = BodyTask<T>;
 
     fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
@@ -111,9 +114,9 @@ impl<T> Task for BodyTask<T>
 where
     T: FromBody,
 {
-    type Output = Result<T, T::Error>;
+    type Output = Result<T, BodyError<T::Error>>;
 
-    fn poll_task(&mut self) -> PollResult<Self::Output, Error> {
+    fn poll_task(&mut self) -> Poll<Self::Output> {
         use self::BodyTask::*;
         'poll: loop {
             let err = match *self {
@@ -130,19 +133,46 @@ where
             };
 
             let ready = match (mem::replace(self, Done), err) {
-                (_, Some(err)) => Err(err.into()),
+                (_, Some(cause)) => Err(BodyError::Receiving(cause)),
                 (Init(..), _) => {
                     let body = with_get_cx(|input| input.body_mut().take());
                     *self = Receiving(body, BytesMut::new());
                     continue 'poll;
                 }
                 (Receiving(_, buf), _) => {
-                    Ok(with_get_cx(|input| T::from_body(buf.freeze(), input)))
+                    with_get_cx(|input| T::from_body(buf.freeze(), input).map_err(BodyError::Parse))
                 }
                 _ => panic!(),
             };
 
             break 'poll Poll::Ready(ready);
+        }
+    }
+}
+
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub enum BodyError<E> {
+    Receiving(PollDataError),
+    Parse(E),
+}
+
+impl<E: fmt::Display> fmt::Display for BodyError<E> {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            BodyError::Receiving(ref e) => write!(formatter, "{}", e),
+            BodyError::Parse(ref e) => write!(formatter, "{}", e),
+        }
+    }
+}
+
+impl<E: Fail> Fail for BodyError<E> {}
+
+impl<E: Fail> HttpError for BodyError<E> {
+    fn status_code(&self) -> StatusCode {
+        match self {
+            BodyError::Parse { .. } => StatusCode::BAD_REQUEST,
+            BodyError::Receiving { .. } => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }

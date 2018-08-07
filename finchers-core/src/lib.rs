@@ -12,8 +12,6 @@
 mod poll;
 
 mod never;
-mod option;
-mod result;
 
 pub mod endpoint;
 pub mod error;
@@ -28,8 +26,6 @@ pub use crate::endpoint::Endpoint;
 pub use crate::error::{Error, HttpError};
 pub use crate::input::Input;
 pub use crate::never::Never;
-pub use crate::option::IsOption;
 pub use crate::output::{Output, Responder};
-pub use crate::poll::{Poll, PollResult};
-pub use crate::result::IsResult;
+pub use crate::poll::Poll;
 pub use crate::task::Task;
