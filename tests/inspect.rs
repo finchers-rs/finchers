@@ -18,6 +18,6 @@ fn test_inspect() {
     let client = Client::new(endpoint);
 
     let outcome = client.get("/").run();
-    assert_eq!(outcome.ok(), Some("Foo"));
+    assert_eq!(outcome, Some("Foo"));
     assert_eq!(count.load(Ordering::Relaxed), 42);
 }

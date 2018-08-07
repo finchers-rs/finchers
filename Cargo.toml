@@ -44,3 +44,4 @@ finchers-runtime = { version = "0.12.0-dev", path = "finchers-runtime" }
 [dev-dependencies]
 bytes = "0.4"
 http = "0.1"
+either = "*"

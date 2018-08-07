@@ -1,5 +1,6 @@
 #![feature(rust_2018_preview)]
 
+use either::Either;
 use finchers_core::ext::{just, EndpointExt};
 use finchers_core::http::path::path;
 use finchers_runtime::local::Client;
@@ -12,10 +13,10 @@ fn test_or_1() {
     let client = Client::new(endpoint);
 
     let outcome = client.get("/foo").run();
-    assert_eq!(outcome.ok(), Some("foo"));
+    assert_eq!(outcome, Some(Either::Left("foo")));
 
     let outcome = client.get("/bar").run();
-    assert_eq!(outcome.ok(), Some("bar"));
+    assert_eq!(outcome, Some(Either::Right("bar")));
 }
 
 #[test]
@@ -26,8 +27,8 @@ fn test_or_choose_longer_segments() {
     let client = Client::new(endpoint);
 
     let outcome = client.get("/foo").run();
-    assert_eq!(outcome.ok(), Some("foo"));
+    assert_eq!(outcome, Some(Either::Left("foo")));
 
     let outcome = client.get("/foo/bar").run();
-    assert_eq!(outcome.ok(), Some("foobar"));
+    assert_eq!(outcome, Some(Either::Right("foobar")));
 }

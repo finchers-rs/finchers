@@ -29,7 +29,4 @@ build: false
 
 test_script:
   - cargo clean
-  - cargo test --all
-  - if [%TOOLCHAIN%]==[nightly] (
-      cargo test --manifest-path finchers-core/Cargo.toml --features nightly
-    )
+  - cargo test

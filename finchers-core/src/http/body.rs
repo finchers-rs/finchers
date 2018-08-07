@@ -61,7 +61,6 @@ impl Task for RawBodyTask {
 pub fn body<T>() -> Body<T>
 where
     T: FromBody,
-    T::Error: Fail,
 {
     assert_output::<_, Result<T, BodyError<T::Error>>>(Body {
         _marker: PhantomData,
@@ -91,7 +90,6 @@ impl<T> fmt::Debug for Body<T> {
 impl<T> EndpointBase for Body<T>
 where
     T: FromBody,
-    T::Error: Fail,
 {
     type Output = Result<T, BodyError<T::Error>>;
     type Task = BodyTask<T>;
@@ -115,7 +113,6 @@ pub enum BodyTask<T> {
 impl<T> Task for BodyTask<T>
 where
     T: FromBody,
-    T::Error: Fail,
 {
     type Output = Result<T, BodyError<T::Error>>;
 
@@ -136,15 +133,15 @@ where
             };
 
             let ready = match (mem::replace(self, Done), err) {
-                (_, Some(cause)) => Err(BodyError::Receiving { cause }),
+                (_, Some(cause)) => Err(BodyError::Receiving(cause)),
                 (Init(..), _) => {
                     let body = with_get_cx(|input| input.body_mut().take());
                     *self = Receiving(body, BytesMut::new());
                     continue 'poll;
                 }
-                (Receiving(_, buf), _) => with_get_cx(|input| {
-                    T::from_body(buf.freeze(), input).map_err(|cause| BodyError::Parse { cause })
-                }),
+                (Receiving(_, buf), _) => {
+                    with_get_cx(|input| T::from_body(buf.freeze(), input).map_err(BodyError::Parse))
+                }
                 _ => panic!(),
             };
 
@@ -154,13 +151,22 @@ where
 }
 
 #[allow(missing_docs)]
-#[derive(Debug, Fail)]
-pub enum BodyError<E: Fail> {
-    #[fail(display = "{}", cause)]
-    Receiving { cause: PollDataError },
-    #[fail(display = "{}", cause)]
-    Parse { cause: E },
+#[derive(Debug)]
+pub enum BodyError<E> {
+    Receiving(PollDataError),
+    Parse(E),
 }
+
+impl<E: fmt::Display> fmt::Display for BodyError<E> {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            BodyError::Receiving(ref e) => write!(formatter, "{}", e),
+            BodyError::Parse(ref e) => write!(formatter, "{}", e),
+        }
+    }
+}
+
+impl<E: Fail> Fail for BodyError<E> {}
 
 impl<E: Fail> HttpError for BodyError<E> {
     fn status_code(&self) -> StatusCode {
