@@ -11,11 +11,12 @@ use std::sync::Arc;
 use std::time;
 use std::{fmt, io};
 
+use finchers_core::either::Either;
 use finchers_core::endpoint::{Context, Endpoint};
 use finchers_core::error::{HttpError, NoRoute};
 use finchers_core::future::{Future, Poll};
 use finchers_core::input::{with_set_cx, Input, RequestBody};
-use finchers_core::output::{Responder, ResponseBody};
+use finchers_core::output::{once, Once, Responder};
 
 /// A factory of HTTP service which wraps an `Endpoint`.
 #[derive(Debug)]
@@ -52,7 +53,7 @@ impl<E: Endpoint> App<E> {
 
 impl<E: Endpoint> NewService for App<E> {
     type ReqBody = Body;
-    type ResBody = ResponseBody;
+    type ResBody = Either<Once<String>, E::Body>;
     type Error = io::Error;
     type Service = AppService<E>;
     type InitError = io::Error;
@@ -75,7 +76,7 @@ pub struct AppService<E: Endpoint> {
 
 impl<E: Endpoint> Service for AppService<E> {
     type ReqBody = Body;
-    type ResBody = ResponseBody;
+    type ResBody = Either<Once<String>, E::Body>;
     type Error = io::Error;
     type Future = AppServiceFuture<E::Future>;
 
@@ -109,17 +110,17 @@ pub struct AppServiceFuture<T> {
 }
 
 impl<T> AppServiceFuture<T> {
-    fn handle_error(&self, err: &HttpError) -> Response<ResponseBody> {
-        (self.error_handler)(err, &self.input)
+    fn handle_error(&self, err: &HttpError) -> Response<Once<String>> {
+        (self.error_handler)(err, &self.input).map(once)
     }
 }
 
-impl<T> futures::Future for AppServiceFuture<T>
+impl<T, Out> futures::Future for AppServiceFuture<T>
 where
-    T: Future,
-    T::Output: Responder,
+    T: Future<Output = Out>,
+    Out: Responder,
 {
-    type Item = Response<ResponseBody>;
+    type Item = Response<Either<Once<String>, Out::Body>>;
     type Error = io::Error;
 
     fn poll(&mut self) -> futures::Poll<Self::Item, Self::Error> {
@@ -135,12 +136,13 @@ where
             Poll::Pending => return Ok(NotReady),
             Poll::Ready(Some(output)) => output
                 .respond(&self.input)
-                .map(|res| res.map(Into::into))
+                .map(|res| res.map(Either::Right))
                 .map_err(Into::into),
             Poll::Ready(None) => Err(NoRoute.into()),
         };
 
-        let mut response = output.unwrap_or_else(|err| self.handle_error(err.as_http_error()));
+        let mut response =
+            output.unwrap_or_else(|err| self.handle_error(err.as_http_error()).map(Either::Left));
 
         if !response.headers().contains_key(header::SERVER) {
             response.headers_mut().insert(
@@ -173,24 +175,15 @@ where
 // ==== ErrorHandler ====
 
 /// A type alias of the error handler used by `EndpointService`.
-pub type ErrorHandler = fn(&HttpError, &Input) -> Response<ResponseBody>;
+pub type ErrorHandler = fn(&HttpError, &Input) -> Response<String>;
 
-fn default_error_handler(err: &HttpError, _: &Input) -> Response<ResponseBody> {
-    let body = err.to_string();
-    let body_len = body.len().to_string();
-
-    let mut response = Response::new(ResponseBody::once(body));
+fn default_error_handler(err: &HttpError, _: &Input) -> Response<String> {
+    let mut response = Response::new(format!("{:#}", err));
     *response.status_mut() = err.status_code();
     response.headers_mut().insert(
         header::CONTENT_TYPE,
         HeaderValue::from_static("text/plain; charset=utf-8"),
     );
-    response
-        .headers_mut()
-        .insert(header::CONTENT_LENGTH, unsafe {
-            HeaderValue::from_shared_unchecked(body_len.into())
-        });
     err.headers(response.headers_mut());
-
     response
 }

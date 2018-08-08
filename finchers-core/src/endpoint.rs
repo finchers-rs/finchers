@@ -6,6 +6,7 @@ pub mod ext;
 pub use self::context::{Context, EncodedStr, Segment, Segments};
 use crate::future::Future;
 use crate::output::Responder;
+use hyper::body::Payload;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -68,7 +69,8 @@ impl<E: EndpointBase> EndpointBase for Arc<E> {
 
 #[allow(missing_docs)]
 pub trait Endpoint: Send + Sync + 'static + sealed::Sealed {
-    type Output: Responder;
+    type Output: Responder<Body = Self::Body>;
+    type Body: Payload;
     type Future: Future<Output = Self::Output> + Send + 'static;
 
     fn apply(&self, cx: &mut Context) -> Option<Self::Future>;
@@ -94,6 +96,7 @@ where
     E::Future: Send + 'static,
 {
     type Output = E::Output;
+    type Body = <E::Output as Responder>::Body;
     type Future = E::Future;
 
     fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
