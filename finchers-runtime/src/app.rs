@@ -4,8 +4,8 @@ use futures;
 use futures::Async::*;
 use http::header::{self, HeaderValue};
 use http::{Request, Response};
-use hyper;
-use hyper::server::{NewService, Service};
+use hyper::body::Body;
+use hyper::service::{NewService, Service};
 use slog::Logger;
 use std::sync::Arc;
 use std::time;
@@ -51,13 +51,15 @@ impl<E: Endpoint> App<E> {
 }
 
 impl<E: Endpoint> NewService for App<E> {
-    type Request = hyper::Request;
-    type Response = hyper::Response<ResponseBody>;
-    type Error = hyper::Error;
-    type Instance = AppService<E>;
+    type ReqBody = Body;
+    type ResBody = ResponseBody;
+    type Error = io::Error;
+    type Service = AppService<E>;
+    type InitError = io::Error;
+    type Future = futures::future::FutureResult<Self::Service, Self::InitError>;
 
-    fn new_service(&self) -> io::Result<Self::Instance> {
-        Ok(AppService {
+    fn new_service(&self) -> Self::Future {
+        futures::future::ok(AppService {
             data: self.data.clone(),
         })
     }
@@ -72,13 +74,13 @@ pub struct AppService<E: Endpoint> {
 }
 
 impl<E: Endpoint> Service for AppService<E> {
-    type Request = hyper::Request;
-    type Response = hyper::Response<ResponseBody>;
-    type Error = hyper::Error;
+    type ReqBody = Body;
+    type ResBody = ResponseBody;
+    type Error = io::Error;
     type Future = AppServiceFuture<E::Future>;
 
-    fn call(&self, request: Self::Request) -> Self::Future {
-        let request = Request::from(request).map(RequestBody::from_hyp);
+    fn call(&mut self, request: Request<Self::ReqBody>) -> Self::Future {
+        let request = request.map(RequestBody::from_hyp);
         let logger = self.data.logger.new(o!{
             "method" => request.method().to_string(),
             "path" => request.uri().path().to_owned(),
@@ -117,8 +119,8 @@ where
     T: Future,
     T::Output: Responder,
 {
-    type Item = hyper::Response<ResponseBody>;
-    type Error = hyper::Error;
+    type Item = Response<ResponseBody>;
+    type Error = io::Error;
 
     fn poll(&mut self) -> futures::Poll<Self::Item, Self::Error> {
         let output = match {
@@ -152,7 +154,7 @@ where
         let duration_msec = duration.as_secs() * 10 + duration.subsec_nanos() as u64 / 1_000_000;
         info!(self.logger, "{} ({} ms)", response.status(), duration_msec);
 
-        Ok(Ready(hyper::Response::from(response)))
+        Ok(Ready(response))
     }
 }
 

@@ -1,15 +1,14 @@
 #![allow(missing_docs)]
 
 use failure;
-use futures::{Future, Stream};
-use hyper::server::Http;
+use futures::Future;
+use hyper::server::Server;
 use slog::{Drain, Level, Logger};
 use slog_async;
 use slog_term;
 use std::net::{IpAddr, SocketAddr};
 use structopt::StructOpt;
 use tokio;
-use tokio::net::TcpListener;
 
 use app::App;
 use finchers_core::endpoint::Endpoint;
@@ -111,16 +110,20 @@ pub type LaunchResult<T> = Result<T, failure::Error>;
 /// Start the server with given endpoint and default configuration.
 pub fn launch(endpoint: impl Endpoint) -> LaunchResult<()> {
     let config = Config::from_env();
+    let logger = config.logger();
 
-    let new_service = App::new(endpoint, config.logger());
+    let new_service = App::new(endpoint, logger.clone());
+    let server = Server::try_bind(&config.addr())?
+        .serve(new_service)
+        .map_err({
+            let logger = logger.clone();
+            move |err| {
+                error!(logger, "server error: {}", err);
+            }
+        });
 
-    let incoming = TcpListener::bind(&config.addr())?.incoming();
-
-    let server = Http::new()
-        .serve_incoming(incoming, new_service)
-        .for_each(|conn| conn.then(|_| Ok(())))
-        .map_err(|_| ());
-
+    info!(logger, "Listening on http://{}", config.addr());
     tokio::run(server);
+
     Ok(())
 }

@@ -11,6 +11,8 @@ Runtime support for Finchers, which supports serving asynchronous HTTP services
 """
 
 [dependencies]
+finchers-core = { version = "0.12.0-dev", path = "../finchers-core" }
+
 bytes = "0.4"
 failure = "0.1.1"
 futures = "0.1.20"
@@ -21,12 +23,4 @@ slog-async = "2.3.0"
 slog-term = "2.4.0"
 structopt = "0.2.7"
 tokio = "0.1.5"
-
-[dependencies.finchers-core]
-version = "0.12.0-dev"
-path = "../finchers-core"
-
-[dependencies.hyper]
-version = "0.11.24"
-features = ["compat"]
-default-features = false
+hyper = "0.12.7"
