@@ -1,4 +1,4 @@
-use either::Either;
+use finchers_core::either::Either;
 use finchers_core::endpoint::ext::{just, EndpointExt};
 use finchers_core::http::path::path;
 use finchers_runtime::local::Client;
