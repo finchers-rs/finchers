@@ -7,11 +7,9 @@ use std::marker::PhantomData;
 use std::{fmt, mem};
 
 use crate::endpoint::{assert_output, Context, EndpointBase};
-use crate::error::Failure;
-use crate::error::HttpError;
+use crate::error::{Failure, HttpError, Never};
 use crate::future::{Future, Poll};
-use crate::input::{with_get_cx, PollDataError, RequestBody};
-use crate::{Input, Never};
+use crate::input::{with_get_cx, Input, PollDataError, RequestBody};
 
 /// Creates an endpoint which will take the instance of `RequestBody` from the context.
 ///

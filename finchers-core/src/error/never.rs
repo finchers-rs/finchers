@@ -1,4 +1,4 @@
-use crate::error::HttpError;
+use super::HttpError;
 use std::{error, fmt};
 
 /// A type which has no possible values.

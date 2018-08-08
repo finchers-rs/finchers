@@ -1,8 +1,10 @@
 //! Error primitives.
 
 mod failure;
+mod never;
 
 pub use self::failure::Failure;
+pub use self::never::Never;
 
 use std::borrow::Cow;
 use std::fmt;

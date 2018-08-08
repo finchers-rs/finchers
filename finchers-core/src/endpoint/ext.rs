@@ -36,9 +36,9 @@ pub use self::result::EndpointResultExt;
 
 // ==== EndpointExt ===
 
+use crate::either::Either;
 use crate::endpoint::{assert_output, EndpointBase, IntoEndpoint};
 use crate::future::Future;
-use either::Either;
 
 /// A set of extension methods used for composing complicate endpoints.
 pub trait EndpointExt: EndpointBase + Sized {

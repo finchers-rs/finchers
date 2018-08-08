@@ -2,14 +2,13 @@ use std::borrow::Cow;
 use std::fmt;
 
 use bytes::Bytes;
-use either::Either;
 use http::header::HeaderValue;
 use http::{header, Response};
 
 use super::body::ResponseBody;
-use crate::error::Error;
+use crate::either::Either;
+use crate::error::{Error, Never};
 use crate::input::Input;
-use crate::never::Never;
 
 const TEXT_PLAIN: &str = "text/plain; charset=utf-8";
 

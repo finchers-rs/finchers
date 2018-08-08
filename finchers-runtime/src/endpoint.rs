@@ -9,12 +9,11 @@ use http::{Request, Response};
 use std::sync::Arc;
 use std::{fmt, io};
 
-use finchers_core::endpoint::{Context, EndpointBase};
-use finchers_core::error::NoRoute;
+use finchers_core::endpoint::{Context, Endpoint, EndpointBase};
+use finchers_core::error::{HttpError, NoRoute};
 use finchers_core::future::{Future, Poll};
-use finchers_core::input::RequestBody;
+use finchers_core::input::{Input, RequestBody};
 use finchers_core::output::{Responder, ResponseBody};
-use finchers_core::{Endpoint, HttpError, Input};
 
 use apply::{apply_request, ApplyRequest};
 use service::{HttpService, NewHttpService, Payload};

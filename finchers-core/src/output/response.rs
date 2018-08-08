@@ -1,6 +1,7 @@
-use either::Either;
 use http::header::{HeaderMap, HeaderValue};
 use http::StatusCode;
+
+use crate::either::Either;
 
 /// Trait representing additional information for constructing an HTTP response.
 ///
