@@ -12,7 +12,7 @@ use {mime, serde_json};
 use crate::error::{HttpError, Never};
 use crate::http::body::FromBody;
 use crate::input::Input;
-use crate::output::{HttpResponse, Responder, ResponseBody};
+use crate::output::{HttpResponse, Responder, once, Once};
 
 /// A wrapper struct representing a statically typed JSON value.
 #[derive(Debug)]
@@ -66,25 +66,19 @@ impl<T> Responder for Json<T>
 where
     T: Serialize + HttpResponse,
 {
-    type Body = ResponseBody;
+    type Body = Once<Vec<u8>>;
     type Error = JsonSerializeError;
 
     fn respond(self, _: &Input) -> Result<Response<Self::Body>, Self::Error> {
         let body = serde_json::to_vec(&self.0).map_err(|cause| JsonSerializeError { cause })?;
-        let body_len = body.len().to_string();
 
-        let mut response = Response::new(ResponseBody::once(body));
+        let mut response = Response::new(once(body));
         *response.status_mut() = self.0.status_code();
         self.0.append_headers(response.headers_mut());
         response.headers_mut().insert(
             header::CONTENT_TYPE,
             HeaderValue::from_static("application/json"),
         );
-        response
-            .headers_mut()
-            .insert(header::CONTENT_LENGTH, unsafe {
-                HeaderValue::from_shared_unchecked(body_len.into())
-            });
 
         Ok(response)
     }
@@ -113,24 +107,18 @@ impl JsonValue {
 }
 
 impl Responder for JsonValue {
-    type Body = ResponseBody;
+    type Body = Once<String>;
     type Error = Never;
 
     fn respond(self, _: &Input) -> Result<Response<Self::Body>, Self::Error> {
         let body = self.value.to_string();
-        let body_len = body.len().to_string();
 
-        let mut response = Response::new(ResponseBody::once(body));
+        let mut response = Response::new(once(body));
         *response.status_mut() = self.status;
         response.headers_mut().insert(
             header::CONTENT_TYPE,
             HeaderValue::from_static("application/json"),
         );
-        response
-            .headers_mut()
-            .insert(header::CONTENT_LENGTH, unsafe {
-                HeaderValue::from_shared_unchecked(body_len.into())
-            });
 
         Ok(response)
     }
