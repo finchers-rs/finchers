@@ -1,4 +1,3 @@
-use finchers::output::HttpResponse;
 use finchers::HttpResponse;
 use http::StatusCode;
 
