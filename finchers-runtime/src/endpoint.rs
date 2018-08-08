@@ -172,7 +172,10 @@ where
     fn poll(&mut self) -> futures::Poll<Self::Item, Self::Error> {
         let output = match self.apply.poll_ready(&mut self.input) {
             Poll::Pending => return Ok(NotReady),
-            Poll::Ready(Some(output)) => output.respond(&self.input),
+            Poll::Ready(Some(output)) => output
+                .respond(&self.input)
+                .map(|res| res.map(Into::into))
+                .map_err(Into::into),
             Poll::Ready(None) => Err(NoRoute.into()),
         };
 

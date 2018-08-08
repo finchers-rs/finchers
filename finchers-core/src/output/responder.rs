@@ -9,6 +9,7 @@ use http::{header, Response};
 use super::body::ResponseBody;
 use crate::error::Error;
 use crate::input::Input;
+use crate::never::Never;
 
 const TEXT_PLAIN: &str = "text/plain; charset=utf-8";
 
@@ -17,21 +18,33 @@ pub type Output = Response<ResponseBody>;
 
 /// Trait representing the conversion to an HTTP response.
 pub trait Responder {
+    #[allow(missing_docs)]
+    type Body: Into<ResponseBody>; // TODO: replace the trait bound with Payload.
+    #[allow(missing_docs)]
+    type Error: Into<Error>;
+
     /// Consume `self` and construct a new HTTP response.
-    fn respond(self, input: &Input) -> Result<Output, Error>;
+    fn respond(self, input: &Input) -> Result<Response<Self::Body>, Self::Error>;
 }
 
 impl<T> Responder for Response<T>
 where
     T: Into<ResponseBody>,
 {
-    fn respond(self, _: &Input) -> Result<Output, Error> {
-        Ok(self.map(Into::into))
+    type Body = T;
+    type Error = Never;
+
+    #[inline(always)]
+    fn respond(self, _: &Input) -> Result<Response<Self::Body>, Self::Error> {
+        Ok(self)
     }
 }
 
 impl Responder for &'static str {
-    fn respond(self, _: &Input) -> Result<Output, Error> {
+    type Body = ResponseBody;
+    type Error = Never;
+
+    fn respond(self, _: &Input) -> Result<Response<Self::Body>, Self::Error> {
         Ok(make_response(
             Bytes::from_static(self.as_bytes()),
             TEXT_PLAIN,
@@ -40,13 +53,19 @@ impl Responder for &'static str {
 }
 
 impl Responder for String {
-    fn respond(self, _: &Input) -> Result<Output, Error> {
+    type Body = ResponseBody;
+    type Error = Never;
+
+    fn respond(self, _: &Input) -> Result<Response<Self::Body>, Self::Error> {
         Ok(make_response(Bytes::from(self), TEXT_PLAIN))
     }
 }
 
 impl Responder for Cow<'static, str> {
-    fn respond(self, _: &Input) -> Result<Output, Error> {
+    type Body = ResponseBody;
+    type Error = Never;
+
+    fn respond(self, _: &Input) -> Result<Response<Self::Body>, Self::Error> {
         let body = match self {
             Cow::Borrowed(s) => Bytes::from_static(s.as_bytes()),
             Cow::Owned(s) => Bytes::from(s),
@@ -58,12 +77,13 @@ impl Responder for Cow<'static, str> {
 impl<T, E> Responder for Result<T, E>
 where
     T: Responder,
-    E: Into<Error>,
+    Error: From<E>,
 {
-    fn respond(self, input: &Input) -> Result<Output, Error> {
-        self.map_err(Into::<Error>::into)?
-            .respond(input)
-            .map_err(Into::into)
+    type Body = T::Body;
+    type Error = Error;
+
+    fn respond(self, input: &Input) -> Result<Response<Self::Body>, Self::Error> {
+        self?.respond(input).map_err(Into::into)
     }
 }
 
@@ -72,10 +92,19 @@ where
     L: Responder,
     R: Responder,
 {
-    fn respond(self, input: &Input) -> Result<Output, Error> {
+    type Body = ResponseBody;
+    type Error = Error;
+
+    fn respond(self, input: &Input) -> Result<Response<Self::Body>, Self::Error> {
         match self {
-            Either::Left(l) => l.respond(input),
-            Either::Right(r) => r.respond(input),
+            Either::Left(l) => l
+                .respond(input)
+                .map(|res| res.map(Into::into))
+                .map_err(Into::into),
+            Either::Right(r) => r
+                .respond(input)
+                .map(|res| res.map(Into::into))
+                .map_err(Into::into),
         }
     }
 }
@@ -110,7 +139,10 @@ impl Debug {
 }
 
 impl Responder for Debug {
-    fn respond(self, _: &Input) -> Result<Output, Error> {
+    type Body = ResponseBody;
+    type Error = Never;
+
+    fn respond(self, _: &Input) -> Result<Response<Self::Body>, Self::Error> {
         let body = if self.pretty {
             format!("{:#?}", self.value)
         } else {
