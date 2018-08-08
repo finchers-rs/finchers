@@ -271,31 +271,28 @@ impl Context {
         }
     }
 
-    fn dummy_module_ident(&self) -> Ident {
-        format!("__impl_http_response_for_{}", self.ident).into()
+    fn dummy_const_ident(&self) -> Ident {
+        format!("_DERIVE_HttpStatus_FOR_{}", self.ident).into()
     }
 }
 
 impl ToTokens for Context {
     fn to_tokens(&self, tokens: &mut Tokens) {
         let ident = &self.ident;
-        let dummy_mod = self.dummy_module_ident();
+        let dummy_const_ident = self.dummy_const_ident();
         let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
         let body = self.body.to_tokens(&self.ident);
         tokens.append_all(quote! {
             #[allow(non_snake_case)]
-            mod #dummy_mod {
-                extern crate finchers as _finchers;
-                extern crate http as _http;
-                use self::_finchers::output::HttpResponse;
-                use self::_http::StatusCode;
+            const #dummy_const_ident: () = {
+                use finchers::_derive::{HttpResponse, StatusCode};
 
                 impl #impl_generics HttpResponse for #ident #ty_generics #where_clause {
                     fn status_code(&self) -> StatusCode {
                         #body
                     }
                 }
-            }
+            };
         });
     }
 }

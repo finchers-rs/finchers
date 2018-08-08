@@ -40,8 +40,8 @@ members = [
 finchers-core = { version = "0.12.0-dev", path = "finchers-core" }
 finchers-derive = { version = "0.12.0-dev", path = "finchers-derive" }
 finchers-runtime = { version = "0.12.0-dev", path = "finchers-runtime" }
+http = "0.1"
 
 [dev-dependencies]
 bytes = "0.4"
-http = "0.1"
 either = "*"

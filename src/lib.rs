@@ -99,3 +99,9 @@ pub use finchers_core::{HttpError, Input, Never, Output, Responder};
 pub use finchers_runtime::run;
 
 pub use finchers_core::choice;
+
+#[doc(hidden)]
+pub mod _derive {
+    pub use finchers_core::output::HttpResponse;
+    pub use http::StatusCode;
+}
