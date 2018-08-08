@@ -23,8 +23,8 @@ extern crate slog;
 extern crate slog_async;
 extern crate slog_term;
 
+pub mod app;
 mod apply;
-pub mod endpoint;
 pub mod local;
 pub mod server;
 pub mod service;
@@ -37,6 +37,6 @@ use finchers_core::endpoint::Endpoint;
 /// Start the server with given endpoint and default configuration.
 pub fn run<E: Endpoint>(endpoint: E) {
     let config = Config::from_env();
-    let new_service = endpoint::NewEndpointService::new(endpoint);
+    let new_service = app::App::new(endpoint);
     Server::new(new_service, config).launch();
 }
