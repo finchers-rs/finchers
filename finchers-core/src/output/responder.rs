@@ -2,11 +2,11 @@ use std::borrow::Cow;
 use std::fmt;
 
 use bytes::Bytes;
-use either::Either;
 use http::header::HeaderValue;
 use http::{header, Response};
 
 use super::body::ResponseBody;
+use crate::either::Either;
 use crate::error::{Error, Never};
 use crate::input::Input;
 

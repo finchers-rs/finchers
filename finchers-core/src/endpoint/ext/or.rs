@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 
+use crate::either::Either;
 use crate::endpoint::{Context, EndpointBase, IntoEndpoint};
-use either::Either;
 
 pub fn new<E1, E2>(e1: E1, e2: E2) -> Or<E1::Endpoint, E2::Endpoint>
 where

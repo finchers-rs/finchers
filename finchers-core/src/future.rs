@@ -9,7 +9,7 @@
 //! Such combinations are usually performed indirectly by the endpoints or by wrapping the value of
 //! `Future`.
 
-use either::Either;
+use crate::either::Either;
 
 /// An enum which indicates whether a value is ready or not.
 // FIXME: replace with core::task::Poll

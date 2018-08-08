@@ -9,10 +9,10 @@
 
 #[macro_use]
 pub mod future;
-
 #[macro_use]
 mod macros;
 
+pub mod either;
 pub mod endpoint;
 pub mod error;
 pub mod http;
