@@ -1,7 +1,8 @@
 use bytes::Bytes;
-use crate::poll::Poll;
-use futures::Stream;
+use futures::{Async, Stream};
 use std::{fmt, io};
+
+use crate::future::Poll;
 
 /// An asynchronous stream representing the body of HTTP response.
 pub struct ResponseBody {
@@ -90,7 +91,11 @@ impl ResponseBody {
         match self.inner {
             Inner::Empty => Poll::Ready(Ok(None)),
             Inner::Once(ref mut chunk) => Poll::Ready(Ok(chunk.take())),
-            Inner::Stream(ref mut stream) => stream.poll().into(),
+            Inner::Stream(ref mut stream) => match stream.poll() {
+                Ok(Async::Ready(chunk)) => Poll::Ready(Ok(chunk)),
+                Ok(Async::NotReady) => Poll::Pending,
+                Err(err) => Poll::Ready(Err(err)),
+            },
         }
     }
 }

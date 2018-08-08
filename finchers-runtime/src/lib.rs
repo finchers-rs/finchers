@@ -35,11 +35,7 @@ pub use service::{HttpService, NewHttpService};
 use finchers_core::Endpoint;
 
 /// Start the server with given endpoint and default configuration.
-pub fn run<E>(endpoint: E)
-where
-    E: Endpoint + Send + Sync + 'static,
-    E::Task: Send + 'static,
-{
+pub fn run<E: Endpoint>(endpoint: E) {
     let config = Config::from_env();
     let new_service = endpoint::NewEndpointService::new(endpoint);
     Server::new(new_service, config).launch();

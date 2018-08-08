@@ -60,18 +60,18 @@ pub mod error {
 }
 
 pub mod endpoint {
-    pub use finchers_core::endpoint::{Endpoint, EndpointBase, IntoEndpoint};
-    pub use finchers_core::ext::{
+    pub use finchers_core::endpoint::ext::{
         all, just, lazy, EndpointExt, EndpointOptionExt, EndpointResultExt,
     };
+    pub use finchers_core::endpoint::{Endpoint, EndpointBase, IntoEndpoint};
     pub use finchers_core::http::{
         body, header, method, path, query, FromBody, FromHeader, FromSegment, FromSegments,
     };
 
     /// The "prelude" for building endpoints
     pub mod prelude {
+        pub use finchers_core::endpoint::ext::{EndpointExt, EndpointOptionExt, EndpointResultExt};
         pub use finchers_core::endpoint::{Endpoint, IntoEndpoint};
-        pub use finchers_core::ext::{EndpointExt, EndpointOptionExt, EndpointResultExt};
         pub use finchers_core::http::body::{body, raw_body};
         pub use finchers_core::http::header::header;
         pub use finchers_core::http::method::{delete, get, head, patch, post, put};
@@ -98,5 +98,4 @@ pub use finchers_core::http::json::Json;
 pub use finchers_core::{HttpError, Input, Never, Output, Responder};
 pub use finchers_runtime::run;
 
-#[macro_use]
-mod macros;
+pub use finchers_core::choice;

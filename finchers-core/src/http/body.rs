@@ -9,13 +9,13 @@ use std::{fmt, mem};
 use crate::endpoint::{assert_output, Context, EndpointBase};
 use crate::error::BadRequest;
 use crate::error::HttpError;
+use crate::future::{Future, Poll};
 use crate::input::{with_get_cx, PollDataError, RequestBody};
-use crate::task::Task;
-use crate::{Input, Never, Poll};
+use crate::{Input, Never};
 
 /// Creates an endpoint which will take the instance of `RequestBody` from the context.
 ///
-/// If the instance has already been stolen by another task, this endpoint will return
+/// If the instance has already been stolen by another Future, this endpoint will return
 /// a `None`.
 pub fn raw_body() -> RawBody {
     assert_output::<_, RequestBody>(RawBody { _priv: () })
@@ -35,23 +35,23 @@ impl fmt::Debug for RawBody {
 
 impl EndpointBase for RawBody {
     type Output = RequestBody;
-    type Task = RawBodyTask;
+    type Future = RawBodyFuture;
 
-    fn apply(&self, _: &mut Context) -> Option<Self::Task> {
-        Some(RawBodyTask { _priv: () })
+    fn apply(&self, _: &mut Context) -> Option<Self::Future> {
+        Some(RawBodyFuture { _priv: () })
     }
 }
 
 #[doc(hidden)]
 #[derive(Debug)]
-pub struct RawBodyTask {
+pub struct RawBodyFuture {
     _priv: (),
 }
 
-impl Task for RawBodyTask {
+impl Future for RawBodyFuture {
     type Output = RequestBody;
 
-    fn poll_task(&mut self) -> Poll<Self::Output> {
+    fn poll(&mut self) -> Poll<Self::Output> {
         Poll::Ready(with_get_cx(|input| input.body_mut().take()))
     }
 }
@@ -92,11 +92,11 @@ where
     T: FromBody,
 {
     type Output = Result<T, BodyError<T::Error>>;
-    type Task = BodyTask<T>;
+    type Future = BodyFuture<T>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
         match T::is_match(cx.input()) {
-            true => Some(BodyTask::Init(PhantomData)),
+            true => Some(BodyFuture::Init(PhantomData)),
             false => None,
         }
     }
@@ -104,20 +104,20 @@ where
 
 #[doc(hidden)]
 #[allow(missing_debug_implementations)]
-pub enum BodyTask<T> {
+pub enum BodyFuture<T> {
     Init(PhantomData<fn() -> T>),
     Receiving(RequestBody, BytesMut),
     Done,
 }
 
-impl<T> Task for BodyTask<T>
+impl<T> Future for BodyFuture<T>
 where
     T: FromBody,
 {
     type Output = Result<T, BodyError<T::Error>>;
 
-    fn poll_task(&mut self) -> Poll<Self::Output> {
-        use self::BodyTask::*;
+    fn poll(&mut self) -> Poll<Self::Output> {
+        use self::BodyFuture::*;
         'poll: loop {
             let err = match *self {
                 Init(..) => None,
