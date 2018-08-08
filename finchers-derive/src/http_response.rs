@@ -1,5 +1,5 @@
-use proc_macro2::{Span, Term, TokenStream, TokenTree};
-use quote::{ToTokens, Tokens};
+use proc_macro2::{Span, TokenStream};
+use quote::*;
 use std::fmt;
 use syn::{self, DeriveInput, Generics, Ident, Meta};
 
@@ -136,8 +136,8 @@ impl fmt::Debug for StatusCode {
 }
 
 impl ToTokens for StatusCode {
-    fn to_tokens(&self, tokens: &mut Tokens) {
-        tokens.append(TokenTree::Term(Term::new(self.code, self.span)));
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        tokens.append(Ident::new(self.code, self.span));
     }
 }
 
@@ -193,7 +193,7 @@ impl Body {
         }
     }
 
-    pub fn to_tokens(&self, ident: &Ident) -> Tokens {
+    pub fn to_tokens(&self, ident: &Ident) -> TokenStream {
         match *self {
             Body::Struct(ref status_code) => {
                 let status_code = status_code.clone().unwrap_or_default();
@@ -272,12 +272,15 @@ impl Context {
     }
 
     fn dummy_const_ident(&self) -> Ident {
-        format!("_DERIVE_HttpStatus_FOR_{}", self.ident).into()
+        Ident::new(
+            &format!("_DERIVE_HttpStatus_FOR_{}", self.ident),
+            Span::call_site(),
+        )
     }
 }
 
 impl ToTokens for Context {
-    fn to_tokens(&self, tokens: &mut Tokens) {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         let ident = &self.ident;
         let dummy_const_ident = self.dummy_const_ident();
         let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
@@ -300,5 +303,5 @@ impl ToTokens for Context {
 pub fn derive(input: TokenStream) -> TokenStream {
     let input = syn::parse2(input).unwrap();
     let context = Context::new(input);
-    context.into_tokens().into()
+    context.into_token_stream()
 }
