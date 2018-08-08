@@ -17,6 +17,6 @@ Custom derive for Finchers
 proc-macro = true
 
 [dependencies]
-syn = "0.13"
-quote = "0.5"
-proc-macro2 = "0.3"
+syn = "0.14.7"
+quote = "0.6.5"
+proc-macro2 = "0.4.9"

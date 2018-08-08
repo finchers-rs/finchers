@@ -14,13 +14,13 @@ Core primitives for constructing asynchronous HTTP services
 """
 
 [dependencies]
-mime = "0.3"
-http = "0.1"
-futures = "0.1"
-bytes = "0.4"
+mime = "0.3.8"
+http = "0.1.10"
+futures = "0.1.23"
+bytes = "0.4.9"
 failure = "0.1.2"
-percent-encoding = "1.0"
-serde = { version = "1.0", features = ["derive"] }
-serde_qs = "0.4"
-serde_json = "1.0"
+percent-encoding = "1.0.1"
+serde = { version = "1.0.71", features = ["derive"] }
+serde_qs = "0.4.1"
+serde_json = "1.0.24"
 hyper = "0.12.7"

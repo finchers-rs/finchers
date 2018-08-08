@@ -13,14 +13,14 @@ Runtime support for Finchers, which supports serving asynchronous HTTP services
 [dependencies]
 finchers-core = { version = "0.12.0-dev", path = "../finchers-core" }
 
-bytes = "0.4"
-failure = "0.1.1"
-futures = "0.1.20"
-http = "0.1.5"
-scoped-tls = "0.1.1"
-slog = "2.2.3"
+bytes = "0.4.9"
+failure = "0.1.2"
+futures = "0.1.23"
+http = "0.1.10"
+scoped-tls = "0.1.2"
+slog = "2.3.2"
 slog-async = "2.3.0"
 slog-term = "2.4.0"
-structopt = "0.2.7"
-tokio = "0.1.5"
+structopt = "0.2.10"
+tokio = "0.1.7"
 hyper = "0.12.7"
