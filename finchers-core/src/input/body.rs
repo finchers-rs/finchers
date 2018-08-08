@@ -1,12 +1,13 @@
 use bytes::Bytes;
 use failure::Fail;
+use futures::Async;
 use http::StatusCode;
 use std::fmt;
 use std::mem;
 use std::ops::Deref;
 
 use crate::error::HttpError;
-use crate::poll::Poll;
+use crate::future::Poll;
 
 #[cfg(feature = "hyper")]
 use futures::Stream;
@@ -73,11 +74,11 @@ impl RequestBody {
             Empty => Poll::Ready(Ok(None)),
             Once(ref mut chunk) => Poll::Ready(Ok(chunk.take().map(Data::new))),
             #[cfg(feature = "hyper")]
-            Hyper(ref mut body) => body
-                .poll()
-                .map(|x| x.map(|chunk_opt| chunk_opt.map(Data::from_hyp)))
-                .map_err(PollDataError::Hyper)
-                .into(),
+            Hyper(ref mut body) => match body.poll() {
+                Ok(Async::Ready(chunk)) => Poll::Ready(Ok(chunk.map(Data::from_hyp))),
+                Ok(Async::NotReady) => Poll::Pending,
+                Err(err) => Poll::Ready(Err(PollDataError::Hyper(err))),
+            },
             Gone => panic!("The request body is invalid"),
         }
     }

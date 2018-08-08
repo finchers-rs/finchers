@@ -10,9 +10,9 @@ use std::str::{FromStr, Utf8Error};
 use std::{error, fmt, net};
 
 use crate::endpoint::{Context, EndpointBase, Segment, Segments};
+use crate::future::{self, Future, Poll};
 use crate::input::with_get_cx;
-use crate::task::{self, Task};
-use crate::{HttpError, Never, Poll};
+use crate::{HttpError, Never};
 
 // ==== MatchPath =====
 
@@ -112,9 +112,9 @@ pub enum MatchPathKind {
 
 impl EndpointBase for MatchPath {
     type Output = ();
-    type Task = task::Ready<Self::Output>;
+    type Future = future::Ready<Self::Output>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
         use self::MatchPathKind::*;
         match self.kind {
             Segments(ref segments) => {
@@ -125,14 +125,14 @@ impl EndpointBase for MatchPath {
                         && cx.segments().next()?.as_encoded_str().as_bytes() == segment.as_bytes();
                 }
                 if matched {
-                    Some(task::ready(()))
+                    Some(future::ready(()))
                 } else {
                     None
                 }
             }
             AllSegments => {
                 let _ = cx.segments().count();
-                Some(task::ready(()))
+                Some(future::ready(()))
             }
         }
     }
@@ -230,10 +230,10 @@ where
     T: FromSegment,
 {
     type Output = Result<T, T::Error>;
-    type Task = ParamTask<T>;
+    type Future = ParamFuture<T>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
-        Some(ParamTask {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
+        Some(ParamFuture {
             range: cx.segments().next()?.as_range(),
             _marker: PhantomData,
         })
@@ -242,15 +242,15 @@ where
 
 #[doc(hidden)]
 #[allow(missing_debug_implementations)]
-pub struct ParamTask<T> {
+pub struct ParamFuture<T> {
     range: Range<usize>,
     _marker: PhantomData<fn() -> T>,
 }
 
-impl<T: FromSegment> Task for ParamTask<T> {
+impl<T: FromSegment> Future for ParamFuture<T> {
     type Output = Result<T, T::Error>;
 
-    fn poll_task(&mut self) -> Poll<Self::Output> {
+    fn poll(&mut self) -> Poll<Self::Output> {
         with_get_cx(|input| {
             let s = Segment::new(input.request().uri().path(), self.range.clone());
             Poll::Ready(T::from_segment(s))
@@ -371,10 +371,10 @@ where
     T: FromSegments,
 {
     type Output = T;
-    type Task = task::Ready<Self::Output>;
+    type Future = future::Ready<Self::Output>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
-        T::from_segments(cx.segments()).map(task::ready).ok()
+    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
+        T::from_segments(cx.segments()).map(future::ready).ok()
     }
 }
 

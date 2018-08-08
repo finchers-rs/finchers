@@ -6,9 +6,9 @@ use std::fmt;
 use std::marker::PhantomData;
 
 use crate::endpoint::{assert_output, Context, EndpointBase};
+use crate::future::{Future, Poll};
 use crate::input::with_get_cx;
-use crate::task::Task;
-use crate::{HttpError, Poll};
+use crate::HttpError;
 
 /// Create an endpoint which parses an entry in the HTTP header.
 ///
@@ -72,15 +72,15 @@ where
     H::Error: Fail,
 {
     type Output = Result<H, HeaderError<H::Error>>;
-    type Task = HeaderTask<H>;
+    type Future = HeaderFuture<H>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
         if H::ALLOW_SKIP {
             if !cx.input().request().headers().contains_key(H::NAME) {
                 return None;
             }
         }
-        Some(HeaderTask {
+        Some(HeaderFuture {
             _marker: PhantomData,
         })
     }
@@ -88,18 +88,18 @@ where
 
 #[doc(hidden)]
 #[allow(missing_debug_implementations)]
-pub struct HeaderTask<H> {
+pub struct HeaderFuture<H> {
     _marker: PhantomData<fn() -> H>,
 }
 
-impl<H> Task for HeaderTask<H>
+impl<H> Future for HeaderFuture<H>
 where
     H: FromHeader,
     H::Error: Fail,
 {
     type Output = Result<H, HeaderError<H::Error>>;
 
-    fn poll_task(&mut self) -> Poll<Self::Output> {
+    fn poll(&mut self) -> Poll<Self::Output> {
         Poll::Ready(with_get_cx(|input| {
             match input.request().headers().get(H::NAME) {
                 Some(h) => H::from_header(h.as_bytes())

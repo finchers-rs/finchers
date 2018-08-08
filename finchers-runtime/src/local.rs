@@ -1,15 +1,16 @@
 //! A testing framework for Finchers.
 
-use futures::{Async, Future};
+use futures::{future, Async, Future as _Future};
 use http::header::{HeaderName, HeaderValue};
 use http::{self, HttpTryFrom, Method, Request, Uri};
 use std::mem;
 
 use finchers_core::endpoint::EndpointBase;
+use finchers_core::future::Poll;
 use finchers_core::input::RequestBody;
-use finchers_core::{Input, Never, Poll, Task};
+use finchers_core::{Input, Never};
 
-use apply::{apply_request, ApplyRequest};
+use apply::apply_request;
 
 /// A wrapper struct of an endpoint which adds the facility for testing.
 #[derive(Debug)]
@@ -143,29 +144,15 @@ impl<'a, E: EndpointBase> ClientRequest<'a, E> {
     pub fn run(&mut self) -> Option<E::Output> {
         let ClientRequest { client, request } = self.take();
 
-        let input = Input::new(request);
+        let mut input = Input::new(request);
+        let mut apply = apply_request(&client.endpoint, &input);
 
-        let apply = apply_request(&client.endpoint, &input);
-        let task = TestFuture { apply, input };
+        let future = future::poll_fn(move || match apply.poll_ready(&mut input) {
+            Poll::Pending => Ok(Async::NotReady) as Result<_, Never>,
+            Poll::Ready(ready) => Ok(Async::Ready(ready)),
+        });
 
         // TODO: replace with futures::executor
-        task.wait().expect("Apply never fails")
-    }
-}
-
-struct TestFuture<T> {
-    apply: ApplyRequest<T>,
-    input: Input,
-}
-
-impl<T: Task> Future for TestFuture<T> {
-    type Item = Option<T::Output>;
-    type Error = Never;
-
-    fn poll(&mut self) -> Result<Async<Self::Item>, Self::Error> {
-        match self.apply.poll_ready(&mut self.input) {
-            Poll::Pending => Ok(Async::NotReady),
-            Poll::Ready(ready) => Ok(Async::Ready(ready)),
-        }
+        future.wait().expect("Apply never fails")
     }
 }

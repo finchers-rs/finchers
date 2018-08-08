@@ -1,18 +1,19 @@
 //! The components to construct an asynchronous HTTP service from the `Endpoint`.
 
 use bytes::Bytes;
+use futures;
 use futures::future::{self, FutureResult};
 use futures::Async::*;
-use futures::{self, Future};
 use http::header::{self, HeaderValue};
 use http::{Request, Response};
 use std::sync::Arc;
 use std::{fmt, io};
 
 use finchers_core::endpoint::{Context, EndpointBase};
+use finchers_core::future::{Future, Poll};
 use finchers_core::input::RequestBody;
 use finchers_core::output::{Responder, ResponseBody};
-use finchers_core::{Endpoint, Error, HttpError, Input, Poll, Task};
+use finchers_core::{Endpoint, Error, HttpError, Input};
 
 use apply::{apply_request, ApplyRequest};
 use service::{HttpService, NewHttpService, Payload};
@@ -23,7 +24,11 @@ impl Payload for ResponseBody {
     type Error = io::Error;
 
     fn poll_data(&mut self) -> futures::Poll<Option<Self::Data>, Self::Error> {
-        self.poll_data().into()
+        match self.poll_data() {
+            Poll::Pending => Ok(NotReady),
+            Poll::Ready(Ok(chunk)) => Ok(Ready(chunk)),
+            Poll::Ready(Err(err)) => Err(err),
+        }
     }
 }
 
@@ -44,9 +49,9 @@ struct Lift<'a, E: 'a + ?Sized>(&'a E);
 
 impl<'a, E: 'a + ?Sized + Endpoint> EndpointBase for Lift<'a, E> {
     type Output = E::Output;
-    type Task = E::Task;
+    type Future = E::Future;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
         self.0.apply(cx)
     }
 }
@@ -127,7 +132,7 @@ where
     type RequestBody = RequestBody;
     type ResponseBody = ResponseBody;
     type Error = io::Error;
-    type Future = EndpointServiceFuture<E::Task>;
+    type Future = EndpointServiceFuture<E::Future>;
 
     fn call(&mut self, request: Request<Self::RequestBody>) -> Self::Future {
         let input = Input::new(request);
@@ -155,9 +160,9 @@ impl<T> EndpointServiceFuture<T> {
     }
 }
 
-impl<T> Future for EndpointServiceFuture<T>
+impl<T> futures::Future for EndpointServiceFuture<T>
 where
-    T: Task,
+    T: Future,
     T::Output: Responder,
 {
     type Item = Response<ResponseBody>;

@@ -11,10 +11,10 @@ use std::ops::Deref;
 use {mime, serde_qs};
 
 use crate::endpoint::{Context, EncodedStr, EndpointBase};
+use crate::future::{Future, Poll};
 use crate::http::body::FromBody;
 use crate::input::with_get_cx;
-use crate::task::Task;
-use crate::{HttpError, Input, Poll};
+use crate::{HttpError, Input};
 
 /// Create an endpoint which parse the query string in the HTTP request
 /// to the value of `T`.
@@ -76,10 +76,10 @@ where
     T::Error: Fail,
 {
     type Output = Result<T, QueryError<T::Error>>;
-    type Task = QueryTask<T>;
+    type Future = QueryFuture<T>;
 
-    fn apply(&self, _: &mut Context) -> Option<Self::Task> {
-        Some(QueryTask {
+    fn apply(&self, _: &mut Context) -> Option<Self::Future> {
+        Some(QueryFuture {
             _marker: PhantomData,
         })
     }
@@ -87,18 +87,18 @@ where
 
 #[doc(hidden)]
 #[derive(Debug)]
-pub struct QueryTask<T> {
+pub struct QueryFuture<T> {
     _marker: PhantomData<fn() -> T>,
 }
 
-impl<T> Task for QueryTask<T>
+impl<T> Future for QueryFuture<T>
 where
     T: FromQuery,
     T::Error: Fail,
 {
     type Output = Result<T, QueryError<T::Error>>;
 
-    fn poll_task(&mut self) -> Poll<Self::Output> {
+    fn poll(&mut self) -> Poll<Self::Output> {
         Poll::Ready(with_get_cx(|input| match input.request().uri().query() {
             Some(query) => {
                 T::from_query(QueryItems::new(query)).map_err(|cause| QueryError::Parse { cause })

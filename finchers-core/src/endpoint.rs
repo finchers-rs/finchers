@@ -1,10 +1,11 @@
 //! Components for constructing `EndpointBase`.
 
 mod context;
+pub mod ext;
 
 pub use self::context::{Context, EncodedStr, Segment, Segments};
+use crate::future::Future;
 use crate::output::Responder;
-use crate::task::Task;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -22,45 +23,45 @@ pub trait EndpointBase {
     type Output;
 
     /// The type of value which will be returned from `apply`.
-    type Task: Task<Output = Self::Output>;
+    type Future: Future<Output = Self::Output>;
 
     /// Perform checking the incoming HTTP request and returns
-    /// an instance of the associated task if matched.
-    fn apply(&self, cx: &mut Context) -> Option<Self::Task>;
+    /// an instance of the associated Future if matched.
+    fn apply(&self, cx: &mut Context) -> Option<Self::Future>;
 }
 
 impl<'a, E: EndpointBase> EndpointBase for &'a E {
     type Output = E::Output;
-    type Task = E::Task;
+    type Future = E::Future;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
         (*self).apply(cx)
     }
 }
 
 impl<E: EndpointBase> EndpointBase for Box<E> {
     type Output = E::Output;
-    type Task = E::Task;
+    type Future = E::Future;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
         (**self).apply(cx)
     }
 }
 
 impl<E: EndpointBase> EndpointBase for Rc<E> {
     type Output = E::Output;
-    type Task = E::Task;
+    type Future = E::Future;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
         (**self).apply(cx)
     }
 }
 
 impl<E: EndpointBase> EndpointBase for Arc<E> {
     type Output = E::Output;
-    type Task = E::Task;
+    type Future = E::Future;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
         (**self).apply(cx)
     }
 }
@@ -68,9 +69,9 @@ impl<E: EndpointBase> EndpointBase for Arc<E> {
 #[allow(missing_docs)]
 pub trait Endpoint: Send + Sync + 'static + sealed::Sealed {
     type Output: Responder;
-    type Task: Task<Output = Self::Output> + Send + 'static;
+    type Future: Future<Output = Self::Output> + Send + 'static;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Task>;
+    fn apply(&self, cx: &mut Context) -> Option<Self::Future>;
 }
 
 mod sealed {
@@ -90,12 +91,12 @@ impl<E> Endpoint for E
 where
     E: EndpointBase + Send + Sync + 'static,
     E::Output: Responder,
-    E::Task: Send + 'static,
+    E::Future: Send + 'static,
 {
     type Output = E::Output;
-    type Task = E::Task;
+    type Future = E::Future;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Task> {
+    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
         EndpointBase::apply(self, cx)
     }
 }
