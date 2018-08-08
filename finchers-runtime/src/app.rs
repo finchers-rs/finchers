@@ -1,60 +1,21 @@
 //! The components to construct an asynchronous HTTP service from the `Endpoint`.
 
-use bytes::Bytes;
 use futures;
-use futures::future::{self, FutureResult};
 use futures::Async::*;
 use http::header::{self, HeaderValue};
 use http::{Request, Response};
+use hyper;
+use hyper::server::{NewService, Service};
+use slog::Logger;
 use std::sync::Arc;
+use std::time;
 use std::{fmt, io};
 
-use finchers_core::endpoint::{Context, Endpoint, EndpointBase};
+use finchers_core::endpoint::{Context, Endpoint};
 use finchers_core::error::{HttpError, NoRoute};
 use finchers_core::future::{Future, Poll};
-use finchers_core::input::{Input, RequestBody};
+use finchers_core::input::{with_set_cx, Input, RequestBody};
 use finchers_core::output::{Responder, ResponseBody};
-
-use apply::{apply_request, ApplyRequest};
-use service::{HttpService, NewHttpService, Payload};
-
-// FIXME: move the implementation to finchers-core after replacing `Payload` with `hyper::Payload`.
-impl Payload for ResponseBody {
-    type Data = Bytes;
-    type Error = io::Error;
-
-    fn poll_data(&mut self) -> futures::Poll<Option<Self::Data>, Self::Error> {
-        match self.poll_data() {
-            Poll::Pending => Ok(NotReady),
-            Poll::Ready(Ok(chunk)) => Ok(Ready(chunk)),
-            Poll::Ready(Err(err)) => Err(err),
-        }
-    }
-}
-
-trait EndpointLiftExt {
-    fn lift(&self) -> Lift<Self>;
-}
-
-impl<E> EndpointLiftExt for E
-where
-    E: Endpoint,
-{
-    fn lift(&self) -> Lift<Self> {
-        Lift(self)
-    }
-}
-
-struct Lift<'a, E: 'a + ?Sized>(&'a E);
-
-impl<'a, E: 'a + ?Sized + Endpoint> EndpointBase for Lift<'a, E> {
-    type Output = E::Output;
-    type Future = E::Future;
-
-    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
-        self.0.apply(cx)
-    }
-}
 
 /// A factory of HTTP service which wraps an `Endpoint`.
 #[derive(Debug)]
@@ -64,6 +25,7 @@ pub struct App<E: Endpoint> {
 
 struct AppData<E: Endpoint> {
     endpoint: E,
+    logger: Logger,
     error_handler: ErrorHandler,
 }
 
@@ -77,26 +39,25 @@ impl<E: Endpoint + fmt::Debug> fmt::Debug for AppData<E> {
 
 impl<E: Endpoint> App<E> {
     /// Create a new `App` from the provided components.
-    pub fn new(endpoint: E) -> App<E> {
+    pub fn new(endpoint: E, logger: Logger) -> App<E> {
         App {
             data: Arc::new(AppData {
                 endpoint,
+                logger,
                 error_handler: default_error_handler,
             }),
         }
     }
 }
 
-impl<E: Endpoint> NewHttpService for App<E> {
-    type RequestBody = RequestBody;
-    type ResponseBody = ResponseBody;
-    type Error = io::Error;
-    type Service = AppService<E>;
-    type InitError = io::Error;
-    type Future = FutureResult<Self::Service, Self::InitError>;
+impl<E: Endpoint> NewService for App<E> {
+    type Request = hyper::Request;
+    type Response = hyper::Response<ResponseBody>;
+    type Error = hyper::Error;
+    type Instance = AppService<E>;
 
-    fn new_service(&self) -> Self::Future {
-        future::ok(AppService {
+    fn new_service(&self) -> io::Result<Self::Instance> {
+        Ok(AppService {
             data: self.data.clone(),
         })
     }
@@ -110,19 +71,26 @@ pub struct AppService<E: Endpoint> {
     data: Arc<AppData<E>>,
 }
 
-impl<E: Endpoint> HttpService for AppService<E> {
-    type RequestBody = RequestBody;
-    type ResponseBody = ResponseBody;
-    type Error = io::Error;
+impl<E: Endpoint> Service for AppService<E> {
+    type Request = hyper::Request;
+    type Response = hyper::Response<ResponseBody>;
+    type Error = hyper::Error;
     type Future = AppServiceFuture<E::Future>;
 
-    fn call(&mut self, request: Request<Self::RequestBody>) -> Self::Future {
+    fn call(&self, request: Self::Request) -> Self::Future {
+        let request = Request::from(request).map(RequestBody::from_hyp);
+        let logger = self.data.logger.new(o!{
+            "method" => request.method().to_string(),
+            "path" => request.uri().path().to_owned(),
+        });
         let input = Input::new(request);
-        let apply = apply_request(&self.data.endpoint.lift(), &input);
+        let in_flight = self.data.endpoint.apply(&mut Context::new(&input));
 
         AppServiceFuture {
-            apply,
+            in_flight,
             input,
+            logger,
+            start: time::Instant::now(),
             error_handler: self.data.error_handler,
         }
     }
@@ -131,8 +99,10 @@ impl<E: Endpoint> HttpService for AppService<E> {
 #[allow(missing_docs)]
 #[allow(missing_debug_implementations)]
 pub struct AppServiceFuture<T> {
-    apply: ApplyRequest<T>,
+    in_flight: Option<T>,
     input: Input,
+    logger: Logger,
+    start: time::Instant,
     error_handler: ErrorHandler,
 }
 
@@ -147,11 +117,19 @@ where
     T: Future,
     T::Output: Responder,
 {
-    type Item = Response<ResponseBody>;
-    type Error = io::Error;
+    type Item = hyper::Response<ResponseBody>;
+    type Error = hyper::Error;
 
     fn poll(&mut self) -> futures::Poll<Self::Item, Self::Error> {
-        let output = match self.apply.poll_ready(&mut self.input) {
+        let output = match {
+            let logger = &self.logger;
+            let in_flight = &mut self.in_flight;
+            let input = &mut self.input;
+            LOGGER.set(logger, || match in_flight {
+                Some(ref mut f) => with_set_cx(input, || f.poll().map(Some)),
+                None => Poll::Ready(None),
+            })
+        } {
             Poll::Pending => return Ok(NotReady),
             Poll::Ready(Some(output)) => output
                 .respond(&self.input)
@@ -169,9 +147,28 @@ where
             );
         }
 
-        Ok(Ready(response))
+        let end = time::Instant::now();
+        let duration = end - self.start;
+        let duration_msec = duration.as_secs() * 10 + duration.subsec_nanos() as u64 / 1_000_000;
+        info!(self.logger, "{} ({} ms)", response.status(), duration_msec);
+
+        Ok(Ready(hyper::Response::from(response)))
     }
 }
+
+// ==== Logger ====
+
+scoped_thread_local!(static LOGGER: Logger);
+
+/// Execute a closure with the reference to `Logger` associated with the current scope.
+pub fn with_logger<F, R>(f: F) -> R
+where
+    F: FnOnce(&Logger) -> R,
+{
+    LOGGER.with(|logger| f(logger))
+}
+
+// ==== ErrorHandler ====
 
 /// A type alias of the error handler used by `EndpointService`.
 pub type ErrorHandler = fn(&HttpError, &Input) -> Response<ResponseBody>;

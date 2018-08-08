@@ -1,5 +1,7 @@
 use bytes::Bytes;
 use futures::{Async, Stream};
+#[cfg(feature = "hyper")]
+use hyper;
 use std::{fmt, io};
 
 use crate::future::Poll;
@@ -96,6 +98,20 @@ impl ResponseBody {
                 Ok(Async::NotReady) => Poll::Pending,
                 Err(err) => Poll::Ready(Err(err)),
             },
+        }
+    }
+}
+
+#[cfg(feature = "hyper")]
+impl Stream for ResponseBody {
+    type Item = hyper::Chunk;
+    type Error = hyper::Error;
+
+    fn poll(&mut self) -> futures::Poll<Option<Self::Item>, Self::Error> {
+        match self.poll_data() {
+            Poll::Ready(Ok(chunk)) => Ok(Async::Ready(chunk.map(Into::into))),
+            Poll::Ready(Err(err)) => Err(err.into()),
+            Poll::Pending => Ok(Async::NotReady),
         }
     }
 }

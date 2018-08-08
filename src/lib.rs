@@ -39,12 +39,13 @@
 //!     ])
 //! }
 //!
-//! fn main() {
+//! fn main() -> finchers::LaunchResult<()> {
 //!     let endpoint = build_endpoint();
 //!
 //! # std::mem::drop(move || {
-//!     finchers::run(endpoint);
+//!     finchers::launch(endpoint)
 //! # });
+//! # Ok(())
 //! }
 //! ```
 
@@ -89,8 +90,7 @@ pub mod output {
 
 pub mod runtime {
     pub use finchers_runtime::app::App;
-    pub use finchers_runtime::server::Server;
-    pub use finchers_runtime::service::{HttpService, NewHttpService};
+    pub use finchers_runtime::server::{launch, LaunchResult};
 }
 
 pub use finchers_core::choice;
@@ -99,7 +99,8 @@ pub use finchers_core::error::{HttpError, Never};
 pub use finchers_core::http::json::Json;
 pub use finchers_core::input::Input;
 pub use finchers_core::output::{Output, Responder};
-pub use finchers_runtime::run;
+
+pub use finchers_runtime::server::{launch, LaunchResult};
 
 #[doc(hidden)]
 pub mod _derive {
