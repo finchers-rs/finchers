@@ -93,12 +93,13 @@ pub mod runtime {
     pub use finchers_runtime::service::{HttpService, NewHttpService};
 }
 
-pub use finchers_core::endpoint::{Endpoint, EndpointBase};
-pub use finchers_core::http::json::Json;
-pub use finchers_core::{HttpError, Input, Never, Output, Responder};
-pub use finchers_runtime::run;
-
 pub use finchers_core::choice;
+pub use finchers_core::endpoint::{Endpoint, EndpointBase};
+pub use finchers_core::error::{HttpError, Never};
+pub use finchers_core::http::json::Json;
+pub use finchers_core::input::Input;
+pub use finchers_core::output::{Output, Responder};
+pub use finchers_runtime::run;
 
 #[doc(hidden)]
 pub mod _derive {

@@ -9,11 +9,10 @@ use serde::ser::Serialize;
 use std::ops::Deref;
 use {mime, serde_json};
 
-use crate::error::HttpError;
+use crate::error::{HttpError, Never};
 use crate::http::body::FromBody;
-use crate::never::Never;
+use crate::input::Input;
 use crate::output::{HttpResponse, Responder, ResponseBody};
-use crate::Input;
 
 /// A wrapper struct representing a statically typed JSON value.
 #[derive(Debug)]

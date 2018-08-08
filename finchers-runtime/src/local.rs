@@ -6,9 +6,9 @@ use http::{self, HttpTryFrom, Method, Request, Uri};
 use std::mem;
 
 use finchers_core::endpoint::EndpointBase;
+use finchers_core::error::Never;
 use finchers_core::future::Poll;
-use finchers_core::input::RequestBody;
-use finchers_core::{Input, Never};
+use finchers_core::input::{Input, RequestBody};
 
 use apply::apply_request;
 

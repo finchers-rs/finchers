@@ -32,7 +32,7 @@ pub mod service;
 pub use server::{Config, Server};
 pub use service::{HttpService, NewHttpService};
 
-use finchers_core::Endpoint;
+use finchers_core::endpoint::Endpoint;
 
 /// Start the server with given endpoint and default configuration.
 pub fn run<E: Endpoint>(endpoint: E) {

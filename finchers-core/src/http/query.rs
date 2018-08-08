@@ -11,10 +11,10 @@ use std::ops::Deref;
 use {mime, serde_qs};
 
 use crate::endpoint::{Context, EncodedStr, EndpointBase};
+use crate::error::HttpError;
 use crate::future::{Future, Poll};
 use crate::http::body::FromBody;
-use crate::input::with_get_cx;
-use crate::{HttpError, Input};
+use crate::input::{with_get_cx, Input};
 
 /// Create an endpoint which parse the query string in the HTTP request
 /// to the value of `T`.

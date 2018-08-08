@@ -10,9 +10,9 @@ use std::str::{FromStr, Utf8Error};
 use std::{error, fmt, net};
 
 use crate::endpoint::{Context, EndpointBase, Segment, Segments};
+use crate::error::{HttpError, Never};
 use crate::future::{self, Future, Poll};
 use crate::input::with_get_cx;
-use crate::{HttpError, Never};
 
 // ==== MatchPath =====
 

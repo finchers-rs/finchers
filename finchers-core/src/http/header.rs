@@ -6,9 +6,9 @@ use std::fmt;
 use std::marker::PhantomData;
 
 use crate::endpoint::{assert_output, Context, EndpointBase};
+use crate::error::HttpError;
 use crate::future::{Future, Poll};
 use crate::input::with_get_cx;
-use crate::HttpError;
 
 /// Create an endpoint which parses an entry in the HTTP header.
 ///
