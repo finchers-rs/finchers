@@ -7,7 +7,7 @@ use std::marker::PhantomData;
 use std::{fmt, mem};
 
 use crate::endpoint::{assert_output, Context, EndpointBase};
-use crate::error::BadRequest;
+use crate::error::Failure;
 use crate::error::HttpError;
 use crate::future::{Future, Poll};
 use crate::input::{with_get_cx, PollDataError, RequestBody};
@@ -201,10 +201,10 @@ impl FromBody for Bytes {
 }
 
 impl FromBody for String {
-    type Error = BadRequest;
+    type Error = Failure;
 
     fn from_body(body: Bytes, _: &Input) -> Result<Self, Self::Error> {
         String::from_utf8(body.to_vec())
-            .map_err(|_| BadRequest::new("failed to parse the message body"))
+            .map_err(|cause| Failure::new(StatusCode::BAD_REQUEST, cause))
     }
 }

@@ -56,7 +56,7 @@
 pub use finchers_derive::*;
 
 pub mod error {
-    pub use finchers_core::error::{BadRequest, HttpError, ServerError};
+    pub use finchers_core::error::{Error, Failure, HttpError};
 }
 
 pub mod endpoint {

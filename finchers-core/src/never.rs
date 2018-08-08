@@ -1,6 +1,4 @@
 use crate::error::HttpError;
-use http::header::{HeaderMap, HeaderValue};
-use http::StatusCode;
 use std::{error, fmt};
 
 /// A type which has no possible values.
@@ -33,12 +31,4 @@ impl error::Error for Never {
     }
 }
 
-impl HttpError for Never {
-    fn status_code(&self) -> StatusCode {
-        match *self {}
-    }
-
-    fn append_headers(&self, _: &mut HeaderMap<HeaderValue>) {
-        match *self {}
-    }
-}
+impl HttpError for Never {}

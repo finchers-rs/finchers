@@ -10,10 +10,11 @@ use std::sync::Arc;
 use std::{fmt, io};
 
 use finchers_core::endpoint::{Context, EndpointBase};
+use finchers_core::error::NoRoute;
 use finchers_core::future::{Future, Poll};
 use finchers_core::input::RequestBody;
 use finchers_core::output::{Responder, ResponseBody};
-use finchers_core::{Endpoint, Error, HttpError, Input};
+use finchers_core::{Endpoint, HttpError, Input};
 
 use apply::{apply_request, ApplyRequest};
 use service::{HttpService, NewHttpService, Payload};
@@ -172,7 +173,7 @@ where
         let output = match self.apply.poll_ready(&mut self.input) {
             Poll::Pending => return Ok(NotReady),
             Poll::Ready(Some(output)) => output.respond(&self.input),
-            Poll::Ready(None) => Err(Error::skipped()),
+            Poll::Ready(None) => Err(NoRoute.into()),
         };
 
         let mut response = output.unwrap_or_else(|err| self.handle_error(err.as_http_error()));
@@ -206,7 +207,7 @@ fn default_error_handler(err: &HttpError, _: &Input) -> Response<ResponseBody> {
         .insert(header::CONTENT_LENGTH, unsafe {
             HeaderValue::from_shared_unchecked(body_len.into())
         });
-    err.append_headers(response.headers_mut());
+    err.headers(response.headers_mut());
 
     response
 }

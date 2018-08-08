@@ -104,8 +104,4 @@ impl HttpError for InvalidMediaType {
     fn status_code(&self) -> StatusCode {
         StatusCode::BAD_REQUEST
     }
-
-    fn as_fail(&self) -> Option<&Fail> {
-        Some(self)
-    }
 }

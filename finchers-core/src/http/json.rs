@@ -167,8 +167,4 @@ impl HttpError for JsonSerializeError {
     fn status_code(&self) -> StatusCode {
         StatusCode::INTERNAL_SERVER_ERROR
     }
-
-    fn as_fail(&self) -> Option<&Fail> {
-        Some(self)
-    }
 }
