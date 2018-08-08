@@ -5,12 +5,10 @@ use http::header::{HeaderName, HeaderValue};
 use http::{self, HttpTryFrom, Method, Request, Uri};
 use std::mem;
 
-use finchers_core::endpoint::EndpointBase;
+use finchers_core::endpoint::{Context, EndpointBase};
 use finchers_core::error::Never;
-use finchers_core::future::Poll;
-use finchers_core::input::{Input, RequestBody};
-
-use apply::apply_request;
+use finchers_core::future::{Future, Poll};
+use finchers_core::input::{with_set_cx, Input, RequestBody};
 
 /// A wrapper struct of an endpoint which adds the facility for testing.
 #[derive(Debug)]
@@ -145,11 +143,18 @@ impl<'a, E: EndpointBase> ClientRequest<'a, E> {
         let ClientRequest { client, request } = self.take();
 
         let mut input = Input::new(request);
-        let mut apply = apply_request(&client.endpoint, &input);
+        let mut in_flight = client.endpoint.apply(&mut Context::new(&input));
 
-        let future = future::poll_fn(move || match apply.poll_ready(&mut input) {
-            Poll::Pending => Ok(Async::NotReady) as Result<_, Never>,
-            Poll::Ready(ready) => Ok(Async::Ready(ready)),
+        let future = future::poll_fn(move || {
+            match {
+                match in_flight {
+                    Some(ref mut f) => with_set_cx(&mut input, || f.poll().map(Some)),
+                    None => Poll::Ready(None),
+                }
+            } {
+                Poll::Pending => Ok(Async::NotReady) as Result<_, Never>,
+                Poll::Ready(ready) => Ok(Async::Ready(ready)),
+            }
         });
 
         // TODO: replace with futures::executor

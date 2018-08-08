@@ -1,8 +1,35 @@
 use bytes::Bytes;
-use futures::{Async, Stream};
+use futures::{self, Async, Stream};
+use hyper::body::Payload;
 use std::{fmt, io};
 
 use crate::future::Poll;
+
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct Once<T>(Option<T>);
+
+impl<T: AsRef<[u8]> + Send + 'static> Payload for Once<T> {
+    type Data = io::Cursor<T>;
+    type Error = io::Error;
+
+    fn poll_data(&mut self) -> futures::Poll<Option<Self::Data>, Self::Error> {
+        Ok(Async::Ready(self.0.take().map(io::Cursor::new)))
+    }
+
+    fn is_end_stream(&self) -> bool {
+        self.0.is_none()
+    }
+
+    fn content_length(&self) -> Option<u64> {
+        self.0.as_ref().map(|body| body.as_ref().len() as u64)
+    }
+}
+
+#[allow(missing_docs)]
+pub fn once<T: AsRef<[u8]>>(data: T) -> Once<T> {
+    Once(Some(data))
+}
 
 /// An asynchronous stream representing the body of HTTP response.
 pub struct ResponseBody {
@@ -96,6 +123,19 @@ impl ResponseBody {
                 Ok(Async::NotReady) => Poll::Pending,
                 Err(err) => Poll::Ready(Err(err)),
             },
+        }
+    }
+}
+
+impl Payload for ResponseBody {
+    type Data = io::Cursor<Bytes>;
+    type Error = io::Error;
+
+    fn poll_data(&mut self) -> futures::Poll<Option<Self::Data>, Self::Error> {
+        match self.poll_data() {
+            Poll::Pending => Ok(Async::NotReady),
+            Poll::Ready(Ok(data)) => Ok(Async::Ready(data.map(io::Cursor::new))),
+            Poll::Ready(Err(err)) => Err(err),
         }
     }
 }

@@ -7,7 +7,6 @@
 extern crate finchers_core;
 
 extern crate bytes;
-#[macro_use]
 extern crate futures;
 extern crate http;
 extern crate hyper;
@@ -23,20 +22,6 @@ extern crate slog;
 extern crate slog_async;
 extern crate slog_term;
 
-mod apply;
-pub mod endpoint;
+pub mod app;
 pub mod local;
 pub mod server;
-pub mod service;
-
-pub use server::{Config, Server};
-pub use service::{HttpService, NewHttpService};
-
-use finchers_core::endpoint::Endpoint;
-
-/// Start the server with given endpoint and default configuration.
-pub fn run<E: Endpoint>(endpoint: E) {
-    let config = Config::from_env();
-    let new_service = endpoint::NewEndpointService::new(endpoint);
-    Server::new(new_service, config).launch();
-}

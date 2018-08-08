@@ -9,9 +9,7 @@ use std::ops::Deref;
 use crate::error::HttpError;
 use crate::future::Poll;
 
-#[cfg(feature = "hyper")]
 use futures::Stream;
-#[cfg(feature = "hyper")]
 use hyper;
 
 /// An asyncrhonous stream to receive the chunks of incoming request body.
@@ -22,7 +20,6 @@ pub struct RequestBody {
 enum RequestBodyKind {
     Empty,
     Once(Option<Bytes>),
-    #[cfg(feature = "hyper")]
     Hyper(hyper::Body),
     Gone,
 }
@@ -33,7 +30,6 @@ impl fmt::Debug for RequestBody {
         match self.kind {
             Empty => f.debug_tuple("Empty").finish(),
             Once(..) => f.debug_tuple("Once").finish(),
-            #[cfg(feature = "hyper")]
             Hyper(..) => f.debug_tuple("Hyper").finish(),
             Gone => f.debug_tuple("Gone").finish(),
         }
@@ -59,7 +55,6 @@ impl RequestBody {
     }
 
     /// Create an instance of `RequestBody` from `hyper::Body`.
-    #[cfg(feature = "hyper")]
     pub fn from_hyp(body: hyper::Body) -> RequestBody {
         RequestBody {
             kind: RequestBodyKind::Hyper(body),
@@ -73,7 +68,6 @@ impl RequestBody {
         match self.kind {
             Empty => Poll::Ready(Ok(None)),
             Once(ref mut chunk) => Poll::Ready(Ok(chunk.take().map(Data::new))),
-            #[cfg(feature = "hyper")]
             Hyper(ref mut body) => match body.poll() {
                 Ok(Async::Ready(chunk)) => Poll::Ready(Ok(chunk.map(Data::from_hyp))),
                 Ok(Async::NotReady) => Poll::Pending,
@@ -98,7 +92,6 @@ pub struct Data(ChunkType);
 #[derive(Debug)]
 enum ChunkType {
     Shared(Bytes),
-    #[cfg(feature = "hyper")]
     Hyper(hyper::Chunk),
 }
 
@@ -112,7 +105,6 @@ impl Data {
     }
 
     #[allow(missing_docs)]
-    #[cfg(feature = "hyper")]
     pub fn from_hyp(chunk: hyper::Chunk) -> Data {
         Data(ChunkType::Hyper(chunk))
     }
@@ -122,7 +114,6 @@ impl AsRef<[u8]> for Data {
     fn as_ref(&self) -> &[u8] {
         match self.0 {
             ChunkType::Shared(ref b) => b.as_ref(),
-            #[cfg(feature = "hyper")]
             ChunkType::Hyper(ref c) => c.as_ref(),
         }
     }
@@ -140,7 +131,6 @@ impl Deref for Data {
 #[derive(Debug, Fail)]
 pub enum PollDataError {
     #[allow(missing_docs)]
-    #[cfg(feature = "hyper")]
     #[fail(display = "during receiving the chunk")]
     Hyper(hyper::Error),
 
