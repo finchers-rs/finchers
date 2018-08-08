@@ -11,8 +11,9 @@ use {mime, serde_json};
 
 use crate::error::HttpError;
 use crate::http::body::FromBody;
+use crate::never::Never;
 use crate::output::{HttpResponse, Responder, ResponseBody};
-use crate::{Error, Input, Output};
+use crate::Input;
 
 /// A wrapper struct representing a statically typed JSON value.
 #[derive(Debug)]
@@ -66,7 +67,10 @@ impl<T> Responder for Json<T>
 where
     T: Serialize + HttpResponse,
 {
-    fn respond(self, _: &Input) -> Result<Output, Error> {
+    type Body = ResponseBody;
+    type Error = JsonSerializeError;
+
+    fn respond(self, _: &Input) -> Result<Response<Self::Body>, Self::Error> {
         let body = serde_json::to_vec(&self.0).map_err(|cause| JsonSerializeError { cause })?;
         let body_len = body.len().to_string();
 
@@ -110,7 +114,10 @@ impl JsonValue {
 }
 
 impl Responder for JsonValue {
-    fn respond(self, _: &Input) -> Result<Output, Error> {
+    type Body = ResponseBody;
+    type Error = Never;
+
+    fn respond(self, _: &Input) -> Result<Response<Self::Body>, Self::Error> {
         let body = self.value.to_string();
         let body_len = body.len().to_string();
 
@@ -166,9 +173,5 @@ impl Deref for JsonSerializeError {
 impl HttpError for JsonSerializeError {
     fn status_code(&self) -> StatusCode {
         StatusCode::INTERNAL_SERVER_ERROR
-    }
-
-    fn as_fail(&self) -> Option<&Fail> {
-        Some(self)
     }
 }

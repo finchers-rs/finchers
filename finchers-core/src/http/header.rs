@@ -111,25 +111,32 @@ where
 }
 
 /// All kinds of error which will be returned from `Header<H>`.
-#[derive(Debug, Fail)]
-pub enum HeaderError<E: Fail> {
+#[derive(Debug)]
+pub enum HeaderError<E> {
     /// The required header value was missing in the incoming request.
-    #[fail(display = "Missing header value")]
     MissingValue,
 
     /// Failed to parse the header value to a given type.
-    #[fail(display = "Failed to parse a header value: {}", cause)]
     #[allow(missing_docs)]
     InvalidValue { cause: E },
 }
 
+impl<E: fmt::Display> fmt::Display for HeaderError<E> {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            HeaderError::MissingValue => formatter.write_str("missing header value"),
+            HeaderError::InvalidValue { ref cause } => {
+                write!(formatter, "failed to parse a header value: {}", cause)
+            }
+        }
+    }
+}
+
+impl<E: Fail> Fail for HeaderError<E> {}
+
 impl<E: Fail> HttpError for HeaderError<E> {
     fn status_code(&self) -> StatusCode {
         StatusCode::BAD_REQUEST
-    }
-
-    fn as_fail(&self) -> Option<&Fail> {
-        Some(self)
     }
 }
 
