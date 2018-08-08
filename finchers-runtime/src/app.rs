@@ -16,7 +16,8 @@ use finchers_core::endpoint::{Context, Endpoint};
 use finchers_core::error::{HttpError, NoRoute};
 use finchers_core::future::{Future, Poll};
 use finchers_core::input::{with_set_cx, Input, RequestBody};
-use finchers_core::output::{once, Once, Responder};
+use finchers_core::output::payloads::Once;
+use finchers_core::output::Responder;
 
 /// A factory of HTTP service which wraps an `Endpoint`.
 #[derive(Debug)]
@@ -111,7 +112,7 @@ pub struct AppServiceFuture<T> {
 
 impl<T> AppServiceFuture<T> {
     fn handle_error(&self, err: &HttpError) -> Response<Once<String>> {
-        (self.error_handler)(err, &self.input).map(once)
+        (self.error_handler)(err, &self.input).map(Once::new)
     }
 }
 

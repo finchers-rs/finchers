@@ -85,7 +85,7 @@ pub mod input {
 }
 
 pub mod output {
-    pub use finchers_core::output::{Debug, HttpResponse, Responder, ResponseBody};
+    pub use finchers_core::output::{payloads, responders, Responder};
 }
 
 pub mod runtime {
@@ -96,7 +96,7 @@ pub mod runtime {
 pub use finchers_core::choice;
 pub use finchers_core::endpoint::{Endpoint, EndpointBase};
 pub use finchers_core::error::{HttpError, Never};
-pub use finchers_core::http::json::Json;
+pub use finchers_core::http::json::{HttpResponse, Json};
 pub use finchers_core::input::Input;
 pub use finchers_core::output::Responder;
 
@@ -104,6 +104,6 @@ pub use finchers_runtime::server::{launch, LaunchResult};
 
 #[doc(hidden)]
 pub mod _derive {
-    pub use finchers_core::output::HttpResponse;
+    pub use finchers_core::http::json::HttpResponse;
     pub use http::StatusCode;
 }

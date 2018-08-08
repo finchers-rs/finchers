@@ -2,17 +2,63 @@
 
 use bytes::Bytes;
 use failure::Fail;
-use http::header::HeaderValue;
+use http::header::{HeaderMap, HeaderValue};
 use http::{header, Response, StatusCode};
 use serde::de::DeserializeOwned;
 use serde::ser::Serialize;
 use std::ops::Deref;
 use {mime, serde_json};
 
+use crate::either::Either;
 use crate::error::{HttpError, Never};
 use crate::http::body::FromBody;
 use crate::input::Input;
-use crate::output::{HttpResponse, Responder, once, Once};
+use crate::output::payloads::Once;
+use crate::output::Responder;
+
+/// Trait representing additional information for constructing an HTTP response.
+///
+/// This trait is used as a helper to define the implementation of `Responder`.
+pub trait HttpResponse {
+    /// Returns a HTTP status code.
+    fn status_code(&self) -> StatusCode;
+
+    /// Append header values to given header map.
+    #[allow(unused_variables)]
+    fn append_headers(&self, headers: &mut HeaderMap<HeaderValue>) {}
+}
+
+macro_rules! impl_status {
+    ($($t:ty),*) => {$(
+        impl HttpResponse for $t {
+            fn status_code(&self) -> StatusCode {
+                StatusCode::OK
+            }
+        }
+    )*};
+}
+
+impl_status!(bool, char, f32, f64, String, i8, i16, i32, i64, isize, u8, u16, u32, u64, usize);
+
+impl<L, R> HttpResponse for Either<L, R>
+where
+    L: HttpResponse,
+    R: HttpResponse,
+{
+    fn status_code(&self) -> StatusCode {
+        match *self {
+            Either::Left(ref l) => l.status_code(),
+            Either::Right(ref r) => r.status_code(),
+        }
+    }
+
+    fn append_headers(&self, headers: &mut HeaderMap<HeaderValue>) {
+        match *self {
+            Either::Left(ref l) => l.append_headers(headers),
+            Either::Right(ref r) => r.append_headers(headers),
+        }
+    }
+}
 
 /// A wrapper struct representing a statically typed JSON value.
 #[derive(Debug)]
@@ -72,7 +118,7 @@ where
     fn respond(self, _: &Input) -> Result<Response<Self::Body>, Self::Error> {
         let body = serde_json::to_vec(&self.0).map_err(|cause| JsonSerializeError { cause })?;
 
-        let mut response = Response::new(once(body));
+        let mut response = Response::new(Once::new(body));
         *response.status_mut() = self.0.status_code();
         self.0.append_headers(response.headers_mut());
         response.headers_mut().insert(
@@ -113,7 +159,7 @@ impl Responder for JsonValue {
     fn respond(self, _: &Input) -> Result<Response<Self::Body>, Self::Error> {
         let body = self.value.to_string();
 
-        let mut response = Response::new(once(body));
+        let mut response = Response::new(Once::new(body));
         *response.status_mut() = self.status;
         response.headers_mut().insert(
             header::CONTENT_TYPE,
