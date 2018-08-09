@@ -81,6 +81,34 @@ pub fn ready<T>(val: T) -> Ready<T> {
     Ready::from(val)
 }
 
+pub trait TryFuture {
+    type Ok;
+    type Error;
+
+    fn try_poll(&mut self) -> Poll<Result<Self::Ok, Self::Error>>;
+}
+
+impl<F, T, E> TryFuture for F where F: Future<Output=Result<T, E>> {
+    type Ok = T;
+    type Error = E;
+
+    #[inline]
+    fn try_poll(&mut self) -> Poll<Result<Self::Ok, Self::Error>> {
+        self.poll()
+    }
+}
+
+macro_rules! try_poll {
+    ($e:expr) => {{
+        use $crate::future::Poll;
+        match $e {
+            Poll::Ready(Ok(x)) => x,
+            Poll::Ready(Err(e)) => return Poll::Ready(Err(Into::into(e))),
+            Poll::Pending => return Poll::Pending,
+        }        
+    }};
+}
+
 mod compat {
     use futures::{Async, Future, IntoFuture};
 
