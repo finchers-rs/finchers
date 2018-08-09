@@ -11,7 +11,8 @@ pub struct MatchMethod<E: EndpointBase> {
 }
 
 impl<E: EndpointBase> EndpointBase for MatchMethod<E> {
-    type Output = E::Output;
+    type Ok = E::Ok;
+    type Error = E::Error;
     type Future = E::Future;
 
     fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
@@ -57,7 +58,8 @@ macro_rules! define_method {
         }
 
         impl<E: EndpointBase> EndpointBase for $Endpoint<E> {
-            type Output = E::Output;
+            type Ok = E::Ok;
+            type Error = E::Error;
             type Future = E::Future;
 
             fn apply(&self,cx: &mut Context) -> Option<Self::Future> {

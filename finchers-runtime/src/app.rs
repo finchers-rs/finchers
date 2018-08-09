@@ -13,8 +13,8 @@ use std::{fmt, io};
 
 use finchers_core::either::Either;
 use finchers_core::endpoint::{Context, Endpoint};
-use finchers_core::error::{HttpError, NoRoute};
-use finchers_core::future::{Future, Poll};
+use finchers_core::error::{Error, HttpError, NoRoute};
+use finchers_core::future::{Poll, TryFuture};
 use finchers_core::input::{with_set_cx, Input, RequestBody};
 use finchers_core::output::payloads::Once;
 use finchers_core::output::Responder;
@@ -54,7 +54,7 @@ impl<E: Endpoint> App<E> {
 
 impl<E: Endpoint> NewService for App<E> {
     type ReqBody = Body;
-    type ResBody = Either<Once<String>, E::Body>;
+    type ResBody = Either<Once<String>, <E::Ok as Responder>::Body>;
     type Error = io::Error;
     type Service = AppService<E>;
     type InitError = io::Error;
@@ -77,7 +77,7 @@ pub struct AppService<E: Endpoint> {
 
 impl<E: Endpoint> Service for AppService<E> {
     type ReqBody = Body;
-    type ResBody = Either<Once<String>, E::Body>;
+    type ResBody = Either<Once<String>, <E::Ok as Responder>::Body>;
     type Error = io::Error;
     type Future = AppServiceFuture<E::Future>;
 
@@ -116,12 +116,13 @@ impl<T> AppServiceFuture<T> {
     }
 }
 
-impl<T, Out> futures::Future for AppServiceFuture<T>
+impl<T> futures::Future for AppServiceFuture<T>
 where
-    T: Future<Output = Out>,
-    Out: Responder,
+    T: TryFuture,
+    T::Ok: Responder,
+    T::Error: Into<Error>,
 {
-    type Item = Response<Either<Once<String>, Out::Body>>;
+    type Item = Response<Either<Once<String>, <T::Ok as Responder>::Body>>;
     type Error = io::Error;
 
     fn poll(&mut self) -> futures::Poll<Self::Item, Self::Error> {
@@ -130,15 +131,15 @@ where
             let in_flight = &mut self.in_flight;
             let input = &mut self.input;
             LOGGER.set(logger, || match in_flight {
-                Some(ref mut f) => with_set_cx(input, || f.poll().map(Some)),
+                Some(ref mut f) => with_set_cx(input, || f.try_poll().map(Some)),
                 None => Poll::Ready(None),
             })
         } {
             Poll::Pending => return Ok(NotReady),
             Poll::Ready(Some(output)) => output
-                .respond(&self.input)
-                .map(|res| res.map(Either::Right))
-                .map_err(Into::into),
+                .map_err(Into::into)
+                .and_then(|res| res.respond(&self.input).map_err(Into::into))
+                .map(|res| res.map(Either::Right)),
             Poll::Ready(None) => Err(NoRoute.into()),
         };
 

@@ -112,8 +112,9 @@ pub enum MatchPathKind {
 }
 
 impl EndpointBase for MatchPath {
-    type Output = ();
-    type Future = future::Ready<Self::Output>;
+    type Ok = ();
+    type Error = Never;
+    type Future = future::Ready<Result<Self::Ok, Never>>;
 
     fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
         use self::MatchPathKind::*;
@@ -126,14 +127,14 @@ impl EndpointBase for MatchPath {
                         && cx.segments().next()?.as_encoded_str().as_bytes() == segment.as_bytes();
                 }
                 if matched {
-                    Some(future::ready(()))
+                    Some(future::ready(Ok(())))
                 } else {
                     None
                 }
             }
             AllSegments => {
                 let _ = cx.segments().count();
-                Some(future::ready(()))
+                Some(future::ready(Ok(())))
             }
         }
     }
@@ -230,7 +231,8 @@ impl<T> EndpointBase for Param<T>
 where
     T: FromSegment,
 {
-    type Output = One<Result<T, T::Error>>;
+    type Ok = One<T>;
+    type Error = T::Error;
     type Future = ParamFuture<T>;
 
     fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
@@ -249,13 +251,13 @@ pub struct ParamFuture<T> {
 }
 
 impl<T: FromSegment> Future for ParamFuture<T> {
-    type Output = One<Result<T, T::Error>>;
+    type Output = Result<One<T>, T::Error>;
 
     fn poll(&mut self) -> Poll<Self::Output> {
-        Poll::Ready(one(with_get_cx(|input| {
+        Poll::Ready(with_get_cx(|input| {
             let s = Segment::new(input.request().uri().path(), self.range.clone());
-            T::from_segment(s)
-        })))
+            T::from_segment(s).map(one)
+        }))
     }
 }
 
@@ -371,12 +373,14 @@ impl<T> EndpointBase for Params<T>
 where
     T: FromSegments,
 {
-    type Output = One<T>;
-    type Future = future::Ready<Self::Output>;
+    type Ok = One<T>;
+    type Error = Never;
+    type Future = future::Ready<Result<Self::Ok, Self::Error>>;
 
     fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
         T::from_segments(cx.segments())
             .map(one)
+            .map(Ok)
             .map(future::ready)
             .ok()
     }

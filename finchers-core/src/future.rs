@@ -44,16 +44,6 @@ impl<T> From<T> for Poll<T> {
     }
 }
 
-macro_rules! poll {
-    ($e:expr) => {{
-        use $crate::future::Poll;
-        match Poll::from($e) {
-            Poll::Ready(v) => v,
-            Poll::Pending => return Poll::Pending,
-        }
-    }};
-}
-
 pub trait Future {
     type Output;
     fn poll(&mut self) -> Poll<Self::Output>;
@@ -88,7 +78,10 @@ pub trait TryFuture {
     fn try_poll(&mut self) -> Poll<Result<Self::Ok, Self::Error>>;
 }
 
-impl<F, T, E> TryFuture for F where F: Future<Output=Result<T, E>> {
+impl<F, T, E> TryFuture for F
+where
+    F: Future<Output = Result<T, E>>,
+{
     type Ok = T;
     type Error = E;
 
@@ -98,6 +91,16 @@ impl<F, T, E> TryFuture for F where F: Future<Output=Result<T, E>> {
     }
 }
 
+macro_rules! poll {
+    ($e:expr) => {{
+        use $crate::future::Poll;
+        match $e {
+            Poll::Ready(x) => x,
+            Poll::Pending => return Poll::Pending,
+        }
+    }};
+}
+
 macro_rules! try_poll {
     ($e:expr) => {{
         use $crate::future::Poll;
@@ -105,7 +108,7 @@ macro_rules! try_poll {
             Poll::Ready(Ok(x)) => x,
             Poll::Ready(Err(e)) => return Poll::Ready(Err(Into::into(e))),
             Poll::Pending => return Poll::Pending,
-        }        
+        }
     }};
 }
 

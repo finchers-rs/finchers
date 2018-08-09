@@ -61,9 +61,7 @@ pub mod error {
 }
 
 pub mod endpoint {
-    pub use finchers_core::endpoint::ext::{
-        just, EndpointExt, EndpointOptionExt, EndpointResultExt,
-    };
+    pub use finchers_core::endpoint::ext::{err, ok};
     pub use finchers_core::endpoint::{Endpoint, EndpointBase, IntoEndpoint};
     pub use finchers_core::http::{
         body, header, method, path, query, FromBody, FromHeader, FromSegment, FromSegments,
@@ -71,8 +69,8 @@ pub mod endpoint {
 
     /// The "prelude" for building endpoints
     pub mod prelude {
-        pub use finchers_core::endpoint::ext::{EndpointExt, EndpointOptionExt, EndpointResultExt};
-        pub use finchers_core::endpoint::{Endpoint, IntoEndpoint};
+        pub use finchers_core::endpoint::ext::EndpointExt;
+        pub use finchers_core::endpoint::{Endpoint, EndpointBase, IntoEndpoint};
         pub use finchers_core::http::body::{body, raw_body};
         pub use finchers_core::http::header::header;
         pub use finchers_core::http::method::{delete, get, head, patch, post, put};
