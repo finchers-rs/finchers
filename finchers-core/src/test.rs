@@ -1,14 +1,17 @@
 //! A testing framework for Finchers.
 
-use futures::{future, Async, Future as _Future};
-use http::header::{HeaderName, HeaderValue};
-use http::{self, HttpTryFrom, Method, Request, Uri};
 use std::mem;
+use std::mem::PinMut;
+use std::task::Poll;
 
-use finchers_core::endpoint::{Context, EndpointBase};
-use finchers_core::error::Never;
-use finchers_core::future::{Poll, TryFuture};
-use finchers_core::input::{with_set_cx, Input, RequestBody};
+use futures_core::future::TryFuture;
+use futures_executor::block_on;
+use futures_util::future::poll_fn;
+use http::header::{HeaderName, HeaderValue};
+use http::{HttpTryFrom, Method, Request, Uri};
+
+use crate::endpoint::{Context, EndpointBase};
+use crate::input::{with_set_cx, Input, RequestBody};
 
 /// A wrapper struct of an endpoint which adds the facility for testing.
 #[derive(Debug)]
@@ -133,7 +136,7 @@ impl<'a, E: EndpointBase> ClientRequest<'a, E> {
             self,
             ClientRequest {
                 client: self.client,
-                request: http::Request::new(RequestBody::empty()),
+                request: Request::new(RequestBody::empty()),
             },
         )
     }
@@ -145,19 +148,13 @@ impl<'a, E: EndpointBase> ClientRequest<'a, E> {
         let mut input = Input::new(request);
         let mut in_flight = client.endpoint.apply(&mut Context::new(&input));
 
-        let future = future::poll_fn(move || {
-            match {
-                match in_flight {
-                    Some(ref mut f) => with_set_cx(&mut input, || f.try_poll().map(Some)),
-                    None => Poll::Ready(None),
-                }
-            } {
-                Poll::Pending => Ok(Async::NotReady) as Result<_, Never>,
-                Poll::Ready(ready) => Ok(Async::Ready(ready)),
-            }
+        let future = poll_fn(move |cx| match in_flight {
+            Some(ref mut f) => with_set_cx(&mut input, || {
+                unsafe { PinMut::new_unchecked(f) }.try_poll(cx).map(Some)
+            }),
+            None => Poll::Ready(None),
         });
 
-        // TODO: replace with futures::executor
-        future.wait().expect("Apply never fails")
+        block_on(future)
     }
 }

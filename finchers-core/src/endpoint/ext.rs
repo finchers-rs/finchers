@@ -6,10 +6,10 @@ mod err;
 mod err_into;
 mod map_err;
 mod map_ok;
-mod maybe_done;
 mod ok;
 mod or;
 mod or_else;
+mod try_chain;
 
 // re-exports
 pub use self::and::And;
@@ -26,8 +26,9 @@ pub use self::or_else::OrElse;
 
 use crate::either::Either;
 use crate::endpoint::{EndpointBase, IntoEndpoint};
-use crate::future::TryFuture;
 use crate::generic::{Combine, Func, One, Tuple};
+
+use futures_core::future::TryFuture;
 use std::marker::PhantomData;
 
 /// A set of extension methods used for composing complicate endpoints.

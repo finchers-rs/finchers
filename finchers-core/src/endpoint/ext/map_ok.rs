@@ -1,7 +1,12 @@
 #![allow(missing_docs)]
 
+use futures_core::future::{Future, TryFuture};
+use pin_utils::{unsafe_pinned, unsafe_unpinned};
+use std::mem::PinMut;
+use std::task;
+use std::task::Poll;
+
 use crate::endpoint::{Context, EndpointBase};
-use crate::future::{Future, Poll, TryFuture};
 use crate::generic::{Func, Tuple};
 
 #[derive(Debug, Copy, Clone)]
@@ -34,6 +39,11 @@ pub struct MapOkFuture<T, F> {
     f: Option<F>,
 }
 
+impl<T, F> MapOkFuture<T, F> {
+    unsafe_pinned!(future: T);
+    unsafe_unpinned!(f: Option<F>);
+}
+
 impl<T, F> Future for MapOkFuture<T, F>
 where
     T: TryFuture,
@@ -43,9 +53,13 @@ where
 {
     type Output = Result<F::Out, T::Error>;
 
-    fn poll(&mut self) -> Poll<Self::Output> {
-        self.future
-            .try_poll()
-            .map_ok(|item| self.f.take().expect("cannot resolve twice").call(item))
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+        match self.future().try_poll(cx) {
+            Poll::Pending => Poll::Pending,
+            Poll::Ready(result) => {
+                let f = self.f().take().expect("this future has already polled.");
+                Poll::Ready(result.map(|item| f.call(item)))
+            }
+        }
     }
 }

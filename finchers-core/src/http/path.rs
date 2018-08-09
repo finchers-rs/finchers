@@ -1,17 +1,21 @@
 //! Components for parsing request path
 
-use failure::Fail;
-use http::StatusCode;
-use percent_encoding::{define_encode_set, percent_encode, DEFAULT_ENCODE_SET};
+use std::future::Future;
 use std::marker::PhantomData;
+use std::mem::PinMut;
 use std::ops::Range;
 use std::path::PathBuf;
 use std::str::{FromStr, Utf8Error};
-use std::{error, fmt, net};
+use std::task::Poll;
+use std::{error, fmt, net, task};
+
+use failure::Fail;
+use futures_util::future;
+use http::StatusCode;
+use percent_encoding::{define_encode_set, percent_encode, DEFAULT_ENCODE_SET};
 
 use crate::endpoint::{Context, EndpointBase, Segment, Segments};
 use crate::error::{HttpError, Never};
-use crate::future::{self, Future, Poll};
 use crate::generic::{one, One};
 use crate::input::with_get_cx;
 
@@ -253,7 +257,7 @@ pub struct ParamFuture<T> {
 impl<T: FromSegment> Future for ParamFuture<T> {
     type Output = Result<One<T>, T::Error>;
 
-    fn poll(&mut self) -> Poll<Self::Output> {
+    fn poll(self: PinMut<Self>, _: &mut task::Context) -> Poll<Self::Output> {
         Poll::Ready(with_get_cx(|input| {
             let s = Segment::new(input.request().uri().path(), self.range.clone());
             T::from_segment(s).map(one)

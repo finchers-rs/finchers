@@ -1,6 +1,7 @@
+use futures_util::future;
+
 use crate::endpoint::{Context, EndpointBase};
 use crate::error::Never;
-use crate::future;
 use crate::generic::Tuple;
 
 #[allow(missing_docs)]

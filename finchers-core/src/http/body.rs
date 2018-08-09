@@ -1,14 +1,19 @@
 //! Components for parsing the HTTP request body.
 
+use std::future::Future;
+use std::marker::PhantomData;
+use std::marker::Unpin;
+use std::mem::PinMut;
+use std::task::Poll;
+use std::{fmt, mem, task};
+
 use bytes::{Bytes, BytesMut};
 use failure::Fail;
 use http::StatusCode;
-use std::marker::PhantomData;
-use std::{fmt, mem};
+use pin_utils::unsafe_unpinned;
 
 use crate::endpoint::{Context, EndpointBase, EndpointExt};
 use crate::error::{Failure, HttpError, Never};
-use crate::future::{Future, Poll};
 use crate::generic::{one, One};
 use crate::input::{with_get_cx, Input, PollDataError, RequestBody};
 
@@ -53,7 +58,7 @@ pub struct RawBodyFuture {
 impl Future for RawBodyFuture {
     type Output = Result<One<RequestBody>, Never>;
 
-    fn poll(&mut self) -> Poll<Self::Output> {
+    fn poll(self: PinMut<Self>, _: &mut task::Context) -> Poll<Self::Output> {
         Poll::Ready(Ok(one(with_get_cx(|input| input.body_mut().take()))))
     }
 }
@@ -100,7 +105,7 @@ where
 
     fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
         match T::is_match(cx.input()) {
-            true => Some(BodyFuture::Init(PhantomData)),
+            true => Some(BodyFuture { state: State::Init }),
             false => None,
         }
     }
@@ -108,38 +113,47 @@ where
 
 #[doc(hidden)]
 #[allow(missing_debug_implementations)]
-pub enum BodyFuture<T> {
-    Init(PhantomData<fn() -> T>),
-    Receiving(RequestBody, BytesMut),
-    Done,
+pub struct BodyFuture<T> {
+    state: State<T>,
 }
 
-impl<T> Future for BodyFuture<T>
-where
-    T: FromBody,
-{
+#[allow(missing_debug_implementations)]
+enum State<T> {
+    Init,
+    Receiving(RequestBody, BytesMut),
+    Done,
+    #[doc(hidden)]
+    __NonExhausive(PhantomData<fn() -> T>),
+}
+
+impl<T> BodyFuture<T> {
+    unsafe_unpinned!(state: State<T>);
+}
+
+impl<T> Unpin for BodyFuture<T> {}
+
+impl<T: FromBody> Future for BodyFuture<T> {
     type Output = Result<One<T>, BodyError<T::Error>>;
 
-    fn poll(&mut self) -> Poll<Self::Output> {
-        use self::BodyFuture::*;
+    fn poll(mut self: PinMut<Self>, _: &mut task::Context) -> Poll<Self::Output> {
         'poll: loop {
-            match *self {
-                Init(..) => {}
-                Receiving(ref mut body, ref mut buf) => while let Some(data) =
+            match self.state() {
+                State::Init => {}
+                State::Receiving(ref mut body, ref mut buf) => while let Some(data) =
                     try_poll!(body.poll_data().map_err(BodyError::Receiving))
                 {
                     buf.extend_from_slice(&*data);
                 },
-                Done => panic!("cannot resolve/reject twice"),
+                _ => panic!("cannot resolve/reject twice"),
             };
 
-            match mem::replace(self, Done) {
-                Init(..) => {
+            match mem::replace(self.state(), State::Done) {
+                State::Init => {
                     let body = with_get_cx(|input| input.body_mut().take());
-                    *self = Receiving(body, BytesMut::new());
+                    *self.state() = State::Receiving(body, BytesMut::new());
                     continue 'poll;
                 }
-                Receiving(_, buf) => {
+                State::Receiving(_, buf) => {
                     return Poll::Ready(
                         with_get_cx(|input| T::from_body(buf.freeze(), input))
                             .map(one)

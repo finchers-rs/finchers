@@ -24,3 +24,11 @@ serde = { version = "1.0.71", features = ["derive"] }
 serde_qs = "0.4.1"
 serde_json = "1.0.24"
 hyper = "0.12.7"
+
+pin-utils = "0.1.0-alpha.1"
+futures-core-preview = { git = "https://github.com/rust-lang-nursery/futures-rs.git", branch = "master" }
+futures-executor-preview = { git = "https://github.com/rust-lang-nursery/futures-rs.git", branch = "master" }
+futures-util-preview = { git = "https://github.com/rust-lang-nursery/futures-rs.git", branch = "master", features = ["tokio-compat"] }
+#futures-core-preview = "0.3.0-alpha.3"
+#futures-executor-preview = "0.3.0-alpha.3"
+#futures-util-preview = { version = "0.3.0-alpha.3", features = ["tokio-compat"] }
