@@ -22,7 +22,7 @@
 //!
 //! # Example
 //!
-//! ```
+//! ```ignore
 //! #![feature(rust_2018_preview)]
 //!
 //! use finchers::Endpoint;
