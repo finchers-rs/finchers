@@ -9,6 +9,7 @@ use std::{fmt, mem};
 use crate::endpoint::{assert_output, Context, EndpointBase};
 use crate::error::{Failure, HttpError, Never};
 use crate::future::{Future, Poll};
+use crate::generic::{one, One};
 use crate::input::{with_get_cx, Input, PollDataError, RequestBody};
 
 /// Creates an endpoint which will take the instance of `RequestBody` from the context.
@@ -16,7 +17,7 @@ use crate::input::{with_get_cx, Input, PollDataError, RequestBody};
 /// If the instance has already been stolen by another Future, this endpoint will return
 /// a `None`.
 pub fn raw_body() -> RawBody {
-    assert_output::<_, RequestBody>(RawBody { _priv: () })
+    assert_output::<_, One<RequestBody>>(RawBody { _priv: () })
 }
 
 #[allow(missing_docs)]
@@ -32,7 +33,7 @@ impl fmt::Debug for RawBody {
 }
 
 impl EndpointBase for RawBody {
-    type Output = RequestBody;
+    type Output = One<RequestBody>;
     type Future = RawBodyFuture;
 
     fn apply(&self, _: &mut Context) -> Option<Self::Future> {
@@ -47,10 +48,10 @@ pub struct RawBodyFuture {
 }
 
 impl Future for RawBodyFuture {
-    type Output = RequestBody;
+    type Output = One<RequestBody>;
 
     fn poll(&mut self) -> Poll<Self::Output> {
-        Poll::Ready(with_get_cx(|input| input.body_mut().take()))
+        Poll::Ready(one(with_get_cx(|input| input.body_mut().take())))
     }
 }
 
@@ -60,7 +61,7 @@ pub fn body<T>() -> Body<T>
 where
     T: FromBody,
 {
-    assert_output::<_, Result<T, BodyError<T::Error>>>(Body {
+    assert_output::<_, One<Result<T, BodyError<T::Error>>>>(Body {
         _marker: PhantomData,
     })
 }
@@ -89,7 +90,7 @@ impl<T> EndpointBase for Body<T>
 where
     T: FromBody,
 {
-    type Output = Result<T, BodyError<T::Error>>;
+    type Output = One<Result<T, BodyError<T::Error>>>;
     type Future = BodyFuture<T>;
 
     fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
@@ -112,7 +113,7 @@ impl<T> Future for BodyFuture<T>
 where
     T: FromBody,
 {
-    type Output = Result<T, BodyError<T::Error>>;
+    type Output = One<Result<T, BodyError<T::Error>>>;
 
     fn poll(&mut self) -> Poll<Self::Output> {
         use self::BodyFuture::*;
@@ -143,7 +144,7 @@ where
                 _ => panic!(),
             };
 
-            break 'poll Poll::Ready(ready);
+            break 'poll Poll::Ready(one(ready));
         }
     }
 }

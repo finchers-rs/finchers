@@ -1,34 +1,21 @@
 #![allow(missing_docs)]
 
 use super::maybe_done::MaybeDone;
-use crate::endpoint::{Context, EndpointBase, IntoEndpoint};
+use crate::endpoint::{Context, EndpointBase};
 use crate::future::{Future, Poll};
 use crate::generic::{Combine, Tuple};
 use std::fmt;
 
-pub fn new<E1, E2>(e1: E1, e2: E2) -> And<E1::Endpoint, E2::Endpoint>
-where
-    E1: IntoEndpoint,
-    E2: IntoEndpoint,
-{
-    And {
-        e1: e1.into_endpoint(),
-        e2: e2.into_endpoint(),
-    }
-}
-
 #[derive(Copy, Clone, Debug)]
 pub struct And<E1, E2> {
-    e1: E1,
-    e2: E2,
+    pub(super) e1: E1,
+    pub(super) e2: E2,
 }
 
 impl<E1, E2> EndpointBase for And<E1, E2>
 where
     E1: EndpointBase,
     E2: EndpointBase,
-    E1::Output: Tuple,
-    E2::Output: Tuple,
     E1::Output: Combine<E2::Output>,
 {
     type Output = <E1::Output as Combine<E2::Output>>::Out;
@@ -79,10 +66,7 @@ where
         all_done = all_done && self.f2.poll_done();
 
         if all_done {
-            Poll::Ready(Combine::combine(
-                self.f1.take_item(),
-                self.f2.take_item(),
-            ))
+            Poll::Ready(Combine::combine(self.f1.take_item(), self.f2.take_item()))
         } else {
             Poll::Pending
         }

@@ -1,23 +1,14 @@
 #![allow(missing_docs)]
 
 use crate::either::Either;
-use crate::endpoint::{Context, EndpointBase, IntoEndpoint};
-
-pub fn new<E1, E2>(e1: E1, e2: E2) -> Or<E1::Endpoint, E2::Endpoint>
-where
-    E1: IntoEndpoint,
-    E2: IntoEndpoint,
-{
-    Or {
-        e1: e1.into_endpoint(),
-        e2: e2.into_endpoint(),
-    }
-}
+use crate::endpoint::{Context, EndpointBase};
+use crate::future::{Future, Poll};
+use crate::generic::{one, One};
 
 #[derive(Debug, Copy, Clone)]
 pub struct Or<E1, E2> {
-    e1: E1,
-    e2: E2,
+    pub(super) e1: E1,
+    pub(super) e2: E2,
 }
 
 impl<E1, E2> EndpointBase for Or<E1, E2>
@@ -25,8 +16,8 @@ where
     E1: EndpointBase,
     E2: EndpointBase,
 {
-    type Output = Either<E1::Output, E2::Output>;
-    type Future = Either<E1::Future, E2::Future>;
+    type Output = One<Either<E1::Output, E2::Output>>;
+    type Future = OrFuture<E1::Future, E2::Future>;
 
     fn apply(&self, cx2: &mut Context) -> Option<Self::Future> {
         let mut cx1 = cx2.clone();
@@ -42,14 +33,33 @@ where
                 } else {
                     Either::Right(t2)
                 };
-                Some(res)
+                Some(OrFuture(res))
             }
             (Some(t1), None) => {
                 *cx2 = cx1;
-                Some(Either::Left(t1))
+                Some(OrFuture(Either::Left(t1)))
             }
-            (None, Some(t2)) => Some(Either::Right(t2)),
+            (None, Some(t2)) => Some(OrFuture(Either::Right(t2))),
             (None, None) => None,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct OrFuture<L, R>(Either<L, R>);
+
+impl<L, R> Future for OrFuture<L, R>
+where
+    L: Future,
+    R: Future,
+{
+    type Output = One<Either<L::Output, R::Output>>;
+
+    #[inline(always)]
+    fn poll(&mut self) -> Poll<Self::Output> {
+        match self.0 {
+            Either::Left(ref mut t) => t.poll().map(Either::Left).map(one),
+            Either::Right(ref mut t) => t.poll().map(Either::Right).map(one),
         }
     }
 }

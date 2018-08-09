@@ -1,8 +1,9 @@
 use crate::endpoint::{Context, EndpointBase};
 use crate::future;
+use crate::generic::Tuple;
 
 /// Create an endpoint which immediately returns a value of `T`.
-pub fn just<T: Clone>(x: T) -> Just<T> {
+pub fn just<T: Clone + Tuple>(x: T) -> Just<T> {
     Just { x }
 }
 
@@ -12,7 +13,7 @@ pub struct Just<T> {
     x: T,
 }
 
-impl<T: Clone> EndpointBase for Just<T> {
+impl<T: Clone + Tuple> EndpointBase for Just<T> {
     type Output = T;
     type Future = future::Ready<T>;
 

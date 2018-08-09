@@ -1,26 +1,18 @@
-use crate::endpoint::{Context, EndpointBase, IntoEndpoint};
+use crate::endpoint::{Context, EndpointBase};
 use crate::future::{Future, Poll};
-
-pub fn new<E>(endpoint: E) -> Lift<E::Endpoint>
-where
-    E: IntoEndpoint,
-{
-    Lift {
-        endpoint: endpoint.into_endpoint(),
-    }
-}
+use crate::generic::{one, One};
 
 #[allow(missing_docs)]
 #[derive(Copy, Clone, Debug)]
 pub struct Lift<E> {
-    endpoint: E,
+    pub(super) endpoint: E,
 }
 
 impl<E> EndpointBase for Lift<E>
 where
     E: EndpointBase,
 {
-    type Output = Option<E::Output>;
+    type Output = One<Option<E::Output>>;
     type Future = LiftFuture<E::Future>;
 
     fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
@@ -39,12 +31,12 @@ impl<T> Future for LiftFuture<T>
 where
     T: Future,
 {
-    type Output = Option<T::Output>;
+    type Output = One<Option<T::Output>>;
 
     fn poll(&mut self) -> Poll<Self::Output> {
         match self.future {
-            Some(ref mut t) => t.poll().map(Some),
-            None => Poll::Ready(None),
+            Some(ref mut t) => t.poll().map(Some).map(one),
+            None => Poll::Ready(one(None)),
         }
     }
 }

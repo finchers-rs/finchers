@@ -13,6 +13,7 @@ use {mime, serde_qs};
 use crate::endpoint::{Context, EncodedStr, EndpointBase};
 use crate::error::HttpError;
 use crate::future::{Future, Poll};
+use crate::generic::{one, One};
 use crate::http::body::FromBody;
 use crate::input::{with_get_cx, Input};
 
@@ -75,7 +76,7 @@ where
     T: FromQuery,
     T::Error: Fail,
 {
-    type Output = Result<T, QueryError<T::Error>>;
+    type Output = One<Result<T, QueryError<T::Error>>>;
     type Future = QueryFuture<T>;
 
     fn apply(&self, _: &mut Context) -> Option<Self::Future> {
@@ -96,15 +97,16 @@ where
     T: FromQuery,
     T::Error: Fail,
 {
-    type Output = Result<T, QueryError<T::Error>>;
+    type Output = One<Result<T, QueryError<T::Error>>>;
 
     fn poll(&mut self) -> Poll<Self::Output> {
-        Poll::Ready(with_get_cx(|input| match input.request().uri().query() {
-            Some(query) => {
-                T::from_query(QueryItems::new(query)).map_err(|cause| QueryError::Parse { cause })
+        Poll::Ready(one(with_get_cx(|input| {
+            match input.request().uri().query() {
+                Some(query) => T::from_query(QueryItems::new(query))
+                    .map_err(|cause| QueryError::Parse { cause }),
+                None => Err(QueryError::MissingQuery),
             }
-            None => Err(QueryError::MissingQuery),
-        }))
+        })))
     }
 }
 

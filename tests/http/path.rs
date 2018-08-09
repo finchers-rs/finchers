@@ -61,19 +61,19 @@ fn test_reject_encoded_path() {
 fn test_extract_integer() {
     let client = Client::new(param::<i32>());
     let outcome = client.get("/42").run();
-    assert_eq!(outcome.and_then(Result::ok), Some(42i32));
+    assert_eq!(outcome.and_then(|(res,)| res.ok()), Some(42i32));
 }
 
 #[test]
 fn test_extract_wrong_integer() {
     let client = Client::new(param::<i32>());
     let outcome = client.get("/foo").run();
-    assert!(outcome.map_or(false, |res| res.is_err()));
+    assert!(outcome.map_or(false, |(res,)| res.is_err()));
 }
 
 #[test]
 fn test_extract_strings() {
     let client = Client::new(params::<Vec<String>>());
     let outcome = client.get("/foo/bar").run();
-    assert_eq!(outcome, Some(vec!["foo".into(), "bar".into()]));
+    assert_eq!(outcome, Some((vec!["foo".into(), "bar".into()],)));
 }
