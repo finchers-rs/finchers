@@ -3,6 +3,7 @@
 use super::maybe_done::MaybeDone;
 use crate::endpoint::{Context, EndpointBase, IntoEndpoint};
 use crate::future::{Future, Poll};
+use crate::generic::{Combine, Tuple};
 use std::fmt;
 
 pub fn new<E1, E2>(e1: E1, e2: E2) -> And<E1::Endpoint, E2::Endpoint>
@@ -26,8 +27,11 @@ impl<E1, E2> EndpointBase for And<E1, E2>
 where
     E1: EndpointBase,
     E2: EndpointBase,
+    E1::Output: Tuple,
+    E2::Output: Tuple,
+    E1::Output: Combine<E2::Output>,
 {
-    type Output = (E1::Output, E2::Output);
+    type Output = <E1::Output as Combine<E2::Output>>::Out;
     type Future = AndFuture<E1::Future, E2::Future>;
 
     fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
@@ -64,15 +68,21 @@ impl<F1, F2> Future for AndFuture<F1, F2>
 where
     F1: Future,
     F2: Future,
+    F1::Output: Tuple,
+    F2::Output: Tuple,
+    F1::Output: Combine<F2::Output>,
 {
-    type Output = (F1::Output, F2::Output);
+    type Output = <F1::Output as Combine<F2::Output>>::Out;
 
     fn poll(&mut self) -> Poll<Self::Output> {
         let mut all_done = self.f1.poll_done();
         all_done = all_done && self.f2.poll_done();
 
         if all_done {
-            Poll::Ready((self.f1.take_item(), self.f2.take_item()))
+            Poll::Ready(Combine::combine(
+                self.f1.take_item(),
+                self.f2.take_item(),
+            ))
         } else {
             Poll::Pending
         }

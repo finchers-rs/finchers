@@ -39,6 +39,7 @@ pub use self::result::EndpointResultExt;
 use crate::either::Either;
 use crate::endpoint::{assert_output, EndpointBase, IntoEndpoint};
 use crate::future::Future;
+use crate::generic::{Combine, Tuple};
 
 /// A set of extension methods used for composing complicate endpoints.
 pub trait EndpointExt: EndpointBase + Sized {
@@ -58,10 +59,10 @@ pub trait EndpointExt: EndpointBase + Sized {
     fn and<E>(self, e: E) -> And<Self, E::Endpoint>
     where
         E: IntoEndpoint,
+        Self::Output: Tuple + Combine<E::Output>,
+        E::Output: Tuple,
     {
-        assert_output::<_, (Self::Output, <E::Endpoint as EndpointBase>::Output)>(self::and::new(
-            self, e,
-        ))
+        assert_output::<_, <Self::Output as Combine<E::Output>>::Out>(self::and::new(self, e))
     }
 
     /// Create an endpoint which evaluates `self` and `e` and returns the task of `self` if matched.
