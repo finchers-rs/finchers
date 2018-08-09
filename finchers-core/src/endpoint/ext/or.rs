@@ -2,7 +2,7 @@
 
 use crate::either::Either;
 use crate::endpoint::{Context, EndpointBase};
-use crate::future::{Future, Poll};
+use crate::future::{Future, Poll, TryFuture};
 use crate::generic::{one, One};
 
 #[derive(Debug, Copy, Clone)]
@@ -16,7 +16,8 @@ where
     E1: EndpointBase,
     E2: EndpointBase,
 {
-    type Output = One<Either<E1::Output, E2::Output>>;
+    type Ok = One<Either<E1::Ok, E2::Ok>>;
+    type Error = Either<E1::Error, E2::Error>;
     type Future = OrFuture<E1::Future, E2::Future>;
 
     fn apply(&self, cx2: &mut Context) -> Option<Self::Future> {
@@ -50,16 +51,24 @@ pub struct OrFuture<L, R>(Either<L, R>);
 
 impl<L, R> Future for OrFuture<L, R>
 where
-    L: Future,
-    R: Future,
+    L: TryFuture,
+    R: TryFuture,
 {
-    type Output = One<Either<L::Output, R::Output>>;
+    type Output = Result<One<Either<L::Ok, R::Ok>>, Either<L::Error, R::Error>>;
 
     #[inline(always)]
     fn poll(&mut self) -> Poll<Self::Output> {
         match self.0 {
-            Either::Left(ref mut t) => t.poll().map(Either::Left).map(one),
-            Either::Right(ref mut t) => t.poll().map(Either::Right).map(one),
+            Either::Left(ref mut t) => t
+                .try_poll()
+                .map_ok(Either::Left)
+                .map_ok(one)
+                .map_err(Either::Left),
+            Either::Right(ref mut t) => t
+                .try_poll()
+                .map_ok(Either::Right)
+                .map_ok(one)
+                .map_err(Either::Right),
         }
     }
 }

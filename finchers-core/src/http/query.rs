@@ -74,9 +74,9 @@ impl<T> fmt::Debug for Query<T> {
 impl<T> EndpointBase for Query<T>
 where
     T: FromQuery,
-    T::Error: Fail,
 {
-    type Output = One<Result<T, QueryError<T::Error>>>;
+    type Ok = One<T>;
+    type Error = QueryError<T::Error>;
     type Future = QueryFuture<T>;
 
     fn apply(&self, _: &mut Context) -> Option<Self::Future> {
@@ -95,18 +95,16 @@ pub struct QueryFuture<T> {
 impl<T> Future for QueryFuture<T>
 where
     T: FromQuery,
-    T::Error: Fail,
 {
-    type Output = One<Result<T, QueryError<T::Error>>>;
+    type Output = Result<One<T>, QueryError<T::Error>>;
 
     fn poll(&mut self) -> Poll<Self::Output> {
-        Poll::Ready(one(with_get_cx(|input| {
-            match input.request().uri().query() {
-                Some(query) => T::from_query(QueryItems::new(query))
-                    .map_err(|cause| QueryError::Parse { cause }),
-                None => Err(QueryError::MissingQuery),
-            }
-        })))
+        Poll::Ready(with_get_cx(|input| match input.request().uri().query() {
+            Some(query) => T::from_query(QueryItems::new(query))
+                .map(one)
+                .map_err(|cause| QueryError::Parse { cause }),
+            None => Err(QueryError::MissingQuery),
+        }))
     }
 }
 
@@ -133,7 +131,6 @@ impl<F> Deref for Form<F> {
 impl<F> FromBody for Form<F>
 where
     F: FromQuery + 'static,
-    F::Error: Fail,
 {
     type Error = QueryError<F::Error>;
 
@@ -153,22 +150,34 @@ where
 }
 
 /// All of error kinds when receiving/parsing the urlencoded data.
-#[derive(Debug, Fail)]
-pub enum QueryError<E: Fail> {
+#[derive(Debug)]
+pub enum QueryError<E> {
     #[allow(missing_docs)]
-    #[fail(display = "The query string is not exist in the request")]
     MissingQuery,
-
     #[allow(missing_docs)]
-    #[fail(display = "The content type must be application/www-x-urlformencoded")]
     InvalidMediaType,
-
     #[allow(missing_docs)]
-    #[fail(display = "{}", cause)]
     Parse { cause: E },
 }
 
-impl<E: Fail> HttpError for QueryError<E> {
+impl<E: fmt::Display> fmt::Display for QueryError<E> {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            QueryError::MissingQuery => {
+                write!(formatter, "The query string is not exist in the request")
+            }
+            QueryError::InvalidMediaType => write!(
+                formatter,
+                "The content type must be application/www-x-urlformencoded"
+            ),
+            QueryError::Parse { ref cause } => write!(formatter, "{}", cause),
+        }
+    }
+}
+
+impl<E: Fail> Fail for QueryError<E> {}
+
+impl<E: HttpError> HttpError for QueryError<E> {
     fn status_code(&self) -> StatusCode {
         StatusCode::BAD_REQUEST
     }

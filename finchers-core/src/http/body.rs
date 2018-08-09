@@ -6,7 +6,7 @@ use http::StatusCode;
 use std::marker::PhantomData;
 use std::{fmt, mem};
 
-use crate::endpoint::{assert_output, Context, EndpointBase};
+use crate::endpoint::{Context, EndpointBase, EndpointExt};
 use crate::error::{Failure, HttpError, Never};
 use crate::future::{Future, Poll};
 use crate::generic::{one, One};
@@ -17,7 +17,9 @@ use crate::input::{with_get_cx, Input, PollDataError, RequestBody};
 /// If the instance has already been stolen by another Future, this endpoint will return
 /// a `None`.
 pub fn raw_body() -> RawBody {
-    assert_output::<_, One<RequestBody>>(RawBody { _priv: () })
+    (RawBody { _priv: () })
+        .ok::<One<RequestBody>>()
+        .err::<Never>()
 }
 
 #[allow(missing_docs)]
@@ -33,7 +35,8 @@ impl fmt::Debug for RawBody {
 }
 
 impl EndpointBase for RawBody {
-    type Output = One<RequestBody>;
+    type Ok = One<RequestBody>;
+    type Error = Never;
     type Future = RawBodyFuture;
 
     fn apply(&self, _: &mut Context) -> Option<Self::Future> {
@@ -48,10 +51,10 @@ pub struct RawBodyFuture {
 }
 
 impl Future for RawBodyFuture {
-    type Output = One<RequestBody>;
+    type Output = Result<One<RequestBody>, Never>;
 
     fn poll(&mut self) -> Poll<Self::Output> {
-        Poll::Ready(one(with_get_cx(|input| input.body_mut().take())))
+        Poll::Ready(Ok(one(with_get_cx(|input| input.body_mut().take()))))
     }
 }
 
@@ -61,9 +64,10 @@ pub fn body<T>() -> Body<T>
 where
     T: FromBody,
 {
-    assert_output::<_, One<Result<T, BodyError<T::Error>>>>(Body {
+    (Body {
         _marker: PhantomData,
-    })
+    }).ok::<One<T>>()
+    .err::<BodyError<T::Error>>()
 }
 
 #[allow(missing_docs)]
@@ -90,7 +94,8 @@ impl<T> EndpointBase for Body<T>
 where
     T: FromBody,
 {
-    type Output = One<Result<T, BodyError<T::Error>>>;
+    type Ok = One<T>;
+    type Error = BodyError<T::Error>;
     type Future = BodyFuture<T>;
 
     fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
@@ -113,38 +118,36 @@ impl<T> Future for BodyFuture<T>
 where
     T: FromBody,
 {
-    type Output = One<Result<T, BodyError<T::Error>>>;
+    type Output = Result<One<T>, BodyError<T::Error>>;
 
     fn poll(&mut self) -> Poll<Self::Output> {
         use self::BodyFuture::*;
         'poll: loop {
-            let err = match *self {
-                Init(..) => None,
-                Receiving(ref mut body, ref mut buf) => 'receiving: loop {
-                    let item = match poll!(body.poll_data()) {
-                        Ok(Some(data)) => data,
-                        Ok(None) => break 'receiving None,
-                        Err(err) => break 'receiving Some(err),
-                    };
-                    buf.extend_from_slice(&*item);
+            match *self {
+                Init(..) => {}
+                Receiving(ref mut body, ref mut buf) => while let Some(data) =
+                    try_poll!(body.poll_data().map_err(BodyError::Receiving))
+                {
+                    buf.extend_from_slice(&*data);
                 },
                 Done => panic!("cannot resolve/reject twice"),
             };
 
-            let ready = match (mem::replace(self, Done), err) {
-                (_, Some(cause)) => Err(BodyError::Receiving(cause)),
-                (Init(..), _) => {
+            match mem::replace(self, Done) {
+                Init(..) => {
                     let body = with_get_cx(|input| input.body_mut().take());
                     *self = Receiving(body, BytesMut::new());
                     continue 'poll;
                 }
-                (Receiving(_, buf), _) => {
-                    with_get_cx(|input| T::from_body(buf.freeze(), input).map_err(BodyError::Parse))
+                Receiving(_, buf) => {
+                    return Poll::Ready(
+                        with_get_cx(|input| T::from_body(buf.freeze(), input))
+                            .map(one)
+                            .map_err(BodyError::Parse),
+                    );
                 }
                 _ => panic!(),
-            };
-
-            break 'poll Poll::Ready(one(ready));
+            }
         }
     }
 }

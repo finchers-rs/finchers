@@ -1,43 +1,51 @@
 //! Extensions for constructing Endpoints
 
-pub mod option;
-pub mod result;
-
 mod and;
-mod just;
-mod lift;
-mod map;
+mod and_then;
+mod err;
+mod err_into;
+mod map_err;
+mod map_ok;
 mod maybe_done;
+mod ok;
 mod or;
-mod then;
+mod or_else;
 
 // re-exports
 pub use self::and::And;
-pub use self::just::{just, Just};
-pub use self::lift::Lift;
-pub use self::map::Map;
+pub use self::and_then::AndThen;
+pub use self::err::{err, Err};
+pub use self::err_into::ErrInto;
+pub use self::map_err::MapErr;
+pub use self::map_ok::MapOk;
+pub use self::ok::{ok, Ok};
 pub use self::or::Or;
-pub use self::then::Then;
-
-#[doc(inline)]
-pub use self::option::EndpointOptionExt;
-#[doc(inline)]
-pub use self::result::EndpointResultExt;
+pub use self::or_else::OrElse;
 
 // ==== EndpointExt ===
 
 use crate::either::Either;
-use crate::endpoint::{assert_output, EndpointBase, IntoEndpoint};
-use crate::future::Future;
+use crate::endpoint::{EndpointBase, IntoEndpoint};
+use crate::future::TryFuture;
 use crate::generic::{Combine, Func, One, Tuple};
+use std::marker::PhantomData;
 
 /// A set of extension methods used for composing complicate endpoints.
 pub trait EndpointExt: EndpointBase + Sized {
-    /// Annotate that the associated type `Output` is equal to `T`.
-    #[inline(always)]
-    fn as_t<T>(self) -> Self
+    #[allow(missing_docs)]
+    #[inline]
+    fn ok<T: Tuple>(self) -> Self
     where
-        Self: EndpointBase<Output = One<T>>,
+        Self: EndpointBase<Ok = T>,
+    {
+        self
+    }
+
+    #[allow(missing_docs)]
+    #[inline]
+    fn err<E>(self) -> Self
+    where
+        Self: EndpointBase<Error = E>,
     {
         self
     }
@@ -49,12 +57,13 @@ pub trait EndpointExt: EndpointBase + Sized {
     fn and<E>(self, other: E) -> And<Self, E::Endpoint>
     where
         E: IntoEndpoint,
-        Self::Output: Combine<E::Output>,
+        Self::Ok: Combine<E::Ok>,
     {
-        assert_output::<_, <Self::Output as Combine<E::Output>>::Out>(And {
+        (And {
             e1: self,
             e2: other.into_endpoint(),
-        })
+        }).ok::<<Self::Ok as Combine<E::Ok>>::Out>()
+        .err::<Either<Self::Error, E::Error>>()
     }
 
     /// Create an endpoint which evaluates `self` and `e` sequentially.
@@ -65,35 +74,65 @@ pub trait EndpointExt: EndpointBase + Sized {
     where
         E: IntoEndpoint,
     {
-        assert_output::<_, One<Either<Self::Output, E::Output>>>(Or {
+        (Or {
             e1: self,
             e2: other.into_endpoint(),
-        })
-    }
-
-    /// Create an endpoint which returns `None` if the inner endpoint skips the request.
-    fn lift(self) -> Lift<Self> {
-        assert_output::<_, One<Option<Self::Output>>>(Lift { endpoint: self })
+        }).ok::<One<Either<Self::Ok, E::Ok>>>()
+        .err::<Either<Self::Error, E::Error>>()
     }
 
     /// Create an endpoint which maps the returned value to a different type.
-    fn map<F>(self, f: F) -> Map<Self, F>
+    fn map_ok<F>(self, f: F) -> MapOk<Self, F>
     where
-        F: Func<Self::Output> + Clone,
+        F: Func<Self::Ok> + Clone,
         F::Out: Tuple,
     {
-        assert_output::<_, F::Out>(Map { endpoint: self, f })
+        (MapOk { endpoint: self, f })
+            .ok::<F::Out>()
+            .err::<Self::Error>()
     }
 
-    /// Create an endpoint which continue an asynchronous computation
-    /// from the value returned from `self`.
-    fn then<F>(self, f: F) -> Then<Self, F>
+    /// Create an endpoint which maps the returned value to a different type.
+    fn map_err<F, U>(self, f: F) -> MapErr<Self, F>
     where
-        F: Func<Self::Output> + Clone,
-        F::Out: Future,
-        <F::Out as Future>::Output: Tuple,
+        F: FnOnce(Self::Error) -> U + Clone,
     {
-        assert_output::<_, <F::Out as Future>::Output>(Then { endpoint: self, f })
+        (MapErr { endpoint: self, f }).ok::<Self::Ok>().err::<U>()
+    }
+
+    /// Create an endpoint which maps the returned value to a different type.
+    fn err_into<U>(self) -> ErrInto<Self, U>
+    where
+        Self::Error: Into<U>,
+    {
+        (ErrInto {
+            endpoint: self,
+            _marker: PhantomData,
+        }).ok::<Self::Ok>()
+        .err::<U>()
+    }
+
+    #[allow(missing_docs)]
+    fn and_then<F>(self, f: F) -> AndThen<Self, F>
+    where
+        F: Func<Self::Ok> + Clone,
+        F::Out: TryFuture<Error = Self::Error>,
+        <F::Out as TryFuture>::Ok: Tuple,
+    {
+        (AndThen { endpoint: self, f })
+            .ok::<<F::Out as TryFuture>::Ok>()
+            .err::<Self::Error>()
+    }
+
+    #[allow(missing_docs)]
+    fn or_else<F, R>(self, f: F) -> OrElse<Self, F>
+    where
+        F: FnOnce(Self::Error) -> R + Clone,
+        R: TryFuture<Ok = Self::Ok>,
+    {
+        (OrElse { endpoint: self, f })
+            .ok::<Self::Ok>()
+            .err::<R::Error>()
     }
 }
 

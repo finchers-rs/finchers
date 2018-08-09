@@ -5,7 +5,7 @@ use http::StatusCode;
 use std::fmt;
 use std::marker::PhantomData;
 
-use crate::endpoint::{assert_output, Context, EndpointBase};
+use crate::endpoint::{Context, EndpointBase, EndpointExt};
 use crate::error::HttpError;
 use crate::future::{Future, Poll};
 use crate::generic::{one, One};
@@ -42,9 +42,10 @@ where
     H: FromHeader,
     H::Error: Fail,
 {
-    assert_output::<_, One<Result<H, HeaderError<H::Error>>>>(Header {
+    (Header {
         _marker: PhantomData,
-    })
+    }).ok::<One<H>>()
+    .err::<HeaderError<H::Error>>()
 }
 
 #[allow(missing_docs)]
@@ -72,14 +73,13 @@ where
     H: FromHeader,
     H::Error: Fail,
 {
-    type Output = One<Result<H, HeaderError<H::Error>>>;
+    type Ok = One<H>;
+    type Error = HeaderError<H::Error>;
     type Future = HeaderFuture<H>;
 
     fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
-        if H::ALLOW_SKIP {
-            if !cx.input().request().headers().contains_key(H::NAME) {
-                return None;
-            }
+        if H::ALLOW_SKIP && !cx.input().request().headers().contains_key(H::NAME) {
+            return None;
         }
         Some(HeaderFuture {
             _marker: PhantomData,
@@ -98,16 +98,16 @@ where
     H: FromHeader,
     H::Error: Fail,
 {
-    type Output = One<Result<H, HeaderError<H::Error>>>;
+    type Output = Result<One<H>, HeaderError<H::Error>>;
 
     fn poll(&mut self) -> Poll<Self::Output> {
-        Poll::Ready(one(with_get_cx(|input| {
-            match input.request().headers().get(H::NAME) {
+        Poll::Ready(
+            with_get_cx(|input| match input.request().headers().get(H::NAME) {
                 Some(h) => H::from_header(h.as_bytes())
                     .map_err(|cause| HeaderError::InvalidValue { cause }),
                 None => H::default().ok_or_else(|| HeaderError::MissingValue),
-            }
-        })))
+            }).map(one),
+        )
     }
 }
 

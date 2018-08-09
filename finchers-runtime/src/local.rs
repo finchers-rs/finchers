@@ -7,7 +7,7 @@ use std::mem;
 
 use finchers_core::endpoint::{Context, EndpointBase};
 use finchers_core::error::Never;
-use finchers_core::future::{Future, Poll};
+use finchers_core::future::{Poll, TryFuture};
 use finchers_core::input::{with_set_cx, Input, RequestBody};
 
 /// A wrapper struct of an endpoint which adds the facility for testing.
@@ -139,7 +139,7 @@ impl<'a, E: EndpointBase> ClientRequest<'a, E> {
     }
 
     /// Apply this dummy request to the associated endpoint and get its response.
-    pub fn run(&mut self) -> Option<E::Output> {
+    pub fn run(&mut self) -> Option<Result<E::Ok, E::Error>> {
         let ClientRequest { client, request } = self.take();
 
         let mut input = Input::new(request);
@@ -148,7 +148,7 @@ impl<'a, E: EndpointBase> ClientRequest<'a, E> {
         let future = future::poll_fn(move || {
             match {
                 match in_flight {
-                    Some(ref mut f) => with_set_cx(&mut input, || f.poll().map(Some)),
+                    Some(ref mut f) => with_set_cx(&mut input, || f.try_poll().map(Some)),
                     None => Poll::Ready(None),
                 }
             } {

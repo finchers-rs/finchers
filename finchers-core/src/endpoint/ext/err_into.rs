@@ -1,22 +1,23 @@
 #![allow(missing_docs)]
 
 use crate::endpoint::{Context, EndpointBase};
-use crate::future::{Future, Poll};
-use crate::generic::{map_one, One};
+use crate::future::{Future, Poll, TryFuture};
+use crate::generic::Tuple;
 use std::marker::PhantomData;
 
 #[derive(Debug, Copy, Clone)]
-pub struct ErrInto<E, T> {
+pub struct ErrInto<E, U> {
     pub(super) endpoint: E,
-    pub(super) _marker: PhantomData<fn() -> T>,
+    pub(super) _marker: PhantomData<fn() -> U>,
 }
 
-impl<E, A, B, U> EndpointBase for ErrInto<E, U>
+impl<E, U> EndpointBase for ErrInto<E, U>
 where
-    E: EndpointBase<Output = One<Result<A, B>>>,
-    B: Into<U>,
+    E: EndpointBase,
+    E::Error: Into<U>,
 {
-    type Output = One<Result<A, U>>;
+    type Ok = E::Ok;
+    type Error = U;
     type Future = ErrIntoFuture<E::Future, U>;
 
     fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
@@ -33,16 +34,15 @@ pub struct ErrIntoFuture<T, U> {
     _marker: PhantomData<fn() -> U>,
 }
 
-impl<T, U, A, B> Future for ErrIntoFuture<T, U>
+impl<T, U> Future for ErrIntoFuture<T, U>
 where
-    T: Future<Output = One<Result<A, B>>>,
-    B: Into<U>,
+    T: TryFuture,
+    T::Ok: Tuple,
+    T::Error: Into<U>,
 {
-    type Output = One<Result<A, U>>;
+    type Output = Result<T::Ok, U>;
 
     fn poll(&mut self) -> Poll<Self::Output> {
-        self.future
-            .poll()
-            .map(|item| map_one(item, |x| x.map_err(Into::into)))
+        self.future.try_poll().map_err(Into::into)
     }
 }
