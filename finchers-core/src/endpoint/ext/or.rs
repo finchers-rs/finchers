@@ -1,8 +1,13 @@
 #![allow(missing_docs)]
 
+use futures_core::future::TryFuture;
+use std::future::Future;
+use std::mem::PinMut;
+use std::task;
+use std::task::Poll;
+
 use crate::either::Either;
 use crate::endpoint::{Context, EndpointBase};
-use crate::future::{Future, Poll, TryFuture};
 use crate::generic::{one, One};
 
 #[derive(Debug, Copy, Clone)]
@@ -34,20 +39,35 @@ where
                 } else {
                     Either::Right(t2)
                 };
-                Some(OrFuture(res))
+                Some(OrFuture { inner: res })
             }
             (Some(t1), None) => {
                 *cx2 = cx1;
-                Some(OrFuture(Either::Left(t1)))
+                Some(OrFuture {
+                    inner: Either::Left(t1),
+                })
             }
-            (None, Some(t2)) => Some(OrFuture(Either::Right(t2))),
+            (None, Some(t2)) => Some(OrFuture {
+                inner: Either::Right(t2),
+            }),
             (None, None) => None,
         }
     }
 }
 
 #[derive(Debug)]
-pub struct OrFuture<L, R>(Either<L, R>);
+pub struct OrFuture<L, R> {
+    inner: Either<L, R>,
+}
+
+impl<L, R> OrFuture<L, R> {
+    fn pinned_inner(self: PinMut<'a, Self>) -> Either<PinMut<'a, L>, PinMut<'a, R>> {
+        match unsafe { &mut PinMut::get_mut_unchecked(self).inner } {
+            Either::Left(ref mut t) => Either::Left(unsafe { PinMut::new_unchecked(t) }),
+            Either::Right(ref mut t) => Either::Right(unsafe { PinMut::new_unchecked(t) }),
+        }
+    }
+}
 
 impl<L, R> Future for OrFuture<L, R>
 where
@@ -57,15 +77,15 @@ where
     type Output = Result<One<Either<L::Ok, R::Ok>>, Either<L::Error, R::Error>>;
 
     #[inline(always)]
-    fn poll(&mut self) -> Poll<Self::Output> {
-        match self.0 {
-            Either::Left(ref mut t) => t
-                .try_poll()
+    fn poll(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+        match self.pinned_inner() {
+            Either::Left(t) => t
+                .try_poll(cx)
                 .map_ok(Either::Left)
                 .map_ok(one)
                 .map_err(Either::Left),
-            Either::Right(ref mut t) => t
-                .try_poll()
+            Either::Right(t) => t
+                .try_poll(cx)
                 .map_ok(Either::Right)
                 .map_ok(one)
                 .map_err(Either::Right),

@@ -1,5 +1,6 @@
+use futures_util::future;
+
 use crate::endpoint::{Context, EndpointBase};
-use crate::future;
 
 #[allow(missing_docs)]
 pub fn err<E: Clone>(e: E) -> Err<E> {

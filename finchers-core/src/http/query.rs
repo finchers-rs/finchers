@@ -1,18 +1,21 @@
 //! Components for parsing the query string and urlencoded payload.
 
+use std::future::Future;
+use std::iter::FromIterator;
+use std::marker::PhantomData;
+use std::mem::PinMut;
+use std::ops::Deref;
+use std::task::Poll;
+use std::{fmt, task};
+
 use bytes::Bytes;
 use failure::{Fail, SyncFailure};
 use http::StatusCode;
 use serde::de::{self, DeserializeOwned, IntoDeserializer};
-use std::fmt;
-use std::iter::FromIterator;
-use std::marker::PhantomData;
-use std::ops::Deref;
 use {mime, serde_qs};
 
 use crate::endpoint::{Context, EncodedStr, EndpointBase};
 use crate::error::HttpError;
-use crate::future::{Future, Poll};
 use crate::generic::{one, One};
 use crate::http::body::FromBody;
 use crate::input::{with_get_cx, Input};
@@ -98,7 +101,7 @@ where
 {
     type Output = Result<One<T>, QueryError<T::Error>>;
 
-    fn poll(&mut self) -> Poll<Self::Output> {
+    fn poll(self: PinMut<Self>, _: &mut task::Context) -> Poll<Self::Output> {
         Poll::Ready(with_get_cx(|input| match input.request().uri().query() {
             Some(query) => T::from_query(QueryItems::new(query))
                 .map(one)

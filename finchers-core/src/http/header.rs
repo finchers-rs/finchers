@@ -1,13 +1,16 @@
 //! Components for parsing the HTTP headers.
 
+use std::future::Future;
+use std::marker::PhantomData;
+use std::mem::PinMut;
+use std::task::Poll;
+use std::{fmt, task};
+
 use failure::Fail;
 use http::StatusCode;
-use std::fmt;
-use std::marker::PhantomData;
 
 use crate::endpoint::{Context, EndpointBase, EndpointExt};
 use crate::error::HttpError;
-use crate::future::{Future, Poll};
 use crate::generic::{one, One};
 use crate::input::with_get_cx;
 
@@ -100,7 +103,7 @@ where
 {
     type Output = Result<One<H>, HeaderError<H::Error>>;
 
-    fn poll(&mut self) -> Poll<Self::Output> {
+    fn poll(self: PinMut<Self>, _: &mut task::Context) -> Poll<Self::Output> {
         Poll::Ready(
             with_get_cx(|input| match input.request().headers().get(H::NAME) {
                 Some(h) => H::from_header(h.as_bytes())

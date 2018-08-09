@@ -1,20 +1,22 @@
 //! The components to construct an asynchronous HTTP service from the `Endpoint`.
 
-use futures;
-use futures::Async::*;
+use futures::{self, Async, Future, Poll};
 use http::header::{self, HeaderValue};
 use http::{Request, Response};
 use hyper::body::Body;
 use hyper::service::{NewService, Service};
 use slog::Logger;
+use std::boxed::PinBox;
 use std::sync::Arc;
 use std::time;
 use std::{fmt, io};
 
+use futures_util::compat::{Compat, TokioDefaultExecutor};
+use futures_util::try_future::{IntoFuture, TryFutureExt};
+
 use finchers_core::either::Either;
 use finchers_core::endpoint::{Context, Endpoint};
 use finchers_core::error::{Error, HttpError, NoRoute};
-use finchers_core::future::{Poll, TryFuture};
 use finchers_core::input::{with_set_cx, Input, RequestBody};
 use finchers_core::output::payloads::Once;
 use finchers_core::output::Responder;
@@ -79,7 +81,7 @@ impl<E: Endpoint> Service for AppService<E> {
     type ReqBody = Body;
     type ResBody = Either<Once<String>, <E::Ok as Responder>::Body>;
     type Error = io::Error;
-    type Future = AppServiceFuture<E::Future>;
+    type Future = AppServiceFuture<Compat<PinBox<IntoFuture<E::Future>>, TokioDefaultExecutor>>;
 
     fn call(&mut self, request: Request<Self::ReqBody>) -> Self::Future {
         let request = request.map(RequestBody::from_hyp);
@@ -89,6 +91,8 @@ impl<E: Endpoint> Service for AppService<E> {
         });
         let input = Input::new(request);
         let in_flight = self.data.endpoint.apply(&mut Context::new(&input));
+        let in_flight =
+            in_flight.map(|future| PinBox::new(future.into_future()).compat(TokioDefaultExecutor));
 
         AppServiceFuture {
             in_flight,
@@ -116,31 +120,34 @@ impl<T> AppServiceFuture<T> {
     }
 }
 
-impl<T> futures::Future for AppServiceFuture<T>
+impl<T> Future for AppServiceFuture<T>
 where
-    T: TryFuture,
-    T::Ok: Responder,
+    T: Future,
+    T::Item: Responder,
     T::Error: Into<Error>,
 {
-    type Item = Response<Either<Once<String>, <T::Ok as Responder>::Body>>;
+    type Item = Response<Either<Once<String>, <T::Item as Responder>::Body>>;
     type Error = io::Error;
 
-    fn poll(&mut self) -> futures::Poll<Self::Item, Self::Error> {
-        let output = match {
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        let polled = {
             let logger = &self.logger;
             let in_flight = &mut self.in_flight;
             let input = &mut self.input;
             LOGGER.set(logger, || match in_flight {
-                Some(ref mut f) => with_set_cx(input, || f.try_poll().map(Some)),
-                None => Poll::Ready(None),
+                Some(ref mut f) => with_set_cx(input, || Some(f.poll())),
+                None => None,
             })
-        } {
-            Poll::Pending => return Ok(NotReady),
-            Poll::Ready(Some(output)) => output
-                .map_err(Into::into)
-                .and_then(|res| res.respond(&self.input).map_err(Into::into))
-                .map(|res| res.map(Either::Right)),
-            Poll::Ready(None) => Err(NoRoute.into()),
+        };
+
+        let output = match polled {
+            Some(Ok(Async::NotReady)) => return Ok(Async::NotReady),
+            Some(Ok(Async::Ready(x))) => x
+                .respond(&self.input)
+                .map(|res| res.map(Either::Right))
+                .map_err(Into::into),
+            Some(Err(err)) => Err(err.into()),
+            None => Err(NoRoute.into()),
         };
 
         let mut response =
@@ -158,7 +165,7 @@ where
         let duration_msec = duration.as_secs() * 10 + duration.subsec_nanos() as u64 / 1_000_000;
         info!(self.logger, "{} ({} ms)", response.status(), duration_msec);
 
-        Ok(Ready(response))
+        Ok(Async::Ready(response))
     }
 }
 

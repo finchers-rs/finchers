@@ -3,13 +3,14 @@
 mod context;
 pub mod ext;
 
+use futures_core::future::TryFuture;
 use std::rc::Rc;
 use std::sync::Arc;
 
 pub use self::context::{Context, EncodedStr, Segment, Segments};
 pub use self::ext::EndpointExt;
+
 use crate::error::Error;
-use crate::future::TryFuture;
 use crate::generic::Tuple;
 use crate::output::Responder;
 

@@ -24,3 +24,8 @@ slog-term = "2.4.0"
 structopt = "0.2.10"
 tokio = "0.1.7"
 hyper = "0.12.7"
+
+futures-core-preview = { git = "https://github.com/rust-lang-nursery/futures-rs.git", branch = "master" }
+futures-util-preview = { git = "https://github.com/rust-lang-nursery/futures-rs.git", branch = "master", features = ["tokio-compat"] }
+#futures-core-preview = { version = "0.3.0-alpha.3" }
+#futures-util-preview = { version = "0.3.0-alpha.3", features = ["tokio-compat"] }

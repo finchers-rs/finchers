@@ -1,9 +1,9 @@
 #![allow(missing_docs)]
 
-use crate::endpoint::{Context, EndpointBase};
-use crate::future::{Future, Poll, TryFuture};
-use crate::generic::Tuple;
+use futures_util::try_future::{self, TryFutureExt};
 use std::marker::PhantomData;
+
+use crate::endpoint::{Context, EndpointBase};
 
 #[derive(Debug, Copy, Clone)]
 pub struct ErrInto<E, U> {
@@ -18,31 +18,10 @@ where
 {
     type Ok = E::Ok;
     type Error = U;
-    type Future = ErrIntoFuture<E::Future, U>;
+    type Future = try_future::ErrInto<E::Future, U>;
 
     fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
-        Some(ErrIntoFuture {
-            future: self.endpoint.apply(cx)?,
-            _marker: PhantomData,
-        })
-    }
-}
-
-#[derive(Debug)]
-pub struct ErrIntoFuture<T, U> {
-    future: T,
-    _marker: PhantomData<fn() -> U>,
-}
-
-impl<T, U> Future for ErrIntoFuture<T, U>
-where
-    T: TryFuture,
-    T::Ok: Tuple,
-    T::Error: Into<U>,
-{
-    type Output = Result<T::Ok, U>;
-
-    fn poll(&mut self) -> Poll<Self::Output> {
-        self.future.try_poll().map_err(Into::into)
+        let future = self.endpoint.apply(cx)?;
+        Some(future.err_into())
     }
 }

@@ -5,9 +5,9 @@ use http::StatusCode;
 use std::fmt;
 use std::mem;
 use std::ops::Deref;
+use std::task::Poll;
 
 use crate::error::HttpError;
-use crate::future::Poll;
 
 use futures::Stream;
 use hyper;
