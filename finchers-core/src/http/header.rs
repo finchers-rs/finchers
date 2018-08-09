@@ -8,6 +8,7 @@ use std::marker::PhantomData;
 use crate::endpoint::{assert_output, Context, EndpointBase};
 use crate::error::HttpError;
 use crate::future::{Future, Poll};
+use crate::generic::{one, One};
 use crate::input::with_get_cx;
 
 /// Create an endpoint which parses an entry in the HTTP header.
@@ -41,7 +42,7 @@ where
     H: FromHeader,
     H::Error: Fail,
 {
-    assert_output::<_, Result<H, HeaderError<H::Error>>>(Header {
+    assert_output::<_, One<Result<H, HeaderError<H::Error>>>>(Header {
         _marker: PhantomData,
     })
 }
@@ -71,7 +72,7 @@ where
     H: FromHeader,
     H::Error: Fail,
 {
-    type Output = Result<H, HeaderError<H::Error>>;
+    type Output = One<Result<H, HeaderError<H::Error>>>;
     type Future = HeaderFuture<H>;
 
     fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
@@ -97,16 +98,16 @@ where
     H: FromHeader,
     H::Error: Fail,
 {
-    type Output = Result<H, HeaderError<H::Error>>;
+    type Output = One<Result<H, HeaderError<H::Error>>>;
 
     fn poll(&mut self) -> Poll<Self::Output> {
-        Poll::Ready(with_get_cx(|input| {
+        Poll::Ready(one(with_get_cx(|input| {
             match input.request().headers().get(H::NAME) {
                 Some(h) => H::from_header(h.as_bytes())
                     .map_err(|cause| HeaderError::InvalidValue { cause }),
                 None => H::default().ok_or_else(|| HeaderError::MissingValue),
             }
-        }))
+        })))
     }
 }
 

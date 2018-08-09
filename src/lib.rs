@@ -22,7 +22,7 @@
 //!
 //! # Example
 //!
-//! ```
+//! ```ignore
 //! #![feature(rust_2018_preview)]
 //!
 //! use finchers::Endpoint;
@@ -62,7 +62,7 @@ pub mod error {
 
 pub mod endpoint {
     pub use finchers_core::endpoint::ext::{
-        all, just, lazy, EndpointExt, EndpointOptionExt, EndpointResultExt,
+        just, EndpointExt, EndpointOptionExt, EndpointResultExt,
     };
     pub use finchers_core::endpoint::{Endpoint, EndpointBase, IntoEndpoint};
     pub use finchers_core::http::{

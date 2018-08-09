@@ -5,13 +5,14 @@ pub mod ext;
 
 pub use self::context::{Context, EncodedStr, Segment, Segments};
 use crate::future::Future;
+use crate::generic::Tuple;
 use crate::output::Responder;
 use hyper::body::Payload;
 use std::rc::Rc;
 use std::sync::Arc;
 
 #[inline(always)]
-crate fn assert_output<E, T>(endpoint: E) -> E
+crate fn assert_output<E, T: Tuple>(endpoint: E) -> E
 where
     E: EndpointBase<Output = T>,
 {
@@ -21,7 +22,7 @@ where
 /// Trait representing an endpoint.
 pub trait EndpointBase {
     /// The inner type associated with this endpoint.
-    type Output;
+    type Output: Tuple;
 
     /// The type of value which will be returned from `apply`.
     type Future: Future<Output = Self::Output>;
@@ -107,7 +108,7 @@ where
 /// Trait representing the transformation into an `EndpointBase`.
 pub trait IntoEndpoint {
     /// The inner type of associated `EndpointBase`.
-    type Output;
+    type Output: Tuple;
 
     /// The type of transformed `EndpointBase`.
     type Endpoint: EndpointBase<Output = Self::Output>;

@@ -1,31 +1,22 @@
 #![allow(missing_docs)]
 
-use crate::endpoint::{Context, EndpointBase, IntoEndpoint};
+use crate::endpoint::{Context, EndpointBase};
 use crate::future::{Future, Poll};
-
-pub fn new<E, F, T>(endpoint: E, f: F) -> Map<E::Endpoint, F>
-where
-    E: IntoEndpoint,
-    F: FnOnce(E::Output) -> T + Clone,
-{
-    Map {
-        endpoint: endpoint.into_endpoint(),
-        f,
-    }
-}
+use crate::generic::{Func, Tuple};
 
 #[derive(Copy, Clone, Debug)]
 pub struct Map<E, F> {
-    endpoint: E,
-    f: F,
+    pub(super) endpoint: E,
+    pub(super) f: F,
 }
 
-impl<E, F, T> EndpointBase for Map<E, F>
+impl<E, F> EndpointBase for Map<E, F>
 where
     E: EndpointBase,
-    F: FnOnce(E::Output) -> T + Clone,
+    F: Func<E::Output> + Clone,
+    F::Out: Tuple,
 {
-    type Output = F::Output;
+    type Output = F::Out;
     type Future = MapFuture<E::Future, F>;
 
     fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
@@ -42,17 +33,19 @@ pub struct MapFuture<T, F> {
     f: Option<F>,
 }
 
-impl<T, F, U> Future for MapFuture<T, F>
+impl<T, F> Future for MapFuture<T, F>
 where
     T: Future,
-    F: FnOnce(T::Output) -> U,
+    T::Output: Tuple,
+    F: Func<T::Output>,
+    F::Out: Tuple,
 {
-    type Output = U;
+    type Output = F::Out;
 
     fn poll(&mut self) -> Poll<Self::Output> {
         self.future.poll().map(|item| {
             let f = self.f.take().expect("cannot resolve twice");
-            f(item)
+            f.call(item)
         })
     }
 }

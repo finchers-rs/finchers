@@ -12,6 +12,7 @@ use std::{error, fmt, net};
 use crate::endpoint::{Context, EndpointBase, Segment, Segments};
 use crate::error::{HttpError, Never};
 use crate::future::{self, Future, Poll};
+use crate::generic::{one, One};
 use crate::input::with_get_cx;
 
 // ==== MatchPath =====
@@ -229,7 +230,7 @@ impl<T> EndpointBase for Param<T>
 where
     T: FromSegment,
 {
-    type Output = Result<T, T::Error>;
+    type Output = One<Result<T, T::Error>>;
     type Future = ParamFuture<T>;
 
     fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
@@ -248,13 +249,13 @@ pub struct ParamFuture<T> {
 }
 
 impl<T: FromSegment> Future for ParamFuture<T> {
-    type Output = Result<T, T::Error>;
+    type Output = One<Result<T, T::Error>>;
 
     fn poll(&mut self) -> Poll<Self::Output> {
-        with_get_cx(|input| {
+        Poll::Ready(one(with_get_cx(|input| {
             let s = Segment::new(input.request().uri().path(), self.range.clone());
-            Poll::Ready(T::from_segment(s))
-        })
+            T::from_segment(s)
+        })))
     }
 }
 
@@ -370,11 +371,14 @@ impl<T> EndpointBase for Params<T>
 where
     T: FromSegments,
 {
-    type Output = T;
+    type Output = One<T>;
     type Future = future::Ready<Self::Output>;
 
     fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
-        T::from_segments(cx.segments()).map(future::ready).ok()
+        T::from_segments(cx.segments())
+            .map(one)
+            .map(future::ready)
+            .ok()
     }
 }
 

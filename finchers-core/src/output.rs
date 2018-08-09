@@ -45,6 +45,16 @@ impl Responder for () {
     }
 }
 
+impl<T: Responder> Responder for (T,) {
+    type Body = T::Body;
+    type Error = T::Error;
+
+    #[inline]
+    fn respond(self, input: &Input) -> Result<Response<Self::Body>, Self::Error> {
+        self.0.respond(input)
+    }
+}
+
 impl<T> Responder for Option<T>
 where
     T: Responder,

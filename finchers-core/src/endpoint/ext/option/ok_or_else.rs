@@ -2,27 +2,20 @@
 
 use crate::endpoint::{Context, EndpointBase};
 use crate::future::{Future, Poll};
+use crate::generic::{map_one, One};
 
 #[derive(Debug, Copy, Clone)]
 pub struct OkOrElse<E, F> {
-    endpoint: E,
-    f: F,
-}
-
-pub fn new<E, F, T, U>(endpoint: E, f: F) -> OkOrElse<E, F>
-where
-    E: EndpointBase<Output = Option<T>>,
-    F: FnOnce() -> U + Clone,
-{
-    OkOrElse { endpoint, f }
+    pub(super) endpoint: E,
+    pub(super) f: F,
 }
 
 impl<E, F, T, U> EndpointBase for OkOrElse<E, F>
 where
-    E: EndpointBase<Output = Option<T>>,
+    E: EndpointBase<Output = One<Option<T>>>,
     F: FnOnce() -> U + Clone,
 {
-    type Output = Result<T, U>;
+    type Output = One<Result<T, U>>;
     type Future = OkOrElseFuture<E::Future, F>;
 
     fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
@@ -41,15 +34,15 @@ pub struct OkOrElseFuture<T, F> {
 
 impl<T, F, A, U> Future for OkOrElseFuture<T, F>
 where
-    T: Future<Output = Option<A>>,
+    T: Future<Output = One<Option<A>>>,
     F: FnOnce() -> U,
 {
-    type Output = Result<A, U>;
+    type Output = One<Result<A, U>>;
 
     fn poll(&mut self) -> Poll<Self::Output> {
-        self.future.poll().map(|item: Option<A>| {
+        self.future.poll().map(|item| {
             let f = self.f.take().expect("cannot resolve twice");
-            item.ok_or_else(f)
+            map_one(item, |x| x.ok_or_else(f))
         })
     }
 }

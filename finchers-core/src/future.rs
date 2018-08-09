@@ -3,7 +3,6 @@
 //! Compatible layor for emulating the standard `Future`.
 
 pub use self::compat::{compat, Compat};
-use crate::either::Either;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Poll<T> {
@@ -58,22 +57,6 @@ macro_rules! poll {
 pub trait Future {
     type Output;
     fn poll(&mut self) -> Poll<Self::Output>;
-}
-
-impl<L, R> Future for Either<L, R>
-where
-    L: Future,
-    R: Future,
-{
-    type Output = Either<L::Output, R::Output>;
-
-    #[inline(always)]
-    fn poll(&mut self) -> Poll<Self::Output> {
-        match *self {
-            Either::Left(ref mut t) => t.poll().map(Either::Left),
-            Either::Right(ref mut t) => t.poll().map(Either::Right),
-        }
-    }
 }
 
 #[derive(Debug)]

@@ -4,7 +4,7 @@ use finchers_runtime::local::Client;
 
 #[test]
 fn test_then() {
-    let endpoint = just(()).then(|_| ready::<Result<_, ()>>(Ok(())));
+    let endpoint = just(()).then(|| ready::<(Result<_, ()>,)>((Ok(()),)));
     let client = Client::new(endpoint);
 
     let output = client.get("/").run();

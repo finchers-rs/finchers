@@ -15,6 +15,7 @@ mod macros;
 pub mod either;
 pub mod endpoint;
 pub mod error;
+pub mod generic;
 pub mod http;
 pub mod input;
 pub mod output;

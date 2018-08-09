@@ -1,35 +1,25 @@
 #![allow(missing_docs)]
 
-use crate::endpoint::{Context, EndpointBase, IntoEndpoint};
+use crate::endpoint::{Context, EndpointBase};
 use crate::future::{Future, Poll};
+use crate::generic::{Func, Tuple};
 use std::mem;
-
-pub fn new<E, F, R>(endpoint: E, f: F) -> Then<E::Endpoint, F>
-where
-    E: IntoEndpoint,
-    F: FnOnce(E::Output) -> R + Clone,
-    R: Future,
-{
-    Then {
-        endpoint: endpoint.into_endpoint(),
-        f,
-    }
-}
 
 #[derive(Copy, Clone, Debug)]
 pub struct Then<E, F> {
-    endpoint: E,
-    f: F,
+    pub(super) endpoint: E,
+    pub(super) f: F,
 }
 
-impl<E, F, R> EndpointBase for Then<E, F>
+impl<E, F> EndpointBase for Then<E, F>
 where
     E: EndpointBase,
-    F: FnOnce(E::Output) -> R + Clone,
-    R: Future,
+    F: Func<E::Output> + Clone,
+    F::Out: Future,
+    <F::Out as Future>::Output: Tuple,
 {
-    type Output = R::Output;
-    type Future = ThenFuture<E::Future, F, R>;
+    type Output = <F::Out as Future>::Output;
+    type Future = ThenFuture<E::Future, F>;
 
     fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
         let future = self.endpoint.apply(cx)?;
@@ -39,24 +29,28 @@ where
 }
 
 #[derive(Debug)]
-pub enum ThenFuture<T, F, R>
+pub enum ThenFuture<T, F>
 where
     T: Future,
-    F: FnOnce(T::Output) -> R,
-    R: Future,
+    T::Output: Tuple,
+    F: Func<T::Output>,
+    F::Out: Future,
+    <F::Out as Future>::Output: Tuple,
 {
     First(T, F),
-    Second(R),
+    Second(F::Out),
     Done,
 }
 
-impl<T, F, R> Future for ThenFuture<T, F, R>
+impl<T, F> Future for ThenFuture<T, F>
 where
     T: Future,
-    F: FnOnce(T::Output) -> R,
-    R: Future,
+    T::Output: Tuple,
+    F: Func<T::Output>,
+    F::Out: Future,
+    <F::Out as Future>::Output: Tuple,
 {
-    type Output = R::Output;
+    type Output = <F::Out as Future>::Output;
 
     fn poll(&mut self) -> Poll<Self::Output> {
         use self::ThenFuture::*;
@@ -69,7 +63,7 @@ where
                         return Poll::Pending;
                     }
                     Poll::Ready(r) => {
-                        *self = Second(f(r));
+                        *self = Second(f.call(r));
                         continue;
                     }
                 },
