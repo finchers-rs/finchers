@@ -5,11 +5,11 @@ pub trait Tuple: Sized {
 }
 
 impl Tuple for () {
-    type HList = ();
+    type HList = HNil;
 
     #[inline(always)]
     fn hlist(self) -> Self::HList {
-        ()
+        HNil
     }
 }
 
@@ -19,7 +19,10 @@ pub trait HList: Sized {
     fn tuple(self) -> Self::Tuple;
 }
 
-impl HList for () {
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct HNil;
+
+impl HList for HNil {
     type Tuple = ();
 
     #[inline(always)]
@@ -38,7 +41,7 @@ macro_rules! hcons {
     ($H:expr) => {
         HCons {
             head: $H,
-            tail: (),
+            tail: HNil,
         }
     };
     ($H:expr, $($T:expr),*) => {
@@ -50,7 +53,7 @@ macro_rules! hcons {
 }
 
 macro_rules! HCons {
-    ($H:ty) => { HCons<$H, ()> };
+    ($H:ty) => { HCons<$H, HNil> };
     ($H:ty, $($T:ty),*) => { HCons<$H, HCons!($($T),*)> };
 }
 
@@ -58,7 +61,7 @@ macro_rules! hcons_pat {
     ($H:pat) => {
         HCons {
             head: $H,
-            tail: (),
+            tail: HNil,
         }
     };
     ($H:pat, $($T:pat),*) => {

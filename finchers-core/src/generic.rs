@@ -4,9 +4,9 @@ mod combine;
 mod func;
 mod hlist;
 
-pub use self::combine::{Combine, CombineBase};
+pub use self::combine::Combine;
 pub use self::func::Func;
-pub use self::hlist::{HCons, HList, Tuple};
+pub use self::hlist::Tuple;
 
 pub type One<T> = (T,);
 

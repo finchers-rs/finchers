@@ -1,13 +1,12 @@
-use super::hlist::{HCons, HList, Tuple};
+use super::hlist::{HCons, HList, HNil, Tuple};
 
-pub trait CombineBase<T: HList> {
+pub trait CombineList<T: HList> {
     type Out: HList;
 
     fn combine(self, other: T) -> Self::Out;
 }
 
-// forall T:Hlist => (T, ()) -> T
-impl<T: HList> CombineBase<T> for () {
+impl<T: HList> CombineList<T> for HNil {
     type Out = T;
 
     fn combine(self, other: T) -> Self::Out {
@@ -15,12 +14,12 @@ impl<T: HList> CombineBase<T> for () {
     }
 }
 
-impl<H, T: HList, U: HList> CombineBase<U> for HCons<H, T>
+impl<H, T: HList, U: HList> CombineList<U> for HCons<H, T>
 where
-    T: CombineBase<U>,
-    HCons<H, <T as CombineBase<U>>::Out>: HList,
+    T: CombineList<U>,
+    HCons<H, <T as CombineList<U>>::Out>: HList,
 {
-    type Out = HCons<H, <T as CombineBase<U>>::Out>;
+    type Out = HCons<H, <T as CombineList<U>>::Out>;
 
     #[inline(always)]
     fn combine(self, other: U) -> Self::Out {
@@ -39,9 +38,9 @@ pub trait Combine<T: Tuple>: Tuple + sealed::Sealed<T> {
 
 impl<H: Tuple, T: Tuple> Combine<T> for H
 where
-    H::HList: CombineBase<T::HList>,
+    H::HList: CombineList<T::HList>,
 {
-    type Out = <<H::HList as CombineBase<T::HList>>::Out as HList>::Tuple;
+    type Out = <<H::HList as CombineList<T::HList>>::Out as HList>::Tuple;
 
     fn combine(self, other: T) -> Self::Out {
         self.hlist().combine(other.hlist()).tuple()
@@ -49,11 +48,11 @@ where
 }
 
 mod sealed {
-    use super::{CombineBase, Tuple};
+    use super::{CombineList, Tuple};
 
     pub trait Sealed<T> {}
 
-    impl<H: Tuple, T: Tuple> Sealed<T> for H where H::HList: CombineBase<T::HList> {}
+    impl<H: Tuple, T: Tuple> Sealed<T> for H where H::HList: CombineList<T::HList> {}
 }
 
 #[cfg(test)]
