@@ -15,7 +15,7 @@ pub mod either;
 pub mod endpoint;
 pub mod error;
 pub mod generic;
-pub mod http;
+pub mod endpoints;
 pub mod input;
 pub mod output;
 pub mod test;

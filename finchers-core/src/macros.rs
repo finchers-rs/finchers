@@ -19,7 +19,7 @@
 macro_rules! choice {
     ($h:expr, $($t:expr),*) => {{
         use $crate::endpoint::IntoEndpoint;
-        use $crate::endpoint::ext::EndpointExt;
+        use $crate::endpoint::EndpointExt;
         IntoEndpoint::into_endpoint($h)
             $( .or(IntoEndpoint::into_endpoint($t)) )*
     }};
@@ -30,7 +30,7 @@ macro_rules! choice {
 
 #[cfg(test)]
 mod tests {
-    use crate::http::path::path;
+    use crate::endpoints::path::path;
 
     #[test]
     #[allow(unused_variables)]
