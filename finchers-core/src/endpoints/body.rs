@@ -59,7 +59,7 @@ impl Future for RawBodyFuture {
     type Output = Result<One<RequestBody>, Never>;
 
     fn poll(self: PinMut<Self>, _: &mut task::Context) -> Poll<Self::Output> {
-        let body = with_get_cx(|input| input.take_body());
+        let body = with_get_cx(|input| input.body());
         Poll::Ready(Ok(one(body)))
     }
 }
@@ -150,7 +150,7 @@ impl<T: FromBody> Future for BodyFuture<T> {
 
             match mem::replace(self.state(), State::Done) {
                 State::Init => {
-                    let body = with_get_cx(|input| input.take_body());
+                    let body = with_get_cx(|input| input.body());
                     *self.state() = State::Receiving(body, BytesMut::new());
                     continue 'poll;
                 }

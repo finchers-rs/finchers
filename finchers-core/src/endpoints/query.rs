@@ -141,7 +141,7 @@ where
 
     fn from_body(body: Bytes, input: PinMut<Input>) -> Result<Self, Self::Error> {
         if !input
-            .media_type()
+            .content_type()
             .map_err(|_| QueryError::InvalidMediaType)?
             .map_or(true, |m| *m == mime::APPLICATION_WWW_FORM_URLENCODED)
         {

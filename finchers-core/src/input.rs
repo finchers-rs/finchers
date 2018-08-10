@@ -15,6 +15,8 @@ pub use self::global::with_set_cx;
 
 // ====
 
+use std::cell::UnsafeCell;
+use std::marker::{PhantomData, Pinned};
 use std::mem::PinMut;
 use std::ops::Deref;
 
@@ -23,14 +25,14 @@ use failure::Fail;
 use http::{header, Request, StatusCode};
 use mime::{self, Mime};
 
-/// The context which holds the received HTTP request.
-///
-/// The value is used throughout the processing in `Endpoint` and `Task`.
+/// The contextual information with an incoming HTTP request.
 #[derive(Debug)]
 pub struct Input {
     request: Request<RequestBody>,
     // caches
     media_type: Option<Option<Mime>>,
+
+    _marker: PhantomData<(UnsafeCell<()>, Pinned)>,
 }
 
 impl Input {
@@ -42,6 +44,7 @@ impl Input {
         Input {
             request: request.map(Into::into),
             media_type: None,
+            _marker: PhantomData,
         }
     }
 
@@ -56,18 +59,18 @@ impl Input {
         unsafe { PinMut::map_unchecked(self, |input| &mut input.request) }
     }
 
-    #[allow(missing_docs)]
+    /// Takes the instance of `RequestBody` from this value.
     #[inline]
-    pub fn take_body(self: PinMut<'a, Self>) -> RequestBody {
+    pub fn body(self: PinMut<'a, Self>) -> RequestBody {
         let this = unsafe { PinMut::get_mut_unchecked(self) };
         this.request.body_mut().take()
     }
 
-    /// Return the reference to the parsed media type in the request header.
+    /// Attempts to get the entry of `Content-type` and parse its value.
     ///
-    /// This method will perform parsing of the entry `Content-type` in the request header
-    /// if it has not been done yet.  If the value is invalid, it will return an `Err`.
-    pub fn media_type(self: PinMut<'a, Self>) -> Result<Option<&'a Mime>, InvalidMediaType> {
+    /// The result of this method is cached and it will return the reference to the cached value
+    /// on subsequent calls.
+    pub fn content_type(self: PinMut<'a, Self>) -> Result<Option<&'a Mime>, InvalidContentType> {
         let this = unsafe { PinMut::get_mut_unchecked(self) };
 
         match this.media_type {
@@ -77,10 +80,10 @@ impl Input {
                     Some(raw) => {
                         let raw_str = raw
                             .to_str()
-                            .map_err(|cause| InvalidMediaType::DecodeToStr { cause })?;
+                            .map_err(|cause| InvalidContentType::DecodeToStr { cause })?;
                         let mime = raw_str
                             .parse()
-                            .map_err(|cause| InvalidMediaType::ParseToMime { cause })?;
+                            .map_err(|cause| InvalidContentType::ParseToMime { cause })?;
                         Some(mime)
                     }
                     None => None,
@@ -99,9 +102,9 @@ impl Deref for Input {
     }
 }
 
-/// An error type which will be returned from `Input::media_type`.
+/// An error type during parsing the value of `Content-type` header.
 #[derive(Debug, Fail)]
-pub enum InvalidMediaType {
+pub enum InvalidContentType {
     #[allow(missing_docs)]
     #[fail(display = "Content-type is invalid: {}", cause)]
     DecodeToStr { cause: header::ToStrError },
@@ -111,7 +114,7 @@ pub enum InvalidMediaType {
     ParseToMime { cause: mime::FromStrError },
 }
 
-impl HttpError for InvalidMediaType {
+impl HttpError for InvalidContentType {
     fn status_code(&self) -> StatusCode {
         StatusCode::BAD_REQUEST
     }
