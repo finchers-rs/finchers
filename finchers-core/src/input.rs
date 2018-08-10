@@ -3,6 +3,8 @@
 mod body;
 mod global;
 mod header;
+#[doc(hidden)]
+pub mod local_map;
 mod segments;
 mod traits;
 
@@ -22,10 +24,12 @@ use std::marker::{PhantomData, Pinned};
 use std::mem::PinMut;
 use std::ops::Deref;
 
-use crate::error::HttpError;
 use failure::Fail;
 use http::{Request, StatusCode};
 use mime::{self, Mime};
+
+use self::local_map::LocalMap;
+use crate::error::HttpError;
 
 /// The contextual information with an incoming HTTP request.
 #[derive(Debug)]
@@ -33,7 +37,7 @@ pub struct Input {
     request: Request<RequestBody>,
     // caches
     media_type: Option<Option<Mime>>,
-
+    locals: LocalMap,
     _marker: PhantomData<(UnsafeCell<()>, Pinned)>,
 }
 
@@ -46,6 +50,7 @@ impl Input {
         Input {
             request: request.map(Into::into),
             media_type: None,
+            locals: LocalMap::default(),
             _marker: PhantomData,
         }
     }
