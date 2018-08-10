@@ -7,15 +7,15 @@ use std::mem::PinMut;
 use std::task::Poll;
 use std::{fmt, mem, task};
 
-use bytes::{Bytes, BytesMut};
+use bytes::BytesMut;
 use failure::Fail;
 use http::StatusCode;
 use pin_utils::unsafe_unpinned;
 
 use crate::endpoint::{Context, EndpointBase, EndpointExt};
-use crate::error::{Failure, HttpError, Never};
+use crate::error::{HttpError, Never};
 use crate::generic::{one, One};
-use crate::input::{with_get_cx, Input, PollDataError, RequestBody};
+use crate::input::{with_get_cx, FromBody, PollDataError, RequestBody};
 
 /// Creates an endpoint which will take the instance of `RequestBody` from the context.
 ///
@@ -190,37 +190,5 @@ impl<E: HttpError> HttpError for BodyError<E> {
             BodyError::Parse { .. } => StatusCode::BAD_REQUEST,
             BodyError::Receiving { .. } => StatusCode::INTERNAL_SERVER_ERROR,
         }
-    }
-}
-
-/// Trait representing the transformation from a message body.
-pub trait FromBody: 'static + Sized {
-    /// The error type which will be returned from `from_data`.
-    type Error;
-
-    /// Returns whether the incoming request matches to this type or not.
-    #[allow(unused_variables)]
-    fn is_match(input: &Input) -> bool {
-        true
-    }
-
-    /// Performs conversion from raw bytes into itself.
-    fn from_body(body: Bytes, input: &Input) -> Result<Self, Self::Error>;
-}
-
-impl FromBody for Bytes {
-    type Error = Never;
-
-    fn from_body(body: Bytes, _: &Input) -> Result<Self, Self::Error> {
-        Ok(body)
-    }
-}
-
-impl FromBody for String {
-    type Error = Failure;
-
-    fn from_body(body: Bytes, _: &Input) -> Result<Self, Self::Error> {
-        String::from_utf8(body.to_vec())
-            .map_err(|cause| Failure::new(StatusCode::BAD_REQUEST, cause))
     }
 }

@@ -12,7 +12,7 @@ use http::StatusCode;
 use crate::endpoint::{Context, EndpointBase, EndpointExt};
 use crate::error::HttpError;
 use crate::generic::{one, One};
-use crate::input::with_get_cx;
+use crate::input::{with_get_cx, FromHeader};
 
 /// Create an endpoint which parses an entry in the HTTP header.
 ///
@@ -141,31 +141,5 @@ impl<E: Fail> Fail for HeaderError<E> {}
 impl<E: Fail> HttpError for HeaderError<E> {
     fn status_code(&self) -> StatusCode {
         StatusCode::BAD_REQUEST
-    }
-}
-
-/// Trait representing the conversion from an entry of HTTP header.
-pub trait FromHeader: Sized {
-    /// The error type which will be returned from `from_header`.
-    type Error;
-
-    /// The name of HTTP header associated with this type.
-    const NAME: &'static str;
-
-    /// The flag whether the endpoint will skip the request if the header value is missing.
-    ///
-    /// If the value of this flag is `false`, the endpoint will always accept the request
-    /// and will return an error if the header value is missing.
-    const ALLOW_SKIP: bool = true;
-
-    /// Perform conversion from a byte sequence to a value of `Self`.
-    fn from_header(s: &[u8]) -> Result<Self, Self::Error>;
-
-    /// Return the default value of Self used if the header value is missing.
-    ///
-    /// If the returned value is `None`, it means that the header value is required and
-    /// an error will be returned from the endpoint if the value is missing.
-    fn default() -> Option<Self> {
-        None
     }
 }

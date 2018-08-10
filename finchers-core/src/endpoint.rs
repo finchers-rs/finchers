@@ -2,7 +2,6 @@
 
 mod and;
 mod and_then;
-mod context;
 mod err;
 mod err_into;
 mod map_err;
@@ -15,7 +14,6 @@ mod try_chain;
 // re-exports
 pub use self::and::And;
 pub use self::and_then::AndThen;
-pub use self::context::{Context, EncodedStr, Segment, Segments};
 pub use self::err::{err, Err};
 pub use self::err_into::ErrInto;
 pub use self::map_err::MapErr;
@@ -27,12 +25,40 @@ pub use self::or_else::OrElse;
 use crate::either::Either;
 use crate::error::Error;
 use crate::generic::{Combine, Func, One, Tuple};
+use crate::input::{Input, Segments};
 use crate::output::Responder;
 
 use futures_core::future::TryFuture;
 use std::marker::PhantomData;
 use std::rc::Rc;
 use std::sync::Arc;
+
+/// A context during the routing.
+#[derive(Debug, Clone)]
+pub struct Context<'a> {
+    input: &'a Input,
+    segments: Segments<'a>,
+}
+
+impl<'a> Context<'a> {
+    #[doc(hidden)]
+    pub fn new(input: &'a Input) -> Self {
+        Context {
+            input: input,
+            segments: Segments::from(input.request().uri().path()),
+        }
+    }
+
+    /// Return the reference to `Input`.
+    pub fn input(&self) -> &'a Input {
+        self.input
+    }
+
+    /// Return the reference to the instance of `Segments`.
+    pub fn segments(&mut self) -> &mut Segments<'a> {
+        &mut self.segments
+    }
+}
 
 /// Trait representing an endpoint.
 pub trait EndpointBase {

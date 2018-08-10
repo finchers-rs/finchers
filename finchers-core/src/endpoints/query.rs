@@ -14,11 +14,10 @@ use http::StatusCode;
 use serde::de::{self, DeserializeOwned, IntoDeserializer};
 use {mime, serde_qs};
 
-use super::body::FromBody;
-use crate::endpoint::{Context, EncodedStr, EndpointBase};
+use crate::endpoint::{Context, EndpointBase};
 use crate::error::HttpError;
 use crate::generic::{one, One};
-use crate::input::{with_get_cx, Input};
+use crate::input::{with_get_cx, FromBody, FromQuery, Input, QueryItems};
 
 /// Create an endpoint which parse the query string in the HTTP request
 /// to the value of `T`.
@@ -183,68 +182,6 @@ impl<E: Fail> Fail for QueryError<E> {}
 impl<E: HttpError> HttpError for QueryError<E> {
     fn status_code(&self) -> StatusCode {
         StatusCode::BAD_REQUEST
-    }
-}
-
-/// Trait representing the transformation from a set of HTTP query.
-pub trait FromQuery: Sized + 'static {
-    /// The error type which will be returned from `from_query`.
-    type Error;
-
-    /// Perform transformation from `QueryItems` into `Self`.
-    fn from_query(query: QueryItems) -> Result<Self, Self::Error>;
-}
-
-/// An iterator over the elements of query items.
-#[derive(Debug)]
-pub struct QueryItems<'a> {
-    input: &'a [u8],
-}
-
-impl<'a> QueryItems<'a> {
-    /// Create a new `QueryItems` from a slice of bytes.
-    ///
-    /// The input must be a valid HTTP query.
-    pub fn new<S: AsRef<[u8]> + ?Sized>(input: &'a S) -> QueryItems<'a> {
-        QueryItems {
-            input: input.as_ref(),
-        }
-    }
-
-    /// Returns a slice of bytes which contains the remaining query items.
-    #[inline(always)]
-    pub fn as_slice(&self) -> &'a [u8] {
-        self.input
-    }
-}
-
-// FIXME: return an error if the input is invalid query sequence.
-impl<'a> Iterator for QueryItems<'a> {
-    type Item = (&'a EncodedStr, &'a EncodedStr);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            if self.input.is_empty() {
-                return None;
-            }
-
-            let mut s = self.input.splitn(2, |&b| b == b'&');
-            let seq = s.next().unwrap();
-            self.input = s.next().unwrap_or(&[]);
-            if seq.is_empty() {
-                continue;
-            }
-
-            let mut s = seq.splitn(2, |&b| b == b'=');
-            let name = s.next().unwrap();
-            let value = s.next().unwrap_or(&[]);
-            break unsafe {
-                Some((
-                    EncodedStr::new_unchecked(name),
-                    EncodedStr::new_unchecked(value),
-                ))
-            };
-        }
     }
 }
 

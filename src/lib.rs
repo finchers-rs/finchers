@@ -63,9 +63,7 @@ pub mod error {
 pub mod endpoint {
     pub use finchers_core::endpoint::{err, ok};
     pub use finchers_core::endpoint::{Endpoint, EndpointBase, IntoEndpoint};
-    pub use finchers_core::endpoints::{
-        body, header, method, path, query, FromBody, FromHeader, FromSegment, FromSegments,
-    };
+    pub use finchers_core::endpoints::{body, header, method, path, query};
 
     /// The "prelude" for building endpoints
     pub mod prelude {
@@ -79,7 +77,9 @@ pub mod endpoint {
 }
 
 pub mod input {
-    pub use finchers_core::input::{Data, Input, RequestBody};
+    pub use finchers_core::input::{
+        Data, FromBody, FromHeader, FromQuery, FromSegment, FromSegments, Input, RequestBody,
+    };
 }
 
 pub mod output {

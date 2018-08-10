@@ -4,20 +4,16 @@ use std::future::Future;
 use std::marker::PhantomData;
 use std::mem::PinMut;
 use std::ops::Range;
-use std::path::PathBuf;
-use std::str::{FromStr, Utf8Error};
 use std::task::Poll;
-use std::{error, fmt, net, task};
+use std::{error, fmt, task};
 
-use failure::Fail;
 use futures_util::future;
-use http::StatusCode;
 use percent_encoding::{define_encode_set, percent_encode, DEFAULT_ENCODE_SET};
 
-use crate::endpoint::{Context, EndpointBase, Segment, Segments};
-use crate::error::{HttpError, Never};
+use crate::endpoint::{Context, EndpointBase};
+use crate::error::Never;
 use crate::generic::{one, One};
-use crate::input::with_get_cx;
+use crate::input::{with_get_cx, FromSegment, FromSegments, Segment};
 
 // ==== MatchPath =====
 
@@ -265,66 +261,6 @@ impl<T: FromSegment> Future for ParamFuture<T> {
     }
 }
 
-/// Trait representing the conversion from "Segment".
-pub trait FromSegment: 'static + Sized {
-    /// The error type returned from "from_segment".
-    type Error;
-
-    /// Perform conversion from "Segment" to "Self".
-    fn from_segment(segment: Segment) -> Result<Self, Self::Error>;
-}
-
-#[allow(missing_docs)]
-#[derive(Debug, Fail)]
-pub enum FromSegmentError<E: Fail> {
-    #[fail(display = "{}", cause)]
-    Decode { cause: Utf8Error },
-
-    #[fail(display = "{}", cause)]
-    Parse { cause: E },
-}
-
-impl<E: Fail> HttpError for FromSegmentError<E> {
-    fn status_code(&self) -> StatusCode {
-        StatusCode::BAD_REQUEST
-    }
-}
-
-macro_rules! impl_from_segment_from_str {
-    ($($t:ty,)*) => {$(
-        impl FromSegment for $t {
-            type Error = FromSegmentError<<$t as FromStr>::Err>;
-
-            #[inline]
-            fn from_segment(segment: Segment) -> Result<Self, Self::Error> {
-                let s = segment.as_encoded_str().percent_decode().map_err(|cause| FromSegmentError::Decode{cause})?;
-                FromStr::from_str(&*s).map_err(|cause| FromSegmentError::Parse{cause})
-            }
-        }
-    )*};
-}
-
-impl_from_segment_from_str! {
-    bool, f32, f64,
-    i8, i16, i32, i64, isize,
-    u8, u16, u32, u64, usize,
-    net::IpAddr,
-    net::Ipv4Addr,
-    net::Ipv6Addr,
-    net::SocketAddr,
-    net::SocketAddrV4,
-    net::SocketAddrV6,
-}
-
-impl FromSegment for String {
-    type Error = Never;
-
-    #[inline]
-    fn from_segment(segment: Segment) -> Result<Self, Self::Error> {
-        Ok(segment.as_encoded_str().percent_decode_lossy().into_owned())
-    }
-}
-
 // ==== Params ====
 
 /// Create an endpoint which extracts all remaining segments from
@@ -390,59 +326,6 @@ where
     }
 }
 
-/// Trait representing the conversion from a `Segments`
-pub trait FromSegments: 'static + Sized {
-    /// The error type returned from `from_segments`
-    type Error;
-
-    /// Perform conversion from `Segments` to `Self`.
-    fn from_segments(segments: &mut Segments) -> Result<Self, Self::Error>;
-}
-
-impl<T: FromSegment> FromSegments for Vec<T> {
-    type Error = T::Error;
-
-    fn from_segments(segments: &mut Segments) -> Result<Self, Self::Error> {
-        segments.into_iter().map(|s| T::from_segment(s)).collect()
-    }
-}
-
-impl FromSegments for String {
-    type Error = Never;
-
-    fn from_segments(segments: &mut Segments) -> Result<Self, Self::Error> {
-        let s = segments.remaining_path().to_owned();
-        let _ = segments.last();
-        Ok(s)
-    }
-}
-
-impl FromSegments for PathBuf {
-    type Error = Never;
-
-    fn from_segments(segments: &mut Segments) -> Result<Self, Self::Error> {
-        let s = PathBuf::from(segments.remaining_path());
-        let _ = segments.last();
-        Ok(s)
-    }
-}
-
-impl<T: FromSegments> FromSegments for Option<T> {
-    type Error = Never;
-
-    fn from_segments(segments: &mut Segments) -> Result<Self, Self::Error> {
-        Ok(T::from_segments(segments).ok())
-    }
-}
-
-impl<T: FromSegments> FromSegments for Result<T, T::Error> {
-    type Error = Never;
-
-    fn from_segments(segments: &mut Segments) -> Result<Self, Self::Error> {
-        Ok(T::from_segments(segments))
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -488,12 +371,5 @@ mod tests {
             MatchPath::from_str("foo//bar").map(|m| m.kind),
             Err(ParseMatchError::EmptyString)
         );
-    }
-
-    #[test]
-    fn test_from_segments() {
-        let mut segments = Segments::from("/foo/bar.txt");
-        let result = FromSegments::from_segments(&mut segments);
-        assert_eq!(result, Ok(PathBuf::from("foo/bar.txt")));
     }
 }
