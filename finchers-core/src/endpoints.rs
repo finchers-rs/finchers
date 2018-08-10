@@ -2,7 +2,6 @@
 
 pub mod body;
 pub mod header;
-pub mod json;
 pub mod method;
 pub mod path;
 pub mod query;

@@ -9,8 +9,8 @@ use serde::ser::Serialize;
 use std::ops::Deref;
 use {mime, serde_json};
 
-use super::body::FromBody;
 use crate::either::Either;
+use crate::endpoints::body::FromBody;
 use crate::error::{HttpError, Never};
 use crate::input::Input;
 use crate::output::payloads::Once;
