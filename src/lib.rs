@@ -61,20 +61,20 @@ pub mod error {
 }
 
 pub mod endpoint {
-    pub use finchers_core::endpoint::ext::{err, ok};
+    pub use finchers_core::endpoint::{err, ok};
     pub use finchers_core::endpoint::{Endpoint, EndpointBase, IntoEndpoint};
-    pub use finchers_core::http::{
+    pub use finchers_core::endpoints::{
         body, header, method, path, query, FromBody, FromHeader, FromSegment, FromSegments,
     };
 
     /// The "prelude" for building endpoints
     pub mod prelude {
-        pub use finchers_core::endpoint::ext::EndpointExt;
+        pub use finchers_core::endpoint::EndpointExt;
         pub use finchers_core::endpoint::{Endpoint, EndpointBase, IntoEndpoint};
-        pub use finchers_core::http::body::{body, raw_body};
-        pub use finchers_core::http::header::header;
-        pub use finchers_core::http::method::{delete, get, head, patch, post, put};
-        pub use finchers_core::http::path::{param, params, path};
+        pub use finchers_core::endpoints::body::{body, raw_body};
+        pub use finchers_core::endpoints::header::header;
+        pub use finchers_core::endpoints::method::{delete, get, head, patch, post, put};
+        pub use finchers_core::endpoints::path::{param, params, path};
     }
 }
 
@@ -93,8 +93,8 @@ pub mod runtime {
 
 pub use finchers_core::choice;
 pub use finchers_core::endpoint::{Endpoint, EndpointBase};
+pub use finchers_core::endpoints::json::{HttpResponse, Json};
 pub use finchers_core::error::{HttpError, Never};
-pub use finchers_core::http::json::{HttpResponse, Json};
 pub use finchers_core::input::Input;
 pub use finchers_core::output::Responder;
 
@@ -102,6 +102,6 @@ pub use finchers_runtime::server::{launch, LaunchResult};
 
 #[doc(hidden)]
 pub mod _derive {
-    pub use finchers_core::http::json::HttpResponse;
+    pub use finchers_core::endpoints::json::HttpResponse;
     pub use http::StatusCode;
 }

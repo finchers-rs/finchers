@@ -1,6 +1,7 @@
 #![allow(missing_docs)]
 
 use futures_core::future::TryFuture;
+use pin_utils::unsafe_pinned;
 use std::future::Future;
 use std::mem::PinMut;
 use std::task;
@@ -61,12 +62,7 @@ pub struct OrFuture<L, R> {
 }
 
 impl<L, R> OrFuture<L, R> {
-    fn pinned_inner(self: PinMut<'a, Self>) -> Either<PinMut<'a, L>, PinMut<'a, R>> {
-        match unsafe { &mut PinMut::get_mut_unchecked(self).inner } {
-            Either::Left(ref mut t) => Either::Left(unsafe { PinMut::new_unchecked(t) }),
-            Either::Right(ref mut t) => Either::Right(unsafe { PinMut::new_unchecked(t) }),
-        }
-    }
+    unsafe_pinned!(inner: Either<L, R>);
 }
 
 impl<L, R> Future for OrFuture<L, R>
@@ -77,8 +73,8 @@ where
     type Output = Result<One<Either<L::Ok, R::Ok>>, Either<L::Error, R::Error>>;
 
     #[inline(always)]
-    fn poll(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
-        match self.pinned_inner() {
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+        match self.inner().as_inner_pinned() {
             Either::Left(t) => t
                 .try_poll(cx)
                 .map_ok(Either::Left)

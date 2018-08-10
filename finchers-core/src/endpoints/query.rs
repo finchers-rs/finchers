@@ -14,10 +14,10 @@ use http::StatusCode;
 use serde::de::{self, DeserializeOwned, IntoDeserializer};
 use {mime, serde_qs};
 
+use super::body::FromBody;
 use crate::endpoint::{Context, EncodedStr, EndpointBase};
 use crate::error::HttpError;
 use crate::generic::{one, One};
-use crate::http::body::FromBody;
 use crate::input::{with_get_cx, Input};
 
 /// Create an endpoint which parse the query string in the HTTP request
