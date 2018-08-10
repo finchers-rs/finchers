@@ -22,43 +22,20 @@ pub use self::ok::{ok, Ok};
 pub use self::or::Or;
 pub use self::or_else::OrElse;
 
-use crate::either::Either;
-use crate::error::Error;
-use crate::generic::{Combine, Func, One, Tuple};
-use crate::input::{Input, Segments};
-use crate::output::Responder;
+// ====
 
-use futures_core::future::TryFuture;
 use std::marker::PhantomData;
+use std::mem::PinMut;
 use std::rc::Rc;
 use std::sync::Arc;
 
-/// A context during the routing.
-#[derive(Debug, Clone)]
-pub struct Context<'a> {
-    input: &'a Input,
-    segments: Segments<'a>,
-}
+use futures_core::future::TryFuture;
 
-impl<'a> Context<'a> {
-    #[doc(hidden)]
-    pub fn new(input: &'a Input) -> Self {
-        Context {
-            input: input,
-            segments: Segments::from(input.request().uri().path()),
-        }
-    }
-
-    /// Return the reference to `Input`.
-    pub fn input(&self) -> &'a Input {
-        self.input
-    }
-
-    /// Return the reference to the instance of `Segments`.
-    pub fn segments(&mut self) -> &mut Segments<'a> {
-        &mut self.segments
-    }
-}
+use crate::either::Either;
+use crate::error::Error;
+use crate::generic::{Combine, Func, One, Tuple};
+use crate::input::{Cursor, Input};
+use crate::output::Responder;
 
 /// Trait representing an endpoint.
 pub trait EndpointBase {
@@ -73,7 +50,7 @@ pub trait EndpointBase {
 
     /// Perform checking the incoming HTTP request and returns
     /// an instance of the associated Future if matched.
-    fn apply(&self, cx: &mut Context) -> Option<Self::Future>;
+    fn apply(&self, input: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)>;
 }
 
 impl<'a, E: EndpointBase> EndpointBase for &'a E {
@@ -81,8 +58,8 @@ impl<'a, E: EndpointBase> EndpointBase for &'a E {
     type Error = E::Error;
     type Future = E::Future;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
-        (*self).apply(cx)
+    fn apply(&self, input: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
+        (*self).apply(input, cursor)
     }
 }
 
@@ -91,8 +68,8 @@ impl<E: EndpointBase> EndpointBase for Box<E> {
     type Error = E::Error;
     type Future = E::Future;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
-        (**self).apply(cx)
+    fn apply(&self, input: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
+        (**self).apply(input, cursor)
     }
 }
 
@@ -101,8 +78,8 @@ impl<E: EndpointBase> EndpointBase for Rc<E> {
     type Error = E::Error;
     type Future = E::Future;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
-        (**self).apply(cx)
+    fn apply(&self, input: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
+        (**self).apply(input, cursor)
     }
 }
 
@@ -111,8 +88,8 @@ impl<E: EndpointBase> EndpointBase for Arc<E> {
     type Error = E::Error;
     type Future = E::Future;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
-        (**self).apply(cx)
+    fn apply(&self, input: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
+        (**self).apply(input, cursor)
     }
 }
 
@@ -122,7 +99,7 @@ pub trait Endpoint: Send + Sync + 'static + sealed::Sealed {
     type Error: Into<Error>;
     type Future: TryFuture<Ok = Self::Ok, Error = Self::Error> + Send + 'static;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Future>;
+    fn apply(&self, input: PinMut<Input>) -> Option<Self::Future>;
 }
 
 mod sealed {
@@ -149,8 +126,9 @@ where
     type Error = E::Error;
     type Future = E::Future;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
-        EndpointBase::apply(self, cx)
+    fn apply(&self, input: PinMut<Input>) -> Option<Self::Future> {
+        let cursor = unsafe { Cursor::new(input.uri().path()) };
+        EndpointBase::apply(self, input, cursor).map(|(future, _rest)| future)
     }
 }
 

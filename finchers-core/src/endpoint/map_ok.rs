@@ -1,14 +1,14 @@
-#![allow(missing_docs)]
-
 use futures_core::future::{Future, TryFuture};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::mem::PinMut;
 use std::task;
 use std::task::Poll;
 
-use crate::endpoint::{Context, EndpointBase};
+use crate::endpoint::EndpointBase;
 use crate::generic::{Func, Tuple};
+use crate::input::{Cursor, Input};
 
+#[allow(missing_docs)]
 #[derive(Debug, Copy, Clone)]
 pub struct MapOk<E, F> {
     pub(super) endpoint: E,
@@ -25,11 +25,10 @@ where
     type Error = E::Error;
     type Future = MapOkFuture<E::Future, F>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
-        Some(MapOkFuture {
-            future: self.endpoint.apply(cx)?,
-            f: Some(self.f.clone()),
-        })
+    fn apply(&self, input: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
+        let (future, cursor) = self.endpoint.apply(input, cursor)?;
+        let f = self.f.clone();
+        Some((MapOkFuture { future, f: Some(f) }, cursor))
     }
 }
 

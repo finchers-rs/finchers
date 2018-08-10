@@ -1,13 +1,16 @@
 //! Components for parsing the JSON payload and converting to JSON values.
 
+use std::mem::PinMut;
+use std::ops::Deref;
+
 use bytes::Bytes;
 use failure::Fail;
 use http::header::{HeaderMap, HeaderValue};
 use http::{header, Response, StatusCode};
+use mime;
 use serde::de::DeserializeOwned;
 use serde::ser::Serialize;
-use std::ops::Deref;
-use {mime, serde_json};
+use serde_json;
 
 use crate::either::Either;
 use crate::error::{HttpError, Never};
@@ -92,7 +95,7 @@ where
 {
     type Error = JsonParseError;
 
-    fn from_body(body: Bytes, input: &Input) -> Result<Self, Self::Error> {
+    fn from_body(body: Bytes, input: PinMut<Input>) -> Result<Self, Self::Error> {
         if input
             .media_type()
             .map_err(|_| JsonParseError::InvalidMediaType)?
@@ -114,7 +117,7 @@ where
     type Body = Once<Vec<u8>>;
     type Error = JsonSerializeError;
 
-    fn respond(self, _: &Input) -> Result<Response<Self::Body>, Self::Error> {
+    fn respond(self, _: PinMut<Input>) -> Result<Response<Self::Body>, Self::Error> {
         let body = serde_json::to_vec(&self.0).map_err(|cause| JsonSerializeError { cause })?;
 
         let mut response = Response::new(Once::new(body));
@@ -155,7 +158,7 @@ impl Responder for JsonValue {
     type Body = Once<String>;
     type Error = Never;
 
-    fn respond(self, _: &Input) -> Result<Response<Self::Body>, Self::Error> {
+    fn respond(self, _: PinMut<Input>) -> Result<Response<Self::Body>, Self::Error> {
         let body = self.value.to_string();
 
         let mut response = Response::new(Once::new(body));

@@ -1,5 +1,3 @@
-#![allow(missing_docs)]
-
 use std::future::Future;
 use std::mem::PinMut;
 use std::task;
@@ -9,9 +7,11 @@ use futures_core::future::TryFuture;
 use pin_utils::unsafe_pinned;
 
 use super::try_chain::{TryChain, TryChainAction};
-use crate::endpoint::{Context, EndpointBase};
+use crate::endpoint::EndpointBase;
 use crate::generic::{Func, Tuple};
+use crate::input::{Cursor, Input};
 
+#[allow(missing_docs)]
 #[derive(Debug, Copy, Clone)]
 pub struct AndThen<E, F> {
     pub(super) endpoint: E,
@@ -29,15 +29,19 @@ where
     type Error = E::Error;
     type Future = AndThenFuture<E::Future, F::Out, F>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
-        let f1 = self.endpoint.apply(cx)?;
+    fn apply(&self, input: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
+        let (f1, cursor) = self.endpoint.apply(input, cursor)?;
         let f = self.f.clone();
-        Some(AndThenFuture {
-            try_chain: TryChain::new(f1, f),
-        })
+        Some((
+            AndThenFuture {
+                try_chain: TryChain::new(f1, f),
+            },
+            cursor,
+        ))
     }
 }
 
+#[allow(missing_docs)]
 #[derive(Debug)]
 pub struct AndThenFuture<F1, F2, F>
 where

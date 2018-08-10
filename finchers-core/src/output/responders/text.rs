@@ -1,6 +1,7 @@
 use http::header::HeaderValue;
 use http::{header, Response};
 use std::borrow::Cow;
+use std::mem::PinMut;
 
 use crate::error::Never;
 use crate::input::Input;
@@ -20,7 +21,7 @@ impl<T: AsRef<str> + Send + 'static> Responder for Text<T> {
     type Body = Once<Self>;
     type Error = Never;
 
-    fn respond(self, _: &Input) -> Result<Response<Self::Body>, Self::Error> {
+    fn respond(self, _: PinMut<Input>) -> Result<Response<Self::Body>, Self::Error> {
         let mut response = Response::new(Once::new(self));
         response.headers_mut().insert(
             header::CONTENT_TYPE,
@@ -34,7 +35,7 @@ impl Responder for &'static str {
     type Body = Once<Text<Self>>;
     type Error = Never;
 
-    fn respond(self, input: &Input) -> Result<Response<Self::Body>, Self::Error> {
+    fn respond(self, input: PinMut<Input>) -> Result<Response<Self::Body>, Self::Error> {
         Text(self).respond(input)
     }
 }
@@ -43,7 +44,7 @@ impl Responder for String {
     type Body = Once<Text<Self>>;
     type Error = Never;
 
-    fn respond(self, input: &Input) -> Result<Response<Self::Body>, Self::Error> {
+    fn respond(self, input: PinMut<Input>) -> Result<Response<Self::Body>, Self::Error> {
         Text(self).respond(input)
     }
 }
@@ -52,7 +53,7 @@ impl Responder for Cow<'static, str> {
     type Body = Once<Text<Self>>;
     type Error = Never;
 
-    fn respond(self, input: &Input) -> Result<Response<Self::Body>, Self::Error> {
+    fn respond(self, input: PinMut<Input>) -> Result<Response<Self::Body>, Self::Error> {
         Text(self).respond(input)
     }
 }

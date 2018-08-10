@@ -14,10 +14,10 @@ use http::StatusCode;
 use serde::de::{self, DeserializeOwned, IntoDeserializer};
 use {mime, serde_qs};
 
-use crate::endpoint::{Context, EndpointBase};
+use crate::endpoint::EndpointBase;
 use crate::error::HttpError;
 use crate::generic::{one, One};
-use crate::input::{with_get_cx, FromBody, FromQuery, Input, QueryItems};
+use crate::input::{with_get_cx, Cursor, FromBody, FromQuery, Input, QueryItems};
 
 /// Create an endpoint which parse the query string in the HTTP request
 /// to the value of `T`.
@@ -81,10 +81,13 @@ where
     type Error = QueryError<T::Error>;
     type Future = QueryFuture<T>;
 
-    fn apply(&self, _: &mut Context) -> Option<Self::Future> {
-        Some(QueryFuture {
-            _marker: PhantomData,
-        })
+    fn apply(&self, _: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
+        Some((
+            QueryFuture {
+                _marker: PhantomData,
+            },
+            cursor,
+        ))
     }
 }
 
@@ -136,7 +139,7 @@ where
 {
     type Error = QueryError<F::Error>;
 
-    fn from_body(body: Bytes, input: &Input) -> Result<Self, Self::Error> {
+    fn from_body(body: Bytes, input: PinMut<Input>) -> Result<Self, Self::Error> {
         if !input
             .media_type()
             .map_err(|_| QueryError::InvalidMediaType)?

@@ -1,8 +1,10 @@
 use futures_util::future;
+use std::mem::PinMut;
 
-use crate::endpoint::{Context, EndpointBase};
+use crate::endpoint::EndpointBase;
 use crate::error::Never;
 use crate::generic::Tuple;
+use crate::input::{Cursor, Input};
 
 #[allow(missing_docs)]
 pub fn ok<T: Tuple, Clone>(x: T) -> Ok<T> {
@@ -20,7 +22,7 @@ impl<T: Tuple + Clone> EndpointBase for Ok<T> {
     type Error = Never;
     type Future = future::Ready<Result<Self::Ok, Self::Error>>;
 
-    fn apply(&self, _: &mut Context) -> Option<Self::Future> {
-        Some(future::ready(Ok(self.x.clone())))
+    fn apply(&self, _: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
+        Some((future::ready(Ok(self.x.clone())), cursor))
     }
 }
