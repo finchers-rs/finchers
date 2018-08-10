@@ -7,11 +7,14 @@ pub use self::failure::Failure;
 pub use self::never::Never;
 
 use std::borrow::Cow;
+use std::error;
 use std::fmt;
 
 use failure::Fail;
 use http::header::HeaderMap;
 use http::StatusCode;
+
+use crate::either::Either;
 
 /// Trait representing error values from endpoints.
 ///
@@ -26,6 +29,26 @@ pub trait HttpError: Fail {
     /// Append a set of header values to the header map.
     #[allow(unused_variables)]
     fn headers(&self, headers: &mut HeaderMap) {}
+}
+
+impl<L, R> HttpError for Either<L, R>
+where
+    L: HttpError + error::Error,
+    R: HttpError + error::Error,
+{
+    fn status_code(&self) -> StatusCode {
+        match self {
+            Either::Left(ref t) => t.status_code(),
+            Either::Right(ref t) => t.status_code(),
+        }
+    }
+
+    fn headers(&self, headers: &mut HeaderMap) {
+        match self {
+            Either::Left(ref t) => t.headers(headers),
+            Either::Right(ref t) => t.headers(headers),
+        }
+    }
 }
 
 /// An error type indicating that a necessary elements was not given from the client.
