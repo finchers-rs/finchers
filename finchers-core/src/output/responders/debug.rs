@@ -1,5 +1,7 @@
-use http::Response;
 use std::fmt;
+use std::mem::PinMut;
+
+use http::Response;
 
 use super::text::Text;
 use crate::error::Never;
@@ -39,7 +41,7 @@ impl<T: fmt::Debug> Responder for Debug<T> {
     type Body = Once<Text<String>>;
     type Error = Never;
 
-    fn respond(self, input: &Input) -> Result<Response<Self::Body>, Self::Error> {
+    fn respond(self, input: PinMut<Input>) -> Result<Response<Self::Body>, Self::Error> {
         let body = if self.pretty {
             format!("{:#?}", self.value)
         } else {

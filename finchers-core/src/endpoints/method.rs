@@ -1,7 +1,10 @@
 //! Components for checking the HTTP method.
 
-use crate::endpoint::{Context, EndpointBase, IntoEndpoint};
 use http::Method;
+use std::mem::PinMut;
+
+use crate::endpoint::{EndpointBase, IntoEndpoint};
+use crate::input::{Cursor, Input};
 
 #[allow(missing_docs)]
 #[derive(Debug, Clone)]
@@ -15,9 +18,9 @@ impl<E: EndpointBase> EndpointBase for MatchMethod<E> {
     type Error = E::Error;
     type Future = E::Future;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
-        if *cx.input().request().method() == self.method {
-            self.endpoint.apply(cx)
+    fn apply(&self, input: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
+        if *input.method() == self.method {
+            self.endpoint.apply(input, cursor)
         } else {
             None
         }
@@ -62,9 +65,9 @@ macro_rules! define_method {
             type Error = E::Error;
             type Future = E::Future;
 
-            fn apply(&self,cx: &mut Context) -> Option<Self::Future> {
-                if *cx.input().request().method() == Method::$method {
-                    self.endpoint.apply(cx)
+            fn apply(&self, input: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
+                if *input.method() == Method::$method {
+                    self.endpoint.apply(input, cursor)
                 } else {
                     None
                 }

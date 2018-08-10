@@ -72,13 +72,13 @@ pub mod endpoint {
         pub use finchers_core::endpoints::body::{body, raw_body};
         pub use finchers_core::endpoints::header::header;
         pub use finchers_core::endpoints::method::{delete, get, head, patch, post, put};
-        pub use finchers_core::endpoints::path::{param, params, path};
+        pub use finchers_core::endpoints::path::{param, path};
     }
 }
 
 pub mod input {
     pub use finchers_core::input::{
-        Data, FromBody, FromHeader, FromQuery, FromSegment, FromSegments, Input, RequestBody,
+        Data, FromBody, FromHeader, FromQuery, FromSegment, Input, RequestBody,
     };
 }
 

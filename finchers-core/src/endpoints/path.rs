@@ -10,10 +10,10 @@ use std::{error, fmt, task};
 use futures_util::future;
 use percent_encoding::{define_encode_set, percent_encode, DEFAULT_ENCODE_SET};
 
-use crate::endpoint::{Context, EndpointBase};
+use crate::endpoint::EndpointBase;
 use crate::error::Never;
 use crate::generic::{one, One};
-use crate::input::{with_get_cx, FromSegment, FromSegments, Segment};
+use crate::input::{with_get_cx, Cursor, FromSegment, Input, Segment};
 
 // ==== MatchPath =====
 
@@ -116,25 +116,30 @@ impl EndpointBase for MatchPath {
     type Error = Never;
     type Future = future::Ready<Result<Self::Ok, Never>>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
+    fn apply(&self, _: PinMut<Input>, mut cursor: Cursor) -> Option<(Self::Future, Cursor)> {
         use self::MatchPathKind::*;
         match self.kind {
             Segments(ref segments) => {
                 let mut matched = true;
                 for segment in segments {
                     // FIXME: impl PartialEq for EncodedStr
-                    matched = matched
-                        && cx.segments().next()?.as_encoded_str().as_bytes() == segment.as_bytes();
+                    unsafe {
+                        matched = matched
+                            && cursor.next_segment()?.as_encoded_str().as_bytes()
+                                == segment.as_bytes();
+                    }
                 }
                 if matched {
-                    Some(future::ready(Ok(())))
+                    Some((future::ready(Ok(())), cursor))
                 } else {
                     None
                 }
             }
             AllSegments => {
-                let _ = cx.segments().count();
-                Some(future::ready(Ok(())))
+                unsafe {
+                    cursor.consume_all_segments();
+                }
+                Some((future::ready(Ok(())), cursor))
             }
         }
     }
@@ -235,11 +240,15 @@ where
     type Error = T::Error;
     type Future = ParamFuture<T>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
-        Some(ParamFuture {
-            range: cx.segments().next()?.as_range(),
-            _marker: PhantomData,
-        })
+    fn apply(&self, _: PinMut<Input>, mut cursor: Cursor) -> Option<(Self::Future, Cursor)> {
+        let range = unsafe { cursor.next_segment()?.as_range() };
+        Some((
+            ParamFuture {
+                range,
+                _marker: PhantomData,
+            },
+            cursor,
+        ))
     }
 }
 
@@ -261,6 +270,7 @@ impl<T: FromSegment> Future for ParamFuture<T> {
     }
 }
 
+/*
 // ==== Params ====
 
 /// Create an endpoint which extracts all remaining segments from
@@ -325,6 +335,7 @@ where
             .ok()
     }
 }
+*/
 
 #[cfg(test)]
 mod tests {

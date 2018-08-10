@@ -1,14 +1,14 @@
+use std::mem::PinMut;
+use std::net;
+use std::str::{FromStr, Utf8Error};
+
 use bytes::Bytes;
 use failure::Fail;
 use http::StatusCode;
-use std::net;
-use std::path::PathBuf;
-use std::str::{FromStr, Utf8Error};
 
 use crate::error::{Failure, HttpError, Never};
 
-use super::encoded_str::EncodedStr;
-use super::segments::{Segment, Segments};
+use super::segments::{EncodedStr, Segment};
 use super::Input;
 
 /// Trait representing the transformation from a message body.
@@ -18,18 +18,18 @@ pub trait FromBody: 'static + Sized {
 
     /// Returns whether the incoming request matches to this type or not.
     #[allow(unused_variables)]
-    fn is_match(input: &Input) -> bool {
+    fn is_match(input: PinMut<Input>) -> bool {
         true
     }
 
     /// Performs conversion from raw bytes into itself.
-    fn from_body(body: Bytes, input: &Input) -> Result<Self, Self::Error>;
+    fn from_body(body: Bytes, input: PinMut<Input>) -> Result<Self, Self::Error>;
 }
 
 impl FromBody for Bytes {
     type Error = Never;
 
-    fn from_body(body: Bytes, _: &Input) -> Result<Self, Self::Error> {
+    fn from_body(body: Bytes, _: PinMut<Input>) -> Result<Self, Self::Error> {
         Ok(body)
     }
 }
@@ -37,7 +37,7 @@ impl FromBody for Bytes {
 impl FromBody for String {
     type Error = Failure;
 
-    fn from_body(body: Bytes, _: &Input) -> Result<Self, Self::Error> {
+    fn from_body(body: Bytes, _: PinMut<Input>) -> Result<Self, Self::Error> {
         String::from_utf8(body.to_vec())
             .map_err(|cause| Failure::new(StatusCode::BAD_REQUEST, cause))
     }
@@ -129,6 +129,7 @@ impl FromSegment for String {
     }
 }
 
+/*
 /// Trait representing the conversion from a `Segments`
 pub trait FromSegments: 'static + Sized {
     /// The error type returned from `from_segments`
@@ -181,6 +182,7 @@ impl<T: FromSegments> FromSegments for Result<T, T::Error> {
         Ok(T::from_segments(segments))
     }
 }
+*/
 
 /// Trait representing the transformation from a set of HTTP query.
 pub trait FromQuery: Sized + 'static {
@@ -244,6 +246,7 @@ impl<'a> Iterator for QueryItems<'a> {
     }
 }
 
+/*
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -255,3 +258,4 @@ mod tests {
         assert_eq!(result, Ok(PathBuf::from("foo/bar.txt")));
     }
 }
+*/

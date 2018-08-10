@@ -1,21 +1,25 @@
 //! The components to construct an asynchronous HTTP service from the `Endpoint`.
 
+use std::boxed::PinBox;
+use std::fmt;
+use std::io;
+use std::mem::PinMut;
+use std::sync::Arc;
+use std::time;
+
 use futures::{self, Async, Future, Poll};
 use http::header::{self, HeaderValue};
 use http::{Request, Response};
 use hyper::body::Body;
 use hyper::service::{NewService, Service};
 use slog::Logger;
-use std::boxed::PinBox;
-use std::sync::Arc;
-use std::time;
-use std::{fmt, io};
 
+use futures_core::future::TryFuture;
 use futures_util::compat::{Compat, TokioDefaultExecutor};
 use futures_util::try_future::{IntoFuture, TryFutureExt};
 
 use finchers_core::either::Either;
-use finchers_core::endpoint::{Context, Endpoint};
+use finchers_core::endpoint::Endpoint;
 use finchers_core::error::{Error, HttpError, NoRoute};
 use finchers_core::input::{with_set_cx, Input, RequestBody};
 use finchers_core::output::payloads::Once;
@@ -81,7 +85,7 @@ impl<E: Endpoint> Service for AppService<E> {
     type ReqBody = Body;
     type ResBody = Either<Once<String>, <E::Ok as Responder>::Body>;
     type Error = io::Error;
-    type Future = AppServiceFuture<Compat<PinBox<IntoFuture<E::Future>>, TokioDefaultExecutor>>;
+    type Future = AppServiceFuture<TokioCompat<E::Future>>;
 
     fn call(&mut self, request: Request<Self::ReqBody>) -> Self::Future {
         let request = request.map(RequestBody::from_hyp);
@@ -89,10 +93,11 @@ impl<E: Endpoint> Service for AppService<E> {
             "method" => request.method().to_string(),
             "path" => request.uri().path().to_owned(),
         });
-        let input = Input::new(request);
-        let in_flight = self.data.endpoint.apply(&mut Context::new(&input));
-        let in_flight =
-            in_flight.map(|future| PinBox::new(future.into_future()).compat(TokioDefaultExecutor));
+        let mut input = Input::new(request);
+        let in_flight = {
+            let input = unsafe { PinMut::new_unchecked(&mut input) };
+            self.data.endpoint.apply(input).map(tokio_compat)
+        };
 
         AppServiceFuture {
             in_flight,
@@ -135,17 +140,22 @@ where
             let in_flight = &mut self.in_flight;
             let input = &mut self.input;
             LOGGER.set(logger, || match in_flight {
-                Some(ref mut f) => with_set_cx(input, || Some(f.poll())),
+                Some(ref mut f) => {
+                    let input = unsafe { PinMut::new_unchecked(input) };
+                    with_set_cx(input, || Some(f.poll()))
+                }
                 None => None,
             })
         };
 
         let output = match polled {
             Some(Ok(Async::NotReady)) => return Ok(Async::NotReady),
-            Some(Ok(Async::Ready(x))) => x
-                .respond(&self.input)
-                .map(|res| res.map(Either::Right))
-                .map_err(Into::into),
+            Some(Ok(Async::Ready(out))) => {
+                let input = unsafe { PinMut::new_unchecked(&mut self.input) };
+                out.respond(input)
+                    .map(|res| res.map(Either::Right))
+                    .map_err(Into::into)
+            }
             Some(Err(err)) => Err(err.into()),
             None => Err(NoRoute.into()),
         };
@@ -167,6 +177,14 @@ where
 
         Ok(Async::Ready(response))
     }
+}
+
+// ==== TokioCompat ====
+
+type TokioCompat<F> = Compat<PinBox<IntoFuture<F>>, TokioDefaultExecutor>;
+
+fn tokio_compat<F: TryFuture>(future: F) -> TokioCompat<F> {
+    PinBox::new(future.into_future()).compat(TokioDefaultExecutor)
 }
 
 // ==== Logger ====

@@ -1,5 +1,3 @@
-#![allow(missing_docs)]
-
 use futures_core::future::TryFuture;
 use pin_utils::unsafe_pinned;
 use std::future::Future;
@@ -8,9 +6,11 @@ use std::task;
 use std::task::Poll;
 
 use crate::either::Either;
-use crate::endpoint::{Context, EndpointBase};
+use crate::endpoint::EndpointBase;
 use crate::generic::{one, One};
+use crate::input::{Cursor, Input};
 
+#[allow(missing_docs)]
 #[derive(Debug, Copy, Clone)]
 pub struct Or<E1, E2> {
     pub(super) e1: E1,
@@ -26,36 +26,48 @@ where
     type Error = Either<E1::Error, E2::Error>;
     type Future = OrFuture<E1::Future, E2::Future>;
 
-    fn apply(&self, cx2: &mut Context) -> Option<Self::Future> {
-        let mut cx1 = cx2.clone();
-        let t1 = self.e1.apply(&mut cx1);
-        let t2 = self.e2.apply(cx2);
-        match (t1, t2) {
-            (Some(t1), Some(t2)) => {
+    fn apply(&self, mut input: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
+        let v1 = self.e1.apply(input.reborrow(), cursor.clone());
+        let v2 = self.e2.apply(input, cursor);
+
+        match (v1, v2) {
+            (Some((future1, cursor1)), Some((future2, cursor2))) => {
                 // If both endpoints are matched, the one with the larger number of
                 // (consumed) path segments is choosen.
-                let res = if cx1.segments().popped() > cx2.segments().popped() {
-                    *cx2 = cx1;
-                    Either::Left(t1)
+                if cursor1.popped() > cursor2.popped() {
+                    Some((
+                        OrFuture {
+                            inner: Either::Left(future1),
+                        },
+                        cursor1,
+                    ))
                 } else {
-                    Either::Right(t2)
-                };
-                Some(OrFuture { inner: res })
+                    Some((
+                        OrFuture {
+                            inner: Either::Right(future2),
+                        },
+                        cursor2,
+                    ))
+                }
             }
-            (Some(t1), None) => {
-                *cx2 = cx1;
-                Some(OrFuture {
-                    inner: Either::Left(t1),
-                })
-            }
-            (None, Some(t2)) => Some(OrFuture {
-                inner: Either::Right(t2),
-            }),
+            (Some((future, cursor)), None) => Some((
+                OrFuture {
+                    inner: Either::Left(future),
+                },
+                cursor,
+            )),
+            (None, Some((future, cursor))) => Some((
+                OrFuture {
+                    inner: Either::Right(future),
+                },
+                cursor,
+            )),
             (None, None) => None,
         }
     }
 }
 
+#[allow(missing_docs)]
 #[derive(Debug)]
 pub struct OrFuture<L, R> {
     inner: Either<L, R>,

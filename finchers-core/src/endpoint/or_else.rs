@@ -1,10 +1,12 @@
-#![allow(missing_docs)]
+use std::mem::PinMut;
 
 use futures_core::future::TryFuture;
 use futures_util::try_future::{self, TryFutureExt};
 
-use crate::endpoint::{Context, EndpointBase};
+use crate::endpoint::EndpointBase;
+use crate::input::{Cursor, Input};
 
+#[allow(missing_docs)]
 #[derive(Debug, Copy, Clone)]
 pub struct OrElse<E, F> {
     pub(super) endpoint: E,
@@ -21,9 +23,9 @@ where
     type Error = R::Error;
     type Future = try_future::OrElse<E::Future, R, F>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
-        let f1 = self.endpoint.apply(cx)?;
+    fn apply(&self, input: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
+        let (future, cursor) = self.endpoint.apply(input, cursor)?;
         let f = self.f.clone();
-        Some(f1.or_else(f))
+        Some((future.or_else(f), cursor))
     }
 }

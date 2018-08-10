@@ -10,8 +10,8 @@ use futures_util::future::poll_fn;
 use http::header::{HeaderName, HeaderValue};
 use http::{HttpTryFrom, Method, Request, Uri};
 
-use crate::endpoint::{Context, EndpointBase};
-use crate::input::{with_set_cx, Input, RequestBody};
+use crate::endpoint::EndpointBase;
+use crate::input::{with_set_cx, Cursor, Input, RequestBody};
 
 /// A wrapper struct of an endpoint which adds the facility for testing.
 #[derive(Debug)]
@@ -146,12 +146,19 @@ impl<'a, E: EndpointBase> ClientRequest<'a, E> {
         let ClientRequest { client, request } = self.take();
 
         let mut input = Input::new(request);
-        let mut in_flight = client.endpoint.apply(&mut Context::new(&input));
+        let mut in_flight = {
+            let input = unsafe { PinMut::new_unchecked(&mut input) };
+            let cursor = unsafe { Cursor::new(input.uri().path()) };
+            client.endpoint.apply(input, cursor).map(|res| res.0)
+        };
 
         let future = poll_fn(move |cx| match in_flight {
-            Some(ref mut f) => with_set_cx(&mut input, || {
-                unsafe { PinMut::new_unchecked(f) }.try_poll(cx).map(Some)
-            }),
+            Some(ref mut f) => {
+                let input = unsafe { PinMut::new_unchecked(&mut input) };
+                with_set_cx(input, || {
+                    unsafe { PinMut::new_unchecked(f) }.try_poll(cx).map(Some)
+                })
+            }
             None => Poll::Ready(None),
         });
 

@@ -9,10 +9,10 @@ use std::{fmt, task};
 use failure::Fail;
 use http::StatusCode;
 
-use crate::endpoint::{Context, EndpointBase, EndpointExt};
+use crate::endpoint::{EndpointBase, EndpointExt};
 use crate::error::HttpError;
 use crate::generic::{one, One};
-use crate::input::{with_get_cx, FromHeader};
+use crate::input::{with_get_cx, Cursor, FromHeader, Input};
 
 /// Create an endpoint which parses an entry in the HTTP header.
 ///
@@ -80,13 +80,17 @@ where
     type Error = HeaderError<H::Error>;
     type Future = HeaderFuture<H>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
-        if H::ALLOW_SKIP && !cx.input().request().headers().contains_key(H::NAME) {
-            return None;
+    fn apply(&self, input: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
+        if !H::ALLOW_SKIP || input.headers().contains_key(H::NAME) {
+            Some((
+                HeaderFuture {
+                    _marker: PhantomData,
+                },
+                cursor,
+            ))
+        } else {
+            None
         }
-        Some(HeaderFuture {
-            _marker: PhantomData,
-        })
     }
 }
 

@@ -1,9 +1,10 @@
-#![allow(missing_docs)]
-
 use futures_util::try_future::{self, TryFutureExt};
+use std::mem::PinMut;
 
-use crate::endpoint::{Context, EndpointBase};
+use crate::endpoint::EndpointBase;
+use crate::input::{Cursor, Input};
 
+#[allow(missing_docs)]
 #[derive(Debug, Copy, Clone)]
 pub struct MapErr<E, F> {
     pub(super) endpoint: E,
@@ -19,9 +20,9 @@ where
     type Error = U;
     type Future = try_future::MapErr<E::Future, F>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
-        let future = self.endpoint.apply(cx)?;
+    fn apply(&self, input: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
+        let (future, cursor) = self.endpoint.apply(input, cursor)?;
         let f = self.f.clone();
-        Some(future.map_err(f))
+        Some((future.map_err(f), cursor))
     }
 }

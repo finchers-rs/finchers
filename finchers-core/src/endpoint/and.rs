@@ -1,5 +1,3 @@
-#![allow(missing_docs)]
-
 use futures_core::future::Future;
 use futures_util::future::{maybe_done, MaybeDone};
 use futures_util::try_future::{IntoFuture, TryFutureExt};
@@ -10,9 +8,11 @@ use std::task;
 use std::task::Poll;
 
 use crate::either::Either;
-use crate::endpoint::{Context, EndpointBase};
+use crate::endpoint::EndpointBase;
 use crate::generic::{Combine, Tuple};
+use crate::input::{Cursor, Input};
 
+#[allow(missing_docs)]
 #[derive(Copy, Clone, Debug)]
 pub struct And<E1, E2> {
     pub(super) e1: E1,
@@ -29,13 +29,16 @@ where
     type Error = Either<E1::Error, E2::Error>;
     type Future = AndFuture<IntoFuture<E1::Future>, IntoFuture<E2::Future>>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
-        let f1 = self.e1.apply(cx)?.into_future();
-        let f2 = self.e2.apply(cx)?.into_future();
-        Some(AndFuture {
-            f1: maybe_done(f1),
-            f2: maybe_done(f2),
-        })
+    fn apply(&self, mut input: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
+        let (f1, cursor) = self.e1.apply(input.reborrow(), cursor)?;
+        let (f2, cursor) = self.e2.apply(input, cursor)?;
+        Some((
+            AndFuture {
+                f1: maybe_done(f1.into_future()),
+                f2: maybe_done(f2.into_future()),
+            },
+            cursor,
+        ))
     }
 }
 

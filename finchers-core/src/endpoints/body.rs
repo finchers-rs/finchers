@@ -12,10 +12,10 @@ use failure::Fail;
 use http::StatusCode;
 use pin_utils::unsafe_unpinned;
 
-use crate::endpoint::{Context, EndpointBase, EndpointExt};
+use crate::endpoint::{EndpointBase, EndpointExt};
 use crate::error::{HttpError, Never};
 use crate::generic::{one, One};
-use crate::input::{with_get_cx, FromBody, PollDataError, RequestBody};
+use crate::input::{with_get_cx, Cursor, FromBody, Input, PollDataError, RequestBody};
 
 /// Creates an endpoint which will take the instance of `RequestBody` from the context.
 ///
@@ -44,8 +44,8 @@ impl EndpointBase for RawBody {
     type Error = Never;
     type Future = RawBodyFuture;
 
-    fn apply(&self, _: &mut Context) -> Option<Self::Future> {
-        Some(RawBodyFuture { _priv: () })
+    fn apply(&self, _: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
+        Some((RawBodyFuture { _priv: () }, cursor))
     }
 }
 
@@ -59,7 +59,8 @@ impl Future for RawBodyFuture {
     type Output = Result<One<RequestBody>, Never>;
 
     fn poll(self: PinMut<Self>, _: &mut task::Context) -> Poll<Self::Output> {
-        Poll::Ready(Ok(one(with_get_cx(|input| input.body_mut().take()))))
+        let body = with_get_cx(|input| input.body());
+        Poll::Ready(Ok(one(body)))
     }
 }
 
@@ -103,9 +104,9 @@ where
     type Error = BodyError<T::Error>;
     type Future = BodyFuture<T>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
-        match T::is_match(cx.input()) {
-            true => Some(BodyFuture { state: State::Init }),
+    fn apply(&self, input: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
+        match T::is_match(input) {
+            true => Some((BodyFuture { state: State::Init }, cursor)),
             false => None,
         }
     }
@@ -149,7 +150,7 @@ impl<T: FromBody> Future for BodyFuture<T> {
 
             match mem::replace(self.state(), State::Done) {
                 State::Init => {
-                    let body = with_get_cx(|input| input.body_mut().take());
+                    let body = with_get_cx(|input| input.body());
                     *self.state() = State::Receiving(body, BytesMut::new());
                     continue 'poll;
                 }
