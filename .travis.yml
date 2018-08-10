@@ -44,11 +44,14 @@ matrix:
       before_script:
         - rustup component add rustfmt-preview
         - rustup component add clippy-preview
+        - RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install cargo-tarpaulin || true
       script:
         - cargo clean
         - cargo fmt -- --check
         - cargo test
         - cargo clippy
+      after_success:
+        - cargo tarpaulin --skip-clean --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
 
     - rust: nightly
       env: MDBOOK_VERSION=0.1.7
