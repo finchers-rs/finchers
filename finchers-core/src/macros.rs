@@ -69,14 +69,3 @@ mod tests {
         let e4 = routes!(path("foobar"), e3,);
     }
 }
-
-macro_rules! try_poll {
-    ($e:expr) => {{
-        use std::task::Poll;
-        match $e {
-            Poll::Ready(Ok(x)) => x,
-            Poll::Ready(Err(e)) => return Poll::Ready(Err(Into::into(e))),
-            Poll::Pending => return Poll::Pending,
-        }
-    }};
-}
