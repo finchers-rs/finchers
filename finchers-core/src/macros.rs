@@ -41,16 +41,7 @@ macro_rules! routes {
     ($e1:expr, $e2:expr, $($t:expr,)+) => { routes!(@inner $e1, $e2, $($t),+); };
 
     (@inner $e1:expr, $e2:expr, $($t:expr),*) => {{
-        #[allow(unused_imports)]
-        use $crate::endpoint::{IntoEndpoint, EndpointExt};
-        #[allow(unused_imports)]
-        use $crate::generic::{map_left, map_right};
-
-        routes!{ @inner
-            IntoEndpoint::into_endpoint($e1).map_ok(map_left())
-                .or(IntoEndpoint::into_endpoint($e2).map_ok(map_right())),
-            $($t),*
-        }
+        routes!(@inner $e1, routes!(@inner $e2, $($t),*))
     }};
 
     (@inner $e1:expr, $e2:expr) => {{
