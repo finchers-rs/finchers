@@ -29,17 +29,22 @@
 //! ```ignore
 //! #![feature(rust_2018_preview)]
 //!
+//! extern crate finchers;
+//! extern crate futures_util;
+//!
 //! use finchers::Endpoint;
+//! use futures_util::future::ready;
 //!
 //! fn build_endpoint() -> impl Endpoint {
 //!     use finchers::endpoint::prelude::*;
-//!     use finchers::choice;
+//!     use finchers::macros::routes;
 //!
-//!     path("api/v1").right(choice![
+//!     path("api/v1").and(routes![
 //!         get(param())
-//!             .map_ok(|id: u64| format!("GET: id={}", id)),
+//!             .and_then(|id: u64| ready(Ok((format!("GET: id={}", id),)))),
+//!
 //!         post(body())
-//!             .map_ok(|data: String| format!("POST: body={}", data)),
+//!             .and_then(|data: String| ready(Ok((format!("POST: body={}", data),)))),
 //!     ])
 //! }
 //!
@@ -109,9 +114,12 @@ pub mod output {
     pub use finchers_core::output::{payloads, responders, Responder};
 }
 
+pub mod macros {
+    pub use finchers_core::routes;
+}
+
 pub mod runtime;
 
-pub use finchers_core::choice;
 pub use finchers_core::endpoint::{Endpoint, EndpointBase};
 pub use finchers_core::error::{HttpError, Never};
 pub use finchers_core::input::Input;

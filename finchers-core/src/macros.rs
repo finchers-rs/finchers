@@ -2,30 +2,67 @@
 ///
 /// # Example
 ///
-/// A macro call
-///
-/// ```ignore
-/// choice!(e1, e2, e3)
 /// ```
+/// #![feature(async_await)]
+/// #![feature(rust_2018_preview)]
 ///
-/// will be expanded to
+/// # use finchers_core::routes;
+/// # use finchers_core::endpoint::EndpointExt;
+/// # use finchers_core::endpoints::body::body;
+/// # use finchers_core::endpoints::path::{path, param};
+/// # use finchers_core::endpoints::method;
+/// #
+/// let get_post = method::get(param())
+///     .and_then(async move |id: u32| {
+///         Ok((format!("get_post: {}", id),))
+///     });
 ///
-/// ```ignore
-/// endpoint(e1)
-///     .or(endpoint(e2))
-///     .or(endpoint(e3))
+/// let add_post = method::post(body())
+///     .and_then(async move |data: String| {
+///         Ok((format!("add_post: {}", data),))
+///     });
+///
+/// // ...
+///
+/// let endpoint = path("posts").and(routes![
+///     get_post,
+///     add_post,
+///     // ...
+/// ]);
 /// ```
 #[macro_export]
-macro_rules! choice {
-    ($h:expr, $($t:expr),*) => {{
+macro_rules! routes {
+    () => { routes!(@error); };
+    ($h:expr) => {  routes!(@error); };
+    ($h:expr,) => {  routes!(@error); };
+    ($e1:expr, $e2:expr) => { routes!(@inner $e1, $e2); };
+    ($e1:expr, $e2:expr,) => { routes!(@inner $e1, $e2); };
+    ($e1:expr, $e2:expr, $($t:expr),*) => { routes!(@inner $e1, $e2, $($t),*); };
+    ($e1:expr, $e2:expr, $($t:expr,)+) => { routes!(@inner $e1, $e2, $($t),+); };
+
+    (@inner $e1:expr, $e2:expr, $($t:expr),*) => {{
+        #[allow(unused_imports)]
+        use $crate::endpoint::{IntoEndpoint, EndpointExt};
+        #[allow(unused_imports)]
+        use $crate::generic::{map_left, map_right};
+
+        routes!{ @inner
+            IntoEndpoint::into_endpoint($e1).map_ok(map_left())
+                .or(IntoEndpoint::into_endpoint($e2).map_ok(map_right())),
+            $($t),*
+        }
+    }};
+
+    (@inner $e1:expr, $e2:expr) => {{
         use $crate::endpoint::IntoEndpoint;
         use $crate::endpoint::EndpointExt;
-        IntoEndpoint::into_endpoint($h)
-            $( .or(IntoEndpoint::into_endpoint($t)) )*
+        use $crate::generic::{map_left, map_right};
+
+        IntoEndpoint::into_endpoint($e1).map_ok(map_left())
+            .or(IntoEndpoint::into_endpoint($e2).map_ok(map_right()))
     }};
-    ($h:expr, $($t:expr,)+) => {
-        choice!($h, $($t),*)
-    };
+
+    (@error) => { compile_error!("The `routes!()` macro requires at least two elements."); };
 }
 
 #[cfg(test)]
@@ -34,10 +71,11 @@ mod tests {
 
     #[test]
     #[allow(unused_variables)]
-    fn compile_test_choice() {
+    fn compile_test_routes() {
         let e1 = path("foo");
-        let e2 = choice!(e1, path("bar"), path("baz"));
-        let e3 = choice!(path("foobar"), e2,);
+        let e2 = routes!(e1, path("bar"), path("baz"));
+        let e3 = routes!(path("foobar"), e2);
+        let e4 = routes!(path("foobar"), e3,);
     }
 }
 
