@@ -24,10 +24,11 @@ use crate::input::{with_get_cx, Cursor, FromBody, FromQuery, Input, QueryItems};
 ///
 /// # Example
 ///
-/// ```ignore
-/// #![feature(rust_2018_preview)]
-/// # use finchers_core::http::query::{query, from_csv, Serde};
-/// # use finchers_core::ext::{EndpointExt, EndpointResultExt, EndpointOptionExt};
+/// ```
+/// # #![feature(rust_2018_preview)]
+/// # use finchers_core::endpoints::path::path;
+/// # use finchers_core::endpoints::query::{query, from_csv, Serde};
+/// # use finchers_core::endpoint::EndpointExt;
 /// # use serde::Deserialize;
 /// #
 /// #[derive(Debug, Deserialize)]
@@ -38,11 +39,8 @@ use crate::input::{with_get_cx, Cursor, FromBody, FromQuery, Input, QueryItems};
 ///     tags: Vec<String>,
 /// }
 ///
-/// # fn main() {
-/// let endpoint = query()
-///     .map_ok(|param: Serde<Param>| format!("Received: {:?}", &*param))
-///     .unwrap_ok();
-/// # }
+/// let endpoint = path("foo").and(query())
+///     .map_ok(|param: Serde<Param>| (format!("Received: {:?}", &*param),));
 /// ```
 pub fn query<T>() -> Query<T>
 where

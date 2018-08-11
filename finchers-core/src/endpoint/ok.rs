@@ -7,7 +7,7 @@ use crate::generic::Tuple;
 use crate::input::{Cursor, Input};
 
 #[allow(missing_docs)]
-pub fn ok<T: Tuple, Clone>(x: T) -> Ok<T> {
+pub fn ok<T: Tuple + Clone>(x: T) -> Ok<T> {
     Ok { x }
 }
 

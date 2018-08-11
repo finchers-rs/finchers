@@ -28,35 +28,41 @@ use crate::input::{with_get_cx, Cursor, FromSegment, Input, Segment};
 ///
 /// Matches to a single segment:
 ///
-/// ```ignore
-/// #![feature(rust_2018_preview)]
-/// # use finchers_core::http::path::path;
-/// # use finchers_core::ext::{just, EndpointExt};
-/// # fn main() {
-/// let endpoint = path("foo").and(just("matched"));
-/// # }
+/// ```
+/// # use finchers_core::endpoints::path::path;
+/// # use finchers_core::local;
+/// let endpoint = path("foo");
+///
+/// assert_eq!(local::get("/foo").apply(&endpoint), Some(Ok(())));
+/// assert_eq!(local::get("/foo/bar").apply(&endpoint), Some(Ok(())));
+/// assert_eq!(local::get("/bar").apply(&endpoint), None);
+/// assert_eq!(local::get("/foobar").apply(&endpoint), None);
 /// ```
 ///
 /// Matches to multiple segments:
 ///
-/// ```ignore
-/// #![feature(rust_2018_preview)]
-/// # use finchers_core::http::path::path;
-/// # use finchers_core::ext::{just, EndpointExt};
-/// # fn main() {
-/// let endpoint = path("foo/bar").and(just("matched"));
-/// # }
+/// ```
+/// # use finchers_core::endpoints::path::path;
+/// # use finchers_core::local;
+/// let endpoint = path("foo/bar");
+///
+/// assert_eq!(local::get("/foo/bar").apply(&endpoint), Some(Ok(())));
+/// assert_eq!(local::get("/foo").apply(&endpoint), None);
+/// assert_eq!(local::get("/foobar").apply(&endpoint), None);
 /// ```
 ///
 /// Matches to all remaining segments:
 ///
-/// ```ignore
-/// #![feature(rust_2018_preview)]
-/// # use finchers_core::http::path::path;
-/// # use finchers_core::ext::{just, EndpointExt};
-/// # fn main() {
-/// let endpoint = path("*").and(just("matched"));
-/// # }
+/// ```
+/// # use finchers_core::endpoints::path::path;
+/// # use finchers_core::endpoint::EndpointExt;
+/// # use finchers_core::local;
+/// let endpoint = path("foo").and(path("*"));
+///
+/// assert_eq!(local::get("/foo").apply(&endpoint), Some(Ok(())));
+/// assert_eq!(local::get("/foo/").apply(&endpoint), Some(Ok(())));
+/// assert_eq!(local::get("/foo/bar/baz").apply(&endpoint), Some(Ok(())));
+/// assert_eq!(local::get("/bar").apply(&endpoint), None);
 /// ```
 pub fn path(s: &str) -> MatchPath {
     MatchPath::from_str(s).expect("The following path cannot be converted to an endpoint.")
@@ -178,30 +184,12 @@ impl error::Error for ParseMatchError {
 ///
 /// # Example
 ///
-/// ```ignore
-/// #![feature(rust_2018_preview)]
-/// # use finchers_core::ext::{EndpointExt, EndpointResultExt, EndpointOptionExt};
-/// # use finchers_core::http::path::param;
-/// # fn main() {
-/// let endpoint = param()
-///     .map_ok(|id: i32| format!("id={}", id))
-///     .unwrap_ok();
-/// # }
 /// ```
-///
-/// Custom handling for the conversion error:
-///
-/// ```ignore
-/// #![feature(rust_2018_preview)]
-/// # use finchers_core::error::BadRequest;
-/// # use finchers_core::ext::{EndpointExt, EndpointResultExt, EndpointOptionExt};
-/// # use finchers_core::http::path::{param, FromSegment};
-/// # fn main() {
-/// let endpoint = param()
-///     .map_err(|_| BadRequest::new("invalid id"))
-///     .unwrap_ok()
-///     .as_t::<i32>();
-/// # }
+/// # #![feature(rust_2018_preview)]
+/// # use finchers_core::endpoint::EndpointExt;
+/// # use finchers_core::endpoints::path::{path, param};
+/// let endpoint = path("posts").and(param())
+///     .map_ok(|id: i32| (format!("id={}", id),));
 /// ```
 pub fn param<T>() -> Param<T>
 where

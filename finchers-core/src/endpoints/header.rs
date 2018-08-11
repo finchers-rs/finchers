@@ -1,7 +1,7 @@
 //! Components for parsing the HTTP headers.
 
 use std::future::Future;
-use std::marker::PhantomData;
+use std::marker::{PhantomData, Unpin};
 use std::mem::PinMut;
 use std::task::Poll;
 use std::{fmt, task};
@@ -18,12 +18,17 @@ use crate::input::{with_get_cx, Cursor, FromHeader, Input};
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```
 /// #![feature(rust_2018_preview)]
-/// # use finchers_core::http::header::{header, FromHeader};
-/// # use finchers_core::ext::{EndpointExt, EndpointResultExt, EndpointOptionExt};
-/// # use std::string::FromUtf8Error;
 /// #
+/// # use finchers_core::endpoint::EndpointExt;
+/// # use finchers_core::endpoints::header::header;
+/// # use finchers_core::input::FromHeader;
+/// # use finchers_core::local;
+/// # use std::string::FromUtf8Error;
+/// # use http::header;
+///
+/// #[derive(Debug, PartialEq)]
 /// pub struct APIKey(pub String);
 ///
 /// impl FromHeader for APIKey {
@@ -36,14 +41,17 @@ use crate::input::{with_get_cx, Cursor, FromHeader, Input};
 ///     }
 /// }
 ///
-/// # fn main() {
-/// let api_key = header::<APIKey>().unwrap_ok();
-/// # }
+/// let api_key = header::<APIKey>().map_err(drop);
+///
+/// let output = local::get("/").header("X-API-Key", "some-api-key").apply(&api_key);
+/// assert_eq!(output, Some(Ok((APIKey("some-api-key".into()),))));
+///
+/// let output = local::get("/").apply(&api_key);
+/// assert_eq!(output, None);
 /// ```
 pub fn header<H>() -> Header<H>
 where
     H: FromHeader,
-    H::Error: Fail,
 {
     (Header {
         _marker: PhantomData,
@@ -74,7 +82,6 @@ impl<H> fmt::Debug for Header<H> {
 impl<H> EndpointBase for Header<H>
 where
     H: FromHeader,
-    H::Error: Fail,
 {
     type Ok = One<H>;
     type Error = HeaderError<H::Error>;
@@ -100,10 +107,11 @@ pub struct HeaderFuture<H> {
     _marker: PhantomData<fn() -> H>,
 }
 
+impl<H> Unpin for HeaderFuture<H> {}
+
 impl<H> Future for HeaderFuture<H>
 where
     H: FromHeader,
-    H::Error: Fail,
 {
     type Output = Result<One<H>, HeaderError<H::Error>>;
 
