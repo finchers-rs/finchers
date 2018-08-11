@@ -7,7 +7,6 @@ use std::task::Poll;
 
 use crate::either::Either;
 use crate::endpoint::EndpointBase;
-use crate::generic::{one, One};
 use crate::input::{Cursor, Input};
 
 #[allow(missing_docs)]
@@ -20,9 +19,9 @@ pub struct Or<E1, E2> {
 impl<E1, E2> EndpointBase for Or<E1, E2>
 where
     E1: EndpointBase,
-    E2: EndpointBase,
+    E2: EndpointBase<Ok = E1::Ok>,
 {
-    type Ok = One<Either<E1::Ok, E2::Ok>>;
+    type Ok = E1::Ok;
     type Error = Either<E1::Error, E2::Error>;
     type Future = OrFuture<E1::Future, E2::Future>;
 
@@ -80,23 +79,15 @@ impl<L, R> OrFuture<L, R> {
 impl<L, R> Future for OrFuture<L, R>
 where
     L: TryFuture,
-    R: TryFuture,
+    R: TryFuture<Ok = L::Ok>,
 {
-    type Output = Result<One<Either<L::Ok, R::Ok>>, Either<L::Error, R::Error>>;
+    type Output = Result<L::Ok, Either<L::Error, R::Error>>;
 
     #[inline(always)]
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         match self.inner().as_inner_pinned() {
-            Either::Left(t) => t
-                .try_poll(cx)
-                .map_ok(Either::Left)
-                .map_ok(one)
-                .map_err(Either::Left),
-            Either::Right(t) => t
-                .try_poll(cx)
-                .map_ok(Either::Right)
-                .map_ok(one)
-                .map_err(Either::Right),
+            Either::Left(t) => t.try_poll(cx).map_err(Either::Left),
+            Either::Right(t) => t.try_poll(cx).map_err(Either::Right),
         }
     }
 }

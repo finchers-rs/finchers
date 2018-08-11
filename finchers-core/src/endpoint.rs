@@ -33,7 +33,7 @@ use futures_core::future::TryFuture;
 
 use crate::either::Either;
 use crate::error::Error;
-use crate::generic::{Combine, Func, One, Tuple};
+use crate::generic::{Combine, Func, Tuple};
 use crate::input::{Cursor, Input};
 use crate::output::Responder;
 
@@ -200,12 +200,12 @@ pub trait EndpointExt: EndpointBase + Sized {
     /// from either `self` or `e` matched "better" to the input.
     fn or<E>(self, other: E) -> Or<Self, E::Endpoint>
     where
-        E: IntoEndpoint,
+        E: IntoEndpoint<Ok = Self::Ok>,
     {
         (Or {
             e1: self,
             e2: other.into_endpoint(),
-        }).ok::<One<Either<Self::Ok, E::Ok>>>()
+        }).ok::<Self::Ok>()
         .err::<Either<Self::Error, E::Error>>()
     }
 
