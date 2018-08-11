@@ -18,7 +18,7 @@ use crate::input::{with_get_cx, Cursor, FromHeader, Input};
 ///
 /// # Example
 ///
-/// ```
+/// ```ignore
 /// #![feature(rust_2018_preview)]
 /// # use finchers_core::http::header::{header, FromHeader};
 /// # use finchers_core::ext::{EndpointExt, EndpointResultExt, EndpointOptionExt};

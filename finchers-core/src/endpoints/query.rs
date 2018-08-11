@@ -24,7 +24,7 @@ use crate::input::{with_get_cx, Cursor, FromBody, FromQuery, Input, QueryItems};
 ///
 /// # Example
 ///
-/// ```
+/// ```ignore
 /// #![feature(rust_2018_preview)]
 /// # use finchers_core::http::query::{query, from_csv, Serde};
 /// # use finchers_core::ext::{EndpointExt, EndpointResultExt, EndpointOptionExt};

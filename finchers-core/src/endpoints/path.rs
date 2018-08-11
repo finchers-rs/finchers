@@ -28,7 +28,7 @@ use crate::input::{with_get_cx, Cursor, FromSegment, Input, Segment};
 ///
 /// Matches to a single segment:
 ///
-/// ```
+/// ```ignore
 /// #![feature(rust_2018_preview)]
 /// # use finchers_core::http::path::path;
 /// # use finchers_core::ext::{just, EndpointExt};
@@ -39,7 +39,7 @@ use crate::input::{with_get_cx, Cursor, FromSegment, Input, Segment};
 ///
 /// Matches to multiple segments:
 ///
-/// ```
+/// ```ignore
 /// #![feature(rust_2018_preview)]
 /// # use finchers_core::http::path::path;
 /// # use finchers_core::ext::{just, EndpointExt};
@@ -50,7 +50,7 @@ use crate::input::{with_get_cx, Cursor, FromSegment, Input, Segment};
 ///
 /// Matches to all remaining segments:
 ///
-/// ```
+/// ```ignore
 /// #![feature(rust_2018_preview)]
 /// # use finchers_core::http::path::path;
 /// # use finchers_core::ext::{just, EndpointExt};
@@ -178,7 +178,7 @@ impl error::Error for ParseMatchError {
 ///
 /// # Example
 ///
-/// ```
+/// ```ignore
 /// #![feature(rust_2018_preview)]
 /// # use finchers_core::ext::{EndpointExt, EndpointResultExt, EndpointOptionExt};
 /// # use finchers_core::http::path::param;
@@ -191,7 +191,7 @@ impl error::Error for ParseMatchError {
 ///
 /// Custom handling for the conversion error:
 ///
-/// ```
+/// ```ignore
 /// #![feature(rust_2018_preview)]
 /// # use finchers_core::error::BadRequest;
 /// # use finchers_core::ext::{EndpointExt, EndpointResultExt, EndpointOptionExt};
