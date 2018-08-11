@@ -1,7 +1,6 @@
 //! The components to construct an asynchronous HTTP service from the `Endpoint`.
 
 use std::boxed::PinBox;
-use std::fmt;
 use std::io;
 use std::mem::PinMut;
 use std::sync::Arc;
@@ -31,29 +30,17 @@ pub struct App<E: Endpoint> {
     data: Arc<AppData<E>>,
 }
 
+#[derive(Debug)]
 struct AppData<E: Endpoint> {
     endpoint: E,
     logger: Logger,
-    error_handler: ErrorHandler,
-}
-
-impl<E: Endpoint + fmt::Debug> fmt::Debug for AppData<E> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("AppData")
-            .field("endpoint", &self.endpoint)
-            .finish()
-    }
 }
 
 impl<E: Endpoint> App<E> {
     /// Create a new `App` from the provided components.
     pub fn new(endpoint: E, logger: Logger) -> App<E> {
         App {
-            data: Arc::new(AppData {
-                endpoint,
-                logger,
-                error_handler: default_error_handler,
-            }),
+            data: Arc::new(AppData { endpoint, logger }),
         }
     }
 }
@@ -104,7 +91,6 @@ impl<E: Endpoint> Service for AppService<E> {
             input,
             logger,
             start: time::Instant::now(),
-            error_handler: self.data.error_handler,
         }
     }
 }
@@ -116,12 +102,18 @@ pub struct AppServiceFuture<T> {
     input: Input,
     logger: Logger,
     start: time::Instant,
-    error_handler: ErrorHandler,
 }
 
 impl<T> AppServiceFuture<T> {
     fn handle_error(&self, err: &HttpError) -> Response<Once<String>> {
-        (self.error_handler)(err, &self.input).map(Once::new)
+        let mut response = Response::new(Once::new(format!("{:#}", err)));
+        *response.status_mut() = err.status_code();
+        response.headers_mut().insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("text/plain; charset=utf-8"),
+        );
+        err.headers(response.headers_mut());
+        response
     }
 }
 
@@ -163,17 +155,22 @@ where
         let mut response =
             output.unwrap_or_else(|err| self.handle_error(err.as_http_error()).map(Either::Left));
 
-        if !response.headers().contains_key(header::SERVER) {
-            response.headers_mut().insert(
-                header::SERVER,
-                HeaderValue::from_static(concat!("finchers-runtime/", env!("CARGO_PKG_VERSION"))),
-            );
-        }
+        response
+            .headers_mut()
+            .entry(header::SERVER)
+            .unwrap()
+            .or_insert(HeaderValue::from_static(concat!(
+                "finchers-runtime/",
+                env!("CARGO_PKG_VERSION")
+            )));
 
-        let end = time::Instant::now();
-        let duration = end - self.start;
-        let duration_msec = duration.as_secs() * 10 + duration.subsec_nanos() as u64 / 1_000_000;
-        info!(self.logger, "{} ({} ms)", response.status(), duration_msec);
+        info!(self.logger, "{} ({} ms)", response.status(), {
+            let end = time::Instant::now();
+            let duration = end - self.start;
+            let duration_msec =
+                duration.as_secs() * 10 + u64::from(duration.subsec_nanos()) / 1_000_000;
+            duration_msec
+        });
 
         Ok(Async::Ready(response))
     }
@@ -197,20 +194,4 @@ where
     F: FnOnce(&Logger) -> R,
 {
     LOGGER.with(|logger| f(logger))
-}
-
-// ==== ErrorHandler ====
-
-/// A type alias of the error handler used by `EndpointService`.
-pub type ErrorHandler = fn(&HttpError, &Input) -> Response<String>;
-
-fn default_error_handler(err: &HttpError, _: &Input) -> Response<String> {
-    let mut response = Response::new(format!("{:#}", err));
-    *response.status_mut() = err.status_code();
-    response.headers_mut().insert(
-        header::CONTENT_TYPE,
-        HeaderValue::from_static("text/plain; charset=utf-8"),
-    );
-    err.headers(response.headers_mut());
-    response
 }
