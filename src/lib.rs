@@ -1,3 +1,7 @@
+#![feature(rust_preview_2018)]
+#![feature(use_extern_macros)]
+#![feature(pin, arbitrary_self_types, futures_api)]
+
 //! A combinator library for building asynchronous HTTP services.
 //!
 //! The concept and design was highly inspired by [`finch`](https://github.com/finagle/finch).
@@ -49,9 +53,28 @@
 //! }
 //! ```
 
-#![feature(rust_preview_2018)]
-#![feature(use_extern_macros)]
 #![doc(html_root_url = "https://docs.rs/finchers/0.11.0")]
+
+extern crate finchers_core;
+extern crate finchers_derive;
+
+extern crate bytes;
+extern crate futures;      // 0.1
+extern crate futures_core; // 0.3
+extern crate futures_util; // 0.3
+extern crate http;
+extern crate hyper;
+#[macro_use]
+extern crate structopt;
+extern crate failure;
+#[macro_use]
+extern crate scoped_tls;
+extern crate tokio;
+
+#[macro_use]
+extern crate slog;
+extern crate slog_async;
+extern crate slog_term;
 
 #[doc(hidden)]
 pub use finchers_derive::*;
@@ -86,10 +109,7 @@ pub mod output {
     pub use finchers_core::output::{payloads, responders, Responder};
 }
 
-pub mod runtime {
-    pub use finchers_runtime::app::App;
-    pub use finchers_runtime::server::{launch, LaunchResult};
-}
+pub mod runtime;
 
 pub use finchers_core::choice;
 pub use finchers_core::endpoint::{Endpoint, EndpointBase};
@@ -98,7 +118,7 @@ pub use finchers_core::input::Input;
 pub use finchers_core::json::{HttpResponse, Json};
 pub use finchers_core::output::Responder;
 
-pub use finchers_runtime::server::{launch, LaunchResult};
+pub use runtime::server::{launch, LaunchResult};
 
 #[doc(hidden)]
 pub mod _derive {

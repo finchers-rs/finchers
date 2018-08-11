@@ -10,7 +10,7 @@ use std::net::{IpAddr, SocketAddr};
 use structopt::StructOpt;
 use tokio;
 
-use app::App;
+use super::app::App;
 use finchers_core::endpoint::Endpoint;
 
 /// All kinds of logging mode of `Server`.

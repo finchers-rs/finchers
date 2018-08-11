@@ -1,9 +1,6 @@
-cargo-features = ["edition"]
-
 [package]
 name = "finchers"
 version = "0.12.0-dev" # don't forget to update html_root_url in lib.rs
-edition = "2018"
 description = "A combinator library for builidng asynchronous HTTP services"
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 license = "MIT/Apache-2.0"
@@ -29,7 +26,6 @@ maintenance = { status = "actively-developed" }
 members = [
   "finchers-core",
   "finchers-derive",
-  "finchers-runtime",
 
   "examples/basic-auth",
   "examples/form",
@@ -39,8 +35,23 @@ members = [
 [dependencies]
 finchers-core = { version = "0.12.0-dev", path = "finchers-core" }
 finchers-derive = { version = "0.12.0-dev", path = "finchers-derive" }
-finchers-runtime = { version = "0.12.0-dev", path = "finchers-runtime" }
+
+bytes = "0.4.9"
+failure = "0.1.2"
+futures = "0.1.23"
 http = "0.1.10"
+hyper = "0.12.7"
+scoped-tls = "0.1.2"
+slog = "2.3.2"
+slog-async = "2.3.0"
+slog-term = "2.4.0"
+structopt = "0.2.10"
+tokio = "0.1.7"
+
+futures-core-preview = { git = "https://github.com/rust-lang-nursery/futures-rs.git", branch = "master" }
+futures-util-preview = { git = "https://github.com/rust-lang-nursery/futures-rs.git", branch = "master", features = ["tokio-compat"] }
+#futures-core-preview = { version = "0.3.0-alpha.3" }
+#futures-util-preview = { version = "0.3.0-alpha.3", features = ["tokio-compat"] }
 
 [dev-dependencies]
 bytes = "0.4.9"
