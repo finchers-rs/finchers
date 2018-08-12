@@ -19,7 +19,7 @@ impl FromBody for SomeData {
 
 #[test]
 fn test_body_1() {
-    let endpoint = body::<SomeData>().map(|SomeData(data)| (data,));
+    let endpoint = body::<SomeData>().map(|SomeData(data)| data);
 
     let message = "The quick brown fox jumps over the lazy dog";
 

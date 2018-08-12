@@ -144,9 +144,8 @@ pub trait EndpointExt: Endpoint + Sized {
     fn map<F>(self, f: F) -> Map<Self, F>
     where
         F: Func<Self::Output> + Clone,
-        F::Out: Tuple,
     {
-        (Map { endpoint: self, f }).output::<F::Out>()
+        (Map { endpoint: self, f }).output::<(F::Out,)>()
     }
 
     #[allow(missing_docs)]

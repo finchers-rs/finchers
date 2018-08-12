@@ -6,7 +6,7 @@ use std::task::Poll;
 
 use endpoint::Endpoint;
 use error::Error;
-use generic::{Func, Tuple};
+use generic::{one, Func, One, Tuple};
 use input::{Cursor, Input};
 
 #[allow(missing_docs)]
@@ -20,9 +20,8 @@ impl<E, F> Endpoint for Map<E, F>
 where
     E: Endpoint,
     F: Func<E::Output> + Clone,
-    F::Out: Tuple,
 {
-    type Output = F::Out;
+    type Output = One<F::Out>;
     type Future = MapFuture<E::Future, F>;
 
     fn apply(&self, input: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
@@ -48,16 +47,15 @@ where
     T: TryFuture<Error = Error>,
     T::Ok: Tuple,
     F: Func<T::Ok>,
-    F::Out: Tuple,
 {
-    type Output = Result<F::Out, Error>;
+    type Output = Result<One<F::Out>, Error>;
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         match self.future().try_poll(cx) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(result) => {
                 let f = self.f().take().expect("this future has already polled.");
-                Poll::Ready(result.map(|item| f.call(item)))
+                Poll::Ready(result.map(|item| one(f.call(item))))
             }
         }
     }

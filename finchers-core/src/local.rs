@@ -8,12 +8,11 @@
 //! # use finchers_core::endpoints::method::get;
 //! # use finchers_core::endpoints::path::{path, param};
 //! # use finchers_core::endpoint::EndpointExt;
-//! # use finchers_core::generic::one;
 //! # use finchers_core::local;
 //! # use finchers_core::route;
 //!
 //! let endpoint = route![@get / "api" / "v1" / "posts" / u32 / "stars"]
-//!     .map(|id: u32| one(format!("id = {}", id)));
+//!     .map(|id: u32| format!("id = {}", id));
 //!
 //! let request = local::get("/api/v1/posts/42/stars");
 //! let output = request.apply(&endpoint);
