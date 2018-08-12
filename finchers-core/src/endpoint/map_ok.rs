@@ -4,9 +4,9 @@ use std::mem::PinMut;
 use std::task;
 use std::task::Poll;
 
-use crate::endpoint::EndpointBase;
-use crate::generic::{Func, Tuple};
-use crate::input::{Cursor, Input};
+use endpoint::EndpointBase;
+use generic::{Func, Tuple};
+use input::{Cursor, Input};
 
 #[allow(missing_docs)]
 #[derive(Debug, Copy, Clone)]

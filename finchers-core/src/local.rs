@@ -32,8 +32,8 @@ use futures_util::future::poll_fn;
 use http::header::{HeaderName, HeaderValue};
 use http::{HttpTryFrom, Method, Request, Uri};
 
-use crate::endpoint::EndpointBase;
-use crate::input::{with_set_cx, Cursor, Input, RequestBody};
+use endpoint::EndpointBase;
+use input::{with_set_cx, Cursor, Input, RequestBody};
 
 macro_rules! impl_constructors {
     ($(
@@ -79,7 +79,7 @@ pub struct LocalRequest<'a, E: 'a + Executor = LocalExecutor> {
     executor: Option<&'a mut E>,
 }
 
-impl LocalRequest<'a> {
+impl<'a> LocalRequest<'a> {
     /// Create a new `LocalRequest`.
     pub fn new() -> LocalRequest<'a> {
         LocalRequest {

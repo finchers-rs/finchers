@@ -3,8 +3,8 @@ use std::mem::PinMut;
 use futures_core::future::TryFuture;
 use futures_util::try_future::{self, TryFutureExt};
 
-use crate::endpoint::EndpointBase;
-use crate::input::{Cursor, Input};
+use endpoint::EndpointBase;
+use input::{Cursor, Input};
 
 #[allow(missing_docs)]
 #[derive(Debug, Copy, Clone)]

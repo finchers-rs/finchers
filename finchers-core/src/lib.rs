@@ -8,6 +8,21 @@
 #![deny(missing_docs)]
 #![deny(missing_debug_implementations)]
 
+extern crate bytes;
+extern crate failure;
+extern crate futures;
+extern crate futures_core;
+extern crate futures_executor;
+extern crate futures_util;
+extern crate http;
+extern crate hyper;
+extern crate mime;
+extern crate percent_encoding;
+extern crate pin_utils;
+extern crate serde;
+extern crate serde_json;
+extern crate serde_qs;
+
 #[macro_use]
 mod macros;
 

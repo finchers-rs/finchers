@@ -3,8 +3,8 @@
 use http::Method;
 use std::mem::PinMut;
 
-use crate::endpoint::{EndpointBase, IntoEndpoint};
-use crate::input::{Cursor, Input};
+use endpoint::{EndpointBase, IntoEndpoint};
+use input::{Cursor, Input};
 
 #[allow(missing_docs)]
 #[derive(Debug, Clone)]

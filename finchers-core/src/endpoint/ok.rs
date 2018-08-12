@@ -1,10 +1,10 @@
 use futures_util::future;
 use std::mem::PinMut;
 
-use crate::endpoint::EndpointBase;
-use crate::error::Never;
-use crate::generic::Tuple;
-use crate::input::{Cursor, Input};
+use endpoint::EndpointBase;
+use error::Never;
+use generic::Tuple;
+use input::{Cursor, Input};
 
 #[allow(missing_docs)]
 pub fn ok<T: Tuple + Clone>(x: T) -> Ok<T> {

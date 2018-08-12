@@ -18,7 +18,7 @@ pub enum Either<L, R> {
 
 impl<L, R> Either<L, R> {
     #[inline]
-    pub fn as_inner_pinned(self: PinMut<'a, Self>) -> Either<PinMut<'a, L>, PinMut<'a, R>> {
+    pub fn as_inner_pinned<'a>(self: PinMut<'a, Self>) -> Either<PinMut<'a, L>, PinMut<'a, R>> {
         match unsafe { PinMut::get_mut_unchecked(self) } {
             Either::Left(ref mut t) => Either::Left(unsafe { PinMut::new_unchecked(t) }),
             Either::Right(ref mut t) => Either::Right(unsafe { PinMut::new_unchecked(t) }),

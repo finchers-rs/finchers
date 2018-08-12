@@ -13,10 +13,10 @@ use futures_util::try_ready;
 use http::StatusCode;
 use pin_utils::unsafe_unpinned;
 
-use crate::endpoint::{EndpointBase, EndpointExt};
-use crate::error::{HttpError, Never};
-use crate::generic::{one, One};
-use crate::input::{with_get_cx, Cursor, FromBody, Input, PollDataError, RequestBody};
+use endpoint::{EndpointBase, EndpointExt};
+use error::{HttpError, Never};
+use generic::{one, One};
+use input::{with_get_cx, Cursor, FromBody, Input, PollDataError, RequestBody};
 
 /// Creates an endpoint which will take the instance of `RequestBody` from the context.
 ///

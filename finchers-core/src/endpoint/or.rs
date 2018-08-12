@@ -5,9 +5,9 @@ use std::mem::PinMut;
 use std::task;
 use std::task::Poll;
 
-use crate::either::Either;
-use crate::endpoint::EndpointBase;
-use crate::input::{Cursor, Input};
+use either::Either;
+use endpoint::EndpointBase;
+use input::{Cursor, Input};
 
 #[allow(missing_docs)]
 #[derive(Debug, Copy, Clone)]

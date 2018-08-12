@@ -7,9 +7,9 @@ use futures_core::future::TryFuture;
 use pin_utils::unsafe_pinned;
 
 use super::try_chain::{TryChain, TryChainAction};
-use crate::endpoint::EndpointBase;
-use crate::generic::{Func, Tuple};
-use crate::input::{Cursor, Input};
+use endpoint::EndpointBase;
+use generic::{Func, Tuple};
+use input::{Cursor, Input};
 
 #[allow(missing_docs)]
 #[derive(Debug, Copy, Clone)]

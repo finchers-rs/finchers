@@ -16,7 +16,7 @@ pub struct Cursor {
 
 impl Cursor {
     #[inline]
-    crate unsafe fn new(path: &'a str) -> Self {
+    pub(crate) unsafe fn new(path: &str) -> Self {
         // change the lifetime of path string.
         //
         // safety:
@@ -51,7 +51,7 @@ impl Cursor {
     }
 
     #[allow(missing_docs)]
-    pub unsafe fn next_segment(&'a mut self) -> Option<Segment<'a>> {
+    pub unsafe fn next_segment<'a>(&'a mut self) -> Option<Segment<'a>> {
         let path = &self.path;
         if self.pos == path.len() {
             return None;

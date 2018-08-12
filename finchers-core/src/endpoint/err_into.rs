@@ -2,8 +2,8 @@ use futures_util::try_future::{self, TryFutureExt};
 use std::marker::PhantomData;
 use std::mem::PinMut;
 
-use crate::endpoint::EndpointBase;
-use crate::input::{Cursor, Input};
+use endpoint::EndpointBase;
+use input::{Cursor, Input};
 
 #[allow(missing_docs)]
 #[derive(Debug, Copy, Clone)]

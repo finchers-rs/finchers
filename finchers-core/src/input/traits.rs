@@ -6,7 +6,7 @@ use bytes::Bytes;
 use failure::Fail;
 use http::StatusCode;
 
-use crate::error::{Failure, HttpError, Never};
+use error::{Failure, HttpError, Never};
 
 use super::segments::{EncodedStr, Segment};
 use super::Input;

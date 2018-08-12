@@ -8,6 +8,11 @@ pub use self::combine::Combine;
 pub use self::func::Func;
 pub use self::hlist::Tuple;
 
+use std::fmt;
+use std::marker::PhantomData;
+
+use either::Either;
+
 pub type One<T> = (T,);
 
 #[inline]
@@ -19,10 +24,6 @@ pub fn one<T>(x: T) -> One<T> {
 pub fn map_one<T, U>(x: One<T>, f: impl FnOnce(T) -> U) -> One<U> {
     one(f(x.0))
 }
-
-use crate::either::Either;
-use std::fmt;
-use std::marker::PhantomData;
 
 #[derive(Copy, Clone)]
 pub struct MapLeft<R>(PhantomData<fn() -> R>);

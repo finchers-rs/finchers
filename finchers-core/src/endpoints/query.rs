@@ -14,10 +14,10 @@ use http::StatusCode;
 use serde::de::{self, DeserializeOwned, IntoDeserializer};
 use {mime, serde_qs};
 
-use crate::endpoint::EndpointBase;
-use crate::error::HttpError;
-use crate::generic::{one, One};
-use crate::input::{with_get_cx, Cursor, FromBody, FromQuery, Input, QueryItems};
+use endpoint::EndpointBase;
+use error::HttpError;
+use generic::{one, One};
+use input::{with_get_cx, Cursor, FromBody, FromQuery, Input, QueryItems};
 
 /// Create an endpoint which parse the query string in the HTTP request
 /// to the value of `T`.
@@ -26,6 +26,9 @@ use crate::input::{with_get_cx, Cursor, FromBody, FromQuery, Input, QueryItems};
 ///
 /// ```
 /// # #![feature(rust_2018_preview)]
+/// # #![feature(use_extern_macros)]
+/// # extern crate finchers_core;
+/// # extern crate serde;
 /// # use finchers_core::endpoints::path::path;
 /// # use finchers_core::endpoints::query::{query, from_csv, Serde};
 /// # use finchers_core::endpoint::EndpointExt;
