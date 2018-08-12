@@ -47,8 +47,8 @@ macro_rules! routes {
         use $crate::endpoint::EndpointExt;
         use $crate::generic::{map_left, map_right};
 
-        IntoEndpoint::into_endpoint($e1).map_ok(map_left())
-            .or(IntoEndpoint::into_endpoint($e2).map_ok(map_right()))
+        IntoEndpoint::into_endpoint($e1).map(map_left())
+            .or(IntoEndpoint::into_endpoint($e2).map(map_right()))
     }};
 
     (@error) => { compile_error!("The `routes!()` macro requires at least two elements."); };

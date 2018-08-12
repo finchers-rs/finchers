@@ -11,7 +11,7 @@ use structopt::StructOpt;
 use tokio;
 
 use super::app::App;
-use finchers_core::endpoint::Endpoint;
+use super::AppEndpoint;
 
 /// All kinds of logging mode of `Server`.
 #[allow(missing_docs)]
@@ -108,7 +108,7 @@ impl Config {
 pub type LaunchResult<T> = Result<T, failure::Error>;
 
 /// Start the server with given endpoint and default configuration.
-pub fn launch(endpoint: impl Endpoint) -> LaunchResult<()> {
+pub fn launch(endpoint: impl AppEndpoint) -> LaunchResult<()> {
     let config = Config::from_env();
     let logger = config.logger();
 

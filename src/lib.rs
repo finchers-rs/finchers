@@ -90,13 +90,13 @@ pub mod error {
 
 pub mod endpoint {
     pub use finchers_core::endpoint::{ok, reject};
-    pub use finchers_core::endpoint::{Endpoint, EndpointBase, IntoEndpoint};
+    pub use finchers_core::endpoint::{Endpoint, IntoEndpoint};
     pub use finchers_core::endpoints::{body, header, method, path, query};
 
     /// The "prelude" for building endpoints
     pub mod prelude {
         pub use finchers_core::endpoint::EndpointExt;
-        pub use finchers_core::endpoint::{Endpoint, EndpointBase, IntoEndpoint};
+        pub use finchers_core::endpoint::{Endpoint, IntoEndpoint};
         pub use finchers_core::endpoints::body::{body, raw_body};
         pub use finchers_core::endpoints::method::{delete, get, head, patch, post, put};
         pub use finchers_core::endpoints::path::{param, path};
@@ -119,13 +119,14 @@ pub mod macros {
 
 pub mod runtime;
 
-pub use finchers_core::endpoint::{Endpoint, EndpointBase};
+pub use finchers_core::endpoint::Endpoint;
 pub use finchers_core::error::{HttpError, Never};
 pub use finchers_core::input::Input;
 pub use finchers_core::json::{HttpResponse, Json};
 pub use finchers_core::output::Responder;
 
 pub use runtime::server::{launch, LaunchResult};
+pub use runtime::AppEndpoint;
 
 #[doc(hidden)]
 pub mod _derive {

@@ -1,8 +1,8 @@
 use futures_util::future;
 use std::mem::PinMut;
 
-use endpoint::EndpointBase;
-use error::Never;
+use endpoint::Endpoint;
+use error::Error;
 use generic::Tuple;
 use input::{Cursor, Input};
 
@@ -17,10 +17,9 @@ pub struct Ok<T> {
     x: T,
 }
 
-impl<T: Tuple + Clone> EndpointBase for Ok<T> {
-    type Ok = T;
-    type Error = Never;
-    type Future = future::Ready<Result<Self::Ok, Self::Error>>;
+impl<T: Tuple + Clone> Endpoint for Ok<T> {
+    type Output = T;
+    type Future = future::Ready<Result<Self::Output, Error>>;
 
     fn apply(&self, _: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
         Some((future::ready(Ok(self.x.clone())), cursor))

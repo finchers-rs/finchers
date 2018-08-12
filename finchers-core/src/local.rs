@@ -3,18 +3,16 @@
 //! # Example
 //!
 //! ```
+//! # #![feature(rust_2018_preview)]
+//! # #![feature(use_extern_macros)]
 //! # use finchers_core::endpoints::method::get;
 //! # use finchers_core::endpoints::path::{path, param};
 //! # use finchers_core::endpoint::EndpointExt;
-//! # use finchers_core::generic::one;
 //! # use finchers_core::local;
+//! # use finchers_core::route;
 //!
-//! let endpoint = get(path("/api/v1/posts").and(param::<u32>()).and(path("stars")))
-//!     .map_ok(|id: u32| {
-//!         one(format!("id = {}", id))
-//!     })
-//!     .map_err(drop);
-//!
+//! let endpoint = route![@get / "api" / "v1" / "posts" / u32 / "stars"]
+//!     .map(|id: u32| format!("id = {}", id));
 //!
 //! let request = local::get("/api/v1/posts/42/stars");
 //! let output = request.apply(&endpoint);
@@ -32,7 +30,8 @@ use futures_util::future::poll_fn;
 use http::header::{HeaderName, HeaderValue};
 use http::{HttpTryFrom, Method, Request, Uri};
 
-use endpoint::EndpointBase;
+use endpoint::Endpoint;
+use error::Error;
 use input::{with_set_cx, Cursor, Input, RequestBody};
 
 macro_rules! impl_constructors {
@@ -153,9 +152,9 @@ impl<'a> LocalRequest<'a> {
     }
 
     /// Apply this dummy request to the associated endpoint and get its response.
-    pub fn apply<E>(self, endpoint: E) -> Option<Result<E::Ok, E::Error>>
+    pub fn apply<E>(self, endpoint: E) -> Option<Result<E::Output, Error>>
     where
-        E: EndpointBase,
+        E: Endpoint,
     {
         let LocalRequest {
             mut request,

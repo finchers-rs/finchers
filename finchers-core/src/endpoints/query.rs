@@ -14,8 +14,8 @@ use http::StatusCode;
 use serde::de::{self, DeserializeOwned, IntoDeserializer};
 use {mime, serde_qs};
 
-use endpoint::EndpointBase;
-use error::HttpError;
+use endpoint::Endpoint;
+use error::{Error, HttpError};
 use generic::{one, One};
 use input::{with_get_cx, Cursor, FromBody, FromQuery, Input, QueryItems};
 
@@ -43,11 +43,12 @@ use input::{with_get_cx, Cursor, FromBody, FromQuery, Input, QueryItems};
 /// }
 ///
 /// let endpoint = path("foo").and(query())
-///     .map_ok(|param: Serde<Param>| (format!("Received: {:?}", &*param),));
+///     .map(|param: Serde<Param>| (format!("Received: {:?}", &*param),));
 /// ```
 pub fn query<T>() -> Query<T>
 where
     T: FromQuery,
+    T::Error: Fail,
 {
     Query {
         _marker: PhantomData,
@@ -74,12 +75,12 @@ impl<T> fmt::Debug for Query<T> {
     }
 }
 
-impl<T> EndpointBase for Query<T>
+impl<T> Endpoint for Query<T>
 where
     T: FromQuery,
+    T::Error: Fail,
 {
-    type Ok = One<T>;
-    type Error = QueryError<T::Error>;
+    type Output = One<T>;
     type Future = QueryFuture<T>;
 
     fn apply(&self, _: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
@@ -101,15 +102,16 @@ pub struct QueryFuture<T> {
 impl<T> Future for QueryFuture<T>
 where
     T: FromQuery,
+    T::Error: Fail,
 {
-    type Output = Result<One<T>, QueryError<T::Error>>;
+    type Output = Result<One<T>, Error>;
 
     fn poll(self: PinMut<Self>, _: &mut task::Context) -> Poll<Self::Output> {
         Poll::Ready(with_get_cx(|input| match input.request().uri().query() {
             Some(query) => T::from_query(QueryItems::new(query))
                 .map(one)
-                .map_err(|cause| QueryError::Parse { cause }),
-            None => Err(QueryError::MissingQuery),
+                .map_err(|cause| QueryError::Parse { cause }.into()),
+            None => Err((QueryError::MissingQuery as QueryError<::std::io::Error>).into()),
         }))
     }
 }
@@ -183,7 +185,7 @@ impl<E: fmt::Display> fmt::Display for QueryError<E> {
 
 impl<E: Fail> Fail for QueryError<E> {}
 
-impl<E: HttpError> HttpError for QueryError<E> {
+impl<E: Fail> HttpError for QueryError<E> {
     fn status_code(&self) -> StatusCode {
         StatusCode::BAD_REQUEST
     }

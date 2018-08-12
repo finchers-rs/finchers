@@ -2,7 +2,8 @@ use futures_util::future;
 use std::marker::PhantomData;
 use std::mem::PinMut;
 
-use endpoint::{EndpointBase, EndpointExt};
+use endpoint::{Endpoint, EndpointExt};
+use error::Error;
 use generic::Tuple;
 use input::{Cursor, Input};
 
@@ -11,12 +12,12 @@ pub fn reject<F, T, E>(f: F) -> Reject<F, T, E>
 where
     F: Fn(PinMut<Input>) -> E,
     T: Tuple,
+    E: Into<Error>,
 {
     (Reject {
         f,
         _marker: PhantomData,
-    }).ok::<T>()
-    .err::<E>()
+    }).output::<T>()
 }
 
 #[allow(missing_docs)]
@@ -37,19 +38,19 @@ impl<F: Clone, T, E> Clone for Reject<F, T, E> {
     }
 }
 
-impl<F, T, E> EndpointBase for Reject<F, T, E>
+impl<F, T, E> Endpoint for Reject<F, T, E>
 where
     F: Fn(PinMut<Input>) -> E,
     T: Tuple,
+    E: Into<Error>,
 {
-    type Ok = T;
-    type Error = E;
-    type Future = future::Ready<Result<Self::Ok, Self::Error>>;
+    type Output = T;
+    type Future = future::Ready<Result<Self::Output, Error>>;
 
     fn apply(&self, input: PinMut<Input>, mut cursor: Cursor) -> Option<(Self::Future, Cursor)> {
         unsafe {
             cursor.consume_all_segments();
         }
-        Some((future::ready(Err((self.f)(input))), cursor))
+        Some((future::ready(Err((self.f)(input).into())), cursor))
     }
 }
