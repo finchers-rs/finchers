@@ -14,8 +14,7 @@ pub struct MatchMethod<E: Endpoint> {
 }
 
 impl<E: Endpoint> Endpoint for MatchMethod<E> {
-    type Ok = E::Ok;
-    type Error = E::Error;
+    type Output = E::Output;
     type Future = E::Future;
 
     fn apply(&self, input: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
@@ -61,8 +60,7 @@ macro_rules! define_method {
         }
 
         impl<E: Endpoint> Endpoint for $Endpoint<E> {
-            type Ok = E::Ok;
-            type Error = E::Error;
+            type Output = E::Output;
             type Future = E::Future;
 
             fn apply(&self, input: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {

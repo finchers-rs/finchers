@@ -48,7 +48,7 @@ impl<E: AppEndpoint> App<E> {
 
 impl<E: AppEndpoint> NewService for App<E> {
     type ReqBody = Body;
-    type ResBody = Either<Once<String>, <E::Ok as Responder>::Body>;
+    type ResBody = Either<Once<String>, <E::Output as Responder>::Body>;
     type Error = io::Error;
     type Service = AppService<E>;
     type InitError = io::Error;
@@ -71,7 +71,7 @@ pub struct AppService<E: AppEndpoint> {
 
 impl<E: AppEndpoint> Service for AppService<E> {
     type ReqBody = Body;
-    type ResBody = Either<Once<String>, <E::Ok as Responder>::Body>;
+    type ResBody = Either<Once<String>, <E::Output as Responder>::Body>;
     type Error = io::Error;
     type Future = AppServiceFuture<TokioCompat<E::Future>>;
 
@@ -120,9 +120,8 @@ impl<T> AppServiceFuture<T> {
 
 impl<T> Future for AppServiceFuture<T>
 where
-    T: Future,
+    T: Future<Error = Error>,
     T::Item: Responder,
-    T::Error: Into<Error>,
 {
     type Item = Response<Either<Once<String>, <T::Item as Responder>::Body>>;
     type Error = io::Error;
@@ -153,8 +152,7 @@ where
             None => Err(NoRoute.into()),
         };
 
-        let mut response =
-            output.unwrap_or_else(|err| self.handle_error(err.as_http_error()).map(Either::Left));
+        let mut response = output.unwrap_or_else(|err| self.handle_error(&*err).map(Either::Left));
 
         response
             .headers_mut()

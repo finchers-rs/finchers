@@ -18,9 +18,8 @@ mod sealed {
     use finchers_core::output::Responder;
 
     pub trait Sealed: Send + Sync + 'static {
-        type Ok: Responder;
-        type Error: Into<Error>;
-        type Future: TryFuture<Ok = Self::Ok, Error = Self::Error> + Send + 'static;
+        type Output: Responder;
+        type Future: TryFuture<Ok = Self::Output, Error = Error> + Send + 'static;
 
         fn apply(&self, input: PinMut<Input>) -> Option<Self::Future>;
     }
@@ -28,12 +27,10 @@ mod sealed {
     impl<E> Sealed for E
     where
         E: Endpoint + Send + Sync + 'static,
-        E::Ok: Responder,
-        E::Error: Into<Error>,
+        E::Output: Responder,
         E::Future: Send + 'static,
     {
-        type Ok = E::Ok;
-        type Error = E::Error;
+        type Output = E::Output;
         type Future = E::Future;
 
         fn apply(&self, input: PinMut<Input>) -> Option<Self::Future> {
@@ -45,8 +42,7 @@ mod sealed {
     impl<E> AppEndpoint for E
     where
         E: Endpoint + Send + Sync + 'static,
-        E::Ok: Responder,
-        E::Error: Into<Error>,
+        E::Output: Responder,
         E::Future: Send + 'static,
     {}
 }

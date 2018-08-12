@@ -1,6 +1,7 @@
 use finchers_core::endpoint::{ok, reject, EndpointExt};
 use finchers_core::endpoints::header;
 use finchers_core::endpoints::path::path;
+use finchers_core::error::NotPresent;
 use finchers_core::local;
 
 #[test]
@@ -32,7 +33,7 @@ fn test_or_choose_longer_segments() {
 fn test_or_with_rejection_path() {
     let endpoint = path("foo")
         .or(path("bar"))
-        .or(reject(|_| "custom rejection"));
+        .or(reject(|_| NotPresent::new("custom rejection")));
 
     assert_eq!(
         local::get("/foo")
@@ -51,8 +52,8 @@ fn test_or_with_rejection_path() {
 
 #[test]
 fn test_or_with_rejection_header() {
-    let endpoint =
-        header::parse::<String>("authorization").or(reject(|_| "missing authorization header"));
+    let endpoint = header::parse::<String>("authorization")
+        .or(reject(|_| NotPresent::new("missing authorization header")));
 
     assert_eq!(
         local::get("/")

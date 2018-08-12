@@ -6,11 +6,13 @@ use std::mem::PinMut;
 use std::task::Poll;
 use std::{fmt, task};
 
+use failure::Fail;
 use futures_util::future;
 use http::header::HeaderValue;
+use http::StatusCode;
 
 use endpoint::{Endpoint, EndpointExt};
-use error::Never;
+use error::{Error, HttpError};
 use generic::{one, One};
 use input::{with_get_cx, Cursor, FromHeaderValue, Input};
 
@@ -48,15 +50,24 @@ use input::{with_get_cx, Cursor, FromHeaderValue, Input};
 /// #
 /// # extern crate finchers_core;
 /// # extern crate failure;
+/// # extern crate http;
 /// #
 /// # use finchers_core::endpoint::{reject, EndpointExt};
 /// # use finchers_core::endpoints::header;
+/// # use finchers_core::error::HttpError;
 /// # use finchers_core::local;
 /// # use failure::Fail;
+/// # use http::StatusCode;
 /// #
 /// #[derive(Debug, Fail)]
 /// #[fail(display = "missing api key")]
 /// struct MissingAPIKey { _priv: () }
+///
+/// impl HttpError for MissingAPIKey {
+///     fn status_code(&self) -> StatusCode {
+///         StatusCode::BAD_REQUEST
+///     }
+/// }
 ///
 /// let endpoint = header::parse::<String>("x-api-key")
 ///     .or(reject(|_| MissingAPIKey { _priv: () }));
@@ -64,8 +75,7 @@ use input::{with_get_cx, Cursor, FromHeaderValue, Input};
 /// assert_eq!(
 ///     local::get("/")
 ///         .header("x-api-key", "xxxx-xxxx-xxxx")
-///         .apply(&endpoint)
-///         .map(|res| res.map_err(drop)),
+///         .apply(&endpoint),
 ///     Some(Ok(("xxxx-xxxx-xxxx".into(),)))
 /// );
 ///
@@ -79,12 +89,12 @@ use input::{with_get_cx, Cursor, FromHeaderValue, Input};
 pub fn parse<H>(name: &'static str) -> ParseHeader<H>
 where
     H: FromHeaderValue,
+    H::Error: Fail,
 {
     (ParseHeader {
         name,
         _marker: PhantomData,
-    }).ok::<One<H>>()
-    .err::<H::Error>()
+    }).output::<One<H>>()
 }
 
 /// An instance of endpoint for extracting a header value.
@@ -113,9 +123,9 @@ impl<H> fmt::Debug for ParseHeader<H> {
 impl<H> Endpoint for ParseHeader<H>
 where
     H: FromHeaderValue,
+    H::Error: Fail,
 {
-    type Ok = One<H>;
-    type Error = H::Error;
+    type Output = One<H>;
     type Future = ParseHeaderFuture<H>;
 
     fn apply(&self, input: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
@@ -150,16 +160,32 @@ impl<H> fmt::Debug for ParseHeaderFuture<H> {
 impl<H> Future for ParseHeaderFuture<H>
 where
     H: FromHeaderValue,
+    H::Error: Fail,
 {
-    type Output = Result<One<H>, H::Error>;
+    type Output = Result<One<H>, Error>;
 
     fn poll(self: PinMut<Self>, _: &mut task::Context) -> Poll<Self::Output> {
         Poll::Ready(with_get_cx(|input| {
             match input.request().headers().get(self.name) {
-                Some(h) => H::from_header_value(h).map(one),
+                Some(h) => H::from_header_value(h)
+                    .map(one)
+                    .map_err(|cause| HeaderError { cause }.into()),
                 None => unreachable!(),
             }
         }))
+    }
+}
+
+#[allow(missing_docs)]
+#[derive(Debug, Fail)]
+#[fail(display = "failed to parse a header value: {}", cause)]
+pub struct HeaderError<E: Fail> {
+    cause: E,
+}
+
+impl<E: Fail> HttpError for HeaderError<E> {
+    fn status_code(&self) -> StatusCode {
+        StatusCode::BAD_REQUEST
     }
 }
 
@@ -177,7 +203,7 @@ pub fn exact<V>(name: &'static str, value: V) -> ExactHeader<V>
 where
     HeaderValue: PartialEq<V>,
 {
-    (ExactHeader { name, value }).ok::<()>().err::<Never>()
+    (ExactHeader { name, value }).output::<()>()
 }
 
 #[allow(missing_docs)]
@@ -191,9 +217,8 @@ impl<V> Endpoint for ExactHeader<V>
 where
     HeaderValue: PartialEq<V>,
 {
-    type Ok = ();
-    type Error = Never;
-    type Future = future::Ready<Result<Self::Ok, Self::Error>>;
+    type Output = ();
+    type Future = future::Ready<Result<Self::Output, Error>>;
 
     fn apply(&self, input: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
         match input.headers().get(self.name) {

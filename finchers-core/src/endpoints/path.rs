@@ -7,11 +7,13 @@ use std::ops::Range;
 use std::task::Poll;
 use std::{error, fmt, task};
 
+use failure::Fail;
 use futures_util::future;
+use http::StatusCode;
 use percent_encoding::{define_encode_set, percent_encode, DEFAULT_ENCODE_SET};
 
 use endpoint::Endpoint;
-use error::Never;
+use error::{Error, HttpError};
 use generic::{one, One};
 use input::{with_get_cx, Cursor, FromSegment, Input, Segment};
 
@@ -118,9 +120,8 @@ pub enum MatchPathKind {
 }
 
 impl Endpoint for MatchPath {
-    type Ok = ();
-    type Error = Never;
-    type Future = future::Ready<Result<Self::Ok, Never>>;
+    type Output = ();
+    type Future = future::Ready<Result<Self::Output, Error>>;
 
     fn apply(&self, _: PinMut<Input>, mut cursor: Cursor) -> Option<(Self::Future, Cursor)> {
         use self::MatchPathKind::*;
@@ -189,11 +190,12 @@ impl error::Error for ParseMatchError {
 /// # use finchers_core::endpoint::EndpointExt;
 /// # use finchers_core::endpoints::path::{path, param};
 /// let endpoint = path("posts").and(param())
-///     .map_ok(|id: i32| (format!("id={}", id),));
+///     .map(|id: i32| (format!("id={}", id),));
 /// ```
 pub fn param<T>() -> Param<T>
 where
     T: FromSegment,
+    T::Error: Fail,
 {
     Param {
         _marker: PhantomData,
@@ -223,9 +225,9 @@ impl<T> fmt::Debug for Param<T> {
 impl<T> Endpoint for Param<T>
 where
     T: FromSegment,
+    T::Error: Fail,
 {
-    type Ok = One<T>;
-    type Error = T::Error;
+    type Output = One<T>;
     type Future = ParamFuture<T>;
 
     fn apply(&self, _: PinMut<Input>, mut cursor: Cursor) -> Option<(Self::Future, Cursor)> {
@@ -247,14 +249,33 @@ pub struct ParamFuture<T> {
     _marker: PhantomData<fn() -> T>,
 }
 
-impl<T: FromSegment> Future for ParamFuture<T> {
-    type Output = Result<One<T>, T::Error>;
+impl<T> Future for ParamFuture<T>
+where
+    T: FromSegment,
+    T::Error: Fail,
+{
+    type Output = Result<One<T>, Error>;
 
     fn poll(self: PinMut<Self>, _: &mut task::Context) -> Poll<Self::Output> {
         Poll::Ready(with_get_cx(|input| {
             let s = Segment::new(input.request().uri().path(), self.range.clone());
-            T::from_segment(s).map(one)
+            T::from_segment(s)
+                .map(one)
+                .map_err(|cause| ParamError { cause }.into())
         }))
+    }
+}
+
+#[allow(missing_docs)]
+#[derive(Debug, Fail)]
+#[fail(display = "failed to parse a path segment: {}", cause)]
+pub struct ParamError<E: Fail> {
+    cause: E,
+}
+
+impl<E: Fail> HttpError for ParamError<E> {
+    fn status_code(&self) -> StatusCode {
+        StatusCode::BAD_REQUEST
     }
 }
 

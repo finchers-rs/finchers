@@ -6,10 +6,12 @@ use std::task::Poll;
 use futures_core::future::TryFuture;
 use pin_utils::unsafe_pinned;
 
-use super::try_chain::{TryChain, TryChainAction};
 use endpoint::Endpoint;
+use error::Error;
 use generic::{Func, Tuple};
 use input::{Cursor, Input};
+
+use super::try_chain::{TryChain, TryChainAction};
 
 #[allow(missing_docs)]
 #[derive(Debug, Copy, Clone)]
@@ -21,12 +23,11 @@ pub struct AndThen<E, F> {
 impl<E, F> Endpoint for AndThen<E, F>
 where
     E: Endpoint,
-    F: Func<E::Ok> + Clone,
-    F::Out: TryFuture<Error = E::Error>,
+    F: Func<E::Output> + Clone,
+    F::Out: TryFuture<Error = Error>,
     <F::Out as TryFuture>::Ok: Tuple,
 {
-    type Ok = <F::Out as TryFuture>::Ok;
-    type Error = E::Error;
+    type Output = <F::Out as TryFuture>::Ok;
     type Future = AndThenFuture<E::Future, F::Out, F>;
 
     fn apply(&self, input: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
@@ -45,8 +46,8 @@ where
 #[derive(Debug)]
 pub struct AndThenFuture<F1, F2, F>
 where
-    F1: TryFuture,
-    F2: TryFuture<Error = F1::Error>,
+    F1: TryFuture<Error = Error>,
+    F2: TryFuture<Error = Error>,
     F: Func<F1::Ok, Out = F2>,
     F1::Ok: Tuple,
     <F::Out as TryFuture>::Ok: Tuple,
@@ -56,8 +57,8 @@ where
 
 impl<F1, F2, F> AndThenFuture<F1, F2, F>
 where
-    F1: TryFuture,
-    F2: TryFuture<Error = F1::Error>,
+    F1: TryFuture<Error = Error>,
+    F2: TryFuture<Error = Error>,
     F: Func<F1::Ok, Out = F2>,
     F1::Ok: Tuple,
     <F::Out as TryFuture>::Ok: Tuple,
@@ -67,13 +68,13 @@ where
 
 impl<F1, F2, F> Future for AndThenFuture<F1, F2, F>
 where
-    F1: TryFuture,
-    F2: TryFuture<Error = F1::Error>,
+    F1: TryFuture<Error = Error>,
+    F2: TryFuture<Error = Error>,
     F: Func<F1::Ok, Out = F2>,
     F1::Ok: Tuple,
     <F::Out as TryFuture>::Ok: Tuple,
 {
-    type Output = Result<F2::Ok, F2::Error>;
+    type Output = Result<F2::Ok, Error>;
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         self.try_chain().poll(cx, |result, f| match result {

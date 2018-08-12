@@ -9,6 +9,7 @@ pub use self::never::Never;
 use std::borrow::Cow;
 use std::error;
 use std::fmt;
+use std::ops::Deref;
 
 use failure::Fail;
 use http::header::HeaderMap;
@@ -105,9 +106,17 @@ impl fmt::Display for Error {
     }
 }
 
-impl Error {
+impl Deref for Error {
+    type Target = HttpError;
+
     /// Returns the reference to inner `HttpError`.
-    pub fn as_http_error(&self) -> &HttpError {
+    fn deref(&self) -> &Self::Target {
         &*self.0
+    }
+}
+
+impl PartialEq for Error {
+    fn eq(&self, other: &Self) -> bool {
+        self.status_code() == other.status_code()
     }
 }

@@ -7,6 +7,7 @@ use std::task::Poll;
 
 use either::Either;
 use endpoint::Endpoint;
+use error::Error;
 use input::{Cursor, Input};
 
 #[allow(missing_docs)]
@@ -19,10 +20,9 @@ pub struct Or<E1, E2> {
 impl<E1, E2> Endpoint for Or<E1, E2>
 where
     E1: Endpoint,
-    E2: Endpoint<Ok = E1::Ok>,
+    E2: Endpoint<Output = E1::Output>,
 {
-    type Ok = E1::Ok;
-    type Error = Either<E1::Error, E2::Error>;
+    type Output = E1::Output;
     type Future = OrFuture<E1::Future, E2::Future>;
 
     fn apply(&self, mut input: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
@@ -76,18 +76,18 @@ impl<L, R> OrFuture<L, R> {
     unsafe_pinned!(inner: Either<L, R>);
 }
 
-impl<L, R> Future for OrFuture<L, R>
+impl<L, R, T> Future for OrFuture<L, R>
 where
-    L: TryFuture,
-    R: TryFuture<Ok = L::Ok>,
+    L: TryFuture<Ok = T, Error = Error>,
+    R: TryFuture<Ok = T, Error = Error>,
 {
-    type Output = Result<L::Ok, Either<L::Error, R::Error>>;
+    type Output = Result<T, Error>;
 
     #[inline(always)]
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         match self.inner().as_inner_pinned() {
-            Either::Left(t) => t.try_poll(cx).map_err(Either::Left),
-            Either::Right(t) => t.try_poll(cx).map_err(Either::Right),
+            Either::Left(t) => t.try_poll(cx),
+            Either::Right(t) => t.try_poll(cx),
         }
     }
 }
