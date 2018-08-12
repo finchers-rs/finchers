@@ -4,7 +4,7 @@ use std::mem::PinMut;
 use std::task;
 use std::task::Poll;
 
-use endpoint::EndpointBase;
+use endpoint::Endpoint;
 use generic::{Func, Tuple};
 use input::{Cursor, Input};
 
@@ -15,9 +15,9 @@ pub struct MapOk<E, F> {
     pub(super) f: F,
 }
 
-impl<E, F> EndpointBase for MapOk<E, F>
+impl<E, F> Endpoint for MapOk<E, F>
 where
-    E: EndpointBase,
+    E: Endpoint,
     F: Func<E::Ok> + Clone,
     F::Out: Tuple,
 {

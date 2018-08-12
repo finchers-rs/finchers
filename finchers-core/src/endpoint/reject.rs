@@ -2,7 +2,7 @@ use futures_util::future;
 use std::marker::PhantomData;
 use std::mem::PinMut;
 
-use endpoint::{EndpointBase, EndpointExt};
+use endpoint::{Endpoint, EndpointExt};
 use generic::Tuple;
 use input::{Cursor, Input};
 
@@ -37,7 +37,7 @@ impl<F: Clone, T, E> Clone for Reject<F, T, E> {
     }
 }
 
-impl<F, T, E> EndpointBase for Reject<F, T, E>
+impl<F, T, E> Endpoint for Reject<F, T, E>
 where
     F: Fn(PinMut<Input>) -> E,
     T: Tuple,

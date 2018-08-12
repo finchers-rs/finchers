@@ -14,7 +14,7 @@ use http::StatusCode;
 use serde::de::{self, DeserializeOwned, IntoDeserializer};
 use {mime, serde_qs};
 
-use endpoint::EndpointBase;
+use endpoint::Endpoint;
 use error::HttpError;
 use generic::{one, One};
 use input::{with_get_cx, Cursor, FromBody, FromQuery, Input, QueryItems};
@@ -74,7 +74,7 @@ impl<T> fmt::Debug for Query<T> {
     }
 }
 
-impl<T> EndpointBase for Query<T>
+impl<T> Endpoint for Query<T>
 where
     T: FromQuery,
 {

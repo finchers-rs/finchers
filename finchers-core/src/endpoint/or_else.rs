@@ -3,7 +3,7 @@ use std::mem::PinMut;
 use futures_core::future::TryFuture;
 use futures_util::try_future::{self, TryFutureExt};
 
-use endpoint::EndpointBase;
+use endpoint::Endpoint;
 use input::{Cursor, Input};
 
 #[allow(missing_docs)]
@@ -13,9 +13,9 @@ pub struct OrElse<E, F> {
     pub(super) f: F,
 }
 
-impl<E, F, R> EndpointBase for OrElse<E, F>
+impl<E, F, R> Endpoint for OrElse<E, F>
 where
-    E: EndpointBase,
+    E: Endpoint,
     F: FnOnce(E::Error) -> R + Clone,
     R: TryFuture<Ok = E::Ok>,
 {

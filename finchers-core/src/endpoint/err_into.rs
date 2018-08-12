@@ -2,7 +2,7 @@ use futures_util::try_future::{self, TryFutureExt};
 use std::marker::PhantomData;
 use std::mem::PinMut;
 
-use endpoint::EndpointBase;
+use endpoint::Endpoint;
 use input::{Cursor, Input};
 
 #[allow(missing_docs)]
@@ -12,9 +12,9 @@ pub struct ErrInto<E, U> {
     pub(super) _marker: PhantomData<fn() -> U>,
 }
 
-impl<E, U> EndpointBase for ErrInto<E, U>
+impl<E, U> Endpoint for ErrInto<E, U>
 where
-    E: EndpointBase,
+    E: Endpoint,
     E::Error: Into<U>,
 {
     type Ok = E::Ok;

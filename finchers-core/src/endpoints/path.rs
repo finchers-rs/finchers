@@ -10,7 +10,7 @@ use std::{error, fmt, task};
 use futures_util::future;
 use percent_encoding::{define_encode_set, percent_encode, DEFAULT_ENCODE_SET};
 
-use endpoint::EndpointBase;
+use endpoint::Endpoint;
 use error::Never;
 use generic::{one, One};
 use input::{with_get_cx, Cursor, FromSegment, Input, Segment};
@@ -117,7 +117,7 @@ pub enum MatchPathKind {
     AllSegments,
 }
 
-impl EndpointBase for MatchPath {
+impl Endpoint for MatchPath {
     type Ok = ();
     type Error = Never;
     type Future = future::Ready<Result<Self::Ok, Never>>;
@@ -220,7 +220,7 @@ impl<T> fmt::Debug for Param<T> {
     }
 }
 
-impl<T> EndpointBase for Param<T>
+impl<T> Endpoint for Param<T>
 where
     T: FromSegment,
 {
@@ -307,7 +307,7 @@ impl<T> fmt::Debug for Params<T> {
     }
 }
 
-impl<T> EndpointBase for Params<T>
+impl<T> Endpoint for Params<T>
 where
     T: FromSegments,
 {

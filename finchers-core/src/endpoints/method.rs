@@ -3,17 +3,17 @@
 use http::Method;
 use std::mem::PinMut;
 
-use endpoint::{EndpointBase, IntoEndpoint};
+use endpoint::{Endpoint, IntoEndpoint};
 use input::{Cursor, Input};
 
 #[allow(missing_docs)]
 #[derive(Debug, Clone)]
-pub struct MatchMethod<E: EndpointBase> {
+pub struct MatchMethod<E: Endpoint> {
     method: Method,
     endpoint: E,
 }
 
-impl<E: EndpointBase> EndpointBase for MatchMethod<E> {
+impl<E: Endpoint> Endpoint for MatchMethod<E> {
     type Ok = E::Ok;
     type Error = E::Error;
     type Future = E::Future;
@@ -60,7 +60,7 @@ macro_rules! define_method {
             endpoint: E,
         }
 
-        impl<E: EndpointBase> EndpointBase for $Endpoint<E> {
+        impl<E: Endpoint> Endpoint for $Endpoint<E> {
             type Ok = E::Ok;
             type Error = E::Error;
             type Future = E::Future;

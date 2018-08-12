@@ -32,7 +32,7 @@ use futures_util::future::poll_fn;
 use http::header::{HeaderName, HeaderValue};
 use http::{HttpTryFrom, Method, Request, Uri};
 
-use endpoint::EndpointBase;
+use endpoint::Endpoint;
 use input::{with_set_cx, Cursor, Input, RequestBody};
 
 macro_rules! impl_constructors {
@@ -155,7 +155,7 @@ impl<'a> LocalRequest<'a> {
     /// Apply this dummy request to the associated endpoint and get its response.
     pub fn apply<E>(self, endpoint: E) -> Option<Result<E::Ok, E::Error>>
     where
-        E: EndpointBase,
+        E: Endpoint,
     {
         let LocalRequest {
             mut request,

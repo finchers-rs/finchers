@@ -6,7 +6,7 @@ use std::task;
 use std::task::Poll;
 
 use either::Either;
-use endpoint::EndpointBase;
+use endpoint::Endpoint;
 use input::{Cursor, Input};
 
 #[allow(missing_docs)]
@@ -16,10 +16,10 @@ pub struct Or<E1, E2> {
     pub(super) e2: E2,
 }
 
-impl<E1, E2> EndpointBase for Or<E1, E2>
+impl<E1, E2> Endpoint for Or<E1, E2>
 where
-    E1: EndpointBase,
-    E2: EndpointBase<Ok = E1::Ok>,
+    E1: Endpoint,
+    E2: Endpoint<Ok = E1::Ok>,
 {
     type Ok = E1::Ok;
     type Error = Either<E1::Error, E2::Error>;

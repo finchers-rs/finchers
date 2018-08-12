@@ -1,7 +1,7 @@
 use futures_util::try_future::{self, TryFutureExt};
 use std::mem::PinMut;
 
-use endpoint::EndpointBase;
+use endpoint::Endpoint;
 use input::{Cursor, Input};
 
 #[allow(missing_docs)]
@@ -11,9 +11,9 @@ pub struct MapErr<E, F> {
     pub(super) f: F,
 }
 
-impl<E, F, U> EndpointBase for MapErr<E, F>
+impl<E, F, U> Endpoint for MapErr<E, F>
 where
-    E: EndpointBase,
+    E: Endpoint,
     F: FnOnce(E::Error) -> U + Clone,
 {
     type Ok = E::Ok;

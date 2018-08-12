@@ -9,7 +9,7 @@ use std::{fmt, task};
 use futures_util::future;
 use http::header::HeaderValue;
 
-use endpoint::{EndpointBase, EndpointExt};
+use endpoint::{Endpoint, EndpointExt};
 use error::Never;
 use generic::{one, One};
 use input::{with_get_cx, Cursor, FromHeaderValue, Input};
@@ -110,7 +110,7 @@ impl<H> fmt::Debug for ParseHeader<H> {
     }
 }
 
-impl<H> EndpointBase for ParseHeader<H>
+impl<H> Endpoint for ParseHeader<H>
 where
     H: FromHeaderValue,
 {
@@ -187,7 +187,7 @@ pub struct ExactHeader<V> {
     value: V,
 }
 
-impl<V> EndpointBase for ExactHeader<V>
+impl<V> Endpoint for ExactHeader<V>
 where
     HeaderValue: PartialEq<V>,
 {

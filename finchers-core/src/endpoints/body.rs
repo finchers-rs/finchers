@@ -13,7 +13,7 @@ use futures_util::try_ready;
 use http::StatusCode;
 use pin_utils::unsafe_unpinned;
 
-use endpoint::{EndpointBase, EndpointExt};
+use endpoint::{Endpoint, EndpointExt};
 use error::{HttpError, Never};
 use generic::{one, One};
 use input::{with_get_cx, Cursor, FromBody, Input, PollDataError, RequestBody};
@@ -40,7 +40,7 @@ impl fmt::Debug for RawBody {
     }
 }
 
-impl EndpointBase for RawBody {
+impl Endpoint for RawBody {
     type Ok = One<RequestBody>;
     type Error = Never;
     type Future = RawBodyFuture;
@@ -97,7 +97,7 @@ impl<T> fmt::Debug for Body<T> {
     }
 }
 
-impl<T> EndpointBase for Body<T>
+impl<T> Endpoint for Body<T>
 where
     T: FromBody,
 {

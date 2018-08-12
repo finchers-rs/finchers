@@ -8,7 +8,7 @@ use std::task;
 use std::task::Poll;
 
 use either::Either;
-use endpoint::EndpointBase;
+use endpoint::Endpoint;
 use generic::{Combine, Tuple};
 use input::{Cursor, Input};
 
@@ -19,10 +19,10 @@ pub struct And<E1, E2> {
     pub(super) e2: E2,
 }
 
-impl<E1, E2> EndpointBase for And<E1, E2>
+impl<E1, E2> Endpoint for And<E1, E2>
 where
-    E1: EndpointBase,
-    E2: EndpointBase,
+    E1: Endpoint,
+    E2: Endpoint,
     E1::Ok: Combine<E2::Ok>,
 {
     type Ok = <E1::Ok as Combine<E2::Ok>>::Out;

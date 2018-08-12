@@ -1,4 +1,4 @@
-//! Components for constructing `EndpointBase`.
+//! Components for constructing `Endpoint`.
 
 mod and;
 mod and_then;
@@ -33,13 +33,11 @@ use std::sync::Arc;
 use futures_core::future::TryFuture;
 
 use either::Either;
-use error::Error;
 use generic::{Combine, Func, Tuple};
 use input::{Cursor, Input};
-use output::Responder;
 
 /// Trait representing an endpoint.
-pub trait EndpointBase {
+pub trait Endpoint {
     /// The inner type associated with this endpoint.
     type Ok: Tuple;
 
@@ -54,7 +52,7 @@ pub trait EndpointBase {
     fn apply(&self, input: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)>;
 }
 
-impl<'a, E: EndpointBase> EndpointBase for &'a E {
+impl<'a, E: Endpoint> Endpoint for &'a E {
     type Ok = E::Ok;
     type Error = E::Error;
     type Future = E::Future;
@@ -64,7 +62,7 @@ impl<'a, E: EndpointBase> EndpointBase for &'a E {
     }
 }
 
-impl<E: EndpointBase> EndpointBase for Box<E> {
+impl<E: Endpoint> Endpoint for Box<E> {
     type Ok = E::Ok;
     type Error = E::Error;
     type Future = E::Future;
@@ -74,7 +72,7 @@ impl<E: EndpointBase> EndpointBase for Box<E> {
     }
 }
 
-impl<E: EndpointBase> EndpointBase for Rc<E> {
+impl<E: Endpoint> Endpoint for Rc<E> {
     type Ok = E::Ok;
     type Error = E::Error;
     type Future = E::Future;
@@ -84,7 +82,7 @@ impl<E: EndpointBase> EndpointBase for Rc<E> {
     }
 }
 
-impl<E: EndpointBase> EndpointBase for Arc<E> {
+impl<E: Endpoint> Endpoint for Arc<E> {
     type Ok = E::Ok;
     type Error = E::Error;
     type Future = E::Future;
@@ -94,61 +92,22 @@ impl<E: EndpointBase> EndpointBase for Arc<E> {
     }
 }
 
-#[allow(missing_docs)]
-pub trait Endpoint: Send + Sync + 'static + sealed::Sealed {
-    type Ok: Responder;
-    type Error: Into<Error>;
-    type Future: TryFuture<Ok = Self::Ok, Error = Self::Error> + Send + 'static;
-
-    fn apply(&self, input: PinMut<Input>) -> Option<Self::Future>;
-}
-
-mod sealed {
-    use super::*;
-
-    pub trait Sealed {}
-
-    impl<E> Sealed for E
-    where
-        E: EndpointBase,
-        E::Ok: Responder,
-        E::Error: Into<Error>,
-    {}
-}
-
-impl<E> Endpoint for E
-where
-    E: EndpointBase + Send + Sync + 'static,
-    E::Ok: Responder,
-    E::Error: Into<Error>,
-    E::Future: Send + 'static,
-{
-    type Ok = E::Ok;
-    type Error = E::Error;
-    type Future = E::Future;
-
-    fn apply(&self, input: PinMut<Input>) -> Option<Self::Future> {
-        let cursor = unsafe { Cursor::new(input.uri().path()) };
-        EndpointBase::apply(self, input, cursor).map(|(future, _rest)| future)
-    }
-}
-
-/// Trait representing the transformation into an `EndpointBase`.
+/// Trait representing the transformation into an `Endpoint`.
 pub trait IntoEndpoint {
-    /// The inner type of associated `EndpointBase`.
+    /// The inner type of associated `Endpoint`.
     type Ok: Tuple;
 
     /// The error type.
     type Error;
 
-    /// The type of transformed `EndpointBase`.
-    type Endpoint: EndpointBase<Ok = Self::Ok, Error = Self::Error>;
+    /// The type of transformed `Endpoint`.
+    type Endpoint: Endpoint<Ok = Self::Ok, Error = Self::Error>;
 
-    /// Consume itself and transform into an `EndpointBase`.
+    /// Consume itself and transform into an `Endpoint`.
     fn into_endpoint(self) -> Self::Endpoint;
 }
 
-impl<E: EndpointBase> IntoEndpoint for E {
+impl<E: Endpoint> IntoEndpoint for E {
     type Ok = E::Ok;
     type Error = E::Error;
     type Endpoint = E;
@@ -160,12 +119,12 @@ impl<E: EndpointBase> IntoEndpoint for E {
 }
 
 /// A set of extension methods used for composing complicate endpoints.
-pub trait EndpointExt: EndpointBase + Sized {
+pub trait EndpointExt: Endpoint + Sized {
     #[allow(missing_docs)]
     #[inline]
     fn ok<T: Tuple>(self) -> Self
     where
-        Self: EndpointBase<Ok = T>,
+        Self: Endpoint<Ok = T>,
     {
         self
     }
@@ -174,7 +133,7 @@ pub trait EndpointExt: EndpointBase + Sized {
     #[inline]
     fn err<E>(self) -> Self
     where
-        Self: EndpointBase<Error = E>,
+        Self: Endpoint<Error = E>,
     {
         self
     }
@@ -265,4 +224,4 @@ pub trait EndpointExt: EndpointBase + Sized {
     }
 }
 
-impl<E: EndpointBase> EndpointExt for E {}
+impl<E: Endpoint> EndpointExt for E {}

@@ -2,3 +2,51 @@
 
 pub mod app;
 pub mod server;
+
+/// A type alias represents endpoints which can be used as an HTTP application.
+pub trait AppEndpoint: sealed::Sealed {}
+
+mod sealed {
+    use super::AppEndpoint;
+
+    use futures_core::future::TryFuture;
+    use std::mem::PinMut;
+
+    use finchers_core::endpoint::Endpoint;
+    use finchers_core::error::Error;
+    use finchers_core::input::{Cursor, Input};
+    use finchers_core::output::Responder;
+
+    pub trait Sealed: Send + Sync + 'static {
+        type Ok: Responder;
+        type Error: Into<Error>;
+        type Future: TryFuture<Ok = Self::Ok, Error = Self::Error> + Send + 'static;
+
+        fn apply(&self, input: PinMut<Input>) -> Option<Self::Future>;
+    }
+
+    impl<E> Sealed for E
+    where
+        E: Endpoint + Send + Sync + 'static,
+        E::Ok: Responder,
+        E::Error: Into<Error>,
+        E::Future: Send + 'static,
+    {
+        type Ok = E::Ok;
+        type Error = E::Error;
+        type Future = E::Future;
+
+        fn apply(&self, input: PinMut<Input>) -> Option<Self::Future> {
+            let cursor = unsafe { Cursor::new(input.uri().path()) };
+            Endpoint::apply(self, input, cursor).map(|(future, _rest)| future)
+        }
+    }
+
+    impl<E> AppEndpoint for E
+    where
+        E: Endpoint + Send + Sync + 'static,
+        E::Ok: Responder,
+        E::Error: Into<Error>,
+        E::Future: Send + 'static,
+    {}
+}

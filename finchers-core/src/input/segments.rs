@@ -1,6 +1,8 @@
 use std::borrow::Cow;
 use std::fmt;
+use std::marker::PhantomData;
 use std::ops::Range;
+use std::rc::Rc;
 use std::str;
 use std::str::Utf8Error;
 
@@ -12,11 +14,13 @@ pub struct Cursor {
     path: &'static str,
     pos: usize,
     popped: usize,
+    _marker: PhantomData<Rc<()>>,
 }
 
 impl Cursor {
+    #[doc(hidden)]
     #[inline]
-    pub(crate) unsafe fn new(path: &str) -> Self {
+    pub unsafe fn new(path: &str) -> Self {
         // change the lifetime of path string.
         //
         // safety:
@@ -29,6 +33,7 @@ impl Cursor {
             path,
             pos: 1,
             popped: 0,
+            _marker: PhantomData,
         }
     }
 

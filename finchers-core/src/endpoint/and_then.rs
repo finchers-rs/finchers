@@ -7,7 +7,7 @@ use futures_core::future::TryFuture;
 use pin_utils::unsafe_pinned;
 
 use super::try_chain::{TryChain, TryChainAction};
-use endpoint::EndpointBase;
+use endpoint::Endpoint;
 use generic::{Func, Tuple};
 use input::{Cursor, Input};
 
@@ -18,9 +18,9 @@ pub struct AndThen<E, F> {
     pub(super) f: F,
 }
 
-impl<E, F> EndpointBase for AndThen<E, F>
+impl<E, F> Endpoint for AndThen<E, F>
 where
-    E: EndpointBase,
+    E: Endpoint,
     F: Func<E::Ok> + Clone,
     F::Out: TryFuture<Error = E::Error>,
     <F::Out as TryFuture>::Ok: Tuple,
