@@ -1,4 +1,4 @@
-use finchers_core::endpoint::{ok, EndpointExt};
+use finchers_core::endpoint::{ok, reject, EndpointExt};
 use finchers_core::endpoints::path::path;
 use finchers_core::local;
 
@@ -24,5 +24,26 @@ fn test_or_choose_longer_segments() {
     assert_eq!(
         local::get("/foo/bar").apply(&endpoint),
         Some(Ok(("foobar",))),
+    );
+}
+
+#[test]
+fn test_or_with_rejection_path() {
+    let endpoint = path("foo")
+        .or(path("bar"))
+        .or(reject(|_| "custom rejection"));
+
+    assert_eq!(
+        local::get("/foo")
+            .apply(&endpoint)
+            .map(|res| res.map_err(|e| e.to_string())),
+        Some(Ok(())),
+    );
+
+    assert_eq!(
+        local::get("/baz")
+            .apply(&endpoint)
+            .map(|res| res.map_err(|e| e.to_string())),
+        Some(Err("custom rejection".into()))
     );
 }

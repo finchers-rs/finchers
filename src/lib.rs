@@ -89,7 +89,7 @@ pub mod error {
 }
 
 pub mod endpoint {
-    pub use finchers_core::endpoint::{err, ok};
+    pub use finchers_core::endpoint::{ok, reject};
     pub use finchers_core::endpoint::{Endpoint, EndpointBase, IntoEndpoint};
     pub use finchers_core::endpoints::{body, header, method, path, query};
 

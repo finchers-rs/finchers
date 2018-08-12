@@ -2,25 +2,26 @@
 
 mod and;
 mod and_then;
-mod err;
 mod err_into;
 mod map_err;
 mod map_ok;
 mod ok;
 mod or;
 mod or_else;
+mod reject;
 mod try_chain;
 
 // re-exports
 pub use self::and::And;
 pub use self::and_then::AndThen;
-pub use self::err::{err, Err};
 pub use self::err_into::ErrInto;
 pub use self::map_err::MapErr;
 pub use self::map_ok::MapOk;
 pub use self::ok::{ok, Ok};
 pub use self::or::Or;
 pub use self::or_else::OrElse;
+
+pub use self::reject::{reject, Reject};
 
 // ====
 

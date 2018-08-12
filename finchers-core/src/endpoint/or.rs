@@ -33,7 +33,7 @@ where
             (Some((future1, cursor1)), Some((future2, cursor2))) => {
                 // If both endpoints are matched, the one with the larger number of
                 // (consumed) path segments is choosen.
-                if cursor1.popped() > cursor2.popped() {
+                if cursor1.popped() >= cursor2.popped() {
                     Some((
                         OrFuture {
                             inner: Either::Left(future1),
