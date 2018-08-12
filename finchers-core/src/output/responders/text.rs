@@ -3,10 +3,10 @@ use http::{header, Response};
 use std::borrow::Cow;
 use std::mem::PinMut;
 
-use crate::error::Never;
-use crate::input::Input;
-use crate::output::payloads::Once;
-use crate::output::Responder;
+use error::Never;
+use input::Input;
+use output::payloads::Once;
+use output::Responder;
 
 #[derive(Debug)]
 pub struct Text<T>(pub T);

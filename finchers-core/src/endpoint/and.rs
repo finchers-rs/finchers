@@ -7,10 +7,10 @@ use std::mem::PinMut;
 use std::task;
 use std::task::Poll;
 
-use crate::either::Either;
-use crate::endpoint::EndpointBase;
-use crate::generic::{Combine, Tuple};
-use crate::input::{Cursor, Input};
+use either::Either;
+use endpoint::EndpointBase;
+use generic::{Combine, Tuple};
+use input::{Cursor, Input};
 
 #[allow(missing_docs)]
 #[derive(Copy, Clone, Debug)]

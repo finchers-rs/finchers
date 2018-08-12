@@ -9,22 +9,21 @@ use std::{fmt, task};
 use futures_util::future;
 use http::header::HeaderValue;
 
-use crate::endpoint::{EndpointBase, EndpointExt};
-use crate::error::Never;
-use crate::generic::{one, One};
-use crate::input::{with_get_cx, Cursor, FromHeaderValue, Input};
+use endpoint::{EndpointBase, EndpointExt};
+use error::Never;
+use generic::{one, One};
+use input::{with_get_cx, Cursor, FromHeaderValue, Input};
 
 /// Create an endpoint which parses an entry in the HTTP header.
 ///
 /// # Example
 ///
 /// ```
-/// #![feature(rust_2018_preview)]
-/// #
+/// # #![feature(rust_2018_preview)]
 /// # use finchers_core::endpoint::EndpointExt;
 /// # use finchers_core::endpoints::header;
 /// # use finchers_core::local;
-///
+/// #
 /// let endpoint = header::parse::<String>("x-api-key");
 ///
 /// assert_eq!(
@@ -44,13 +43,17 @@ use crate::input::{with_get_cx, Cursor, FromHeaderValue, Input};
 /// ```
 ///
 /// ```
-/// #![feature(rust_2018_preview)]
+/// # #![feature(rust_2018_preview)]
+/// # #![feature(use_extern_macros)]
+/// #
+/// # extern crate finchers_core;
+/// # extern crate failure;
 /// #
 /// # use finchers_core::endpoint::{reject, EndpointExt};
 /// # use finchers_core::endpoints::header;
 /// # use finchers_core::local;
 /// # use failure::Fail;
-///
+/// #
 /// #[derive(Debug, Fail)]
 /// #[fail(display = "missing api key")]
 /// struct MissingAPIKey { _priv: () }

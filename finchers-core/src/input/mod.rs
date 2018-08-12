@@ -17,13 +17,14 @@ pub use self::global::with_set_cx;
 
 // ====
 
+use failure::Fail;
+use http;
 use std::cell::UnsafeCell;
 use std::marker::{PhantomData, Pinned};
 use std::mem::PinMut;
 use std::ops::Deref;
 
-use crate::error::HttpError;
-use failure::Fail;
+use error::HttpError;
 use http::{Request, StatusCode};
 use mime::{self, Mime};
 
@@ -57,13 +58,13 @@ impl Input {
 
     /// Return a mutable reference to the value of raw HTTP request without the message body.
     #[inline]
-    pub fn request_pinned_mut(self: PinMut<'a, Self>) -> PinMut<'a, Request<RequestBody>> {
+    pub fn request_pinned_mut<'a>(self: PinMut<'a, Self>) -> PinMut<'a, Request<RequestBody>> {
         unsafe { PinMut::map_unchecked(self, |input| &mut input.request) }
     }
 
     /// Takes the instance of `RequestBody` from this value.
     #[inline]
-    pub fn body(self: PinMut<'a, Self>) -> RequestBody {
+    pub fn body<'a>(self: PinMut<'a, Self>) -> RequestBody {
         let this = unsafe { PinMut::get_mut_unchecked(self) };
         this.request.body_mut().take()
     }
@@ -72,7 +73,9 @@ impl Input {
     ///
     /// The result of this method is cached and it will return the reference to the cached value
     /// on subsequent calls.
-    pub fn content_type(self: PinMut<'a, Self>) -> Result<Option<&'a Mime>, InvalidContentType> {
+    pub fn content_type<'a>(
+        self: PinMut<'a, Self>,
+    ) -> Result<Option<&'a Mime>, InvalidContentType> {
         let this = unsafe { PinMut::get_mut_unchecked(self) };
 
         match this.media_type {

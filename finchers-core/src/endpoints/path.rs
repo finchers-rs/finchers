@@ -10,10 +10,10 @@ use std::{error, fmt, task};
 use futures_util::future;
 use percent_encoding::{define_encode_set, percent_encode, DEFAULT_ENCODE_SET};
 
-use crate::endpoint::EndpointBase;
-use crate::error::Never;
-use crate::generic::{one, One};
-use crate::input::{with_get_cx, Cursor, FromSegment, Input, Segment};
+use endpoint::EndpointBase;
+use error::Never;
+use generic::{one, One};
+use input::{with_get_cx, Cursor, FromSegment, Input, Segment};
 
 // ==== MatchPath =====
 

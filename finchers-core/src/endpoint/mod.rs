@@ -32,11 +32,11 @@ use std::sync::Arc;
 
 use futures_core::future::TryFuture;
 
-use crate::either::Either;
-use crate::error::Error;
-use crate::generic::{Combine, Func, Tuple};
-use crate::input::{Cursor, Input};
-use crate::output::Responder;
+use either::Either;
+use error::Error;
+use generic::{Combine, Func, Tuple};
+use input::{Cursor, Input};
+use output::Responder;
 
 /// Trait representing an endpoint.
 pub trait EndpointBase {

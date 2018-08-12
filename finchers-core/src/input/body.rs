@@ -1,16 +1,15 @@
 use bytes::Bytes;
 use failure::Fail;
 use futures::Async;
+use futures::Stream;
 use http::StatusCode;
+use hyper;
 use std::fmt;
 use std::mem;
 use std::ops::Deref;
 use std::task::Poll;
 
-use crate::error::HttpError;
-
-use futures::Stream;
-use hyper;
+use error::HttpError;
 
 /// An asyncrhonous stream to receive the chunks of incoming request body.
 pub struct RequestBody {

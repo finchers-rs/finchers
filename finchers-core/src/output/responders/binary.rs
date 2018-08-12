@@ -5,10 +5,10 @@ use bytes::Bytes;
 use http::header::HeaderValue;
 use http::{header, Response};
 
-use crate::error::Never;
-use crate::input::Input;
-use crate::output::payloads::Once;
-use crate::output::Responder;
+use error::Never;
+use input::Input;
+use output::payloads::Once;
+use output::Responder;
 
 #[derive(Debug)]
 pub struct Binary<T>(pub T);

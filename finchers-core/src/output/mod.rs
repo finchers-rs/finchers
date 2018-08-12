@@ -9,9 +9,9 @@ use http::{Response, StatusCode};
 use hyper::body::Payload;
 
 use self::payloads::Empty;
-use crate::either::Either;
-use crate::error::{Error, Never, NoRoute};
-use crate::input::Input;
+use either::Either;
+use error::{Error, Never, NoRoute};
+use input::Input;
 
 /// Trait representing types to be converted into an HTTP response.
 pub trait Responder {

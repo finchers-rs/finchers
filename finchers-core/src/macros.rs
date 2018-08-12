@@ -2,7 +2,7 @@
 ///
 /// # Example
 ///
-/// ```
+/// ```ignore
 /// #![feature(async_await)]
 /// #![feature(rust_2018_preview)]
 ///
@@ -76,38 +76,33 @@ macro_rules! routes {
 /// ```
 #[macro_export]
 macro_rules! route {
-    (@$method:ident / $($t:tt)*) => ( $crate::route_inner!(@start $method / $($t)*) );
-    (/ $($t:tt)*) => ( $crate::route_inner!(@start get / $($t)*) );
-}
+    (@$method:ident / $($t:tt)*) => ( route!(@@start $method / $($t)*) );
+    (/ $($t:tt)*) => ( route!(@@start get / $($t)*) );
 
-// TODO: treat the trailing slash
-#[doc(hidden)]
-#[macro_export]
-macro_rules! route_inner {
-    (@start $method:ident / $head:tt $(/ $tail:tt)*) => {
+    (@@start $method:ident / $head:tt $(/ $tail:tt)*) => {
         $crate::endpoints::method::$method({
-            let __p = $crate::route_inner!(@segment $head);
+            let __p = route!(@@segment $head);
             $(
-                let __p = $crate::endpoint::EndpointExt::and(__p, $crate::route_inner!(@segment $tail));
+                let __p = $crate::endpoint::EndpointExt::and(__p, route!(@@segment $tail));
             )*
             __p
         })
     };
-    (@start $method:ident / $head:tt $(/ $tail:tt)* /) => {
-        route_inner!(@start $method $head $(/ $tail)*)
+    (@@start $method:ident / $head:tt $(/ $tail:tt)* /) => {
+        route!(@@start $method $head $(/ $tail)*)
     };
-    (@start $method:ident /) => {
+    (@@start $method:ident /) => {
         $crate::endpoints::method::$method({
             $crate::endpoint::ok(())
         })
     };
-    (@segment $t:ty) => ( $crate::endpoints::path::param::<$t>() );
-    (@segment $s:expr) => ( $crate::endpoints::path::path($s) );
+    (@@segment $t:ty) => ( $crate::endpoints::path::param::<$t>() );
+    (@@segment $s:expr) => ( $crate::endpoints::path::path($s) );
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::endpoints::path::path;
+    use endpoints::path::path;
 
     #[test]
     #[allow(unused_variables)]

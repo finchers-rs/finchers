@@ -12,11 +12,11 @@ use serde::de::DeserializeOwned;
 use serde::ser::Serialize;
 use serde_json;
 
-use crate::either::Either;
-use crate::error::{HttpError, Never};
-use crate::input::{FromBody, Input};
-use crate::output::payloads::Once;
-use crate::output::Responder;
+use either::Either;
+use error::{HttpError, Never};
+use input::{FromBody, Input};
+use output::payloads::Once;
+use output::Responder;
 
 /// Trait representing additional information for constructing an HTTP response.
 ///
