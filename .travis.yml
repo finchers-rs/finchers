@@ -52,8 +52,11 @@ matrix:
         - RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install cargo-tarpaulin || true
       script:
         - cargo clean
-        - cargo fmt -- --check
         - cargo test --features strict
+        - cargo test -p example-todo
+        # format check
+        - cargo fmt -- --check
+        # clippy
         - cargo clippy
       after_success:
         - >

@@ -59,6 +59,7 @@ impl<L> Clone for MapRight<L> {
         *self
     }
 }
+
 impl<L> fmt::Debug for MapRight<L> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("MapRight").finish()
