@@ -41,15 +41,25 @@ matrix:
     #     - cargo test --manifest-path finchers-core/Cargo.toml --no-default-features
 
     - rust: nightly
+      sudo: required
+      addons:
+        apt:
+          packages:
+            - libssl-dev
       before_script:
         - rustup component add rustfmt-preview
         - rustup component add clippy-preview
+        - RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install cargo-tarpaulin || true
       script:
         - cargo clean
         - cargo fmt -- --check
         - cargo test
         - cargo test -p finchers-core
         - cargo clippy
+      after_success:
+        - >
+            cargo tarpaulin --ciserver travis-ci --coveralls $TRAVIS_JOB_ID \
+                --packages finchers-core finchers
 
     - rust: nightly
       env: MDBOOK_VERSION=0.1.7
