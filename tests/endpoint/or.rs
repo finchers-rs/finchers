@@ -1,4 +1,5 @@
 use finchers_core::endpoint::{ok, reject, EndpointExt};
+use finchers_core::endpoints::header;
 use finchers_core::endpoints::path::path;
 use finchers_core::local;
 
@@ -45,5 +46,26 @@ fn test_or_with_rejection_path() {
             .apply(&endpoint)
             .map(|res| res.map_err(|e| e.to_string())),
         Some(Err("custom rejection".into()))
+    );
+}
+
+#[test]
+fn test_or_with_rejection_header() {
+    let endpoint =
+        header::parse::<String>("authorization").or(reject(|_| "missing authorization header"));
+
+    assert_eq!(
+        local::get("/")
+            .header("authorization", "Basic xxxx")
+            .apply(&endpoint)
+            .map(|res| res.map_err(|e| e.to_string())),
+        Some(Ok(("Basic xxxx".into(),))),
+    );
+
+    assert_eq!(
+        local::get("/")
+            .apply(&endpoint)
+            .map(|res| res.map_err(|e| e.to_string())),
+        Some(Err("missing authorization header".into()))
     );
 }

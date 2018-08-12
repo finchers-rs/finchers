@@ -2,13 +2,15 @@
 
 mod body;
 mod global;
+mod header;
 mod segments;
 mod traits;
 
 pub use self::body::{Data, PollDataError, RequestBody};
 pub use self::global::with_get_cx;
+pub use self::header::FromHeaderValue;
 pub use self::segments::{Cursor, EncodedStr, Segment};
-pub use self::traits::{FromBody, FromHeader, FromQuery, FromSegment, QueryItems};
+pub use self::traits::{FromBody, FromQuery, FromSegment, QueryItems};
 
 #[doc(hidden)]
 pub use self::global::with_set_cx;
@@ -22,7 +24,7 @@ use std::ops::Deref;
 
 use crate::error::HttpError;
 use failure::Fail;
-use http::{header, Request, StatusCode};
+use http::{Request, StatusCode};
 use mime::{self, Mime};
 
 /// The contextual information with an incoming HTTP request.
@@ -76,7 +78,7 @@ impl Input {
         match this.media_type {
             Some(ref m) => Ok(m.as_ref()),
             None => {
-                let mime = match this.request.headers().get(header::CONTENT_TYPE) {
+                let mime = match this.request.headers().get(http::header::CONTENT_TYPE) {
                     Some(raw) => {
                         let raw_str = raw
                             .to_str()
@@ -107,7 +109,7 @@ impl Deref for Input {
 pub enum InvalidContentType {
     #[allow(missing_docs)]
     #[fail(display = "Content-type is invalid: {}", cause)]
-    DecodeToStr { cause: header::ToStrError },
+    DecodeToStr { cause: http::header::ToStrError },
 
     #[allow(missing_docs)]
     #[fail(display = "Content-type is invalid: {}", cause)]
