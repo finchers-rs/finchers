@@ -74,28 +74,33 @@ macro_rules! routes {
 ///         .and(param::<i32>())
 /// )
 /// ```
+// TODO: treat the trailing slash as a termination.
 #[macro_export]
 macro_rules! route {
-    (@$method:ident / $($t:tt)*) => ( route!(@@start $method / $($t)*) );
-    (/ $($t:tt)*) => ( route!(@@start get / $($t)*) );
+    // with method
+    (@$method:ident $($t:tt)*) => (
+        $crate::endpoints::method::$method(
+            route!(@@start $($t)*)
+        )
+    );
 
-    (@@start $method:ident / $head:tt $(/ $tail:tt)*) => {
-        $crate::endpoints::method::$method({
-            let __p = route!(@@segment $head);
-            $(
-                let __p = $crate::endpoint::EndpointExt::and(__p, route!(@@segment $tail));
-            )*
-            __p
-        })
+    // without method
+    (/ $($t:tt)*) => ( route!(@@start / $($t)*) );
+    () => ( route!(@@start) );
+
+    (@@start / $head:tt $(/ $tail:tt)*) => {{
+        let __p = route!(@@segment $head);
+        $(
+            let __p = $crate::endpoint::EndpointExt::and(__p, route!(@@segment $tail));
+        )*
+        __p
+    }};
+    (@@start / $head:tt $(/ $tail:tt)* /) => {
+        route!(@@start / $head $(/ $tail)*)
     };
-    (@@start $method:ident / $head:tt $(/ $tail:tt)* /) => {
-        route!(@@start $method $head $(/ $tail)*)
-    };
-    (@@start $method:ident /) => {
-        $crate::endpoints::method::$method({
-            $crate::endpoint::ok(())
-        })
-    };
+    (@@start /) => ( $crate::endpoint::ok(()) ); // replace with termination
+    (@@start) => ( $crate::endpoint::ok(()) );
+
     (@@segment $t:ty) => ( $crate::endpoints::path::param::<$t>() );
     (@@segment $s:expr) => ( $crate::endpoints::path::path($s) );
 }
@@ -103,13 +108,19 @@ macro_rules! route {
 #[cfg(test)]
 mod tests {
     use endpoints::path::path;
+    use endpoint::EndpointExt;
 
     #[test]
-    #[allow(unused_variables)]
     fn compile_test_route() {
-        let e1 = route!(@get /);
-        let e2 = route!(@get / "foo" / String / "bar");
-        let e3 = route!(@get / i32);
+        let _ = route!().output::<()>();
+        let _ = route!(/).output::<()>();
+        let _ = route!(/"foo"/i32).output::<(i32,)>();
+
+        let _ = route!(@get /).output::<()>();
+        let _ = route!(@get / "foo" / String / "bar").output::<(String,)>();
+        let _ = route!(@get / "foo" / String / i32 /"bar"/).output::<(String, i32)>();
+        let _ = route!(@get / i32).output::<(i32,)>();
+        let _ = route!(@get / i32/).output::<(i32,)>();
     }
 
     #[test]
