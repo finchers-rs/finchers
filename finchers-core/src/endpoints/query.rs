@@ -83,7 +83,11 @@ where
     type Output = One<T>;
     type Future = QueryFuture<T>;
 
-    fn apply(&self, _: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
+    fn apply<'c>(
+        &self,
+        _: PinMut<Input>,
+        cursor: Cursor<'c>,
+    ) -> Option<(Self::Future, Cursor<'c>)> {
         Some((
             QueryFuture {
                 _marker: PhantomData,

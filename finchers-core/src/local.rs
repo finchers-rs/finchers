@@ -166,7 +166,10 @@ impl<'a> LocalRequest<'a> {
 
         let mut in_flight = {
             let input = unsafe { PinMut::new_unchecked(&mut input) };
-            let cursor = unsafe { Cursor::new(input.uri().path()) };
+            let cursor = unsafe {
+                let path = &*(input.uri().path() as *const str);
+                Cursor::new(path)
+            };
             endpoint.apply(input, cursor).map(|res| res.0)
         };
 

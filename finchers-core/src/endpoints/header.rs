@@ -128,7 +128,11 @@ where
     type Output = One<H>;
     type Future = ParseHeaderFuture<H>;
 
-    fn apply(&self, input: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
+    fn apply<'c>(
+        &self,
+        input: PinMut<Input>,
+        cursor: Cursor<'c>,
+    ) -> Option<(Self::Future, Cursor<'c>)> {
         if input.headers().contains_key(self.name) {
             Some((
                 ParseHeaderFuture {
@@ -220,7 +224,11 @@ where
     type Output = ();
     type Future = future::Ready<Result<Self::Output, Error>>;
 
-    fn apply(&self, input: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
+    fn apply<'c>(
+        &self,
+        input: PinMut<Input>,
+        cursor: Cursor<'c>,
+    ) -> Option<(Self::Future, Cursor<'c>)> {
         match input.headers().get(self.name) {
             Some(h) if *h == self.value => Some((future::ready(Ok(())), cursor)),
             _ => None,

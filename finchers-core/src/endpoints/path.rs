@@ -1,11 +1,8 @@
 //! Components for parsing request path
 
-use std::future::Future;
+use std::fmt;
 use std::marker::PhantomData;
 use std::mem::PinMut;
-use std::ops::Range;
-use std::task::Poll;
-use std::{error, fmt, task};
 
 use failure::Fail;
 use futures_util::future;
@@ -15,66 +12,7 @@ use percent_encoding::{define_encode_set, percent_encode, DEFAULT_ENCODE_SET};
 use endpoint::Endpoint;
 use error::{Error, HttpError};
 use generic::{one, One};
-use input::{with_get_cx, Cursor, FromSegment, Input, Segment};
-
-// ==== MatchPath =====
-
-/// Create an endpoint which takes some segments from the path
-/// and check if the segments are matched to the certain pattern.
-///
-/// # Panics
-/// This function will be panic if the given argument is an invalid
-/// pattern.
-///
-/// # Example
-///
-/// Matches to a single segment:
-///
-/// ```
-/// # use finchers_core::endpoints::path::path;
-/// # use finchers_core::local;
-/// let endpoint = path("foo");
-///
-/// assert_eq!(local::get("/foo").apply(&endpoint), Some(Ok(())));
-/// assert_eq!(local::get("/foo/bar").apply(&endpoint), Some(Ok(())));
-/// assert_eq!(local::get("/bar").apply(&endpoint), None);
-/// assert_eq!(local::get("/foobar").apply(&endpoint), None);
-/// ```
-///
-/// Matches to multiple segments:
-///
-/// ```
-/// # use finchers_core::endpoints::path::path;
-/// # use finchers_core::local;
-/// let endpoint = path("foo/bar");
-///
-/// assert_eq!(local::get("/foo/bar").apply(&endpoint), Some(Ok(())));
-/// assert_eq!(local::get("/foo").apply(&endpoint), None);
-/// assert_eq!(local::get("/foobar").apply(&endpoint), None);
-/// ```
-///
-/// Matches to all remaining segments:
-///
-/// ```
-/// # use finchers_core::endpoints::path::path;
-/// # use finchers_core::endpoint::EndpointExt;
-/// # use finchers_core::local;
-/// let endpoint = path("foo").and(path("*"));
-///
-/// assert_eq!(local::get("/foo").apply(&endpoint), Some(Ok(())));
-/// assert_eq!(local::get("/foo/").apply(&endpoint), Some(Ok(())));
-/// assert_eq!(local::get("/foo/bar/baz").apply(&endpoint), Some(Ok(())));
-/// assert_eq!(local::get("/bar").apply(&endpoint), None);
-/// ```
-pub fn path(s: &str) -> MatchPath {
-    MatchPath::from_str(s).expect("The following path cannot be converted to an endpoint.")
-}
-
-#[allow(missing_docs)]
-#[derive(Debug, Clone)]
-pub struct MatchPath {
-    kind: MatchPathKind,
-}
+use input::{Cursor, FromEncodedStr, Input};
 
 define_encode_set! {
     /// The encode set for MatchPath
@@ -82,95 +20,67 @@ define_encode_set! {
     pub MATCH_PATH_ENCODE_SET = [DEFAULT_ENCODE_SET] | {'/'}
 }
 
-impl MatchPath {
-    /// Create an instance of `MatchPath` from given string.
-    pub fn from_str(s: &str) -> Result<MatchPath, ParseMatchError> {
-        use self::MatchPathKind::*;
-        let s = s.trim().trim_left_matches("/").trim_right_matches("/");
-        let kind = if s == "*" {
-            AllSegments
-        } else {
-            let mut segments = Vec::new();
-            for segment in s.split("/").map(|s| s.trim()) {
-                if segment.is_empty() {
-                    return Err(ParseMatchError::EmptyString);
-                }
-                let encoded = percent_encode(segment.as_bytes(), MATCH_PATH_ENCODE_SET).to_string();
-                segments.push(encoded);
-            }
-            Segments(segments)
-        };
+// ==== MatchPath =====
 
-        Ok(MatchPath { kind })
-    }
-
-    /// Return the kind of this endpoint.
-    pub fn kind(&self) -> &MatchPathKind {
-        &self.kind
+/// Create an endpoint which takes a path segment and check if it equals
+/// to the specified value.
+pub fn path(s: impl AsRef<str>) -> MatchPath {
+    let s = s.as_ref();
+    debug_assert!(!s.is_empty());
+    MatchPath {
+        encoded: percent_encode(s.as_bytes(), MATCH_PATH_ENCODE_SET).to_string(),
     }
 }
 
 #[allow(missing_docs)]
-#[derive(Debug, Clone, PartialEq)]
-pub enum MatchPathKind {
-    /// Matched to (multiple) path segments.
-    Segments(Vec<String>),
-    /// Matched to all remaining path segments.
-    AllSegments,
+#[derive(Debug, Clone)]
+pub struct MatchPath {
+    encoded: String,
 }
 
 impl Endpoint for MatchPath {
     type Output = ();
     type Future = future::Ready<Result<Self::Output, Error>>;
 
-    fn apply(&self, _: PinMut<Input>, mut cursor: Cursor) -> Option<(Self::Future, Cursor)> {
-        use self::MatchPathKind::*;
-        match self.kind {
-            Segments(ref segments) => {
-                let mut matched = true;
-                for segment in segments {
-                    // FIXME: impl PartialEq for EncodedStr
-                    unsafe {
-                        matched = matched
-                            && cursor.next_segment()?.as_encoded_str().as_bytes()
-                                == segment.as_bytes();
-                    }
-                }
-                if matched {
-                    Some((future::ready(Ok(())), cursor))
-                } else {
-                    None
-                }
-            }
-            AllSegments => {
-                unsafe {
-                    cursor.consume_all_segments();
-                }
-                Some((future::ready(Ok(())), cursor))
-            }
+    fn apply<'c>(
+        &self,
+        _: PinMut<Input>,
+        mut cursor: Cursor<'c>,
+    ) -> Option<(Self::Future, Cursor<'c>)> {
+        if cursor.next()? == self.encoded {
+            Some((future::ready(Ok(())), cursor))
+        } else {
+            None
         }
     }
+}
+
+// ==== EndPath ====
+
+/// Create an endpoint to check if the path has reached the end.
+pub fn end() -> EndPath {
+    EndPath { _priv: () }
 }
 
 #[allow(missing_docs)]
-#[derive(Debug)]
-#[cfg_attr(test, derive(PartialEq))]
-pub enum ParseMatchError {
-    EmptyString,
+#[derive(Debug, Copy, Clone)]
+pub struct EndPath {
+    _priv: (),
 }
 
-impl fmt::Display for ParseMatchError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            ParseMatchError::EmptyString => f.write_str("empty str"),
-        }
-    }
-}
+impl Endpoint for EndPath {
+    type Output = ();
+    type Future = future::Ready<Result<Self::Output, Error>>;
 
-impl error::Error for ParseMatchError {
-    fn description(&self) -> &str {
-        match *self {
-            ParseMatchError::EmptyString => "empty string",
+    fn apply<'c>(
+        &self,
+        _: PinMut<Input>,
+        mut cursor: Cursor<'c>,
+    ) -> Option<(Self::Future, Cursor<'c>)> {
+        if cursor.next().is_none() {
+            Some((future::ready(Ok(())), cursor))
+        } else {
+            None
         }
     }
 }
@@ -194,7 +104,7 @@ impl error::Error for ParseMatchError {
 /// ```
 pub fn param<T>() -> Param<T>
 where
-    T: FromSegment,
+    T: FromEncodedStr,
     T::Error: Fail,
 {
     Param {
@@ -224,45 +134,21 @@ impl<T> fmt::Debug for Param<T> {
 
 impl<T> Endpoint for Param<T>
 where
-    T: FromSegment,
+    T: FromEncodedStr,
     T::Error: Fail,
 {
     type Output = One<T>;
-    type Future = ParamFuture<T>;
+    type Future = future::Ready<Result<Self::Output, Error>>;
 
-    fn apply(&self, _: PinMut<Input>, mut cursor: Cursor) -> Option<(Self::Future, Cursor)> {
-        let range = unsafe { cursor.next_segment()?.as_range() };
-        Some((
-            ParamFuture {
-                range,
-                _marker: PhantomData,
-            },
-            cursor,
-        ))
-    }
-}
-
-#[doc(hidden)]
-#[allow(missing_debug_implementations)]
-pub struct ParamFuture<T> {
-    range: Range<usize>,
-    _marker: PhantomData<fn() -> T>,
-}
-
-impl<T> Future for ParamFuture<T>
-where
-    T: FromSegment,
-    T::Error: Fail,
-{
-    type Output = Result<One<T>, Error>;
-
-    fn poll(self: PinMut<Self>, _: &mut task::Context) -> Poll<Self::Output> {
-        Poll::Ready(with_get_cx(|input| {
-            let s = Segment::new(input.request().uri().path(), self.range.clone());
-            T::from_segment(s)
-                .map(one)
-                .map_err(|cause| ParamError { cause }.into())
-        }))
+    fn apply<'c>(
+        &self,
+        _: PinMut<Input>,
+        mut cursor: Cursor<'c>,
+    ) -> Option<(Self::Future, Cursor<'c>)> {
+        let result = T::from_encoded_str(cursor.next()?)
+            .map(one)
+            .map_err(|cause| ParamError { cause }.into());
+        Some((future::ready(result), cursor))
     }
 }
 
@@ -279,8 +165,7 @@ impl<E: Fail> HttpError for ParamError<E> {
     }
 }
 
-/*
-// ==== Params ====
+// ==== Remains ====
 
 /// Create an endpoint which extracts all remaining segments from
 /// the path and converts them to the value of `T`.
@@ -291,105 +176,59 @@ impl<E: Fail> HttpError for ParamError<E> {
 ///
 /// ```
 /// #![feature(rust_2018_preview)]
-/// # use finchers_core::ext::EndpointExt;
-/// # use finchers_core::http::path::params;
+/// # use finchers_core::endpoint::EndpointExt;
+/// # use finchers_core::endpoints::path::{path, remains};
 /// # use std::path::PathBuf;
-/// # fn main() {
-/// let endpoint = params()
+/// let endpoint = path("foo").and(remains())
 ///     .map(|path: PathBuf| format!("path={}", path.display()));
-/// # }
 /// ```
-pub fn params<T>() -> Params<T>
+pub fn remains<T>() -> Remains<T>
 where
-    T: FromSegments,
+    T: FromEncodedStr,
+    T::Error: Fail,
 {
-    Params {
+    Remains {
         _marker: PhantomData,
     }
 }
 
 #[allow(missing_docs)]
-pub struct Params<T> {
+pub struct Remains<T> {
     _marker: PhantomData<fn() -> (T)>,
 }
 
-impl<T> Copy for Params<T> {}
+impl<T> Copy for Remains<T> {}
 
-impl<T> Clone for Params<T> {
+impl<T> Clone for Remains<T> {
     #[inline]
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<T> fmt::Debug for Params<T> {
+impl<T> fmt::Debug for Remains<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("Params").finish()
+        f.debug_struct("Remains").finish()
     }
 }
 
-impl<T> Endpoint for Params<T>
+impl<T> Endpoint for Remains<T>
 where
-    T: FromSegments,
+    T: FromEncodedStr,
+    T::Error: Fail,
 {
-    type Ok = One<T>;
-    type Error = Never;
-    type Future = future::Ready<Result<Self::Ok, Self::Error>>;
+    type Output = One<T>;
+    type Future = future::Ready<Result<Self::Output, Error>>;
 
-    fn apply(&self, cx: &mut Context) -> Option<Self::Future> {
-        T::from_segments(cx.segments())
+    fn apply<'c>(
+        &self,
+        _: PinMut<Input>,
+        mut cursor: Cursor<'c>,
+    ) -> Option<(Self::Future, Cursor<'c>)> {
+        let result = T::from_encoded_str(cursor.remaining_path())
             .map(one)
-            .map(Ok)
-            .map(future::ready)
-            .ok()
-    }
-}
-*/
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_match_single_segment() {
-        assert_eq!(
-            MatchPath::from_str("foo").map(|m| m.kind),
-            Ok(MatchPathKind::Segments(vec!["foo".to_owned()]))
-        );
-    }
-
-    #[test]
-    fn test_match_multi_segments() {
-        assert_eq!(
-            MatchPath::from_str("foo/bar").map(|m| m.kind),
-            Ok(MatchPathKind::Segments(vec![
-                "foo".to_owned(),
-                "bar".to_owned(),
-            ]))
-        );
-    }
-
-    #[test]
-    fn test_match_all_segments() {
-        assert_eq!(
-            MatchPath::from_str("*").map(|m| m.kind),
-            Ok(MatchPathKind::AllSegments)
-        );
-    }
-
-    #[test]
-    fn test_match_failure_empty() {
-        assert_eq!(
-            MatchPath::from_str("").map(|m| m.kind),
-            Err(ParseMatchError::EmptyString)
-        );
-    }
-
-    #[test]
-    fn test_match_failure_empty_2() {
-        assert_eq!(
-            MatchPath::from_str("foo//bar").map(|m| m.kind),
-            Err(ParseMatchError::EmptyString)
-        );
+            .map_err(|cause| ParamError { cause }.into());
+        let _ = cursor.by_ref().count();
+        Some((future::ready(result), cursor))
     }
 }

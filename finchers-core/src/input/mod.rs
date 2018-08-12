@@ -1,16 +1,18 @@
 //! Components for parsing the incoming HTTP request.
 
 mod body;
+mod cursor;
+mod encoded;
 mod global;
 mod header;
-mod segments;
 mod traits;
 
 pub use self::body::{Data, PollDataError, RequestBody};
+pub use self::cursor::Cursor;
+pub use self::encoded::{EncodedStr, FromEncodedStr};
 pub use self::global::with_get_cx;
 pub use self::header::FromHeaderValue;
-pub use self::segments::{Cursor, EncodedStr, Segment};
-pub use self::traits::{FromBody, FromQuery, FromSegment, QueryItems};
+pub use self::traits::{FromBody, FromQuery, QueryItems};
 
 #[doc(hidden)]
 pub use self::global::with_set_cx;

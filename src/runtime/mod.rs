@@ -34,7 +34,10 @@ mod sealed {
         type Future = E::Future;
 
         fn apply(&self, input: PinMut<Input>) -> Option<Self::Future> {
-            let cursor = unsafe { Cursor::new(input.uri().path()) };
+            let cursor = unsafe {
+                let path = &*(input.uri().path() as *const str);
+                Cursor::new(path)
+            };
             Endpoint::apply(self, input, cursor).map(|(future, _rest)| future)
         }
     }

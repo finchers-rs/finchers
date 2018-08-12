@@ -18,7 +18,7 @@ fn test_or_1() {
 #[test]
 fn test_or_choose_longer_segments() {
     let e1 = path("foo").and(ok(("foo",)));
-    let e2 = path("foo/bar").and(ok(("foobar",)));
+    let e2 = path("foo").and(path("bar")).and(ok(("foobar",)));
     let endpoint = e1.or(e2);
 
     assert_eq!(local::get("/foo").apply(&endpoint), Some(Ok(("foo",))),);

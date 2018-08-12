@@ -25,7 +25,11 @@ where
     type Output = E1::Output;
     type Future = OrFuture<E1::Future, E2::Future>;
 
-    fn apply(&self, mut input: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
+    fn apply<'c>(
+        &self,
+        mut input: PinMut<Input>,
+        cursor: Cursor<'c>,
+    ) -> Option<(Self::Future, Cursor<'c>)> {
         let v1 = self.e1.apply(input.reborrow(), cursor.clone());
         let v2 = self.e2.apply(input, cursor);
 

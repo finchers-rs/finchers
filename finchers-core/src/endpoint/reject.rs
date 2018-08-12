@@ -47,10 +47,12 @@ where
     type Output = T;
     type Future = future::Ready<Result<Self::Output, Error>>;
 
-    fn apply(&self, input: PinMut<Input>, mut cursor: Cursor) -> Option<(Self::Future, Cursor)> {
-        unsafe {
-            cursor.consume_all_segments();
-        }
+    fn apply<'c>(
+        &self,
+        input: PinMut<Input>,
+        mut cursor: Cursor<'c>,
+    ) -> Option<(Self::Future, Cursor<'c>)> {
+        drop(cursor.by_ref().count());
         Some((future::ready(Err((self.f)(input).into())), cursor))
     }
 }

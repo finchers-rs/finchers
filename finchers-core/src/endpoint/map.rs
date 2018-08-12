@@ -24,7 +24,11 @@ where
     type Output = One<F::Out>;
     type Future = MapFuture<E::Future, F>;
 
-    fn apply(&self, input: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
+    fn apply<'c>(
+        &self,
+        input: PinMut<Input>,
+        cursor: Cursor<'c>,
+    ) -> Option<(Self::Future, Cursor<'c>)> {
         let (future, cursor) = self.endpoint.apply(input, cursor)?;
         let f = self.f.clone();
         Some((MapFuture { future, f: Some(f) }, cursor))

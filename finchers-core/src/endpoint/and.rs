@@ -28,7 +28,11 @@ where
     type Output = <E1::Output as Combine<E2::Output>>::Out;
     type Future = AndFuture<IntoFuture<E1::Future>, IntoFuture<E2::Future>>;
 
-    fn apply(&self, mut input: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
+    fn apply<'c>(
+        &self,
+        mut input: PinMut<Input>,
+        cursor: Cursor<'c>,
+    ) -> Option<(Self::Future, Cursor<'c>)> {
         let (f1, cursor) = self.e1.apply(input.reborrow(), cursor)?;
         let (f2, cursor) = self.e2.apply(input, cursor)?;
         Some((

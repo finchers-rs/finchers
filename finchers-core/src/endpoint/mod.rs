@@ -39,14 +39,22 @@ pub trait Endpoint {
 
     /// Perform checking the incoming HTTP request and returns
     /// an instance of the associated Future if matched.
-    fn apply(&self, input: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)>;
+    fn apply<'c>(
+        &self,
+        input: PinMut<Input>,
+        cursor: Cursor<'c>,
+    ) -> Option<(Self::Future, Cursor<'c>)>;
 }
 
-impl<'a, E: Endpoint> Endpoint for &'a E {
+impl<'e, E: Endpoint> Endpoint for &'e E {
     type Output = E::Output;
     type Future = E::Future;
 
-    fn apply(&self, input: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
+    fn apply<'c>(
+        &self,
+        input: PinMut<Input>,
+        cursor: Cursor<'c>,
+    ) -> Option<(Self::Future, Cursor<'c>)> {
         (*self).apply(input, cursor)
     }
 }
@@ -55,7 +63,11 @@ impl<E: Endpoint> Endpoint for Box<E> {
     type Output = E::Output;
     type Future = E::Future;
 
-    fn apply(&self, input: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
+    fn apply<'c>(
+        &self,
+        input: PinMut<Input>,
+        cursor: Cursor<'c>,
+    ) -> Option<(Self::Future, Cursor<'c>)> {
         (**self).apply(input, cursor)
     }
 }
@@ -64,7 +76,11 @@ impl<E: Endpoint> Endpoint for Rc<E> {
     type Output = E::Output;
     type Future = E::Future;
 
-    fn apply(&self, input: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
+    fn apply<'c>(
+        &self,
+        input: PinMut<Input>,
+        cursor: Cursor<'c>,
+    ) -> Option<(Self::Future, Cursor<'c>)> {
         (**self).apply(input, cursor)
     }
 }
@@ -73,7 +89,11 @@ impl<E: Endpoint> Endpoint for Arc<E> {
     type Output = E::Output;
     type Future = E::Future;
 
-    fn apply(&self, input: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
+    fn apply<'c>(
+        &self,
+        input: PinMut<Input>,
+        cursor: Cursor<'c>,
+    ) -> Option<(Self::Future, Cursor<'c>)> {
         (**self).apply(input, cursor)
     }
 }

@@ -1,4 +1,5 @@
-use finchers_core::endpoints::path::{param, path};
+use finchers_core::endpoint::EndpointExt;
+use finchers_core::endpoints::path::{param, path, remains};
 use finchers_core::local;
 
 #[test]
@@ -10,7 +11,7 @@ fn test_match_single_segment() {
 
 #[test]
 fn test_match_multi_segments() {
-    let endpoint = path("/foo/bar");
+    let endpoint = path("foo").and(path("bar"));
     assert_eq!(local::get("/foo/bar").apply(&endpoint), Some(Ok(())));
     assert_eq!(local::get("/foo/bar/").apply(&endpoint), Some(Ok(())));
     assert_eq!(local::get("/foo/bar/baz").apply(&endpoint), Some(Ok(())));
@@ -19,14 +20,8 @@ fn test_match_multi_segments() {
 }
 
 #[test]
-fn test_match_all_segments() {
-    let endpoint = path("*");
-    assert_eq!(local::get("/foo/bar").apply(&endpoint), Some(Ok(())));
-}
-
-#[test]
 fn test_match_encoded_path() {
-    let endpoint = path("foo%2Fbar");
+    let endpoint = path("foo/bar");
     assert_eq!(local::get("/foo%2Fbar").apply(&endpoint), Some(Ok(())));
     assert_eq!(local::get("/foo/bar").apply(&endpoint), None);
 }
@@ -34,21 +29,18 @@ fn test_match_encoded_path() {
 #[test]
 fn test_extract_integer() {
     let endpoint = param::<i32>();
-    assert_eq!(
-        local::get("/42").apply(&endpoint).map(|res| res.ok()),
-        Some(Some((42i32,)))
-    );
+    assert_eq!(local::get("/42").apply(&endpoint), Some(Ok((42i32,))));
     assert_eq!(
         local::get("/foo").apply(&endpoint).map(|res| res.is_err()),
         Some(true)
     );
 }
 
-/*
 #[test]
 fn test_extract_strings() {
-    let client = Client::new(params::<Vec<String>>());
-    let outcome = client.get("/foo/bar").run();
-    assert_eq!(outcome, Some((vec!["foo".into(), "bar".into()],)));
+    let endpoint = path("foo").and(remains::<String>());
+    assert_eq!(
+        local::get("/foo/bar/baz/").apply(&endpoint),
+        Some(Ok(("bar/baz/".into(),)))
+    );
 }
-*/

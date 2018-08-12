@@ -21,7 +21,11 @@ impl<T: Tuple + Clone> Endpoint for Ok<T> {
     type Output = T;
     type Future = future::Ready<Result<Self::Output, Error>>;
 
-    fn apply(&self, _: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
+    fn apply<'c>(
+        &self,
+        _: PinMut<Input>,
+        cursor: Cursor<'c>,
+    ) -> Option<(Self::Future, Cursor<'c>)> {
         Some((future::ready(Ok(self.x.clone())), cursor))
     }
 }

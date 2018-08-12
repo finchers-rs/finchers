@@ -105,7 +105,7 @@ pub mod endpoint {
 
 pub mod input {
     pub use finchers_core::input::{
-        Data, FromBody, FromHeaderValue, FromQuery, FromSegment, Input, RequestBody,
+        Data, FromBody, FromEncodedStr, FromHeaderValue, FromQuery, Input, RequestBody,
     };
 }
 

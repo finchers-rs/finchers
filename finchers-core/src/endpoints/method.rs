@@ -17,7 +17,11 @@ impl<E: Endpoint> Endpoint for MatchMethod<E> {
     type Output = E::Output;
     type Future = E::Future;
 
-    fn apply(&self, input: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
+    fn apply<'c>(
+        &self,
+        input: PinMut<Input>,
+        cursor: Cursor<'c>,
+    ) -> Option<(Self::Future, Cursor<'c>)> {
         if *input.method() == self.method {
             self.endpoint.apply(input, cursor)
         } else {
@@ -63,7 +67,7 @@ macro_rules! define_method {
             type Output = E::Output;
             type Future = E::Future;
 
-            fn apply(&self, input: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
+            fn apply<'c>(&self, input: PinMut<Input>, cursor: Cursor<'c>) -> Option<(Self::Future, Cursor<'c>)> {
                 if *input.method() == Method::$method {
                     self.endpoint.apply(input, cursor)
                 } else {

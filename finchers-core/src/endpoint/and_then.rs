@@ -30,7 +30,11 @@ where
     type Output = <F::Out as TryFuture>::Ok;
     type Future = AndThenFuture<E::Future, F::Out, F>;
 
-    fn apply(&self, input: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
+    fn apply<'c>(
+        &self,
+        input: PinMut<Input>,
+        cursor: Cursor<'c>,
+    ) -> Option<(Self::Future, Cursor<'c>)> {
         let (f1, cursor) = self.endpoint.apply(input, cursor)?;
         let f = self.f.clone();
         Some((

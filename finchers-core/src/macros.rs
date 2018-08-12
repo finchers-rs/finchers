@@ -74,7 +74,6 @@ macro_rules! routes {
 ///         .and(param::<i32>())
 /// )
 /// ```
-// TODO: treat the trailing slash as a termination.
 #[macro_export]
 macro_rules! route {
     // with method
@@ -97,8 +96,9 @@ macro_rules! route {
     }};
     (@@start / $head:tt $(/ $tail:tt)* /) => {
         route!(@@start / $head $(/ $tail)*)
+            .and($crate::endpoints::path::end())
     };
-    (@@start /) => ( $crate::endpoint::ok(()) ); // replace with termination
+    (@@start /) => ( $crate::endpoints::path::end() );
     (@@start) => ( $crate::endpoint::ok(()) );
 
     (@@segment $t:ty) => ( $crate::endpoints::path::param::<$t>() );
@@ -107,8 +107,8 @@ macro_rules! route {
 
 #[cfg(test)]
 mod tests {
-    use endpoints::path::path;
     use endpoint::EndpointExt;
+    use endpoints::path::path;
 
     #[test]
     fn compile_test_route() {
@@ -118,9 +118,9 @@ mod tests {
 
         let _ = route!(@get /).output::<()>();
         let _ = route!(@get / "foo" / String / "bar").output::<(String,)>();
-        let _ = route!(@get / "foo" / String / i32 /"bar"/).output::<(String, i32)>();
+        let _ = route!(@get / "foo" / String / i32 / "bar" /).output::<(String, i32)>();
         let _ = route!(@get / i32).output::<(i32,)>();
-        let _ = route!(@get / i32/).output::<(i32,)>();
+        let _ = route!(@get / i32 / ).output::<(i32,)>();
     }
 
     #[test]

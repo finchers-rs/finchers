@@ -41,7 +41,11 @@ impl Endpoint for RawBody {
     type Output = One<RequestBody>;
     type Future = RawBodyFuture;
 
-    fn apply(&self, _: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
+    fn apply<'c>(
+        &self,
+        _: PinMut<Input>,
+        cursor: Cursor<'c>,
+    ) -> Option<(Self::Future, Cursor<'c>)> {
         Some((RawBodyFuture { _priv: () }, cursor))
     }
 }
@@ -101,7 +105,11 @@ where
     type Output = One<T>;
     type Future = BodyFuture<T>;
 
-    fn apply(&self, input: PinMut<Input>, cursor: Cursor) -> Option<(Self::Future, Cursor)> {
+    fn apply<'c>(
+        &self,
+        input: PinMut<Input>,
+        cursor: Cursor<'c>,
+    ) -> Option<(Self::Future, Cursor<'c>)> {
         match T::is_match(input) {
             true => Some((BodyFuture { state: State::Init }, cursor)),
             false => None,
