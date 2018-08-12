@@ -6,25 +6,23 @@
 /// #![feature(async_await)]
 /// #![feature(rust_2018_preview)]
 ///
-/// # use finchers_core::routes;
+/// # use finchers_core::{route, routes};
 /// # use finchers_core::endpoint::EndpointExt;
 /// # use finchers_core::endpoints::body::body;
-/// # use finchers_core::endpoints::path::{path, param};
-/// # use finchers_core::endpoints::method;
 /// #
-/// let get_post = method::get(param())
-///     .and_then(async move |id: u32| {
+/// let get_post = route!(@get / i32)
+///     .and_then(async move |id| {
 ///         Ok((format!("get_post: {}", id),))
 ///     });
 ///
-/// let add_post = method::post(body())
-///     .and_then(async move |data: String| {
+/// let add_post = route!(@post /).and(body::<String>())
+///     .and_then(async move |data| {
 ///         Ok((format!("add_post: {}", data),))
 ///     });
 ///
 /// // ...
 ///
-/// let endpoint = path("posts").and(routes![
+/// let endpoint = route!(/ "posts").and(routes![
 ///     get_post,
 ///     add_post,
 ///     // ...
@@ -41,16 +39,7 @@ macro_rules! routes {
     ($e1:expr, $e2:expr, $($t:expr,)+) => { routes!(@inner $e1, $e2, $($t),+); };
 
     (@inner $e1:expr, $e2:expr, $($t:expr),*) => {{
-        #[allow(unused_imports)]
-        use $crate::endpoint::{IntoEndpoint, EndpointExt};
-        #[allow(unused_imports)]
-        use $crate::generic::{map_left, map_right};
-
-        routes!{ @inner
-            IntoEndpoint::into_endpoint($e1).map_ok(map_left())
-                .or(IntoEndpoint::into_endpoint($e2).map_ok(map_right())),
-            $($t),*
-        }
+        routes!(@inner $e1, routes!(@inner $e2, $($t),*))
     }};
 
     (@inner $e1:expr, $e2:expr) => {{
@@ -65,9 +54,68 @@ macro_rules! routes {
     (@error) => { compile_error!("The `routes!()` macro requires at least two elements."); };
 }
 
+/// A helper macro for creating an endpoint from the specified segments.
+///
+/// # Example
+///
+/// The following macro call
+///
+/// ```ignore
+/// route!(@get / "api" / "v1" / "posts" / i32);
+/// ```
+///
+/// will be roughly expanded to:
+///
+/// ```ignore
+/// method::get(
+///     path("api")
+///         .and(path("v1"))
+///         .and(path("posts"))
+///         .and(param::<i32>())
+/// )
+/// ```
+#[macro_export]
+macro_rules! route {
+    (@$method:ident / $($t:tt)*) => ( $crate::route_inner!(@start $method / $($t)*) );
+    (/ $($t:tt)*) => ( $crate::route_inner!(@start get / $($t)*) );
+}
+
+// TODO: treat the trailing slash
+#[doc(hidden)]
+#[macro_export]
+macro_rules! route_inner {
+    (@start $method:ident / $head:tt $(/ $tail:tt)*) => {
+        $crate::endpoints::method::$method({
+            let __p = $crate::route_inner!(@segment $head);
+            $(
+                let __p = $crate::endpoint::EndpointExt::and(__p, $crate::route_inner!(@segment $tail));
+            )*
+            __p
+        })
+    };
+    (@start $method:ident / $head:tt $(/ $tail:tt)* /) => {
+        route_inner!(@start $method $head $(/ $tail)*)
+    };
+    (@start $method:ident /) => {
+        $crate::endpoints::method::$method({
+            $crate::endpoint::ok(())
+        })
+    };
+    (@segment $t:ty) => ( $crate::endpoints::path::param::<$t>() );
+    (@segment $s:expr) => ( $crate::endpoints::path::path($s) );
+}
+
 #[cfg(test)]
 mod tests {
     use crate::endpoints::path::path;
+
+    #[test]
+    #[allow(unused_variables)]
+    fn compile_test_route() {
+        let e1 = route!(@get /);
+        let e2 = route!(@get / "foo" / String / "bar");
+        let e3 = route!(@get / i32);
+    }
 
     #[test]
     #[allow(unused_variables)]
@@ -77,15 +125,4 @@ mod tests {
         let e3 = routes!(path("foobar"), e2);
         let e4 = routes!(path("foobar"), e3,);
     }
-}
-
-macro_rules! try_poll {
-    ($e:expr) => {{
-        use std::task::Poll;
-        match $e {
-            Poll::Ready(Ok(x)) => x,
-            Poll::Ready(Err(e)) => return Poll::Ready(Err(Into::into(e))),
-            Poll::Pending => return Poll::Pending,
-        }
-    }};
 }

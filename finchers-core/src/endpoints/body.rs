@@ -9,6 +9,7 @@ use std::{fmt, mem, task};
 
 use bytes::BytesMut;
 use failure::Fail;
+use futures_util::try_ready;
 use http::StatusCode;
 use pin_utils::unsafe_unpinned;
 
@@ -141,7 +142,7 @@ impl<T: FromBody> Future for BodyFuture<T> {
             match self.state() {
                 State::Init => {}
                 State::Receiving(ref mut body, ref mut buf) => while let Some(data) =
-                    try_poll!(body.poll_data().map_err(BodyError::Receiving))
+                    try_ready!(body.poll_data().map_err(BodyError::Receiving))
                 {
                     buf.extend_from_slice(&*data);
                 },
