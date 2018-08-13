@@ -53,8 +53,7 @@ matrix:
       script:
         - cargo clean
         - cargo fmt -- --check
-        - cargo test
-        - cargo test -p finchers-core
+        - cargo test --features strict
         - cargo clippy
       after_success:
         - >
@@ -67,7 +66,7 @@ matrix:
         - cargo install mdbook --version "$MDBOOK_VERSION" || true
       script:
         - cargo clean
-        - cargo doc --all
+        - cargo doc
         - mdbook build -d target/doc/guide ./guide/
         - rm -f target/doc/.lock
       deploy:

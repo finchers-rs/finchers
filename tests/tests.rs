@@ -3,7 +3,7 @@
 #![feature(pin, arbitrary_self_types, futures_api)]
 
 extern crate bytes;
-extern crate finchers_core;
+extern crate finchers;
 
 //mod codegen;
 mod endpoint;

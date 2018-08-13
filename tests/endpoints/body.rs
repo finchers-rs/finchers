@@ -1,8 +1,9 @@
+use finchers::endpoint::EndpointExt;
+use finchers::endpoints::body::body;
+use finchers::input::{FromBody, Input, RequestBody};
+use finchers::local;
+
 use bytes::Bytes;
-use finchers_core::endpoint::EndpointExt;
-use finchers_core::endpoints::body::body;
-use finchers_core::input::{FromBody, Input, RequestBody};
-use finchers_core::local;
 use std::mem::PinMut;
 use std::string::FromUtf8Error;
 

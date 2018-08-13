@@ -11,19 +11,19 @@ use http::header::{self, HeaderValue};
 use http::{Request, Response};
 use hyper::body::Body;
 use hyper::service::{NewService, Service};
-use slog::Logger;
+use scoped_tls::scoped_thread_local;
+use slog::{kv, o, slog_b, slog_info, slog_kv, slog_log, slog_record, slog_record_static, Logger};
 
 use futures_core::future::TryFuture;
 use futures_util::compat::{Compat, TokioDefaultExecutor};
 use futures_util::try_future::{IntoFuture, TryFutureExt};
 
-use finchers_core::error::{Error, HttpError, NoRoute};
-use finchers_core::generic::Either;
-use finchers_core::input::{with_set_cx, Input, RequestBody};
-use finchers_core::output::payloads::Once;
-use finchers_core::output::Responder;
-
-use super::AppEndpoint;
+use error::{Error, HttpError, NoRoute};
+use generic::Either;
+use input::{with_set_cx, Input, RequestBody};
+use output::payloads::Once;
+use output::Responder;
+use runtime::AppEndpoint;
 
 /// A factory of HTTP service which wraps an `Endpoint`.
 #[derive(Debug)]
@@ -106,7 +106,7 @@ pub struct AppServiceFuture<T> {
 }
 
 impl<T> AppServiceFuture<T> {
-    fn handle_error(&self, err: &HttpError) -> Response<Once<String>> {
+    fn handle_error(&self, err: &dyn HttpError) -> Response<Once<String>> {
         let mut response = Response::new(Once::new(format!("{:#}", err)));
         *response.status_mut() = err.status_code();
         response.headers_mut().insert(
@@ -163,7 +163,7 @@ where
                 env!("CARGO_PKG_VERSION")
             )));
 
-        info!(self.logger, "{} ({} ms)", response.status(), {
+        slog_info!(self.logger, "{} ({} ms)", response.status(), {
             let end = time::Instant::now();
             let duration = end - self.start;
             let duration_msec =

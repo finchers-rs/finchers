@@ -3,7 +3,10 @@
 use failure;
 use futures::Future;
 use hyper::server::Server;
-use slog::{Drain, Level, Logger};
+use slog::{
+    kv, o, slog_b, slog_error, slog_info, slog_kv, slog_log, slog_record, slog_record_static,
+    Drain, Level, Logger,
+};
 use slog_async;
 use slog_term;
 use std::net::{IpAddr, SocketAddr};
@@ -118,11 +121,11 @@ pub fn launch(endpoint: impl AppEndpoint) -> LaunchResult<()> {
         .map_err({
             let logger = logger.clone();
             move |err| {
-                error!(logger, "server error: {}", err);
+                slog_error!(logger, "server error: {}", err);
             }
         });
 
-    info!(logger, "Listening on http://{}", config.addr());
+    slog_info!(logger, "Listening on http://{}", config.addr());
     tokio::run(server);
 
     Ok(())

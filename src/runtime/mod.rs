@@ -12,16 +12,16 @@ mod sealed {
     use futures_core::future::TryFuture;
     use std::mem::PinMut;
 
-    use finchers_core::endpoint::Endpoint;
-    use finchers_core::error::Error;
-    use finchers_core::input::{Cursor, Input};
-    use finchers_core::output::Responder;
+    use endpoint::Endpoint;
+    use error::Error;
+    use input::{Cursor, Input};
+    use output::Responder;
 
     pub trait Sealed: Send + Sync + 'static {
         type Output: Responder;
         type Future: TryFuture<Ok = Self::Output, Error = Error> + Send + 'static;
 
-        fn apply(&self, input: PinMut<Input>) -> Option<Self::Future>;
+        fn apply(&self, input: PinMut<'_, Input>) -> Option<Self::Future>;
     }
 
     impl<E> Sealed for E
@@ -33,7 +33,7 @@ mod sealed {
         type Output = E::Output;
         type Future = E::Future;
 
-        fn apply(&self, input: PinMut<Input>) -> Option<Self::Future> {
+        fn apply(&self, input: PinMut<'_, Input>) -> Option<Self::Future> {
             let cursor = unsafe {
                 let path = &*(input.uri().path() as *const str);
                 Cursor::new(path)

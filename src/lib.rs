@@ -1,5 +1,6 @@
 #![feature(rust_preview_2018)]
 #![feature(use_extern_macros)]
+#![feature(in_band_lifetimes)]
 #![feature(pin, arbitrary_self_types, futures_api)]
 
 //! A combinator library for building asynchronous HTTP services.
@@ -26,31 +27,28 @@
 //!
 //! # Example
 //!
-//! ```ignore
+//! ```
 //! #![feature(rust_2018_preview)]
+//! #![feature(use_extern_macros)]
 //!
 //! extern crate finchers;
-//! extern crate futures_util;
 //!
-//! use finchers::Endpoint;
-//! use futures_util::future::ready;
+//! fn build_endpoint() -> impl finchers::AppEndpoint {
+//!     use finchers::{route, routes};
+//!     use finchers::endpoint::EndpointExt;
+//!     use finchers::endpoints::body::body;
 //!
-//! fn build_endpoint() -> impl Endpoint {
-//!     use finchers::endpoint::prelude::*;
-//!     use finchers::macros::routes;
+//!     route!(/ "api" / "v1").and(routes![
+//!         route!(@get / u64 /)
+//!             .map(|id: u64| format!("GET: id={}", id)),
 //!
-//!     path("api/v1").and(routes![
-//!         get(param())
-//!             .and_then(|id: u64| ready(Ok((format!("GET: id={}", id),)))),
-//!
-//!         post(body())
-//!             .and_then(|data: String| ready(Ok((format!("POST: body={}", data),)))),
+//!         route!(@post /).and(body())
+//!             .map(|data: String| format!("POST: body={}", data))
 //!     ])
 //! }
 //!
 //! fn main() -> finchers::LaunchResult<()> {
 //!     let endpoint = build_endpoint();
-//!
 //! # std::mem::drop(move || {
 //!     finchers::launch(endpoint)
 //! # });
@@ -58,78 +56,50 @@
 //! }
 //! ```
 
-#![doc(html_root_url = "https://docs.rs/finchers/0.11.0")]
-
-extern crate finchers_core;
-extern crate finchers_derive;
+// #![doc(html_root_url = "https://docs.rs/finchers/0.12.0")]
+#![warn(
+    missing_docs,
+    missing_debug_implementations,
+    future_incompatible,
+    nonstandard_style,
+    rust_2018_idioms,
+    unused,
+)]
+#![cfg_attr(feature = "strict", deny(warnings))]
 
 extern crate bytes;
-extern crate futures;      // 0.1
-extern crate futures_core; // 0.3
-extern crate futures_util; // 0.3
+extern crate failure;
+extern crate futures;          // 0.1
+extern crate futures_core;     // 0.3
+extern crate futures_executor; // 0.3
+extern crate futures_util;     // 0.3
 extern crate http;
 extern crate hyper;
-#[macro_use]
-extern crate structopt;
-extern crate failure;
-#[macro_use]
+extern crate mime;
+extern crate percent_encoding;
+extern crate pin_utils;
 extern crate scoped_tls;
-extern crate tokio;
-
-#[macro_use]
+extern crate serde;
+extern crate serde_json;
+extern crate serde_qs;
 extern crate slog;
 extern crate slog_async;
 extern crate slog_term;
+extern crate structopt;
+extern crate tokio;
 
-#[doc(hidden)]
-pub use finchers_derive::*;
+#[macro_use]
+mod macros;
 
-pub mod error {
-    pub use finchers_core::error::{Error, Failure, HttpError};
-}
-
-pub mod endpoint {
-    pub use finchers_core::endpoint::{ok, reject};
-    pub use finchers_core::endpoint::{Endpoint, IntoEndpoint};
-    pub use finchers_core::endpoints::{body, header, method, path, query};
-
-    /// The "prelude" for building endpoints
-    pub mod prelude {
-        pub use finchers_core::endpoint::EndpointExt;
-        pub use finchers_core::endpoint::{Endpoint, IntoEndpoint};
-        pub use finchers_core::endpoints::body::{body, raw_body};
-        pub use finchers_core::endpoints::method::{delete, get, head, patch, post, put};
-        pub use finchers_core::endpoints::path::{param, path};
-    }
-}
-
-pub mod input {
-    pub use finchers_core::input::{
-        Data, FromBody, FromEncodedStr, FromHeaderValue, FromQuery, Input, RequestBody,
-    };
-}
-
-pub mod output {
-    pub use finchers_core::output::{payloads, responders, Responder};
-}
-
-pub mod macros {
-    pub use finchers_core::routes;
-}
-
+pub mod endpoint;
+pub mod endpoints;
+pub mod error;
+pub mod generic;
+pub mod input;
+pub mod json;
+pub mod local;
+pub mod output;
 pub mod runtime;
-
-pub use finchers_core::endpoint::Endpoint;
-pub use finchers_core::error::{HttpError, Never};
-pub use finchers_core::input::Input;
-pub use finchers_core::json::{HttpResponse, Json};
-pub use finchers_core::output::Responder;
 
 pub use runtime::server::{launch, LaunchResult};
 pub use runtime::AppEndpoint;
-
-#[doc(hidden)]
-pub mod _derive {
-    pub use finchers_core::json::HttpResponse;
-    pub use http::StatusCode;
-}

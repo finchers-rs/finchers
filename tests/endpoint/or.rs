@@ -1,8 +1,8 @@
-use finchers_core::endpoint::{ok, reject, EndpointExt};
-use finchers_core::endpoints::header;
-use finchers_core::endpoints::path::path;
-use finchers_core::error::NotPresent;
-use finchers_core::local;
+use finchers::endpoint::{ok, reject, EndpointExt};
+use finchers::endpoints::header;
+use finchers::endpoints::path::path;
+use finchers::error::NotPresent;
+use finchers::local;
 
 #[test]
 fn test_or_1() {
