@@ -1,19 +1,17 @@
 //! Components for parsing the incoming HTTP request.
 
-mod body;
+pub mod body;
+pub mod header;
+pub mod query;
+
 mod cursor;
 mod encoded;
 mod global;
-mod header;
-mod traits;
 
-pub use self::body::{Data, PollDataError, RequestBody};
 pub use self::cursor::Cursor;
 pub use self::encoded::{EncodedStr, FromEncodedStr};
-pub use self::global::with_get_cx;
-pub use self::header::FromHeaderValue;
-pub use self::traits::{FromBody, FromQuery, QueryItems};
 
+pub use self::global::with_get_cx;
 #[doc(hidden)]
 pub use self::global::with_set_cx;
 
@@ -26,6 +24,7 @@ use std::marker::{PhantomData, Pinned};
 use std::mem::PinMut;
 use std::ops::Deref;
 
+use self::body::{Payload, ReqBody};
 use error::HttpError;
 use http::{Request, StatusCode};
 use mime::{self, Mime};
@@ -33,7 +32,7 @@ use mime::{self, Mime};
 /// The contextual information with an incoming HTTP request.
 #[derive(Debug)]
 pub struct Input {
-    request: Request<RequestBody>,
+    request: Request<ReqBody>,
     #[cfg_attr(feature = "cargo-clippy", allow(option_option))]
     media_type: Option<Option<Mime>>,
     _marker: PhantomData<(UnsafeCell<()>, Pinned)>,
@@ -44,30 +43,30 @@ impl Input {
     ///
     /// Some fields remain uninitialized and their values are set when the corresponding
     /// method will be called.
-    pub fn new(request: Request<impl Into<RequestBody>>) -> Input {
+    pub fn new(request: Request<ReqBody>) -> Input {
         Input {
-            request: request.map(Into::into),
+            request,
             media_type: None,
             _marker: PhantomData,
         }
     }
 
     /// Return a shared reference to the value of raw HTTP request without the message body.
-    pub fn request(&self) -> &Request<RequestBody> {
+    pub fn request(&self) -> &Request<ReqBody> {
         &self.request
     }
 
     /// Return a mutable reference to the value of raw HTTP request without the message body.
     #[inline]
-    pub fn request_pinned_mut(self: PinMut<'a, Self>) -> PinMut<'a, Request<RequestBody>> {
+    pub fn request_pinned_mut(self: PinMut<'a, Self>) -> PinMut<'a, Request<ReqBody>> {
         unsafe { PinMut::map_unchecked(self, |input| &mut input.request) }
     }
 
     /// Takes the instance of `RequestBody` from this value.
     #[inline]
-    pub fn body(self: PinMut<'_, Self>) -> RequestBody {
+    pub fn payload(self: PinMut<'_, Self>) -> Option<Payload> {
         let this = unsafe { PinMut::get_mut_unchecked(self) };
-        this.request.body_mut().take()
+        this.request.body_mut().payload()
     }
 
     /// Attempts to get the entry of `Content-type` and parse its value.
@@ -100,7 +99,7 @@ impl Input {
 }
 
 impl Deref for Input {
-    type Target = Request<RequestBody>;
+    type Target = Request<ReqBody>;
 
     fn deref(&self) -> &Self::Target {
         self.request()

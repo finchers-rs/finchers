@@ -20,19 +20,24 @@
 //! assert_eq!(output, Some(Ok(("id = 42".into(),))));
 //! ```
 
+use std::boxed::PinBox;
 use std::mem;
 use std::mem::PinMut;
-use std::task::{Executor, Poll};
+use std::task::Poll;
 
-use futures_core::future::{Future, TryFuture};
-use futures_executor::{self, LocalExecutor, LocalPool};
+use futures_core::future::TryFuture;
+use futures_util::compat::TokioDefaultExecutor;
 use futures_util::future::poll_fn;
+use futures_util::try_future::TryFutureExt;
 use http::header::{HeaderName, HeaderValue};
 use http::{HttpTryFrom, Method, Request, Uri};
+use hyper::body::Body;
+use tokio::runtime::current_thread::Runtime;
 
 use endpoint::Endpoint;
 use error::Error;
-use input::{with_set_cx, Cursor, Input, RequestBody};
+use input::body::ReqBody;
+use input::{with_set_cx, Cursor, Input};
 
 macro_rules! impl_constructors {
     ($(
@@ -40,13 +45,12 @@ macro_rules! impl_constructors {
         $METHOD:ident => $name:ident,
     )*) => {$(
         $(#[$doc])*
-        pub fn $name<'a, U>(uri: U) -> LocalRequest<'a>
+        pub fn $name<U>(uri: U) -> LocalRequest
         where
             Uri: HttpTryFrom<U>,
         {
             (LocalRequest {
-                request: Some(Request::new(RequestBody::empty())),
-                executor: None,
+                request: Some(Request::new(ReqBody::from_hyp(Default::default()))),
             })
             .method(Method::$METHOD)
             .uri(uri)
@@ -76,12 +80,11 @@ impl_constructors! {
 
 /// A builder of dummy HTTP request.
 #[derive(Debug)]
-pub struct LocalRequest<'a, E: 'a + Executor = LocalExecutor> {
-    request: Option<Request<RequestBody>>,
-    executor: Option<&'a mut E>,
+pub struct LocalRequest {
+    request: Option<Request<ReqBody>>,
 }
 
-impl<'a> LocalRequest<'a> {
+impl LocalRequest {
     /// Overwrite the HTTP method of this dummy request with given value.
     ///
     /// # Panics
@@ -128,22 +131,11 @@ impl<'a> LocalRequest<'a> {
     }
 
     /// Overwrite the message body of this dummy request with given instance.
-    pub fn body(mut self, body: RequestBody) -> Self {
+    pub fn body(mut self, body: impl Into<Body>) -> Self {
         if let Some(ref mut request) = self.request {
-            mem::replace(request.body_mut(), body);
+            mem::replace(request.body_mut(), ReqBody::from_hyp(body.into()));
         }
         self
-    }
-
-    /// Set the reference to the task executor.
-    pub fn executor<E>(self, exec: &'a mut E) -> LocalRequest<'a, E>
-    where
-        E: Executor,
-    {
-        LocalRequest {
-            request: self.request,
-            executor: Some(exec),
-        }
     }
 
     /// Apply this dummy request to the associated endpoint and get its response.
@@ -151,10 +143,7 @@ impl<'a> LocalRequest<'a> {
     where
         E: Endpoint,
     {
-        let LocalRequest {
-            mut request,
-            executor,
-        } = self;
+        let LocalRequest { mut request } = self;
 
         let request = request.take().expect("The request has already applied");
         let mut input = Input::new(request);
@@ -172,22 +161,24 @@ impl<'a> LocalRequest<'a> {
             Some(ref mut f) => {
                 let input = unsafe { PinMut::new_unchecked(&mut input) };
                 with_set_cx(input, || {
-                    unsafe { PinMut::new_unchecked(f) }.try_poll(cx).map(Some)
+                    unsafe { PinMut::new_unchecked(f) }
+                        .try_poll(cx)
+                        .map_ok(Some)
                 })
             }
-            None => Poll::Ready(None),
+            None => Poll::Ready(Ok(None)),
         });
 
-        block_on(future, executor)
+        match block_on(future) {
+            Ok(Some(ok)) => Some(Ok(ok)),
+            Ok(None) => None,
+            Err(err) => Some(Err(err)),
+        }
     }
 }
 
-fn block_on<F: Future>(future: F, exec: Option<&mut impl Executor>) -> F::Output {
-    match exec {
-        Some(exec) => {
-            let mut pool = LocalPool::new();
-            pool.run_until(future, exec)
-        }
-        None => futures_executor::block_on(future),
-    }
+fn block_on<F: TryFuture>(future: F) -> Result<F::Ok, F::Error> {
+    let future = PinBox::new(future.into_future()).compat(TokioDefaultExecutor);
+    let mut rt = Runtime::new().expect("rt");
+    rt.block_on(future)
 }

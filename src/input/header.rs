@@ -1,3 +1,5 @@
+//! Components for parsing header values.
+
 use http::header::HeaderValue;
 use std::string::FromUtf8Error;
 

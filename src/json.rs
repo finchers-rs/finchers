@@ -13,7 +13,8 @@ use serde::ser::Serialize;
 use serde_json;
 
 use error::{HttpError, Never};
-use input::{FromBody, Input};
+use input::body::FromBody;
+use input::Input;
 use output::payloads::Once;
 use output::Responder;
 

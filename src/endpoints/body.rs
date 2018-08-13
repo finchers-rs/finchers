@@ -15,53 +15,54 @@ use pin_utils::unsafe_unpinned;
 use endpoint::{Endpoint, EndpointExt};
 use error::{Error, HttpError};
 use generic::{one, One};
-use input::{with_get_cx, Cursor, FromBody, Input, RequestBody};
+use input::body::FromBody;
+use input::{self, with_get_cx, Cursor, Input};
 
-/// Creates an endpoint which will take the instance of `RequestBody` from the context.
+/// Creates an endpoint which will take the instance of `Payload` from the context.
 ///
 /// If the instance has already been stolen by another Future, this endpoint will return
-/// a `None`.
-pub fn raw_body() -> RawBody {
-    (RawBody { _priv: () }).output::<One<RequestBody>>()
+/// an error.
+pub fn payload() -> Payload {
+    (Payload { _priv: () }).output::<One<input::body::Payload>>()
 }
 
 #[allow(missing_docs)]
 #[derive(Copy, Clone)]
-pub struct RawBody {
+pub struct Payload {
     _priv: (),
 }
 
-impl fmt::Debug for RawBody {
+impl fmt::Debug for Payload {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("RawBody").finish()
+        f.debug_struct("Payload").finish()
     }
 }
 
-impl Endpoint for RawBody {
-    type Output = One<RequestBody>;
-    type Future = RawBodyFuture;
+impl Endpoint for Payload {
+    type Output = One<input::body::Payload>;
+    type Future = PayloadFuture;
 
     fn apply(
         &self,
         _: PinMut<'_, Input>,
         cursor: Cursor<'c>,
     ) -> Option<(Self::Future, Cursor<'c>)> {
-        Some((RawBodyFuture { _priv: () }, cursor))
+        Some((PayloadFuture { _priv: () }, cursor))
     }
 }
 
 #[doc(hidden)]
 #[derive(Debug)]
-pub struct RawBodyFuture {
+pub struct PayloadFuture {
     _priv: (),
 }
 
-impl Future for RawBodyFuture {
-    type Output = Result<One<RequestBody>, Error>;
+impl Future for PayloadFuture {
+    type Output = Result<One<input::body::Payload>, Error>;
 
     fn poll(self: PinMut<'_, Self>, _: &mut task::Context<'_>) -> Poll<Self::Output> {
-        let body = with_get_cx(|input| input.body());
-        Poll::Ready(Ok(one(body)))
+        let payload = with_get_cx(|input| input.payload());
+        Poll::Ready(payload.map(one).ok_or_else(|| StolenPayload.into()))
     }
 }
 
@@ -127,7 +128,7 @@ pub struct BodyFuture<T> {
 #[allow(missing_debug_implementations)]
 enum State<T> {
     Init,
-    Receiving(RequestBody, BytesMut),
+    Receiving(input::body::Payload, BytesMut),
     Done,
     #[doc(hidden)]
     __NonExhausive(PhantomData<fn() -> T>),
@@ -144,12 +145,13 @@ where
 {
     type Output = Result<One<T>, Error>;
 
-    fn poll(mut self: PinMut<'_, Self>, _: &mut task::Context<'_>) -> Poll<Self::Output> {
+    fn poll(mut self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
         'poll: loop {
             match self.state() {
                 State::Init => {}
                 State::Receiving(ref mut body, ref mut buf) => {
-                    while let Some(data) = try_ready!(body.poll_data()) {
+                    let mut body = unsafe { PinMut::new_unchecked(body) };
+                    while let Some(data) = try_ready!(body.reborrow().poll_data(cx)) {
                         buf.extend_from_slice(&*data);
                     }
                 }
@@ -158,8 +160,11 @@ where
 
             match mem::replace(self.state(), State::Done) {
                 State::Init => {
-                    let body = with_get_cx(|input| input.body());
-                    *self.state() = State::Receiving(body, BytesMut::new());
+                    let payload = match with_get_cx(|input| input.payload()) {
+                        Some(payload) => payload,
+                        None => return Poll::Ready(Err(StolenPayload.into())),
+                    };
+                    *self.state() = State::Receiving(payload, BytesMut::new());
                     continue 'poll;
                 }
                 State::Receiving(_, buf) => {
@@ -185,5 +190,16 @@ pub struct BodyParseError<E: Fail> {
 impl<E: Fail> HttpError for BodyParseError<E> {
     fn status_code(&self) -> StatusCode {
         StatusCode::BAD_REQUEST
+    }
+}
+
+#[allow(missing_docs)]
+#[derive(Debug, Fail)]
+#[fail(display = "The instance of Payload has already been stolen by another endpoint.")]
+pub struct StolenPayload;
+
+impl HttpError for StolenPayload {
+    fn status_code(&self) -> StatusCode {
+        StatusCode::INTERNAL_SERVER_ERROR
     }
 }

@@ -20,7 +20,8 @@ use futures_util::try_future::{IntoFuture, TryFutureExt};
 
 use error::{Error, HttpError, NoRoute};
 use generic::Either;
-use input::{with_set_cx, Input, RequestBody};
+use input::body::ReqBody;
+use input::{with_set_cx, Input};
 use output::payloads::Once;
 use output::Responder;
 use runtime::AppEndpoint;
@@ -76,7 +77,7 @@ impl<E: AppEndpoint> Service for AppService<E> {
     type Future = AppServiceFuture<TokioCompat<E::Future>>;
 
     fn call(&mut self, request: Request<Self::ReqBody>) -> Self::Future {
-        let request = request.map(RequestBody::from_hyp);
+        let request = request.map(ReqBody::from_hyp);
         let logger = self.data.logger.new(o!{
             "method" => request.method().to_string(),
             "path" => request.uri().path().to_owned(),

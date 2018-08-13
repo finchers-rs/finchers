@@ -1,6 +1,7 @@
 use finchers::endpoint::EndpointExt;
 use finchers::endpoints::body::body;
-use finchers::input::{FromBody, Input, RequestBody};
+use finchers::input::body::FromBody;
+use finchers::input::Input;
 use finchers::local;
 
 use bytes::Bytes;
@@ -25,9 +26,7 @@ fn test_body_1() {
     let message = "The quick brown fox jumps over the lazy dog";
 
     assert_eq!(
-        local::post("/")
-            .body(RequestBody::once(message))
-            .apply(&endpoint),
+        local::post("/").body(message).apply(&endpoint),
         Some(Ok((message.into(),))),
     );
 }

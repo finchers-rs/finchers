@@ -69,10 +69,9 @@
 
 extern crate bytes;
 extern crate failure;
-extern crate futures;          // 0.1
-extern crate futures_core;     // 0.3
-extern crate futures_executor; // 0.3
-extern crate futures_util;     // 0.3
+extern crate futures;      // 0.1
+extern crate futures_core; // 0.3
+extern crate futures_util; // 0.3
 extern crate http;
 extern crate hyper;
 extern crate mime;

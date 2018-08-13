@@ -17,7 +17,9 @@ use {mime, serde_qs};
 use endpoint::Endpoint;
 use error::{Error, HttpError};
 use generic::{one, One};
-use input::{with_get_cx, Cursor, FromBody, FromQuery, Input, QueryItems};
+use input::body::FromBody;
+use input::query::{FromQuery, QueryItems};
+use input::{with_get_cx, Cursor, Input};
 
 /// Create an endpoint which parse the query string in the HTTP request
 /// to the value of `T`.

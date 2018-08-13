@@ -1,44 +1,6 @@
-use std::mem::PinMut;
-
-use bytes::Bytes;
-use http::StatusCode;
-
-use error::{Failure, Never};
+//! Components for parsing query strings.
 
 use super::encoded::EncodedStr;
-use super::Input;
-
-/// Trait representing the transformation from a message body.
-pub trait FromBody: 'static + Sized {
-    /// The error type which will be returned from `from_data`.
-    type Error;
-
-    /// Returns whether the incoming request matches to this type or not.
-    #[allow(unused_variables)]
-    fn is_match(input: PinMut<'_, Input>) -> bool {
-        true
-    }
-
-    /// Performs conversion from raw bytes into itself.
-    fn from_body(body: Bytes, input: PinMut<'_, Input>) -> Result<Self, Self::Error>;
-}
-
-impl FromBody for Bytes {
-    type Error = Never;
-
-    fn from_body(body: Bytes, _: PinMut<'_, Input>) -> Result<Self, Self::Error> {
-        Ok(body)
-    }
-}
-
-impl FromBody for String {
-    type Error = Failure;
-
-    fn from_body(body: Bytes, _: PinMut<'_, Input>) -> Result<Self, Self::Error> {
-        String::from_utf8(body.to_vec())
-            .map_err(|cause| Failure::new(StatusCode::BAD_REQUEST, cause))
-    }
-}
 
 /// Trait representing the transformation from a set of HTTP query.
 pub trait FromQuery: Sized + 'static {

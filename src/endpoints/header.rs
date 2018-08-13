@@ -14,7 +14,8 @@ use http::StatusCode;
 use endpoint::{Endpoint, EndpointExt};
 use error::{Error, HttpError};
 use generic::{one, One};
-use input::{with_get_cx, Cursor, FromHeaderValue, Input};
+use input::header::FromHeaderValue;
+use input::{with_get_cx, Cursor, Input};
 
 /// Create an endpoint which parses an entry in the HTTP header.
 ///
