@@ -148,7 +148,7 @@ where
                     .map(|res| res.map(Either::Right))
                     .map_err(Into::into)
             }
-            Some(Err(err)) => Err(err.into()),
+            Some(Err(err)) => Err(err),
             None => Err(NoRoute.into()),
         };
 
@@ -166,9 +166,7 @@ where
         slog_info!(self.logger, "{} ({} ms)", response.status(), {
             let end = time::Instant::now();
             let duration = end - self.start;
-            let duration_msec =
-                duration.as_secs() * 10 + u64::from(duration.subsec_nanos()) / 1_000_000;
-            duration_msec
+            duration.as_secs() * 10 + u64::from(duration.subsec_nanos()) / 1_000_000
         });
 
         Ok(Async::Ready(response))

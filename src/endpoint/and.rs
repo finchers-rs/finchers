@@ -82,14 +82,7 @@ where
 
     fn poll(mut self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
         // FIXME: early return if MaybeDone::poll(cx) returns an Err.
-        let mut all_done = true;
-        if self.f1().poll(cx).is_pending() {
-            all_done = false;
-        }
-        if self.f2().poll(cx).is_pending() {
-            all_done = false;
-        }
-
+        let all_done = !self.f1().poll(cx).is_pending() && !self.f2().poll(cx).is_pending();
         if all_done {
             let v1 = match self.f1().take_output().unwrap() {
                 Ok(v) => v,

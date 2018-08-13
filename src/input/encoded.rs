@@ -102,7 +102,7 @@ impl EncodedStr {
     }
 }
 
-fn replace_plus<'a>(input: &'a [u8]) -> Cow<'a, [u8]> {
+fn replace_plus(input: &[u8]) -> Cow<'_, [u8]> {
     match input.iter().position(|&b| b == b'+') {
         None => Cow::Borrowed(input),
         Some(pos) => {

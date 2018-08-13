@@ -89,7 +89,7 @@ where
 
     #[inline(always)]
     fn poll(mut self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
-        match self.inner().as_inner_pinned() {
+        match self.inner().as_pin_mut() {
             Either::Left(t) => t.try_poll(cx),
             Either::Right(t) => t.try_poll(cx),
         }

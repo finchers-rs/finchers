@@ -52,7 +52,7 @@ where
         input: PinMut<'_, Input>,
         mut cursor: Cursor<'c>,
     ) -> Option<(Self::Future, Cursor<'c>)> {
-        drop(cursor.by_ref().count());
+        cursor.by_ref().count();
         Some((future::ready(Err((self.f)(input).into())), cursor))
     }
 }

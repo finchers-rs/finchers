@@ -44,9 +44,12 @@ macro_rules! impl_constructors {
         where
             Uri: HttpTryFrom<U>,
         {
-            LocalRequest::new()
-                .method(Method::$METHOD)
-                .uri(uri)
+            (LocalRequest {
+                request: Some(Request::new(RequestBody::empty())),
+                executor: None,
+            })
+            .method(Method::$METHOD)
+            .uri(uri)
         }
     )*};
 }
@@ -79,14 +82,6 @@ pub struct LocalRequest<'a, E: 'a + Executor = LocalExecutor> {
 }
 
 impl<'a> LocalRequest<'a> {
-    /// Create a new `LocalRequest`.
-    pub fn new() -> LocalRequest<'a> {
-        LocalRequest {
-            request: Some(Request::new(RequestBody::empty())),
-            executor: None,
-        }
-    }
-
     /// Overwrite the HTTP method of this dummy request with given value.
     ///
     /// # Panics

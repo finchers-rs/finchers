@@ -110,9 +110,10 @@ where
         input: PinMut<'_, Input>,
         cursor: Cursor<'c>,
     ) -> Option<(Self::Future, Cursor<'c>)> {
-        match T::is_match(input) {
-            true => Some((BodyFuture { state: State::Init }, cursor)),
-            false => None,
+        if T::is_match(input) {
+            Some((BodyFuture { state: State::Init }, cursor))
+        } else {
+            None
         }
     }
 }

@@ -18,7 +18,27 @@ pub enum Either<L, R> {
 
 impl<L, R> Either<L, R> {
     #[inline]
-    pub fn as_inner_pinned<'a>(self: PinMut<'a, Self>) -> Either<PinMut<'a, L>, PinMut<'a, R>> {
+    pub fn as_ref(&self) -> Either<&L, &R> {
+        match self {
+            Either::Left(ref t) => Either::Left(t),
+            Either::Right(ref t) => Either::Right(t),
+        }
+    }
+
+    #[inline]
+    pub fn as_mut(&mut self) -> Either<&mut L, &mut R> {
+        match self {
+            Either::Left(ref mut t) => Either::Left(t),
+            Either::Right(ref mut t) => Either::Right(t),
+        }
+    }
+
+    #[inline]
+    #[cfg_attr(
+        feature = "cargo-clippy",
+        allow(needless_lifetimes, wrong_self_convention)
+    )]
+    pub fn as_pin_mut(self: PinMut<'a, Self>) -> Either<PinMut<'a, L>, PinMut<'a, R>> {
         match unsafe { PinMut::get_mut_unchecked(self) } {
             Either::Left(ref mut t) => Either::Left(unsafe { PinMut::new_unchecked(t) }),
             Either::Right(ref mut t) => Either::Right(unsafe { PinMut::new_unchecked(t) }),
@@ -138,7 +158,7 @@ where
     type Output = Either<L::Output, R::Output>;
 
     fn poll(self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
-        match self.as_inner_pinned() {
+        match self.as_pin_mut() {
             Either::Left(t) => t.poll(cx).map(Either::Left),
             Either::Right(t) => t.poll(cx).map(Either::Right),
         }

@@ -248,7 +248,7 @@ where
     where
         E: de::Error,
     {
-        s.split(",")
+        s.split(',')
             .map(|s| de::Deserialize::deserialize(s.into_deserializer()))
             .collect()
     }

@@ -34,9 +34,8 @@ use mime::{self, Mime};
 #[derive(Debug)]
 pub struct Input {
     request: Request<RequestBody>,
-    // caches
+    #[cfg_attr(feature = "cargo-clippy", allow(option_option))]
     media_type: Option<Option<Mime>>,
-
     _marker: PhantomData<(UnsafeCell<()>, Pinned)>,
 }
 
@@ -60,13 +59,13 @@ impl Input {
 
     /// Return a mutable reference to the value of raw HTTP request without the message body.
     #[inline]
-    pub fn request_pinned_mut<'a>(self: PinMut<'a, Self>) -> PinMut<'a, Request<RequestBody>> {
+    pub fn request_pinned_mut(self: PinMut<'a, Self>) -> PinMut<'a, Request<RequestBody>> {
         unsafe { PinMut::map_unchecked(self, |input| &mut input.request) }
     }
 
     /// Takes the instance of `RequestBody` from this value.
     #[inline]
-    pub fn body<'a>(self: PinMut<'a, Self>) -> RequestBody {
+    pub fn body(self: PinMut<'_, Self>) -> RequestBody {
         let this = unsafe { PinMut::get_mut_unchecked(self) };
         this.request.body_mut().take()
     }
@@ -75,9 +74,8 @@ impl Input {
     ///
     /// The result of this method is cached and it will return the reference to the cached value
     /// on subsequent calls.
-    pub fn content_type<'a>(
-        self: PinMut<'a, Self>,
-    ) -> Result<Option<&'a Mime>, InvalidContentType> {
+    #[cfg_attr(feature = "cargo-clippy", allow(needless_lifetimes))]
+    pub fn content_type(self: PinMut<'a, Self>) -> Result<Option<&'a Mime>, InvalidContentType> {
         let this = unsafe { PinMut::get_mut_unchecked(self) };
 
         match this.media_type {
