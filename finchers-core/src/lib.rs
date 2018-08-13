@@ -26,7 +26,6 @@ extern crate serde_qs;
 #[macro_use]
 mod macros;
 
-pub mod either;
 pub mod endpoint;
 pub mod endpoints;
 pub mod error;

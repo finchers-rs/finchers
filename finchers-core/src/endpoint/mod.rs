@@ -175,7 +175,7 @@ pub trait EndpointExt: Endpoint + Sized {
         F::Out: TryFuture<Error = Error>,
         <F::Out as TryFuture>::Ok: Tuple,
     {
-        (AndThen { endpoint: self, f }).output::<<F::Out as TryFuture>::Ok>()
+        (AndThen { endpoint: self, f }).output::<(<F::Out as TryFuture>::Ok,)>()
     }
 }
 

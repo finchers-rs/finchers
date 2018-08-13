@@ -26,6 +26,15 @@ impl<L, R> Either<L, R> {
     }
 }
 
+impl<T> Either<T, T> {
+    pub fn into_inner(self) -> T {
+        match self {
+            Either::Left(l) => l,
+            Either::Right(r) => r,
+        }
+    }
+}
+
 impl<L: Buf, R: Buf> Buf for Either<L, R> {
     fn remaining(&self) -> usize {
         match self {

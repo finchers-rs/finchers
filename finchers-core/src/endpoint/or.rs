@@ -5,9 +5,9 @@ use std::mem::PinMut;
 use std::task;
 use std::task::Poll;
 
-use either::Either;
 use endpoint::Endpoint;
 use error::Error;
+use generic::Either;
 use input::{Cursor, Input};
 
 #[allow(missing_docs)]

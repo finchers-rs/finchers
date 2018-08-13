@@ -8,7 +8,7 @@ use pin_utils::unsafe_pinned;
 
 use endpoint::Endpoint;
 use error::Error;
-use generic::{Func, Tuple};
+use generic::{one, Func, One, Tuple};
 use input::{Cursor, Input};
 
 use super::try_chain::{TryChain, TryChainAction};
@@ -25,9 +25,8 @@ where
     E: Endpoint,
     F: Func<E::Output> + Clone,
     F::Out: TryFuture<Error = Error>,
-    <F::Out as TryFuture>::Ok: Tuple,
 {
-    type Output = <F::Out as TryFuture>::Ok;
+    type Output = One<<F::Out as TryFuture>::Ok>;
     type Future = AndThenFuture<E::Future, F::Out, F>;
 
     fn apply<'c>(
@@ -54,7 +53,6 @@ where
     F2: TryFuture<Error = Error>,
     F: Func<F1::Ok, Out = F2>,
     F1::Ok: Tuple,
-    <F::Out as TryFuture>::Ok: Tuple,
 {
     try_chain: TryChain<F1, F2, F>,
 }
@@ -65,7 +63,6 @@ where
     F2: TryFuture<Error = Error>,
     F: Func<F1::Ok, Out = F2>,
     F1::Ok: Tuple,
-    <F::Out as TryFuture>::Ok: Tuple,
 {
     unsafe_pinned!(try_chain: TryChain<F1, F2, F>);
 }
@@ -76,14 +73,14 @@ where
     F2: TryFuture<Error = Error>,
     F: Func<F1::Ok, Out = F2>,
     F1::Ok: Tuple,
-    <F::Out as TryFuture>::Ok: Tuple,
 {
-    type Output = Result<F2::Ok, Error>;
+    type Output = Result<One<F2::Ok>, Error>;
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
-        self.try_chain().poll(cx, |result, f| match result {
-            Ok(ok) => TryChainAction::Future(f.call(ok)),
-            Err(err) => TryChainAction::Output(Err(err)),
-        })
+        self.try_chain()
+            .poll(cx, |result, f| match result {
+                Ok(ok) => TryChainAction::Future(f.call(ok)),
+                Err(err) => TryChainAction::Output(Err(err)),
+            }).map_ok(one)
     }
 }

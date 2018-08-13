@@ -15,7 +15,7 @@ use failure::Fail;
 use http::header::HeaderMap;
 use http::StatusCode;
 
-use either::Either;
+use generic::Either;
 
 /// Trait representing error values from endpoints.
 ///

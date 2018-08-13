@@ -17,8 +17,8 @@ use futures_core::future::TryFuture;
 use futures_util::compat::{Compat, TokioDefaultExecutor};
 use futures_util::try_future::{IntoFuture, TryFutureExt};
 
-use finchers_core::either::Either;
 use finchers_core::error::{Error, HttpError, NoRoute};
+use finchers_core::generic::Either;
 use finchers_core::input::{with_set_cx, Input, RequestBody};
 use finchers_core::output::payloads::Once;
 use finchers_core::output::Responder;

@@ -12,8 +12,8 @@ use serde::de::DeserializeOwned;
 use serde::ser::Serialize;
 use serde_json;
 
-use either::Either;
 use error::{HttpError, Never};
+use generic::Either;
 use input::{FromBody, Input};
 use output::payloads::Once;
 use output::Responder;

@@ -9,8 +9,8 @@ use http::{Response, StatusCode};
 use hyper::body::Payload;
 
 use self::payloads::Empty;
-use either::Either;
 use error::{Error, Never, NoRoute};
+use generic::Either;
 use input::Input;
 
 /// Trait representing types to be converted into an HTTP response.

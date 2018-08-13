@@ -1,17 +1,17 @@
 #![allow(missing_docs)]
 
 mod combine;
+mod either;
 mod func;
 mod hlist;
 
 pub use self::combine::Combine;
+pub use self::either::Either;
 pub use self::func::Func;
 pub use self::hlist::Tuple;
 
 use std::fmt;
 use std::marker::PhantomData;
-
-use either::Either;
 
 pub type One<T> = (T,);
 
@@ -25,8 +25,15 @@ pub fn map_one<T, U>(x: One<T>, f: impl FnOnce(T) -> U) -> One<U> {
     one(f(x.0))
 }
 
-#[derive(Copy, Clone)]
 pub struct MapLeft<R>(PhantomData<fn() -> R>);
+
+impl<R> Copy for MapLeft<R> {}
+
+impl<R> Clone for MapLeft<R> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
 
 impl<R> fmt::Debug for MapLeft<R> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -43,9 +50,15 @@ impl<L: Tuple, R: Tuple> Func<L> for MapLeft<R> {
     }
 }
 
-#[derive(Copy, Clone)]
 pub struct MapRight<L>(PhantomData<fn() -> L>);
 
+impl<L> Copy for MapRight<L> {}
+
+impl<L> Clone for MapRight<L> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
 impl<L> fmt::Debug for MapRight<L> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("MapRight").finish()
