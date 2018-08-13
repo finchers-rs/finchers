@@ -62,16 +62,13 @@ extern crate futures_core; // 0.3
 extern crate futures_util; // 0.3
 extern crate http;
 extern crate hyper;
+extern crate log;
 extern crate mime;
 extern crate percent_encoding;
 extern crate pin_utils;
-extern crate scoped_tls;
 extern crate serde;
 extern crate serde_json;
 extern crate serde_qs;
-extern crate slog;
-extern crate slog_async;
-extern crate slog_term;
 extern crate structopt;
 extern crate tokio;
 

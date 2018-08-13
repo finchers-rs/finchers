@@ -22,7 +22,11 @@ mod sealed {
         type Output: Responder;
         type Future: TryFuture<Ok = Self::Output, Error = Error> + Send + 'static;
 
-        fn apply(&self, input: PinMut<'_, Input>) -> Option<Self::Future>;
+        fn apply(
+            &self,
+            input: PinMut<'_, Input>,
+            cursor: Cursor<'c>,
+        ) -> Option<(Self::Future, Cursor<'c>)>;
     }
 
     impl<E> Sealed for E
@@ -34,12 +38,13 @@ mod sealed {
         type Output = E::Output;
         type Future = E::Future;
 
-        fn apply(&self, input: PinMut<'_, Input>) -> Option<Self::Future> {
-            let cursor = unsafe {
-                let path = &*(input.uri().path() as *const str);
-                Cursor::new(path)
-            };
-            Endpoint::apply(self, input, cursor).map(|(future, _rest)| future)
+        #[inline(always)]
+        fn apply(
+            &self,
+            input: PinMut<'_, Input>,
+            cursor: Cursor<'c>,
+        ) -> Option<(Self::Future, Cursor<'c>)> {
+            Endpoint::apply(self, input, cursor)
         }
     }
 
