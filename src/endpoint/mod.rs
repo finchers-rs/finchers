@@ -2,6 +2,7 @@
 
 mod and;
 mod and_then;
+mod boxed;
 mod map;
 mod ok;
 mod or;
@@ -11,6 +12,7 @@ mod try_chain;
 // re-exports
 pub use self::and::And;
 pub use self::and_then::AndThen;
+pub use self::boxed::{Boxed, BoxedLocal};
 pub use self::map::Map;
 pub use self::or::Or;
 
@@ -176,6 +178,24 @@ pub trait EndpointExt: Endpoint + Sized {
         <F::Out as TryFuture>::Ok: Tuple,
     {
         (AndThen { endpoint: self, f }).output::<(<F::Out as TryFuture>::Ok,)>()
+    }
+
+    #[allow(missing_docs)]
+    fn boxed(self) -> Boxed<Self::Output>
+    where
+        Self: Send + Sync + 'static,
+        Self::Future: Send + 'static,
+    {
+        Boxed::new(self).output::<Self::Output>()
+    }
+
+    #[allow(missing_docs)]
+    fn boxed_local(self) -> BoxedLocal<'a, Self::Output>
+    where
+        Self: 'a,
+        Self::Future: 'a,
+    {
+        BoxedLocal::new(self).output::<Self::Output>()
     }
 }
 
