@@ -84,7 +84,6 @@ pub mod error;
 pub mod generic;
 pub mod input;
 pub mod json;
-pub mod local;
 pub mod output;
 pub mod runtime;
 

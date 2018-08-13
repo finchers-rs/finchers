@@ -1,6 +1,7 @@
 //! Runtime support for Finchers, which supports serving asynchronous HTTP services.
 
 pub mod app;
+pub mod local;
 pub mod server;
 
 /// A type alias represents endpoints which can be used as an HTTP application.

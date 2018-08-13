@@ -2,7 +2,7 @@ use finchers::endpoint::EndpointExt;
 use finchers::endpoints::body::body;
 use finchers::input::body::FromBody;
 use finchers::input::Input;
-use finchers::local;
+use finchers::runtime::local;
 
 use bytes::Bytes;
 use std::mem::PinMut;

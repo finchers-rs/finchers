@@ -25,7 +25,7 @@ use input::{with_get_cx, Cursor, Input};
 /// # #![feature(rust_2018_preview)]
 /// # use finchers::endpoint::EndpointExt;
 /// # use finchers::endpoints::header;
-/// # use finchers::local;
+/// # use finchers::runtime::local;
 /// #
 /// let endpoint = header::parse::<String>("x-api-key");
 ///
@@ -56,7 +56,7 @@ use input::{with_get_cx, Cursor, Input};
 /// # use finchers::endpoint::{reject, EndpointExt};
 /// # use finchers::endpoints::header;
 /// # use finchers::error::HttpError;
-/// # use finchers::local;
+/// # use finchers::runtime::local;
 /// # use failure::Fail;
 /// # use http::StatusCode;
 /// #

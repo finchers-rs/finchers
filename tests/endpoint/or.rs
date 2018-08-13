@@ -2,7 +2,7 @@ use finchers::endpoint::{ok, reject, EndpointExt};
 use finchers::endpoints::header;
 use finchers::endpoints::path::path;
 use finchers::error::NotPresent;
-use finchers::local;
+use finchers::runtime::local;
 
 #[test]
 fn test_or_1() {
