@@ -1,5 +1,7 @@
 //! Components for constructing `Endpoint`.
 
+pub mod metadata;
+
 mod and;
 mod and_then;
 mod boxed;
