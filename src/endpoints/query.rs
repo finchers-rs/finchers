@@ -107,10 +107,10 @@ where
         Poll::Ready(with_get_cx(|input| match input.request().uri().query() {
             Some(query) => T::from_query(QueryItems::new(query))
                 .map(one)
-                .map_err(|cause| bad_request(cause).into()),
-            None => {
-                Err(bad_request(format_err!("The query string is not exist in the request")).into())
-            }
+                .map_err(bad_request),
+            None => Err(bad_request(format_err!(
+                "The query string is not exist in the request"
+            ))),
         }))
     }
 }

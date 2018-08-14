@@ -130,9 +130,9 @@ impl Future for ReceiveAll {
 }
 
 fn stolen_payload() -> Error {
-    Error::from(internal_server_error(format_err!(
+    internal_server_error(format_err!(
         "The instance of Payload has already been stolen by another endpoint."
-    )))
+    ))
 }
 
 // ==== Body ====
@@ -350,12 +350,10 @@ where
 
     fn poll(mut self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
         let err = with_get_cx(|input| match input.content_type() {
-            Ok(Some(m)) if *m != mime::APPLICATION_WWW_FORM_URLENCODED => Some(
-                bad_request(format_err!(
-                    "The content type must be application/www-x-urlformencoded"
-                )).into(),
-            ),
-            Err(err) => Some(bad_request(err).into()),
+            Ok(Some(m)) if *m != mime::APPLICATION_WWW_FORM_URLENCODED => Some(bad_request(
+                format_err!("The content type must be application/www-x-urlformencoded"),
+            )),
+            Err(err) => Some(bad_request(err)),
             _ => None,
         });
         if let Some(err) = err {
@@ -366,7 +364,7 @@ where
         Poll::Ready(
             FromQuery::from_query(QueryItems::new(&*data))
                 .map(one)
-                .map_err(|cause| bad_request(cause).into()),
+                .map_err(bad_request),
         )
     }
 }

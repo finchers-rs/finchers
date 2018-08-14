@@ -8,6 +8,7 @@ pub trait FromHeader: Sized {
     /// The error type which will be returned from `from_header`.
     type Error: Into<Error>;
 
+    /// The name of header associated with this type.
     const HEADER_NAME: &'static str;
 
     /// Perform conversion from a byte sequence to a value of `Self`.
