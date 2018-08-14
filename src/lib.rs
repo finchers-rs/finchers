@@ -12,18 +12,6 @@
 //! * Asynchronous handling powerd by futures and Tokio
 //! * Building an HTTP service by *combining* the primitive components
 //! * Type-safe routing without (unstable) procedural macros
-//! * Focusing on stable channel
-//!
-//! # References
-//!
-//! * [User Guide][user-guide]
-//! * [API documentation (released)][released-api]
-//! * [API documentation (master)][master-api]
-//!
-//!
-//! [user-guide]: https://finchers-rs.github.io/guide
-//! [released-api]: https://docs.rs/finchers/*/finchers
-//! [master-api]: https://finchers-rs.github.io/api/finchers/
 //!
 //! # Example
 //!

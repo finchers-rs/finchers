@@ -6,16 +6,14 @@ branches:
 
 environment:
   matrix:
-    # - TARGET: x86_64-pc-windows-msvc
-    #   TOOLCHAIN: stable
-    # - TARGET: x86_64-pc-windows-msvc
-    #   TOOLCHAIN: beta
+    - TARGET: x86_64-pc-windows-msvc
+      TOOLCHAIN: nightly-2018-08-06
     - TARGET: x86_64-pc-windows-msvc
       TOOLCHAIN: nightly
 
-# matrix:
-#   allow_failures:
-#    - TOOLCHAIN: nightly
+matrix:
+  allow_failures:
+   - TOOLCHAIN: nightly
 
 install:
   - appveyor-retry appveyor DownloadFile https://win.rustup.rs/ -FileName rustup-init.exe
@@ -29,4 +27,5 @@ build: false
 
 test_script:
   - cargo clean
-  - cargo test
+  - cargo test --features strict
+  - cargo test -p example-todo

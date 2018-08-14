@@ -13,13 +13,13 @@ The concept and design was highly inspired by [`finch`](https://github.com/finag
 * Asynchronous handling powerd by futures and Tokio
 * Building an HTTP service by *combining* the primitive components
 * Type-safe routing without (unstable) procedural macros
-* Focusing on stable channel
 
 ## Documentation
 
-* [User Guide][user-guide]
-* [API documentation (released)][released-api]
-* [API documentation (master)][master-api]
+* [API documentation (released, 0.11)][released-api]
+* [API documentation (master, 0.12)][master-api]
+* [Examples][examples]
+* [User Guide (WIP)][user-guide]
 
 ## Status
 
@@ -33,10 +33,11 @@ Dual licensed under the MIT and Apache 2.0.
 
 <!-- links -->
 
-[user-guide]: https://finchers-rs.github.io/guide
 [crates-io]: https://crates.io/crates/finchers
-[released-api]: https://docs.rs/finchers/*/finchers
-[master-api]: https://finchers-rs.github.io/api/finchers/
+[released-api]: https://docs.rs/finchers/0.11/finchers
+[master-api]: https://finchers-rs.github.io/finchers/finchers/index.html
+[examples]: https://github.com/finchers-rs/finchers/tree/master/examples/
+[user-guide]: https://finchers-rs.github.io/finchers/guide/index.html
 [gitter]: https://gitter.im/finchers-rs/finchers?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge
 [travis]: https://travis-ci.org/finchers-rs/finchers
 [appveyor]: https://ci.appveyor.com/project/ubnt-intrepid/finchers/branch/master
