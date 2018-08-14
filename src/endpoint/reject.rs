@@ -2,10 +2,10 @@ use futures_util::future;
 use std::marker::PhantomData;
 use std::mem::PinMut;
 
-use endpoint::{Endpoint, EndpointExt};
-use error::Error;
-use generic::Tuple;
-use input::{Cursor, Input};
+use crate::endpoint::{Endpoint, EndpointExt};
+use crate::error::Error;
+use crate::generic::Tuple;
+use crate::input::{Cursor, Input};
 
 /// Creates an endpoint which always rejects the request with the specified error.
 pub fn reject<F, T, E>(f: F) -> Reject<F, T, E>
@@ -47,7 +47,7 @@ where
     type Output = T;
     type Future = future::Ready<Result<Self::Output, Error>>;
 
-    fn apply(
+    fn apply<'c>(
         &self,
         input: PinMut<'_, Input>,
         mut cursor: Cursor<'c>,

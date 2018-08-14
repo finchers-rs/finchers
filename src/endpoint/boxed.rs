@@ -6,10 +6,10 @@ use std::fmt;
 use std::future::{FutureObj, LocalFutureObj};
 use std::mem::PinMut;
 
-use endpoint::Endpoint;
-use error::Error;
-use generic::Tuple;
-use input::{Cursor, Input};
+use crate::endpoint::Endpoint;
+use crate::error::Error;
+use crate::generic::Tuple;
+use crate::input::{Cursor, Input};
 
 type EndpointFn<T> =
     dyn for<'a, 'c> Fn(PinMut<'a, Input>, Cursor<'c>)
@@ -53,7 +53,7 @@ impl<T: Tuple> Endpoint for Boxed<T> {
     type Output = T;
     type Future = FutureObj<'static, Result<T, Error>>;
 
-    fn apply(
+    fn apply<'c>(
         &self,
         input: PinMut<'_, Input>,
         cursor: Cursor<'c>,
@@ -66,13 +66,13 @@ pub struct BoxedLocal<'a, T> {
     inner: Box<LocalEndpointFn<'a, T>>,
 }
 
-impl<T> fmt::Debug for BoxedLocal<'_, T> {
+impl<'a, T> fmt::Debug for BoxedLocal<'a, T> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.debug_struct("BoxedLocal").finish()
     }
 }
 
-impl<T: Tuple> BoxedLocal<'a, T> {
+impl<'a, T: Tuple> BoxedLocal<'a, T> {
     pub(super) fn new<E>(endpoint: E) -> BoxedLocal<'a, T>
     where
         E: Endpoint<Output = T> + 'a,
@@ -90,11 +90,11 @@ impl<T: Tuple> BoxedLocal<'a, T> {
     }
 }
 
-impl<T: Tuple> Endpoint for BoxedLocal<'a, T> {
+impl<'a, T: Tuple> Endpoint for BoxedLocal<'a, T> {
     type Output = T;
     type Future = LocalFutureObj<'a, Result<T, Error>>;
 
-    fn apply(
+    fn apply<'c>(
         &self,
         input: PinMut<'_, Input>,
         cursor: Cursor<'c>,

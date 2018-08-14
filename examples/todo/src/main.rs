@@ -1,5 +1,4 @@
 #![feature(rust_2018_preview)]
-#![feature(use_extern_macros)]
 #![feature(futures_api, pin)]
 #![feature(integer_atomics)]
 

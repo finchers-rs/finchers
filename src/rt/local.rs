@@ -26,7 +26,7 @@ use std::mem::PinMut;
 use std::task::Poll;
 
 use futures_core::future::TryFuture;
-use futures_util::compat::TokioDefaultExecutor;
+use futures_util::compat::TokioDefaultSpawn;
 use futures_util::future::poll_fn;
 use futures_util::try_future::TryFutureExt;
 use http::header::{HeaderName, HeaderValue};
@@ -35,10 +35,10 @@ use hyper::body::Body;
 use pin_utils::pin_mut;
 use tokio::runtime::current_thread::Runtime;
 
-use endpoint::Endpoint;
-use error::Error;
-use input::body::ReqBody;
-use input::{with_set_cx, Cursor, Input};
+use crate::endpoint::Endpoint;
+use crate::error::Error;
+use crate::input::body::ReqBody;
+use crate::input::{with_set_cx, Cursor, Input};
 
 macro_rules! impl_constructors {
     ($(
@@ -171,7 +171,7 @@ impl LocalRequest {
             })
         };
 
-        match rt.block_on(PinBox::new(future).compat(TokioDefaultExecutor)) {
+        match rt.block_on(PinBox::new(future).compat(TokioDefaultSpawn)) {
             Ok(Some(ok)) => Some(Ok(ok)),
             Ok(None) => None,
             Err(err) => Some(Err(err)),

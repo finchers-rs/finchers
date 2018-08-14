@@ -4,10 +4,10 @@ use std::mem::PinMut;
 use std::task;
 use std::task::Poll;
 
-use endpoint::Endpoint;
-use error::Error;
-use generic::{one, Func, One, Tuple};
-use input::{Cursor, Input};
+use crate::endpoint::Endpoint;
+use crate::error::Error;
+use crate::generic::{one, Func, One, Tuple};
+use crate::input::{Cursor, Input};
 
 #[allow(missing_docs)]
 #[derive(Debug, Copy, Clone)]
@@ -24,7 +24,7 @@ where
     type Output = One<F::Out>;
     type Future = MapFuture<E::Future, F>;
 
-    fn apply(
+    fn apply<'c>(
         &self,
         input: PinMut<'_, Input>,
         cursor: Cursor<'c>,

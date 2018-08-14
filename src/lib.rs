@@ -1,6 +1,4 @@
-#![feature(rust_preview_2018)]
-#![feature(use_extern_macros)]
-#![feature(in_band_lifetimes)]
+#![feature(rust_2018_preview)]
 #![feature(pin, arbitrary_self_types, futures_api)]
 
 //! A combinator library for building asynchronous HTTP services.

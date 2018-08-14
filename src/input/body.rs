@@ -11,8 +11,8 @@ use http::header::HeaderMap;
 use hyper::body::{Body, Chunk, Payload as _Payload};
 use pin_utils::unsafe_unpinned;
 
-use error::{internal_server_error, Error, Never};
-use input::Input;
+use crate::error::{internal_server_error, Error, Never};
+use crate::input::Input;
 
 #[derive(Debug)]
 pub struct Payload {

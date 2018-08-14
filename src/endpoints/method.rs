@@ -3,8 +3,8 @@
 use http::Method;
 use std::mem::PinMut;
 
-use endpoint::{Endpoint, IntoEndpoint};
-use input::{Cursor, Input};
+use crate::endpoint::{Endpoint, IntoEndpoint};
+use crate::input::{Cursor, Input};
 
 #[allow(missing_docs)]
 #[derive(Debug, Clone)]
@@ -17,7 +17,7 @@ impl<E: Endpoint> Endpoint for MatchMethod<E> {
     type Output = E::Output;
     type Future = E::Future;
 
-    fn apply(
+    fn apply<'c>(
         &self,
         input: PinMut<'_, Input>,
         cursor: Cursor<'c>,
@@ -67,7 +67,7 @@ macro_rules! define_method {
             type Output = E::Output;
             type Future = E::Future;
 
-            fn apply(
+            fn apply<'c>(
                 &self,
                 input: PinMut<'_, Input>,
                 cursor: Cursor<'c>,

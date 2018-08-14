@@ -27,9 +27,9 @@ use std::sync::Arc;
 
 use futures_core::future::TryFuture;
 
-use error::Error;
-use generic::{Combine, Func, Tuple};
-use input::{Cursor, Input};
+use crate::error::Error;
+use crate::generic::{Combine, Func, Tuple};
+use crate::input::{Cursor, Input};
 
 /// Trait representing an endpoint.
 pub trait Endpoint {
@@ -41,7 +41,7 @@ pub trait Endpoint {
 
     /// Perform checking the incoming HTTP request and returns
     /// an instance of the associated Future if matched.
-    fn apply(
+    fn apply<'c>(
         &self,
         input: PinMut<'_, Input>,
         cursor: Cursor<'c>,
@@ -52,7 +52,7 @@ impl<'e, E: Endpoint> Endpoint for &'e E {
     type Output = E::Output;
     type Future = E::Future;
 
-    fn apply(
+    fn apply<'c>(
         &self,
         input: PinMut<'_, Input>,
         cursor: Cursor<'c>,
@@ -65,7 +65,7 @@ impl<E: Endpoint> Endpoint for Box<E> {
     type Output = E::Output;
     type Future = E::Future;
 
-    fn apply(
+    fn apply<'c>(
         &self,
         input: PinMut<'_, Input>,
         cursor: Cursor<'c>,
@@ -78,7 +78,7 @@ impl<E: Endpoint> Endpoint for Rc<E> {
     type Output = E::Output;
     type Future = E::Future;
 
-    fn apply(
+    fn apply<'c>(
         &self,
         input: PinMut<'_, Input>,
         cursor: Cursor<'c>,
@@ -91,7 +91,7 @@ impl<E: Endpoint> Endpoint for Arc<E> {
     type Output = E::Output;
     type Future = E::Future;
 
-    fn apply(
+    fn apply<'c>(
         &self,
         input: PinMut<'_, Input>,
         cursor: Cursor<'c>,
@@ -189,7 +189,7 @@ pub trait EndpointExt: Endpoint + Sized {
     }
 
     #[allow(missing_docs)]
-    fn boxed_local(self) -> BoxedLocal<'a, Self::Output>
+    fn boxed_local<'a>(self) -> BoxedLocal<'a, Self::Output>
     where
         Self: 'a,
         Self::Future: 'a,

@@ -6,10 +6,10 @@ use std::task::Poll;
 use futures_core::future::TryFuture;
 use pin_utils::unsafe_pinned;
 
-use endpoint::Endpoint;
-use error::Error;
-use generic::{one, Func, One, Tuple};
-use input::{Cursor, Input};
+use crate::endpoint::Endpoint;
+use crate::error::Error;
+use crate::generic::{one, Func, One, Tuple};
+use crate::input::{Cursor, Input};
 
 use super::try_chain::{TryChain, TryChainAction};
 

@@ -30,19 +30,23 @@
 /// ```
 #[macro_export]
 macro_rules! routes {
-    () => { routes!(@error); };
-    ($h:expr) => {  routes!(@error); };
-    ($h:expr,) => {  routes!(@error); };
-    ($e1:expr, $e2:expr) => { routes!(@inner $e1, $e2); };
-    ($e1:expr, $e2:expr,) => { routes!(@inner $e1, $e2); };
-    ($e1:expr, $e2:expr, $($t:expr),*) => { routes!(@inner $e1, $e2, $($t),*); };
-    ($e1:expr, $e2:expr, $($t:expr,)+) => { routes!(@inner $e1, $e2, $($t),+); };
+    () => { $crate::routes_impl!(@error); };
+    ($h:expr) => {  $crate::routes_impl!(@error); };
+    ($h:expr,) => {  $crate::routes_impl!(@error); };
+    ($e1:expr, $e2:expr) => { $crate::routes_impl!($e1, $e2); };
+    ($e1:expr, $e2:expr,) => { $crate::routes_impl!($e1, $e2); };
+    ($e1:expr, $e2:expr, $($t:expr),*) => { $crate::routes_impl!($e1, $e2, $($t),*); };
+    ($e1:expr, $e2:expr, $($t:expr,)+) => { $crate::routes_impl!($e1, $e2, $($t),+); };
+}
 
-    (@inner $e1:expr, $e2:expr, $($t:expr),*) => {{
-        routes!(@inner $e1, routes!(@inner $e2, $($t),*))
+#[doc(hidden)]
+#[macro_export]
+macro_rules! routes_impl {
+    ($e1:expr, $e2:expr, $($t:expr),*) => {{
+        $crate::routes_impl!($e1, $crate::routes_impl!($e2, $($t),*))
     }};
 
-    (@inner $e1:expr, $e2:expr) => {{
+    ($e1:expr, $e2:expr) => {{
         use $crate::endpoint::IntoEndpoint;
         use $crate::endpoint::EndpointExt;
         use $crate::generic::{map_left, map_right};
@@ -79,36 +83,40 @@ macro_rules! route {
     // with method
     (@$method:ident $($t:tt)*) => (
         $crate::endpoints::method::$method(
-            route!(@@start $($t)*)
+            $crate::route_impl!(@start $($t)*)
         )
     );
 
     // without method
-    (/ $($t:tt)*) => ( route!(@@start / $($t)*) );
-    () => ( route!(@@start) );
+    (/ $($t:tt)*) => ( $crate::route_impl!(@start / $($t)*) );
+    () => ( $crate::route_impl!(@start) );
+}
 
-    (@@start / $head:tt $(/ $tail:tt)*) => {{
-        let __p = route!(@@segment $head);
+#[doc(hidden)]
+#[macro_export]
+macro_rules! route_impl {
+    (@start / $head:tt $(/ $tail:tt)*) => {{
+        let __p = $crate::route_impl!(@segment $head);
         $(
-            let __p = $crate::endpoint::EndpointExt::and(__p, route!(@@segment $tail));
+            let __p = $crate::endpoint::EndpointExt::and(__p, $crate::route_impl!(@segment $tail));
         )*
         __p
     }};
-    (@@start / $head:tt $(/ $tail:tt)* /) => {
-        route!(@@start / $head $(/ $tail)*)
+    (@start / $head:tt $(/ $tail:tt)* /) => {
+        $crate::route_impl!(@start / $head $(/ $tail)*)
             .and($crate::endpoints::path::end())
     };
-    (@@start /) => ( $crate::endpoints::path::end() );
-    (@@start) => ( $crate::endpoint::ok(()) );
+    (@start /) => ( $crate::endpoints::path::end() );
+    (@start) => ( $crate::endpoint::ok(()) );
 
-    (@@segment $t:ty) => ( $crate::endpoints::path::param::<$t>() );
-    (@@segment $s:expr) => ( $crate::endpoints::path::path($s) );
+    (@segment $t:ty) => ( $crate::endpoints::path::param::<$t>() );
+    (@segment $s:expr) => ( $crate::endpoints::path::path($s) );
 }
 
 #[cfg(test)]
 mod tests {
-    use endpoint::EndpointExt;
-    use endpoints::path::path;
+    use crate::endpoint::EndpointExt;
+    use crate::endpoints::path::path;
 
     #[test]
     fn compile_test_route() {

@@ -16,16 +16,16 @@ mod sealed {
     use futures_core::future::TryFuture;
     use std::mem::PinMut;
 
-    use endpoint::Endpoint;
-    use error::Error;
-    use input::{Cursor, Input};
-    use output::Responder;
+    use crate::endpoint::Endpoint;
+    use crate::error::Error;
+    use crate::input::{Cursor, Input};
+    use crate::output::Responder;
 
     pub trait Sealed: Send + Sync + 'static {
         type Output: Responder;
         type Future: TryFuture<Ok = Self::Output, Error = Error> + Send + 'static;
 
-        fn apply(
+        fn apply<'c>(
             &self,
             input: PinMut<'_, Input>,
             cursor: Cursor<'c>,
@@ -42,7 +42,7 @@ mod sealed {
         type Future = E::Future;
 
         #[inline(always)]
-        fn apply(
+        fn apply<'c>(
             &self,
             input: PinMut<'_, Input>,
             cursor: Cursor<'c>,

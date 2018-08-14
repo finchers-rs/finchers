@@ -4,10 +4,10 @@ use std::mem::PinMut;
 use http::Response;
 
 use super::text::Text;
-use error::Never;
-use input::Input;
-use output::payloads::Once;
-use output::Responder;
+use crate::error::Never;
+use crate::input::Input;
+use crate::output::payloads::Once;
+use crate::output::Responder;
 
 /// A helper struct for creating the response from types which implements `fmt::Debug`.
 ///

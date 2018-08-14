@@ -10,11 +10,11 @@ use failure::format_err;
 use futures_util::future;
 use http::header::HeaderValue;
 
-use endpoint::{Endpoint, EndpointExt};
-use error::{bad_request, Error};
-use generic::{one, One};
-use input::header::FromHeader;
-use input::{with_get_cx, Cursor, Input};
+use crate::endpoint::{Endpoint, EndpointExt};
+use crate::error::{bad_request, Error};
+use crate::generic::{one, One};
+use crate::input::header::FromHeader;
+use crate::input::{with_get_cx, Cursor, Input};
 
 // ==== Optional ====
 
@@ -101,7 +101,7 @@ where
     type Output = One<H>;
     type Future = OptionalFuture<H>;
 
-    fn apply(
+    fn apply<'c>(
         &self,
         input: PinMut<'_, Input>,
         cursor: Cursor<'c>,
@@ -231,7 +231,7 @@ where
     type Output = One<H>;
     type Future = RequiredFuture<H>;
 
-    fn apply(
+    fn apply<'c>(
         &self,
         _: PinMut<'_, Input>,
         cursor: Cursor<'c>,
@@ -308,7 +308,7 @@ where
     type Output = ();
     type Future = future::Ready<Result<Self::Output, Error>>;
 
-    fn apply(
+    fn apply<'c>(
         &self,
         input: PinMut<'_, Input>,
         cursor: Cursor<'c>,

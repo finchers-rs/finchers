@@ -8,7 +8,7 @@ use failure::Fail;
 use http::StatusCode;
 use percent_encoding::percent_decode;
 
-use error::HttpError;
+use crate::error::HttpError;
 
 /// A percent-encoded string.
 #[repr(C)]

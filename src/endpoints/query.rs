@@ -8,11 +8,11 @@ use std::{fmt, task};
 
 use failure::format_err;
 
-use endpoint::Endpoint;
-use error::{bad_request, Error};
-use generic::{one, One};
-use input::query::{FromQuery, QueryItems};
-use input::{with_get_cx, Cursor, Input};
+use crate::endpoint::Endpoint;
+use crate::error::{bad_request, Error};
+use crate::generic::{one, One};
+use crate::input::query::{FromQuery, QueryItems};
+use crate::input::{with_get_cx, Cursor, Input};
 
 /// Create an endpoint which parse the query string in the HTTP request
 /// to the value of `T`.
@@ -77,7 +77,7 @@ where
     type Output = One<T>;
     type Future = QueryFuture<T>;
 
-    fn apply(
+    fn apply<'c>(
         &self,
         _: PinMut<'_, Input>,
         cursor: Cursor<'c>,

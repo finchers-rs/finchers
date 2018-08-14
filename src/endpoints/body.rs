@@ -15,12 +15,12 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use serde::de::DeserializeOwned;
 use serde_json;
 
-use endpoint::{Endpoint, EndpointExt};
-use error::{bad_request, internal_server_error, Error};
-use generic::{one, One};
-use input::body::FromBody;
-use input::query::{FromQuery, QueryItems};
-use input::{self, with_get_cx, Cursor, Input};
+use crate::endpoint::{Endpoint, EndpointExt};
+use crate::error::{bad_request, internal_server_error, Error};
+use crate::generic::{one, One};
+use crate::input::body::FromBody;
+use crate::input::query::{FromQuery, QueryItems};
+use crate::input::{self, with_get_cx, Cursor, Input};
 
 /// Creates an endpoint which takes the instance of [`Payload`](input::body::Payload)
 /// from the context.
@@ -47,7 +47,7 @@ impl Endpoint for Payload {
     type Output = One<input::body::Payload>;
     type Future = PayloadFuture;
 
-    fn apply(
+    fn apply<'c>(
         &self,
         _: PinMut<'_, Input>,
         cursor: Cursor<'c>,
@@ -176,7 +176,7 @@ where
     type Output = One<T>;
     type Future = BodyFuture<T>;
 
-    fn apply(
+    fn apply<'c>(
         &self,
         _: PinMut<'_, Input>,
         cursor: Cursor<'c>,
@@ -247,7 +247,7 @@ where
     type Output = (T,);
     type Future = JsonFuture<T>;
 
-    fn apply(
+    fn apply<'c>(
         &self,
         _: PinMut<'_, Input>,
         cursor: Cursor<'c>,
@@ -321,7 +321,7 @@ where
     type Output = (T,);
     type Future = UrlEncodedFuture<T>;
 
-    fn apply(
+    fn apply<'c>(
         &self,
         _: PinMut<'_, Input>,
         cursor: Cursor<'c>,

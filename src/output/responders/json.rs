@@ -6,10 +6,10 @@ use serde_json;
 use serde_json::Value;
 use std::mem::PinMut;
 
-use error::{HttpError, Never};
-use input::Input;
-use output::payloads::Once;
-use output::Responder;
+use crate::error::{HttpError, Never};
+use crate::input::Input;
+use crate::output::payloads::Once;
+use crate::output::Responder;
 
 /// A wrapper struct representing a statically typed JSON value.
 #[derive(Debug)]

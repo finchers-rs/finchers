@@ -9,10 +9,10 @@ use futures_util::future;
 use http::StatusCode;
 use percent_encoding::{define_encode_set, percent_encode, DEFAULT_ENCODE_SET};
 
-use endpoint::Endpoint;
-use error::{Error, HttpError};
-use generic::{one, One};
-use input::{Cursor, FromEncodedStr, Input};
+use crate::endpoint::Endpoint;
+use crate::error::{Error, HttpError};
+use crate::generic::{one, One};
+use crate::input::{Cursor, FromEncodedStr, Input};
 
 define_encode_set! {
     /// The encode set for MatchPath
@@ -42,7 +42,7 @@ impl Endpoint for MatchPath {
     type Output = ();
     type Future = future::Ready<Result<Self::Output, Error>>;
 
-    fn apply(
+    fn apply<'c>(
         &self,
         _: PinMut<'_, Input>,
         mut cursor: Cursor<'c>,
@@ -72,7 +72,7 @@ impl Endpoint for EndPath {
     type Output = ();
     type Future = future::Ready<Result<Self::Output, Error>>;
 
-    fn apply(
+    fn apply<'c>(
         &self,
         _: PinMut<'_, Input>,
         mut cursor: Cursor<'c>,
@@ -140,7 +140,7 @@ where
     type Output = One<T>;
     type Future = future::Ready<Result<Self::Output, Error>>;
 
-    fn apply(
+    fn apply<'c>(
         &self,
         _: PinMut<'_, Input>,
         mut cursor: Cursor<'c>,
@@ -220,7 +220,7 @@ where
     type Output = One<T>;
     type Future = future::Ready<Result<Self::Output, Error>>;
 
-    fn apply(
+    fn apply<'c>(
         &self,
         _: PinMut<'_, Input>,
         mut cursor: Cursor<'c>,

@@ -19,15 +19,15 @@ pub use self::global::with_set_cx;
 
 use failure::Fail;
 use http;
+use http::{Request, StatusCode};
+use mime::{self, Mime};
 use std::cell::UnsafeCell;
 use std::marker::{PhantomData, Pinned};
 use std::mem::PinMut;
 use std::ops::Deref;
 
 use self::body::{Payload, ReqBody};
-use error::HttpError;
-use http::{Request, StatusCode};
-use mime::{self, Mime};
+use crate::error::HttpError;
 
 /// The contextual information with an incoming HTTP request.
 #[derive(Debug)]
@@ -68,7 +68,9 @@ impl Input {
     /// The result of this method is cached and it will return the reference to the cached value
     /// on subsequent calls.
     #[cfg_attr(feature = "cargo-clippy", allow(needless_lifetimes))]
-    pub fn content_type(self: PinMut<'a, Self>) -> Result<Option<&'a Mime>, InvalidContentType> {
+    pub fn content_type<'a>(
+        self: PinMut<'a, Self>,
+    ) -> Result<Option<&'a Mime>, InvalidContentType> {
         let this = unsafe { PinMut::get_mut_unchecked(self) };
 
         match this.media_type {

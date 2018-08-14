@@ -5,10 +5,10 @@ use std::mem::PinMut;
 use std::task;
 use std::task::Poll;
 
-use endpoint::Endpoint;
-use error::Error;
-use generic::Either;
-use input::{Cursor, Input};
+use crate::endpoint::Endpoint;
+use crate::error::Error;
+use crate::generic::Either;
+use crate::input::{Cursor, Input};
 
 #[allow(missing_docs)]
 #[derive(Debug, Copy, Clone)]
@@ -25,7 +25,7 @@ where
     type Output = E1::Output;
     type Future = OrFuture<E1::Future, E2::Future>;
 
-    fn apply(
+    fn apply<'c>(
         &self,
         mut input: PinMut<'_, Input>,
         cursor: Cursor<'c>,

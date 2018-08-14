@@ -11,13 +11,13 @@ use futures_util::ready;
 use http::header::HeaderValue;
 use http::{header, Request, Response};
 
-use error::NoRoute;
-use generic::Either;
-use input::body::ReqBody;
-use input::{with_set_cx, Cursor, Input};
-use output::payloads::Once;
-use output::Responder;
-use rt::AppEndpoint;
+use crate::error::NoRoute;
+use crate::generic::Either;
+use crate::input::body::ReqBody;
+use crate::input::{with_set_cx, Cursor, Input};
+use crate::output::payloads::Once;
+use crate::output::Responder;
+use crate::rt::AppEndpoint;
 
 /// A factory of HTTP service which wraps an `Endpoint`.
 #[derive(Debug)]
@@ -25,7 +25,7 @@ pub struct App<'a, E: AppEndpoint> {
     endpoint: &'a E,
 }
 
-impl<E: AppEndpoint> App<'a, E> {
+impl<'a, E: AppEndpoint> App<'a, E> {
     /// Create a new `App` from the provided components.
     pub fn new(endpoint: &'a E) -> App<'a, E> {
         App { endpoint }
@@ -47,7 +47,7 @@ pub struct AppService<'a, E: AppEndpoint> {
     endpoint: &'a E,
 }
 
-impl<E: AppEndpoint> AppService<'a, E> {
+impl<'a, E: AppEndpoint> AppService<'a, E> {
     #[allow(missing_docs)]
     pub fn call(&mut self, request: Request<ReqBody>) -> AppFuture<'a, E> {
         AppFuture {
@@ -73,7 +73,7 @@ enum State<T> {
     Gone,
 }
 
-impl<E: AppEndpoint> Future for AppFuture<'_, E> {
+impl<'a, E: AppEndpoint> Future for AppFuture<'a, E> {
     type Output = io::Result<Response<Either<Once<String>, <E::Output as Responder>::Body>>>;
 
     fn poll(self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
@@ -134,19 +134,19 @@ mod service {
     use std::io;
 
     use futures as futures01;
-    use futures_util::compat::{Compat, TokioDefaultExecutor};
+    use futures_util::compat::{Compat, TokioDefaultSpawn};
     use futures_util::try_future::TryFutureExt;
     use http::Request;
     use hyper::body::Body;
     use hyper::service::{NewService, Service};
 
-    use generic::Either;
-    use input::body::ReqBody;
-    use output::payloads::Once;
-    use output::Responder;
-    use rt::AppEndpoint;
+    use crate::generic::Either;
+    use crate::input::body::ReqBody;
+    use crate::output::payloads::Once;
+    use crate::output::Responder;
+    use crate::rt::AppEndpoint;
 
-    impl<E: AppEndpoint> NewService for App<'a, E> {
+    impl<'a, E: AppEndpoint> NewService for App<'a, E> {
         type ReqBody = Body;
         type ResBody = Either<Once<String>, <E::Output as Responder>::Body>;
         type Error = io::Error;
@@ -159,14 +159,14 @@ mod service {
         }
     }
 
-    impl<E: AppEndpoint> Service for AppService<'a, E> {
+    impl<'a, E: AppEndpoint> Service for AppService<'a, E> {
         type ReqBody = Body;
         type ResBody = Either<Once<String>, <E::Output as Responder>::Body>;
         type Error = io::Error;
-        type Future = Compat<PinBox<AppFuture<'a, E>>, TokioDefaultExecutor>;
+        type Future = Compat<PinBox<AppFuture<'a, E>>, TokioDefaultSpawn>;
 
         fn call(&mut self, request: Request<Self::ReqBody>) -> Self::Future {
-            PinBox::new(self.call(request.map(ReqBody::from_hyp))).compat(TokioDefaultExecutor)
+            PinBox::new(self.call(request.map(ReqBody::from_hyp))).compat(TokioDefaultSpawn)
         }
     }
 }
