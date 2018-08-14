@@ -26,8 +26,6 @@ maintenance = { status = "actively-developed" }
 members = [
   # "finchers-derive",
 
-  # "examples/basic-auth",
-  # "examples/form",
   "examples/todo",
 ]
 
