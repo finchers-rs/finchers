@@ -56,12 +56,6 @@ impl Input {
         &self.request
     }
 
-    /// Return a mutable reference to the value of raw HTTP request without the message body.
-    #[inline]
-    pub fn request_pinned_mut(self: PinMut<'a, Self>) -> PinMut<'a, Request<ReqBody>> {
-        unsafe { PinMut::map_unchecked(self, |input| &mut input.request) }
-    }
-
     /// Takes the instance of `RequestBody` from this value.
     #[inline]
     pub fn payload(self: PinMut<'_, Self>) -> Option<Payload> {
