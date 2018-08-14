@@ -5,9 +5,10 @@ use std::mem::PinMut;
 
 use crate::error::Never;
 use crate::input::Input;
-use crate::output::payloads::Once;
+use crate::output::payload::Once;
 use crate::output::Responder;
 
+/// An instance of `Responder` representing UTF-8 text responses.
 #[derive(Debug)]
 pub struct Text<T>(pub T);
 

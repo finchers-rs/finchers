@@ -19,8 +19,8 @@ fn main() -> finchers::rt::LaunchResult<()> {
 fn endpoint(db: Database) -> impl finchers::rt::AppEndpoint {
     use finchers::endpoint::EndpointExt;
     use finchers::endpoints::body;
-    use finchers::output::responders::Json;
     use finchers::output::status::Created;
+    use finchers::output::Json;
     use finchers::{route, routes};
 
     use futures::future::TryFutureExt;

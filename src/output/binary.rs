@@ -7,9 +7,10 @@ use http::{header, Response};
 
 use crate::error::Never;
 use crate::input::Input;
-use crate::output::payloads::Once;
+use crate::output::payload::Once;
 use crate::output::Responder;
 
+/// An instance of `Responder` representing binary responses.
 #[derive(Debug)]
 pub struct Binary<T>(pub T);
 

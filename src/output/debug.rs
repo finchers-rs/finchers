@@ -6,10 +6,10 @@ use http::Response;
 use super::text::Text;
 use crate::error::Never;
 use crate::input::Input;
-use crate::output::payloads::Once;
+use crate::output::payload::Once;
 use crate::output::Responder;
 
-/// A helper struct for creating the response from types which implements `fmt::Debug`.
+/// An instance of `Responder` representing text responses with debug output.
 ///
 /// NOTE: This wrapper is only for debugging and should not use in the production code.
 #[derive(Debug)]

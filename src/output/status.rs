@@ -5,7 +5,7 @@ use std::mem::PinMut;
 
 use crate::error::Never;
 use crate::input::Input;
-use crate::output::payloads::Empty;
+use crate::output::payload::Empty;
 use crate::output::Responder;
 
 #[derive(Debug)]
