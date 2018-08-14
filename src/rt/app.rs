@@ -17,7 +17,7 @@ use input::body::ReqBody;
 use input::{with_set_cx, Cursor, Input};
 use output::payloads::Once;
 use output::Responder;
-use runtime::AppEndpoint;
+use rt::AppEndpoint;
 
 /// A factory of HTTP service which wraps an `Endpoint`.
 #[derive(Debug)]
@@ -149,7 +149,7 @@ mod service {
     use input::body::ReqBody;
     use output::payloads::Once;
     use output::Responder;
-    use runtime::AppEndpoint;
+    use rt::AppEndpoint;
 
     impl<E: AppEndpoint> NewService for App<'a, E> {
         type ReqBody = Body;

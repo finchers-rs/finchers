@@ -21,7 +21,7 @@
 //!
 //! extern crate finchers;
 //!
-//! fn build_endpoint() -> impl finchers::AppEndpoint {
+//! fn build_endpoint() -> impl finchers::rt::AppEndpoint {
 //!     use finchers::{route, routes};
 //!     use finchers::endpoint::EndpointExt;
 //!     use finchers::endpoints::body::body;
@@ -35,10 +35,10 @@
 //!     ])
 //! }
 //!
-//! fn main() -> finchers::LaunchResult<()> {
+//! fn main() -> finchers::rt::LaunchResult<()> {
 //!     let endpoint = build_endpoint();
 //! # std::mem::drop(move || {
-//!     finchers::launch(endpoint)
+//!     finchers::rt::launch(endpoint)
 //! # });
 //! # Ok(())
 //! }
@@ -82,7 +82,4 @@ pub mod generic;
 pub mod input;
 pub mod json;
 pub mod output;
-pub mod runtime;
-
-pub use runtime::server::{launch, LaunchResult};
-pub use runtime::AppEndpoint;
+pub mod rt;

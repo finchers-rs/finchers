@@ -1,6 +1,6 @@
 use finchers::endpoint::EndpointExt;
 use finchers::endpoints::path::{param, path, remains};
-use finchers::runtime::local;
+use finchers::rt::local;
 
 #[test]
 fn test_match_single_segment() {

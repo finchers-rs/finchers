@@ -8,7 +8,7 @@
 //! # use finchers::endpoints::method::get;
 //! # use finchers::endpoints::path::{path, param};
 //! # use finchers::endpoint::EndpointExt;
-//! # use finchers::runtime::local;
+//! # use finchers::rt::local;
 //! # use finchers::route;
 //!
 //! let endpoint = route![@get / "api" / "v1" / "posts" / u32 / "stars"]

@@ -1,8 +1,11 @@
 //! Runtime support for Finchers, which supports serving asynchronous HTTP services.
 
-pub mod app;
 pub mod local;
-pub mod server;
+
+mod app;
+mod server;
+
+pub use self::server::{launch, LaunchResult};
 
 /// A type alias represents endpoints which can be used as an HTTP application.
 pub trait AppEndpoint: sealed::Sealed {}
