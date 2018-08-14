@@ -1,4 +1,4 @@
-//! Components for parsing the HTTP request body.
+//! Endpoints for parsing the message body.
 
 use std::future::Future;
 use std::marker::PhantomData;
@@ -22,10 +22,11 @@ use input::body::FromBody;
 use input::query::{FromQuery, QueryItems};
 use input::{self, with_get_cx, Cursor, Input};
 
-/// Creates an endpoint which will take the instance of `Payload` from the context.
+/// Creates an endpoint which takes the instance of [`Payload`](input::body::Payload)
+/// from the context.
 ///
-/// If the instance has already been stolen by another Future, this endpoint will return
-/// an error.
+/// If the instance of `Payload` has already been stolen by another endpoint, it will
+/// return an error.
 pub fn payload() -> Payload {
     (Payload { _priv: () }).output::<One<input::body::Payload>>()
 }
@@ -137,8 +138,8 @@ fn stolen_payload() -> Error {
 
 // ==== Body ====
 
-/// Creates an endpoint which will poll the all contents of the message body
-/// from the client and transform the received bytes into a value of `T`.
+/// Creates an endpoint which receives the all contents of the message body
+/// and transform the received bytes into a value of `T`.
 pub fn body<T>() -> Body<T>
 where
     T: FromBody,
@@ -208,6 +209,10 @@ where
     type Output = Result<One<T>, Error>;
 
     fn poll(mut self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
+        if let Err(err) = with_get_cx(|input| T::validate(input)) {
+            return Poll::Ready(Err(bad_request(err)));
+        }
+
         let data = try_ready!(self.receive_all().poll(cx));
         Poll::Ready(
             with_get_cx(|input| T::from_body(data, input))

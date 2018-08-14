@@ -1,4 +1,4 @@
-//! Basic endpoints and utilities for parsing HTTP requests
+//! Built-in endpoints.
 
 pub mod body;
 pub mod header;

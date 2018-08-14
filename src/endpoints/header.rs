@@ -16,9 +16,11 @@ use generic::{one, One};
 use input::header::FromHeader;
 use input::{with_get_cx, Cursor, Input};
 
-// ==== Required ====
+// ==== Optional ====
 
 /// Create an endpoint which parses an entry in the HTTP header.
+///
+/// This endpoints will skip the request if the specified header is missing.
 ///
 /// # Example
 ///
@@ -144,9 +146,12 @@ where
     }
 }
 
-// ==== Optional ====
+// ==== Required ====
 
 /// Create an endpoint which parses an entry in the HTTP header.
+///
+/// This endpoint will not skip the request and will return an error if the
+/// header value is missing.
 ///
 /// # Example
 ///
@@ -199,7 +204,7 @@ where
     }).output::<One<H>>()
 }
 
-/// An instance of endpoint for extracting a header value.
+#[allow(missing_docs)]
 pub struct Required<H> {
     _marker: PhantomData<fn() -> H>,
 }
@@ -262,7 +267,7 @@ where
             match input.request().headers().get(H::HEADER_NAME) {
                 Some(h) => H::from_header(h).map(one).map_err(bad_request),
                 None => Err(bad_request(format_err!(
-                    "missing header value: `{}'",
+                    "missing header: `{}'",
                     H::HEADER_NAME
                 ))),
             }

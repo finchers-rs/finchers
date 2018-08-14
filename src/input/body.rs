@@ -74,6 +74,12 @@ pub trait FromBody: 'static + Sized {
     /// The error type which will be returned from `from_data`.
     type Error: Into<failure::Error>;
 
+    /// Validates the request before starting receiving the request data.
+    #[allow(unused_variables)]
+    fn validate(input: PinMut<'_, Input>) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
     /// Performs conversion from raw bytes into itself.
     fn from_body(body: Bytes, input: PinMut<'_, Input>) -> Result<Self, Self::Error>;
 }
