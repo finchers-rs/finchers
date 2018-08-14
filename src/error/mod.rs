@@ -3,7 +3,7 @@
 mod failure;
 mod never;
 
-pub use self::failure::Failure;
+pub use self::failure::{bad_request, internal_server_error};
 pub use self::never::Never;
 
 use std::borrow::Cow;

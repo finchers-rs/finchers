@@ -52,7 +52,24 @@ fn test_or_with_rejection_path() {
 
 #[test]
 fn test_or_with_rejection_header() {
-    let endpoint = header::parse::<String>("authorization")
+    use finchers::input::header::FromHeader;
+    use http::header::HeaderValue;
+    use std::str;
+
+    #[derive(Debug, PartialEq)]
+    struct Authorization(String);
+
+    impl FromHeader for Authorization {
+        const HEADER_NAME: &'static str = "authorization";
+        type Error = str::Utf8Error;
+        fn from_header(v: &HeaderValue) -> Result<Self, Self::Error> {
+            str::from_utf8(v.as_bytes())
+                .map(ToOwned::to_owned)
+                .map(Authorization)
+        }
+    }
+
+    let endpoint = header::optional::<Authorization>()
         .or(reject(|_| NotPresent::new("missing authorization header")));
 
     assert_eq!(
@@ -60,7 +77,7 @@ fn test_or_with_rejection_header() {
             .header("authorization", "Basic xxxx")
             .apply(&endpoint)
             .map(|res| res.map_err(|e| e.to_string())),
-        Some(Ok(("Basic xxxx".into(),))),
+        Some(Ok((Authorization("Basic xxxx".into()),))),
     );
 
     assert_eq!(

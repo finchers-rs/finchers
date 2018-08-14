@@ -8,16 +8,15 @@ use std::{fmt, mem, task};
 
 use bytes::Bytes;
 use bytes::BytesMut;
-use failure::{format_err, Fail};
+use failure::format_err;
 use futures_util::try_ready;
-use http::StatusCode;
 use mime;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use serde::de::DeserializeOwned;
 use serde_json;
 
 use endpoint::{Endpoint, EndpointExt};
-use error::{Error, Failure, HttpError};
+use error::{bad_request, internal_server_error, Error};
 use generic::{one, One};
 use input::body::FromBody;
 use input::query::{FromQuery, QueryItems};
@@ -66,8 +65,11 @@ impl Future for PayloadFuture {
     type Output = Result<One<input::body::Payload>, Error>;
 
     fn poll(self: PinMut<'_, Self>, _: &mut task::Context<'_>) -> Poll<Self::Output> {
-        let payload = with_get_cx(|input| input.payload());
-        Poll::Ready(payload.map(one).ok_or_else(|| StolenPayload.into()))
+        Poll::Ready(
+            with_get_cx(|input| input.payload())
+                .map(one)
+                .ok_or_else(stolen_payload),
+        )
     }
 }
 
@@ -113,7 +115,7 @@ impl Future for ReceiveAll {
                 State::Start => {
                     let payload = match with_get_cx(|input| input.payload()) {
                         Some(payload) => payload,
-                        None => return Poll::Ready(Err(StolenPayload.into())),
+                        None => return Poll::Ready(Err(stolen_payload())),
                     };
                     *self.state() = State::Receiving(payload, BytesMut::new());
                     continue 'poll;
@@ -127,14 +129,10 @@ impl Future for ReceiveAll {
     }
 }
 
-#[derive(Debug, Fail)]
-#[fail(display = "The instance of Payload has already been stolen by another endpoint.")]
-struct StolenPayload;
-
-impl HttpError for StolenPayload {
-    fn status_code(&self) -> StatusCode {
-        StatusCode::INTERNAL_SERVER_ERROR
-    }
+fn stolen_payload() -> Error {
+    Error::from(internal_server_error(format_err!(
+        "The instance of Payload has already been stolen by another endpoint."
+    )))
 }
 
 // ==== Body ====
@@ -144,7 +142,6 @@ impl HttpError for StolenPayload {
 pub fn body<T>() -> Body<T>
 where
     T: FromBody,
-    T::Error: Fail,
 {
     (Body {
         _marker: PhantomData,
@@ -174,27 +171,22 @@ impl<T> fmt::Debug for Body<T> {
 impl<T> Endpoint for Body<T>
 where
     T: FromBody,
-    T::Error: Fail,
 {
     type Output = One<T>;
     type Future = BodyFuture<T>;
 
     fn apply(
         &self,
-        input: PinMut<'_, Input>,
+        _: PinMut<'_, Input>,
         cursor: Cursor<'c>,
     ) -> Option<(Self::Future, Cursor<'c>)> {
-        if T::is_match(input) {
-            Some((
-                BodyFuture {
-                    receive_all: ReceiveAll::new(),
-                    _marker: PhantomData,
-                },
-                cursor,
-            ))
-        } else {
-            None
-        }
+        Some((
+            BodyFuture {
+                receive_all: ReceiveAll::new(),
+                _marker: PhantomData,
+            },
+            cursor,
+        ))
     }
 }
 
@@ -212,7 +204,6 @@ impl<T> BodyFuture<T> {
 impl<T> Future for BodyFuture<T>
 where
     T: FromBody,
-    T::Error: Fail,
 {
     type Output = Result<One<T>, Error>;
 
@@ -221,20 +212,8 @@ where
         Poll::Ready(
             with_get_cx(|input| T::from_body(data, input))
                 .map(one)
-                .map_err(|cause| BodyParseError { cause }.into()),
+                .map_err(bad_request),
         )
-    }
-}
-
-#[derive(Debug, Fail)]
-#[fail(display = "failed to parse the request body: {}", cause)]
-struct BodyParseError<E: Fail> {
-    cause: E,
-}
-
-impl<E: Fail> HttpError for BodyParseError<E> {
-    fn status_code(&self) -> StatusCode {
-        StatusCode::BAD_REQUEST
     }
 }
 
@@ -297,23 +276,18 @@ where
 
     fn poll(mut self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
         let err = with_get_cx(|input| match input.content_type() {
-            Ok(Some(m)) if *m != mime::APPLICATION_JSON => Some(Failure::new(
-                StatusCode::BAD_REQUEST,
-                format_err!("The content type must be application/json"),
-            )),
-            Err(err) => Some(Failure::new(StatusCode::BAD_REQUEST, err)),
+            Ok(Some(m)) if *m != mime::APPLICATION_JSON => Some(bad_request(format_err!(
+                "The content type must be application/json"
+            ))),
+            Err(err) => Some(bad_request(err)),
             _ => None,
         });
         if let Some(err) = err {
-            return Poll::Ready(Err(err.into()));
+            return Poll::Ready(Err(err));
         }
 
         let data = try_ready!(self.receive_all().poll(cx));
-        Poll::Ready(
-            serde_json::from_slice(&*data)
-                .map(one)
-                .map_err(|cause| Failure::new(StatusCode::BAD_REQUEST, cause).into()),
-        )
+        Poll::Ready(serde_json::from_slice(&*data).map(one).map_err(bad_request))
     }
 }
 
@@ -323,7 +297,6 @@ where
 pub fn urlencoded<T>() -> UrlEncoded<T>
 where
     T: FromQuery,
-    T::Error: Fail,
 {
     UrlEncoded {
         _marker: PhantomData,
@@ -339,7 +312,6 @@ pub struct UrlEncoded<T> {
 impl<T> Endpoint for UrlEncoded<T>
 where
     T: FromQuery,
-    T::Error: Fail,
 {
     type Output = (T,);
     type Future = UrlEncodedFuture<T>;
@@ -373,28 +345,28 @@ impl<T> UrlEncodedFuture<T> {
 impl<T> Future for UrlEncodedFuture<T>
 where
     T: FromQuery,
-    T::Error: Fail,
 {
     type Output = Result<(T,), Error>;
 
     fn poll(mut self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
         let err = with_get_cx(|input| match input.content_type() {
-            Ok(Some(m)) if *m != mime::APPLICATION_WWW_FORM_URLENCODED => Some(Failure::new(
-                StatusCode::BAD_REQUEST,
-                format_err!("The content type must be application/www-x-urlformencoded"),
-            )),
-            Err(err) => Some(Failure::new(StatusCode::BAD_REQUEST, err)),
+            Ok(Some(m)) if *m != mime::APPLICATION_WWW_FORM_URLENCODED => Some(
+                bad_request(format_err!(
+                    "The content type must be application/www-x-urlformencoded"
+                )).into(),
+            ),
+            Err(err) => Some(bad_request(err).into()),
             _ => None,
         });
         if let Some(err) = err {
-            return Poll::Ready(Err(err.into()));
+            return Poll::Ready(Err(err));
         }
 
         let data = try_ready!(self.receive_all().poll(cx));
         Poll::Ready(
             FromQuery::from_query(QueryItems::new(&*data))
                 .map(one)
-                .map_err(|cause| Failure::new(StatusCode::BAD_REQUEST, cause).into()),
+                .map_err(|cause| bad_request(cause).into()),
         )
     }
 }

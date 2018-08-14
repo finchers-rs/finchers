@@ -1,6 +1,6 @@
 //! Components for parsing query strings.
 
-use failure::SyncFailure;
+use failure::{Error, SyncFailure};
 use serde::de;
 use serde::de::{DeserializeOwned, IntoDeserializer};
 use serde_qs;
@@ -14,7 +14,7 @@ use super::encoded::EncodedStr;
 /// Trait representing the transformation from a set of HTTP query.
 pub trait FromQuery: Sized + 'static {
     /// The error type which will be returned from `from_query`.
-    type Error;
+    type Error: Into<Error>;
 
     /// Perform transformation from `QueryItems` into `Self`.
     fn from_query(query: QueryItems<'_>) -> Result<Self, Self::Error>;

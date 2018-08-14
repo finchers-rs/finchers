@@ -1,22 +1,18 @@
 #![allow(missing_docs)]
 
 use std::mem::PinMut;
+use std::string::FromUtf8Error;
 use std::task::{self, Poll};
 
 use bytes::Bytes;
-use failure::Fail;
+use failure;
 use futures::{self as futures01, Async};
 use http::header::HeaderMap;
-use http::StatusCode;
 use hyper::body::{Body, Chunk, Payload as _Payload};
 use pin_utils::unsafe_unpinned;
 
-use error::{Error, Failure, Never};
+use error::{internal_server_error, Error, Never};
 use input::Input;
-
-fn internal_server_error(err: impl Fail) -> Error {
-    Failure::new(StatusCode::INTERNAL_SERVER_ERROR, err).into()
-}
 
 #[derive(Debug)]
 pub struct Payload {
@@ -30,14 +26,18 @@ impl Payload {
         mut self: PinMut<'_, Self>,
         cx: &mut task::Context<'_>,
     ) -> Poll<Result<Option<Chunk>, Error>> {
-        poll_01_with_cx(cx, || self.body().poll_data()).map_err(internal_server_error)
+        poll_01_with_cx(cx, || self.body().poll_data())
+            .map_err(internal_server_error)
+            .map_err(Into::into)
     }
 
     pub fn poll_trailers(
         mut self: PinMut<'_, Self>,
         cx: &mut task::Context<'_>,
     ) -> Poll<Result<Option<HeaderMap>, Error>> {
-        poll_01_with_cx(cx, || self.body().poll_trailers()).map_err(internal_server_error)
+        poll_01_with_cx(cx, || self.body().poll_trailers())
+            .map_err(internal_server_error)
+            .map_err(Into::into)
     }
 
     pub fn is_end_stream(&self) -> bool {
@@ -72,13 +72,7 @@ impl ReqBody {
 /// Trait representing the transformation from a message body.
 pub trait FromBody: 'static + Sized {
     /// The error type which will be returned from `from_data`.
-    type Error;
-
-    /// Returns whether the incoming request matches to this type or not.
-    #[allow(unused_variables)]
-    fn is_match(input: PinMut<'_, Input>) -> bool {
-        true
-    }
+    type Error: Into<failure::Error>;
 
     /// Performs conversion from raw bytes into itself.
     fn from_body(body: Bytes, input: PinMut<'_, Input>) -> Result<Self, Self::Error>;
@@ -93,11 +87,10 @@ impl FromBody for Bytes {
 }
 
 impl FromBody for String {
-    type Error = Failure;
+    type Error = FromUtf8Error;
 
     fn from_body(body: Bytes, _: PinMut<'_, Input>) -> Result<Self, Self::Error> {
         String::from_utf8(body.to_vec())
-            .map_err(|cause| Failure::new(StatusCode::BAD_REQUEST, cause))
     }
 }
 

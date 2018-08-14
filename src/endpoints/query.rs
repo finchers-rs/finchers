@@ -6,11 +6,10 @@ use std::mem::PinMut;
 use std::task::Poll;
 use std::{fmt, task};
 
-use failure::{format_err, Fail};
-use http::StatusCode;
+use failure::format_err;
 
 use endpoint::Endpoint;
-use error::{Error, Failure};
+use error::{bad_request, Error};
 use generic::{one, One};
 use input::query::{FromQuery, QueryItems};
 use input::{with_get_cx, Cursor, Input};
@@ -26,8 +25,9 @@ use input::{with_get_cx, Cursor, Input};
 /// # extern crate finchers;
 /// # extern crate serde;
 /// # use finchers::endpoints::path::path;
-/// # use finchers::endpoints::query::{query, from_csv, Serde};
+/// # use finchers::endpoints::query::{query};
 /// # use finchers::endpoint::EndpointExt;
+/// # use finchers::input::query::{from_csv, Serde};
 /// # use serde::Deserialize;
 /// #
 /// #[derive(Debug, Deserialize)]
@@ -44,7 +44,6 @@ use input::{with_get_cx, Cursor, Input};
 pub fn query<T>() -> Query<T>
 where
     T: FromQuery,
-    T::Error: Fail,
 {
     Query {
         _marker: PhantomData,
@@ -74,7 +73,6 @@ impl<T> fmt::Debug for Query<T> {
 impl<T> Endpoint for Query<T>
 where
     T: FromQuery,
-    T::Error: Fail,
 {
     type Output = One<T>;
     type Future = QueryFuture<T>;
@@ -102,7 +100,6 @@ pub struct QueryFuture<T> {
 impl<T> Future for QueryFuture<T>
 where
     T: FromQuery,
-    T::Error: Fail,
 {
     type Output = Result<One<T>, Error>;
 
@@ -110,11 +107,10 @@ where
         Poll::Ready(with_get_cx(|input| match input.request().uri().query() {
             Some(query) => T::from_query(QueryItems::new(query))
                 .map(one)
-                .map_err(|cause| Failure::new(StatusCode::BAD_REQUEST, cause).into()),
-            None => Err(Failure::new(
-                StatusCode::BAD_REQUEST,
-                format_err!("The query string is not exist in the request"),
-            ).into()),
+                .map_err(|cause| bad_request(cause).into()),
+            None => {
+                Err(bad_request(format_err!("The query string is not exist in the request")).into())
+            }
         }))
     }
 }
