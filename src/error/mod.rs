@@ -12,8 +12,8 @@ use std::fmt;
 use std::ops::Deref;
 
 use failure::Fail;
-use http::header::HeaderMap;
-use http::StatusCode;
+use http::header::{HeaderMap, HeaderValue};
+use http::{header, Response, StatusCode};
 
 use generic::Either;
 
@@ -109,7 +109,6 @@ impl fmt::Display for Error {
 impl Deref for Error {
     type Target = dyn HttpError;
 
-    /// Returns the reference to inner `HttpError`.
     fn deref(&self) -> &Self::Target {
         &*self.0
     }
@@ -118,5 +117,18 @@ impl Deref for Error {
 impl PartialEq for Error {
     fn eq(&self, other: &Self) -> bool {
         self.status_code() == other.status_code()
+    }
+}
+
+impl Error {
+    pub(crate) fn to_response(&self) -> Response<String> {
+        let mut response = Response::new(format!("{:#}", self.0));
+        *response.status_mut() = self.0.status_code();
+        response.headers_mut().insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("text/plain; charset=utf-8"),
+        );
+        self.0.headers(response.headers_mut());
+        response
     }
 }

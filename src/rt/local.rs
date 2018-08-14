@@ -8,7 +8,7 @@
 //! # use finchers::endpoints::method::get;
 //! # use finchers::endpoints::path::{path, param};
 //! # use finchers::endpoint::EndpointExt;
-//! # use finchers::local;
+//! # use finchers::rt::local;
 //! # use finchers::route;
 //!
 //! let endpoint = route![@get / "api" / "v1" / "posts" / u32 / "stars"]
@@ -32,6 +32,7 @@ use futures_util::try_future::TryFutureExt;
 use http::header::{HeaderName, HeaderValue};
 use http::{HttpTryFrom, Method, Request, Uri};
 use hyper::body::Body;
+use pin_utils::pin_mut;
 use tokio::runtime::current_thread::Runtime;
 
 use endpoint::Endpoint;
@@ -144,41 +145,36 @@ impl LocalRequest {
         E: Endpoint,
     {
         let LocalRequest { mut request } = self;
-
         let request = request.take().expect("The request has already applied");
-        let mut input = Input::new(request);
 
-        let mut in_flight = {
-            let input = unsafe { PinMut::new_unchecked(&mut input) };
-            let cursor = unsafe {
-                let path = &*(input.uri().path() as *const str);
-                Cursor::new(path)
+        let mut rt = Runtime::new().expect("rt");
+
+        let input = Input::new(request);
+        pin_mut!(input);
+
+        let future = {
+            let mut in_flight = {
+                let cursor = unsafe {
+                    let path = &*(input.uri().path() as *const str);
+                    Cursor::new(path)
+                };
+                endpoint.apply(input.reborrow(), cursor).map(|res| res.0)
             };
-            endpoint.apply(input, cursor).map(|res| res.0)
-        };
 
-        let future = poll_fn(move |cx| match in_flight {
-            Some(ref mut f) => {
-                let input = unsafe { PinMut::new_unchecked(&mut input) };
-                with_set_cx(input, || {
+            poll_fn(move |cx| match in_flight {
+                Some(ref mut f) => with_set_cx(input.reborrow(), || {
                     unsafe { PinMut::new_unchecked(f) }
                         .try_poll(cx)
                         .map_ok(Some)
-                })
-            }
-            None => Poll::Ready(Ok(None)),
-        });
+                }),
+                None => Poll::Ready(Ok(None)),
+            })
+        };
 
-        match block_on(future) {
+        match rt.block_on(PinBox::new(future).compat(TokioDefaultExecutor)) {
             Ok(Some(ok)) => Some(Ok(ok)),
             Ok(None) => None,
             Err(err) => Some(Err(err)),
         }
     }
-}
-
-fn block_on<F: TryFuture>(future: F) -> Result<F::Ok, F::Error> {
-    let future = PinBox::new(future.into_future()).compat(TokioDefaultExecutor);
-    let mut rt = Runtime::new().expect("rt");
-    rt.block_on(future)
 }

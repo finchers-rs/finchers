@@ -21,7 +21,7 @@
 //!
 //! extern crate finchers;
 //!
-//! fn build_endpoint() -> impl finchers::AppEndpoint {
+//! fn build_endpoint() -> impl finchers::rt::AppEndpoint {
 //!     use finchers::{route, routes};
 //!     use finchers::endpoint::EndpointExt;
 //!     use finchers::endpoints::body::body;
@@ -35,10 +35,10 @@
 //!     ])
 //! }
 //!
-//! fn main() -> finchers::LaunchResult<()> {
+//! fn main() -> finchers::rt::LaunchResult<()> {
 //!     let endpoint = build_endpoint();
 //! # std::mem::drop(move || {
-//!     finchers::launch(endpoint)
+//!     finchers::rt::launch(endpoint)
 //! # });
 //! # Ok(())
 //! }
@@ -62,16 +62,13 @@ extern crate futures_core; // 0.3
 extern crate futures_util; // 0.3
 extern crate http;
 extern crate hyper;
+extern crate log;
 extern crate mime;
 extern crate percent_encoding;
 extern crate pin_utils;
-extern crate scoped_tls;
 extern crate serde;
 extern crate serde_json;
 extern crate serde_qs;
-extern crate slog;
-extern crate slog_async;
-extern crate slog_term;
 extern crate structopt;
 extern crate tokio;
 
@@ -84,9 +81,5 @@ pub mod error;
 pub mod generic;
 pub mod input;
 pub mod json;
-pub mod local;
 pub mod output;
-pub mod runtime;
-
-pub use runtime::server::{launch, LaunchResult};
-pub use runtime::AppEndpoint;
+pub mod rt;

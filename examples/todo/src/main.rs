@@ -11,13 +11,13 @@ extern crate serde;
 
 use db::Database;
 
-fn main() -> finchers::LaunchResult<()> {
+fn main() -> finchers::rt::LaunchResult<()> {
     let database = Database::default();
     let endpoint = endpoint(database);
-    finchers::launch(endpoint)
+    finchers::rt::launch(endpoint)
 }
 
-fn endpoint(db: Database) -> impl finchers::AppEndpoint {
+fn endpoint(db: Database) -> impl finchers::rt::AppEndpoint {
     use finchers::endpoint::EndpointExt;
     use finchers::endpoints::body::body;
     use finchers::json::Json;

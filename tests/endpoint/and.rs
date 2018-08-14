@@ -1,6 +1,6 @@
 use finchers::endpoint::{ok, reject, EndpointExt};
 use finchers::error::NotPresent;
-use finchers::local;
+use finchers::rt::local;
 
 #[test]
 fn test_and_all_ok() {
