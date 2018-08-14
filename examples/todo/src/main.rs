@@ -19,8 +19,8 @@ fn main() -> finchers::rt::LaunchResult<()> {
 
 fn endpoint(db: Database) -> impl finchers::rt::AppEndpoint {
     use finchers::endpoint::EndpointExt;
-    use finchers::endpoints::body::body;
-    use finchers::json::Json;
+    use finchers::endpoints::body;
+    use finchers::output::responders::Json;
     use finchers::{route, routes};
 
     use futures::future::TryFutureExt;
@@ -36,15 +36,15 @@ fn endpoint(db: Database) -> impl finchers::rt::AppEndpoint {
         .and_then(|conn| db::all_todos(conn).map_ok(Json));
 
     let add_todo = route!(@post /)
-        .and(body())
+        .and(body::json())
         .and(&db)
-        .and_then(|Json(new_todo), conn| db::add_todo(conn, new_todo).map_ok(Json).map_ok(Created));
+        .and_then(|new_todo, conn| db::add_todo(conn, new_todo).map_ok(Json).map_ok(Created));
 
     let patch_todo =
         route!(@patch / u64 /)
-            .and(body())
+            .and(body::json())
             .and(&db)
-            .and_then(|id, Json(patch), conn| {
+            .and_then(|id, patch, conn| {
                 db::apply_patch(conn, id, patch).map_ok(|todo_opt| todo_opt.map(Json))
             });
 
@@ -86,15 +86,15 @@ mod model {
 }
 
 mod db {
+    use failure::format_err;
     use futures::future::{ready, Future};
     use std::sync::atomic::{AtomicU64, Ordering};
     use std::sync::{Arc, RwLock};
 
     use finchers::endpoint::{self, IntoEndpoint};
-    use finchers::error::Error;
+    use finchers::error::{internal_server_error, Error};
 
     use model::{NewTodo, PatchTodo, Todo};
-    use util::internal_server_error;
 
     #[derive(Debug, Default, Clone)]
     pub struct Database {
@@ -128,7 +128,7 @@ mod db {
             conn.inner
                 .todos
                 .read()
-                .map_err(internal_server_error)
+                .map_err(|err| internal_server_error(format_err!("{}", err)))
                 .and_then(|todos| {
                     let found = todos.iter().find(|todo| todo.id == id).cloned();
                     Ok(found)
@@ -141,7 +141,7 @@ mod db {
             conn.inner
                 .todos
                 .read()
-                .map_err(internal_server_error)
+                .map_err(|err| internal_server_error(format_err!("{}", err)))
                 .map(|todos| todos.clone()),
         )
     }
@@ -151,7 +151,7 @@ mod db {
             conn.inner
                 .todos
                 .write()
-                .map_err(internal_server_error)
+                .map_err(|err| internal_server_error(format_err!("{}", err)))
                 .and_then(|mut todos| {
                     let new_todo = Todo {
                         id: conn.inner.counter.fetch_add(1, Ordering::SeqCst),
@@ -173,7 +173,7 @@ mod db {
             conn.inner
                 .todos
                 .write()
-                .map_err(internal_server_error)
+                .map_err(|err| internal_server_error(format_err!("{}", err)))
                 .map(|mut todos| {
                     todos.iter_mut().find(|todo| todo.id == id).map(|todo| {
                         if let Some(text) = patch.text {
@@ -193,7 +193,7 @@ mod db {
             conn.inner
                 .todos
                 .write()
-                .map_err(internal_server_error)
+                .map_err(|err| internal_server_error(format_err!("{}", err)))
                 .map(|mut todos| {
                     if let Some(pos) = todos.iter().position(|todo| todo.id == id) {
                         todos.remove(pos);
@@ -207,21 +207,11 @@ mod db {
 }
 
 mod util {
-    use finchers::error::{Error, Failure};
     use finchers::input::Input;
     use finchers::output::Responder;
 
-    use failure::format_err;
     use http::{Response, StatusCode};
-    use std::fmt::Display;
     use std::mem::PinMut;
-
-    pub fn internal_server_error<E: Display>(err: E) -> Error {
-        Error::from(Failure::new(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format_err!("{}", err),
-        ))
-    }
 
     #[derive(Debug)]
     pub struct Created<T>(pub T);
