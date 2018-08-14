@@ -1,23 +1,16 @@
 //! Components for parsing the query string and urlencoded payload.
 
 use std::future::Future;
-use std::iter::FromIterator;
 use std::marker::PhantomData;
 use std::mem::PinMut;
-use std::ops::Deref;
 use std::task::Poll;
 use std::{fmt, task};
 
-use bytes::Bytes;
-use failure::{Fail, SyncFailure};
-use http::StatusCode;
-use serde::de::{self, DeserializeOwned, IntoDeserializer};
-use {mime, serde_qs};
+use failure::format_err;
 
 use endpoint::Endpoint;
-use error::{Error, HttpError};
+use error::{bad_request, Error};
 use generic::{one, One};
-use input::body::FromBody;
 use input::query::{FromQuery, QueryItems};
 use input::{with_get_cx, Cursor, Input};
 
@@ -32,8 +25,9 @@ use input::{with_get_cx, Cursor, Input};
 /// # extern crate finchers;
 /// # extern crate serde;
 /// # use finchers::endpoints::path::path;
-/// # use finchers::endpoints::query::{query, from_csv, Serde};
+/// # use finchers::endpoints::query::{query};
 /// # use finchers::endpoint::EndpointExt;
+/// # use finchers::input::query::{from_csv, Serde};
 /// # use serde::Deserialize;
 /// #
 /// #[derive(Debug, Deserialize)]
@@ -50,7 +44,6 @@ use input::{with_get_cx, Cursor, Input};
 pub fn query<T>() -> Query<T>
 where
     T: FromQuery,
-    T::Error: Fail,
 {
     Query {
         _marker: PhantomData,
@@ -80,7 +73,6 @@ impl<T> fmt::Debug for Query<T> {
 impl<T> Endpoint for Query<T>
 where
     T: FromQuery,
-    T::Error: Fail,
 {
     type Output = One<T>;
     type Future = QueryFuture<T>;
@@ -108,7 +100,6 @@ pub struct QueryFuture<T> {
 impl<T> Future for QueryFuture<T>
 where
     T: FromQuery,
-    T::Error: Fail,
 {
     type Output = Result<One<T>, Error>;
 
@@ -116,156 +107,10 @@ where
         Poll::Ready(with_get_cx(|input| match input.request().uri().query() {
             Some(query) => T::from_query(QueryItems::new(query))
                 .map(one)
-                .map_err(|cause| QueryError::Parse { cause }.into()),
-            None => Err((QueryError::MissingQuery as QueryError<::std::io::Error>).into()),
+                .map_err(bad_request),
+            None => Err(bad_request(format_err!(
+                "The query string is not exist in the request"
+            ))),
         }))
     }
-}
-
-/// A wrapper struct which contains a parsed content from the urlencoded string.
-#[derive(Debug)]
-pub struct Form<F>(pub F);
-
-impl<F> Form<F> {
-    /// Consume itself and return the instance of inner value.
-    pub fn into_inner(self) -> F {
-        self.0
-    }
-}
-
-impl<F> Deref for Form<F> {
-    type Target = F;
-
-    #[inline]
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<F> FromBody for Form<F>
-where
-    F: FromQuery + 'static,
-{
-    type Error = QueryError<F::Error>;
-
-    fn from_body(body: Bytes, input: PinMut<'_, Input>) -> Result<Self, Self::Error> {
-        if !input
-            .content_type()
-            .map_err(|_| QueryError::InvalidMediaType)?
-            .map_or(true, |m| *m == mime::APPLICATION_WWW_FORM_URLENCODED)
-        {
-            return Err(QueryError::InvalidMediaType);
-        }
-
-        FromQuery::from_query(QueryItems::new(&*body))
-            .map(Form)
-            .map_err(|cause| QueryError::Parse { cause })
-    }
-}
-
-/// All of error kinds when receiving/parsing the urlencoded data.
-#[derive(Debug)]
-pub enum QueryError<E> {
-    #[allow(missing_docs)]
-    MissingQuery,
-    #[allow(missing_docs)]
-    InvalidMediaType,
-    #[allow(missing_docs)]
-    Parse { cause: E },
-}
-
-impl<E: fmt::Display> fmt::Display for QueryError<E> {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            QueryError::MissingQuery => {
-                write!(formatter, "The query string is not exist in the request")
-            }
-            QueryError::InvalidMediaType => write!(
-                formatter,
-                "The content type must be application/www-x-urlformencoded"
-            ),
-            QueryError::Parse { ref cause } => write!(formatter, "{}", cause),
-        }
-    }
-}
-
-impl<E: Fail> Fail for QueryError<E> {}
-
-impl<E: Fail> HttpError for QueryError<E> {
-    fn status_code(&self) -> StatusCode {
-        StatusCode::BAD_REQUEST
-    }
-}
-
-/// A wrapper struct to add the implementation of `FromQuery` to `Deserialize`able types.
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub struct Serde<T>(pub T);
-
-impl<T> Serde<T> {
-    /// Consume itself and return the inner data of `T`.
-    pub fn into_inner(self) -> T {
-        self.0
-    }
-}
-
-impl<T> Deref for Serde<T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<T> FromQuery for Serde<T>
-where
-    T: DeserializeOwned + 'static,
-{
-    type Error = SyncFailure<serde_qs::Error>;
-
-    #[inline]
-    fn from_query(query: QueryItems<'_>) -> Result<Self, Self::Error> {
-        serde_qs::from_bytes(query.as_slice())
-            .map(Serde)
-            .map_err(SyncFailure::new)
-    }
-}
-
-#[allow(missing_debug_implementations)]
-struct CSVSeqVisitor<I, T> {
-    _marker: PhantomData<fn() -> (I, T)>,
-}
-
-impl<'de, I, T> de::Visitor<'de> for CSVSeqVisitor<I, T>
-where
-    I: FromIterator<T>,
-    T: de::Deserialize<'de>,
-{
-    type Value = I;
-
-    fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("a string")
-    }
-
-    fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
-    where
-        E: de::Error,
-    {
-        s.split(',')
-            .map(|s| de::Deserialize::deserialize(s.into_deserializer()))
-            .collect()
-    }
-}
-
-/// Deserialize a comma-separated string to a sequence of `T`.
-///
-/// This function is typically used as the attribute in the derivation of `serde::Deserialize`.
-pub fn from_csv<'de, D, I, T>(de: D) -> Result<I, D::Error>
-where
-    D: de::Deserializer<'de>,
-    I: FromIterator<T>,
-    T: de::Deserialize<'de>,
-{
-    de.deserialize_str(CSVSeqVisitor {
-        _marker: PhantomData,
-    })
 }

@@ -80,6 +80,5 @@ pub mod endpoints;
 pub mod error;
 pub mod generic;
 pub mod input;
-pub mod json;
 pub mod output;
 pub mod rt;

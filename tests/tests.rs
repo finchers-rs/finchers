@@ -4,6 +4,7 @@
 
 extern crate bytes;
 extern crate finchers;
+extern crate http;
 
 //mod codegen;
 mod endpoint;
