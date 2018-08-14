@@ -1,5 +1,14 @@
 //! Components for parsing query strings.
 
+use failure::SyncFailure;
+use serde::de;
+use serde::de::{DeserializeOwned, IntoDeserializer};
+use serde_qs;
+use std::fmt;
+use std::iter::FromIterator;
+use std::marker::PhantomData;
+use std::ops::Deref;
+
 use super::encoded::EncodedStr;
 
 /// Trait representing the transformation from a set of HTTP query.
@@ -64,6 +73,78 @@ impl<'a> Iterator for QueryItems<'a> {
     }
 }
 
+/// A wrapper struct to add the implementation of `FromQuery` to `Deserialize`able types.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct Serde<T>(pub T);
+
+impl<T> Serde<T> {
+    /// Consume itself and return the inner data of `T`.
+    pub fn into_inner(self) -> T {
+        self.0
+    }
+}
+
+impl<T> Deref for Serde<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T> FromQuery for Serde<T>
+where
+    T: DeserializeOwned + 'static,
+{
+    type Error = SyncFailure<serde_qs::Error>;
+
+    #[inline]
+    fn from_query(query: QueryItems<'_>) -> Result<Self, Self::Error> {
+        serde_qs::from_bytes(query.as_slice())
+            .map(Serde)
+            .map_err(SyncFailure::new)
+    }
+}
+
+#[allow(missing_debug_implementations)]
+struct CSVSeqVisitor<I, T> {
+    _marker: PhantomData<fn() -> (I, T)>,
+}
+
+impl<'de, I, T> de::Visitor<'de> for CSVSeqVisitor<I, T>
+where
+    I: FromIterator<T>,
+    T: de::Deserialize<'de>,
+{
+    type Value = I;
+
+    fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("a string")
+    }
+
+    fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        s.split(',')
+            .map(|s| de::Deserialize::deserialize(s.into_deserializer()))
+            .collect()
+    }
+}
+
+/// Deserialize a comma-separated string to a sequence of `T`.
+///
+/// This function is typically used as the attribute in the derivation of `serde::Deserialize`.
+pub fn from_csv<'de, D, I, T>(de: D) -> Result<I, D::Error>
+where
+    D: de::Deserializer<'de>,
+    I: FromIterator<T>,
+    T: de::Deserialize<'de>,
+{
+    de.deserialize_str(CSVSeqVisitor {
+        _marker: PhantomData,
+    })
+}
 /*
 #[cfg(test)]
 mod tests {

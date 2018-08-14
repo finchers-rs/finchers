@@ -8,7 +8,7 @@ use std::{fmt, mem, task};
 
 use bytes::Bytes;
 use bytes::BytesMut;
-use failure::Fail;
+use failure::{format_err, Fail};
 use futures_util::try_ready;
 use http::StatusCode;
 use mime;
@@ -17,9 +17,10 @@ use serde::de::DeserializeOwned;
 use serde_json;
 
 use endpoint::{Endpoint, EndpointExt};
-use error::{Error, HttpError};
+use error::{Error, Failure, HttpError};
 use generic::{one, One};
 use input::body::FromBody;
+use input::query::{FromQuery, QueryItems};
 use input::{self, with_get_cx, Cursor, Input};
 
 /// Creates an endpoint which will take the instance of `Payload` from the context.
@@ -295,36 +296,105 @@ where
     type Output = Result<(T,), Error>;
 
     fn poll(mut self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
-        if with_get_cx(|input| match input.content_type() {
-            Ok(Some(m)) if *m != mime::APPLICATION_JSON => true,
-            Err(..) => true,
-            _ => false,
-        }) {
-            return Err(JsonParseError::InvalidMediaType.into()).into();
+        let err = with_get_cx(|input| match input.content_type() {
+            Ok(Some(m)) if *m != mime::APPLICATION_JSON => Some(Failure::new(
+                StatusCode::BAD_REQUEST,
+                format_err!("The content type must be application/json"),
+            )),
+            Err(err) => Some(Failure::new(StatusCode::BAD_REQUEST, err)),
+            _ => None,
+        });
+        if let Some(err) = err {
+            return Poll::Ready(Err(err.into()));
         }
 
         let data = try_ready!(self.receive_all().poll(cx));
         Poll::Ready(
             serde_json::from_slice(&*data)
                 .map(one)
-                .map_err(|cause| JsonParseError::Parse { cause }.into()),
+                .map_err(|cause| Failure::new(StatusCode::BAD_REQUEST, cause).into()),
         )
     }
 }
 
-#[derive(Debug, Fail)]
-enum JsonParseError {
-    #[allow(missing_docs)]
-    #[fail(display = "The value of `Content-type' is invalid")]
-    InvalidMediaType,
+// ==== Form ====
 
-    #[allow(missing_docs)]
-    #[fail(display = "Failed to parse the payload to a JSON value")]
-    Parse { cause: serde_json::Error },
+/// Create an endpoint which parses an urlencoded data.
+pub fn urlencoded<T>() -> UrlEncoded<T>
+where
+    T: FromQuery,
+    T::Error: Fail,
+{
+    UrlEncoded {
+        _marker: PhantomData,
+    }
 }
 
-impl HttpError for JsonParseError {
-    fn status_code(&self) -> StatusCode {
-        StatusCode::BAD_REQUEST
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct UrlEncoded<T> {
+    _marker: PhantomData<fn() -> T>,
+}
+
+impl<T> Endpoint for UrlEncoded<T>
+where
+    T: FromQuery,
+    T::Error: Fail,
+{
+    type Output = (T,);
+    type Future = UrlEncodedFuture<T>;
+
+    fn apply(
+        &self,
+        _: PinMut<'_, Input>,
+        cursor: Cursor<'c>,
+    ) -> Option<(Self::Future, Cursor<'c>)> {
+        Some((
+            UrlEncodedFuture {
+                receive_all: ReceiveAll::new(),
+                _marker: PhantomData,
+            },
+            cursor,
+        ))
+    }
+}
+
+#[doc(hidden)]
+#[derive(Debug)]
+pub struct UrlEncodedFuture<T> {
+    receive_all: ReceiveAll,
+    _marker: PhantomData<fn() -> T>,
+}
+
+impl<T> UrlEncodedFuture<T> {
+    unsafe_pinned!(receive_all: ReceiveAll);
+}
+
+impl<T> Future for UrlEncodedFuture<T>
+where
+    T: FromQuery,
+    T::Error: Fail,
+{
+    type Output = Result<(T,), Error>;
+
+    fn poll(mut self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
+        let err = with_get_cx(|input| match input.content_type() {
+            Ok(Some(m)) if *m != mime::APPLICATION_WWW_FORM_URLENCODED => Some(Failure::new(
+                StatusCode::BAD_REQUEST,
+                format_err!("The content type must be application/www-x-urlformencoded"),
+            )),
+            Err(err) => Some(Failure::new(StatusCode::BAD_REQUEST, err)),
+            _ => None,
+        });
+        if let Some(err) = err {
+            return Poll::Ready(Err(err.into()));
+        }
+
+        let data = try_ready!(self.receive_all().poll(cx));
+        Poll::Ready(
+            FromQuery::from_query(QueryItems::new(&*data))
+                .map(one)
+                .map_err(|cause| Failure::new(StatusCode::BAD_REQUEST, cause).into()),
+        )
     }
 }
