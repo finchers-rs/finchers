@@ -2,6 +2,7 @@
 
 pub mod payloads;
 pub mod responders;
+pub mod status;
 
 use std::mem::PinMut;
 

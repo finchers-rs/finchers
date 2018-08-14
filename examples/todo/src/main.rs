@@ -20,11 +20,10 @@ fn endpoint(db: Database) -> impl finchers::rt::AppEndpoint {
     use finchers::endpoint::EndpointExt;
     use finchers::endpoints::body;
     use finchers::output::responders::Json;
+    use finchers::output::status::Created;
     use finchers::{route, routes};
 
     use futures::future::TryFutureExt;
-
-    use util::Created;
 
     let find_todo = route!(@get / u64 /)
         .and(&db)
@@ -202,27 +201,5 @@ mod db {
                     }
                 }),
         )
-    }
-}
-
-mod util {
-    use finchers::input::Input;
-    use finchers::output::Responder;
-
-    use http::{Response, StatusCode};
-    use std::mem::PinMut;
-
-    #[derive(Debug)]
-    pub struct Created<T>(pub T);
-
-    impl<T: Responder> Responder for Created<T> {
-        type Body = T::Body;
-        type Error = T::Error;
-
-        fn respond(self, input: PinMut<Input>) -> Result<Response<Self::Body>, Self::Error> {
-            let mut response = self.0.respond(input)?;
-            *response.status_mut() = StatusCode::CREATED;
-            Ok(response)
-        }
     }
 }
