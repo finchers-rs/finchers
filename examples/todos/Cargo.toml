@@ -1,11 +1,14 @@
+cargo-features = ["edition"]
+
 [package]
-name = "example-todo"
+name = "example-todos"
 version = "0.0.0"
+edition = "2018"
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 publish = false
 
 [[bin]]
-name = "todo"
+name = "todos"
 path = "src/main.rs"
 doc = false
 
@@ -14,5 +17,4 @@ finchers = { path = "../.." }
 futures-preview = { git = "https://github.com/rust-lang-nursery/futures-rs.git", branch = "master" }
 # futures-preview = "0.3.0-alpha.3"
 serde = { version = "1.0", features = ["derive"] }
-http = "0.1.5"
 failure = "0.1"
