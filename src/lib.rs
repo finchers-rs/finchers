@@ -16,6 +16,10 @@
 //! #![feature(rust_2018_preview)]
 //! #
 //! # extern crate finchers;
+//! #
+//! use finchers::{route, routes};
+//! use finchers::endpoint::EndpointExt;
+//! use finchers::endpoints::body;
 //!
 //! fn main() -> finchers::rt::LaunchResult<()> {
 //!     let endpoint = route!(/ "api" / "v1")
@@ -23,7 +27,7 @@
 //!             route!(@get / u64 /)
 //!                 .map(|id: u64| format!("GET: id={}", id)),
 //!
-//!             route!(@post /).and(body())
+//!             route!(@post /).and(body::body())
 //!                 .map(|data: String| format!("POST: body={}", data))
 //!         ]);
 //! # std::mem::drop(move || {
