@@ -1,6 +1,6 @@
 //! Components for parsing query strings.
 
-use failure::{Error, SyncFailure};
+use failure::{Error, Fail, SyncFailure};
 use serde::de;
 use serde::de::{DeserializeOwned, IntoDeserializer};
 use serde_qs;
@@ -20,25 +20,41 @@ pub trait FromQuery: Sized + 'static {
     fn from_query(query: QueryItems<'_>) -> Result<Self, Self::Error>;
 }
 
+impl<T: FromQuery> FromQuery for Option<T> {
+    type Error = T::Error;
+
+    fn from_query(query: QueryItems<'_>) -> Result<Self, Self::Error> {
+        if query.as_bytes().is_some() {
+            T::from_query(query).map(Some)
+        } else {
+            Ok(None)
+        }
+    }
+}
+
 /// An iterator over the elements of query items.
 #[derive(Debug)]
 pub struct QueryItems<'a> {
-    input: &'a [u8],
+    input: Option<&'a [u8]>,
 }
 
 impl<'a> QueryItems<'a> {
-    /// Create a new `QueryItems` from a slice of bytes.
-    ///
-    /// The input must be a valid HTTP query.
-    pub fn new<S: AsRef<[u8]> + ?Sized>(input: &'a S) -> QueryItems<'a> {
+    pub(crate) fn empty() -> QueryItems<'a> {
+        QueryItems { input: None }
+    }
+
+    pub(crate) unsafe fn new_unchecked<S>(input: &'a S) -> QueryItems<'a>
+    where
+        S: AsRef<[u8]> + ?Sized,
+    {
         QueryItems {
-            input: input.as_ref(),
+            input: Some(input.as_ref()),
         }
     }
 
     /// Returns a slice of bytes which contains the remaining query items.
     #[inline(always)]
-    pub fn as_slice(&self) -> &'a [u8] {
+    pub fn as_bytes(&self) -> Option<&[u8]> {
         self.input
     }
 }
@@ -48,14 +64,15 @@ impl<'a> Iterator for QueryItems<'a> {
     type Item = (&'a EncodedStr, &'a EncodedStr);
 
     fn next(&mut self) -> Option<Self::Item> {
+        let input = self.input.as_mut()?;
         loop {
-            if self.input.is_empty() {
+            if input.is_empty() {
                 return None;
             }
 
-            let mut s = self.input.splitn(2, |&b| b == b'&');
+            let mut s = input.splitn(2, |&b| b == b'&');
             let seq = s.next().unwrap();
-            self.input = s.next().unwrap_or(&[]);
+            *input = s.next().unwrap_or(&[]);
             if seq.is_empty() {
                 continue;
             }
@@ -96,14 +113,29 @@ impl<T> FromQuery for Serde<T>
 where
     T: DeserializeOwned + 'static,
 {
-    type Error = SyncFailure<serde_qs::Error>;
+    type Error = SerdeParseError;
 
     #[inline]
-    fn from_query(query: QueryItems<'_>) -> Result<Self, Self::Error> {
-        serde_qs::from_bytes(query.as_slice())
-            .map(Serde)
-            .map_err(SyncFailure::new)
+    fn from_query(items: QueryItems<'_>) -> Result<Self, Self::Error> {
+        match items.as_bytes() {
+            Some(s) => serde_qs::from_bytes(s)
+                .map(Serde)
+                .map_err(|cause| SerdeParseError::Parse {
+                    cause: SyncFailure::new(cause),
+                }),
+            None => Err(SerdeParseError::MissingQuery),
+        }
     }
+}
+
+#[doc(hidden)]
+#[derive(Debug, Fail)]
+pub enum SerdeParseError {
+    #[fail(display = "{}", cause)]
+    Parse { cause: SyncFailure<serde_qs::Error> },
+
+    #[fail(display = "missing query")]
+    MissingQuery,
 }
 
 #[allow(missing_debug_implementations)]

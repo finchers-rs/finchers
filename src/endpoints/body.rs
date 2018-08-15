@@ -366,10 +366,7 @@ where
         }
 
         let data = try_ready!(self.receive_all().poll(cx));
-        Poll::Ready(
-            FromQuery::from_query(QueryItems::new(&*data))
-                .map(one)
-                .map_err(bad_request),
-        )
+        let items = unsafe { QueryItems::new_unchecked(&*data) };
+        Poll::Ready(FromQuery::from_query(items).map(one).map_err(bad_request))
     }
 }

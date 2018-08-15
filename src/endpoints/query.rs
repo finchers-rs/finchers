@@ -6,8 +6,6 @@ use std::mem::PinMut;
 use std::task::Poll;
 use std::{fmt, task};
 
-use failure::format_err;
-
 use crate::endpoint::Endpoint;
 use crate::error::{bad_request, Error};
 use crate::generic::{one, One};
@@ -25,7 +23,7 @@ use crate::input::{with_get_cx, Cursor, Input};
 /// # extern crate finchers;
 /// # extern crate serde;
 /// # use finchers::endpoints::path::path;
-/// # use finchers::endpoints::query::{query};
+/// # use finchers::endpoints::query;
 /// # use finchers::endpoint::EndpointExt;
 /// # use finchers::input::query::{from_csv, Serde};
 /// # use serde::Deserialize;
@@ -38,44 +36,44 @@ use crate::input::{with_get_cx, Cursor, Input};
 ///     tags: Vec<String>,
 /// }
 ///
-/// let endpoint = path("foo").and(query())
+/// let endpoint = path("foo").and(query::parse())
 ///     .map(|param: Serde<Param>| (format!("Received: {:?}", &*param),));
 /// ```
-pub fn query<T>() -> Query<T>
+pub fn parse<T>() -> Parse<T>
 where
     T: FromQuery,
 {
-    Query {
+    Parse {
         _marker: PhantomData,
     }
 }
 
 #[allow(missing_docs)]
-pub struct Query<T> {
+pub struct Parse<T> {
     _marker: PhantomData<fn() -> T>,
 }
 
-impl<T> Copy for Query<T> {}
+impl<T> Copy for Parse<T> {}
 
-impl<T> Clone for Query<T> {
+impl<T> Clone for Parse<T> {
     #[inline]
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<T> fmt::Debug for Query<T> {
+impl<T> fmt::Debug for Parse<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Query").finish()
+        f.debug_struct("Parse").finish()
     }
 }
 
-impl<T> Endpoint for Query<T>
+impl<T> Endpoint for Parse<T>
 where
     T: FromQuery,
 {
     type Output = One<T>;
-    type Future = QueryFuture<T>;
+    type Future = ParseFuture<T>;
 
     fn apply<'c>(
         &self,
@@ -83,7 +81,7 @@ where
         cursor: Cursor<'c>,
     ) -> Option<(Self::Future, Cursor<'c>)> {
         Some((
-            QueryFuture {
+            ParseFuture {
                 _marker: PhantomData,
             },
             cursor,
@@ -93,24 +91,64 @@ where
 
 #[doc(hidden)]
 #[derive(Debug)]
-pub struct QueryFuture<T> {
+pub struct ParseFuture<T> {
     _marker: PhantomData<fn() -> T>,
 }
 
-impl<T> Future for QueryFuture<T>
+impl<T> Future for ParseFuture<T>
 where
     T: FromQuery,
 {
     type Output = Result<One<T>, Error>;
 
     fn poll(self: PinMut<'_, Self>, _: &mut task::Context<'_>) -> Poll<Self::Output> {
-        Poll::Ready(with_get_cx(|input| match input.request().uri().query() {
-            Some(query) => T::from_query(QueryItems::new(query))
-                .map(one)
-                .map_err(bad_request),
-            None => Err(bad_request(format_err!(
-                "The query string is not exist in the request"
-            ))),
+        Poll::Ready(with_get_cx(|input| {
+            let items = match input.request().uri().query() {
+                Some(query) => unsafe { QueryItems::new_unchecked(query) },
+                None => QueryItems::empty(),
+            };
+            T::from_query(items).map(one).map_err(bad_request)
         }))
+    }
+}
+
+/// Create an endpoint which extracts the query string from a request.
+pub fn raw() -> Raw {
+    Raw { _priv: () }
+}
+
+#[allow(missing_docs)]
+#[derive(Copy, Clone, Debug)]
+pub struct Raw {
+    _priv: (),
+}
+
+impl Endpoint for Raw {
+    type Output = One<String>;
+    type Future = RawFuture;
+
+    fn apply<'c>(&self, _: PinMut<'_, Input>, c: Cursor<'c>) -> Option<(Self::Future, Cursor<'c>)> {
+        Some((RawFuture { _priv: () }, c))
+    }
+}
+
+#[doc(hidden)]
+#[derive(Debug)]
+pub struct RawFuture {
+    _priv: (),
+}
+
+impl Future for RawFuture {
+    type Output = Result<One<String>, Error>;
+
+    fn poll(self: PinMut<'_, Self>, _: &mut task::Context<'_>) -> Poll<Self::Output> {
+        Poll::Ready(Ok(one(with_get_cx(|input| {
+            input
+                .request()
+                .uri()
+                .query()
+                .map(ToOwned::to_owned)
+                .unwrap_or_else(|| "".into())
+        }))))
     }
 }

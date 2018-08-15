@@ -16,8 +16,7 @@ use serde::Deserialize;
 use std::env;
 
 use finchers::endpoint::{lazy, EndpointExt};
-use finchers::endpoints::body;
-use finchers::endpoints::query::query;
+use finchers::endpoints::{body, query};
 use finchers::error::internal_server_error;
 use finchers::{route, routes};
 
@@ -34,7 +33,7 @@ fn main() -> Fallible<()> {
 
     let endpoint = route!(/"api"/"v1"/"posts").and(routes!{
         route!(@get /)
-            .and(query())
+            .and(query::parse())
             .and(acquire_conn.clone())
             .and_then(crate::api::get_posts),
 
@@ -67,8 +66,13 @@ mod api {
 
     #[derive(Debug, Deserialize)]
     pub struct Query {
-        #[serde(default)]
         count: i64,
+    }
+
+    impl Default for Query {
+        fn default() -> Query {
+            Query { count: 20 }
+        }
     }
 
     impl FromQuery for Query {
@@ -79,7 +83,11 @@ mod api {
         }
     }
 
-    pub async fn get_posts(query: Query, conn: Connection) -> Result<Json<Vec<Post>>, Error> {
+    pub async fn get_posts(
+        query: Option<Query>,
+        conn: Connection,
+    ) -> Result<Json<Vec<Post>>, Error> {
+        let query = query.unwrap_or_default();
         let post = await!(conn.execute(move |conn| {
             use crate::schema::posts::dsl::*;
             posts.limit(query.count).load(conn.get())
