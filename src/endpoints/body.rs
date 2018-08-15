@@ -18,52 +18,52 @@ use serde_json;
 use crate::endpoint::{Endpoint, EndpointExt};
 use crate::error::{bad_request, internal_server_error, Error};
 use crate::generic::{one, One};
-use crate::input::body::FromBody;
+use crate::input::body::{FromBody, Payload};
 use crate::input::query::{FromQuery, QueryItems};
-use crate::input::{self, with_get_cx, Cursor, Input};
+use crate::input::{with_get_cx, Cursor, Input};
 
 /// Creates an endpoint which takes the instance of [`Payload`](input::body::Payload)
 /// from the context.
 ///
 /// If the instance of `Payload` has already been stolen by another endpoint, it will
 /// return an error.
-pub fn payload() -> Payload {
-    (Payload { _priv: () }).output::<One<input::body::Payload>>()
+pub fn raw() -> Raw {
+    (Raw { _priv: () }).output::<One<Payload>>()
 }
 
 #[allow(missing_docs)]
 #[derive(Copy, Clone)]
-pub struct Payload {
+pub struct Raw {
     _priv: (),
 }
 
-impl fmt::Debug for Payload {
+impl fmt::Debug for Raw {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Payload").finish()
+        f.debug_struct("Raw").finish()
     }
 }
 
-impl Endpoint for Payload {
-    type Output = One<input::body::Payload>;
-    type Future = PayloadFuture;
+impl Endpoint for Raw {
+    type Output = One<Payload>;
+    type Future = RawFuture;
 
     fn apply<'c>(
         &self,
         _: PinMut<'_, Input>,
         cursor: Cursor<'c>,
     ) -> Option<(Self::Future, Cursor<'c>)> {
-        Some((PayloadFuture { _priv: () }, cursor))
+        Some((RawFuture { _priv: () }, cursor))
     }
 }
 
 #[doc(hidden)]
 #[derive(Debug)]
-pub struct PayloadFuture {
+pub struct RawFuture {
     _priv: (),
 }
 
-impl Future for PayloadFuture {
-    type Output = Result<One<input::body::Payload>, Error>;
+impl Future for RawFuture {
+    type Output = Result<One<Payload>, Error>;
 
     fn poll(self: PinMut<'_, Self>, _: &mut task::Context<'_>) -> Poll<Self::Output> {
         Poll::Ready(
@@ -82,7 +82,7 @@ struct ReceiveAll {
 #[derive(Debug)]
 enum State {
     Start,
-    Receiving(input::body::Payload, BytesMut),
+    Receiving(Payload, BytesMut),
     Done,
 }
 
@@ -140,41 +140,41 @@ fn stolen_payload() -> Error {
 
 /// Creates an endpoint which receives the all contents of the message body
 /// and transform the received bytes into a value of `T`.
-pub fn body<T>() -> Body<T>
+pub fn parse<T>() -> Parse<T>
 where
     T: FromBody,
 {
-    (Body {
+    (Parse {
         _marker: PhantomData,
     }).output::<One<T>>()
 }
 
 #[allow(missing_docs)]
-pub struct Body<T> {
+pub struct Parse<T> {
     _marker: PhantomData<fn() -> T>,
 }
 
-impl<T> Copy for Body<T> {}
+impl<T> Copy for Parse<T> {}
 
-impl<T> Clone for Body<T> {
+impl<T> Clone for Parse<T> {
     #[inline]
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<T> fmt::Debug for Body<T> {
+impl<T> fmt::Debug for Parse<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Body").finish()
+        f.debug_struct("Parse").finish()
     }
 }
 
-impl<T> Endpoint for Body<T>
+impl<T> Endpoint for Parse<T>
 where
     T: FromBody,
 {
     type Output = One<T>;
-    type Future = BodyFuture<T>;
+    type Future = ParseFuture<T>;
 
     fn apply<'c>(
         &self,
@@ -182,7 +182,7 @@ where
         cursor: Cursor<'c>,
     ) -> Option<(Self::Future, Cursor<'c>)> {
         Some((
-            BodyFuture {
+            ParseFuture {
                 receive_all: ReceiveAll::new(),
                 _marker: PhantomData,
             },
@@ -193,26 +193,22 @@ where
 
 #[doc(hidden)]
 #[allow(missing_debug_implementations)]
-pub struct BodyFuture<T> {
+pub struct ParseFuture<T> {
     receive_all: ReceiveAll,
     _marker: PhantomData<fn() -> T>,
 }
 
-impl<T> BodyFuture<T> {
+impl<T> ParseFuture<T> {
     unsafe_pinned!(receive_all: ReceiveAll);
 }
 
-impl<T> Future for BodyFuture<T>
+impl<T> Future for ParseFuture<T>
 where
     T: FromBody,
 {
     type Output = Result<One<T>, Error>;
 
     fn poll(mut self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
-        if let Err(err) = with_get_cx(|input| T::validate(input)) {
-            return Poll::Ready(Err(bad_request(err)));
-        }
-
         let data = try_ready!(self.receive_all().poll(cx));
         Poll::Ready(
             with_get_cx(|input| T::from_body(data, input))

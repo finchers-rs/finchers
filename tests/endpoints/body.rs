@@ -1,5 +1,5 @@
 use finchers::endpoint::EndpointExt;
-use finchers::endpoints::body::body;
+use finchers::endpoints::body;
 use finchers::input::body::FromBody;
 use finchers::input::Input;
 use finchers::rt::local;
@@ -21,7 +21,7 @@ impl FromBody for SomeData {
 
 #[test]
 fn test_body_1() {
-    let endpoint = body::<SomeData>().map(|SomeData(data)| data);
+    let endpoint = body::parse::<SomeData>().map(|SomeData(data)| data);
 
     let message = "The quick brown fox jumps over the lazy dog";
 

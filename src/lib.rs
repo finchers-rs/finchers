@@ -27,7 +27,8 @@
 //!             route!(@get / u64 /)
 //!                 .map(|id: u64| format!("GET: id={}", id)),
 //!
-//!             route!(@post /).and(body::body())
+//!             route!(@post /)
+//!                 .and(body::parse())
 //!                 .map(|data: String| format!("POST: body={}", data))
 //!         ]);
 //! # std::mem::drop(move || {
