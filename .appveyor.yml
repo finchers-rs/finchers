@@ -28,4 +28,4 @@ build: false
 test_script:
   - cargo clean
   - cargo test --features strict
-  - cargo test -p example-todo
+  - cargo test -p example-todos

@@ -1,5 +1,4 @@
-#![feature(rust_2018_preview)]
-#![feature(pin, arbitrary_self_types, futures_api)]
+#![feature(rust_2018_preview, pin, arbitrary_self_types, futures_api)]
 
 //! A combinator library for building asynchronous HTTP services.
 //!
@@ -15,26 +14,22 @@
 //!
 //! ```
 //! #![feature(rust_2018_preview)]
-//! #![feature(use_extern_macros)]
-//!
-//! extern crate finchers;
-//!
-//! fn build_endpoint() -> impl finchers::rt::AppEndpoint {
-//!     use finchers::{route, routes};
-//!     use finchers::endpoint::EndpointExt;
-//!     use finchers::endpoints::body::body;
-//!
-//!     route!(/ "api" / "v1").and(routes![
-//!         route!(@get / u64 /)
-//!             .map(|id: u64| format!("GET: id={}", id)),
-//!
-//!         route!(@post /).and(body())
-//!             .map(|data: String| format!("POST: body={}", data))
-//!     ])
-//! }
+//! #
+//! # extern crate finchers;
+//! #
+//! use finchers::{route, routes};
+//! use finchers::endpoint::EndpointExt;
+//! use finchers::endpoints::body;
 //!
 //! fn main() -> finchers::rt::LaunchResult<()> {
-//!     let endpoint = build_endpoint();
+//!     let endpoint = route!(/ "api" / "v1")
+//!         .and(routes![
+//!             route!(@get / u64 /)
+//!                 .map(|id: u64| format!("GET: id={}", id)),
+//!
+//!             route!(@post /).and(body::body())
+//!                 .map(|data: String| format!("POST: body={}", data))
+//!         ]);
 //! # std::mem::drop(move || {
 //!     finchers::rt::launch(endpoint)
 //! # });
