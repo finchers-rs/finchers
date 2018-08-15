@@ -3,6 +3,7 @@
 mod and;
 mod and_then;
 mod boxed;
+mod lazy;
 mod map;
 mod or;
 mod reject;
@@ -17,6 +18,7 @@ pub use self::boxed::{Boxed, BoxedLocal};
 pub use self::map::Map;
 pub use self::or::Or;
 
+pub use self::lazy::{lazy, Lazy};
 pub use self::reject::{reject, Reject};
 pub use self::unit::{unit, Unit};
 pub use self::value::{value, Value};
