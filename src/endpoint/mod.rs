@@ -4,10 +4,11 @@ mod and;
 mod and_then;
 mod boxed;
 mod map;
-mod ok;
 mod or;
 mod reject;
 mod try_chain;
+mod unit;
+mod value;
 
 // re-exports
 pub use self::and::And;
@@ -16,8 +17,9 @@ pub use self::boxed::{Boxed, BoxedLocal};
 pub use self::map::Map;
 pub use self::or::Or;
 
-pub use self::ok::{ok, Ok};
 pub use self::reject::{reject, Reject};
+pub use self::unit::{unit, Unit};
+pub use self::value::{value, Value};
 
 // ====
 
