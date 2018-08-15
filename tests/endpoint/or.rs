@@ -1,4 +1,4 @@
-use finchers::endpoint::{ok, reject, EndpointExt};
+use finchers::endpoint::{reject, value, EndpointExt};
 use finchers::endpoints::header;
 use finchers::endpoints::path::path;
 use finchers::error::NotPresent;
@@ -6,8 +6,8 @@ use finchers::rt::local;
 
 #[test]
 fn test_or_1() {
-    let e1 = path("foo").and(ok(("foo",)));
-    let e2 = path("bar").and(ok(("bar",)));
+    let e1 = path("foo").and(value("foo"));
+    let e2 = path("bar").and(value("bar"));
     let endpoint = e1.or(e2);
 
     assert_eq!(local::get("/foo").apply(&endpoint), Some(Ok(("foo",))),);
@@ -17,8 +17,8 @@ fn test_or_1() {
 
 #[test]
 fn test_or_choose_longer_segments() {
-    let e1 = path("foo").and(ok(("foo",)));
-    let e2 = path("foo").and(path("bar")).and(ok(("foobar",)));
+    let e1 = path("foo").and(value("foo"));
+    let e2 = path("foo").and(path("bar")).and(value("foobar"));
     let endpoint = e1.or(e2);
 
     assert_eq!(local::get("/foo").apply(&endpoint), Some(Ok(("foo",))),);

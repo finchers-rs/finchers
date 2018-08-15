@@ -107,7 +107,7 @@ macro_rules! route_impl {
             .and($crate::endpoints::path::end())
     };
     (@start /) => ( $crate::endpoints::path::end() );
-    (@start) => ( $crate::endpoint::ok(()) );
+    (@start) => ( $crate::endpoint::unit() );
 
     (@segment $t:ty) => ( $crate::endpoints::path::param::<$t>() );
     (@segment $s:expr) => ( $crate::endpoints::path::path($s) );
