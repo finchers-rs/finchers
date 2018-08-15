@@ -14,7 +14,6 @@ doc = false
 
 [dependencies]
 finchers = { path = "../.." }
-futures-preview = { git = "https://github.com/rust-lang-nursery/futures-rs.git", branch = "master" }
-# futures-preview = "0.3.0-alpha.3"
+futures-preview = "0.3.0-alpha.3"
 serde = { version = "1.0", features = ["derive"] }
 failure = "0.1"
