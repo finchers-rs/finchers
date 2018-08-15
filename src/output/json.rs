@@ -8,10 +8,10 @@ use std::mem::PinMut;
 
 use crate::error::{HttpError, Never};
 use crate::input::Input;
-use crate::output::payloads::Once;
+use crate::output::payload::Once;
 use crate::output::Responder;
 
-/// A wrapper struct representing a statically typed JSON value.
+/// An instance of `Responder` representing statically typed JSON responses.
 #[derive(Debug)]
 pub struct Json<T>(pub T);
 

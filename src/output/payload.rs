@@ -1,10 +1,9 @@
 //! Implementors of `Payload`.
 
 use futures::{self, Async};
-use hyper::body::Payload;
 use std::io;
 
-pub use hyper::body::Body;
+pub use hyper::body::{Body, Payload};
 
 #[allow(missing_docs)]
 #[derive(Debug)]

@@ -1,17 +1,26 @@
 //! Components for constructing HTTP responses.
 
-pub mod payloads;
-pub mod responders;
+pub mod payload;
+pub mod status;
 
-use std::mem::PinMut;
+mod binary;
+mod debug;
+mod json;
+mod text;
 
 use http::{Response, StatusCode};
 use hyper::body::Payload;
+use std::mem::PinMut;
 
-use self::payloads::Empty;
+use self::payload::Empty;
 use crate::error::{Error, Never, NoRoute};
 use crate::generic::Either;
 use crate::input::Input;
+
+pub use self::binary::Binary;
+pub use self::debug::Debug;
+pub use self::json::Json;
+pub use self::text::Text;
 
 /// Trait representing types to be converted into an HTTP response.
 pub trait Responder {

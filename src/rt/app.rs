@@ -15,7 +15,7 @@ use crate::error::NoRoute;
 use crate::generic::Either;
 use crate::input::body::ReqBody;
 use crate::input::{with_set_cx, Cursor, Input};
-use crate::output::payloads::Once;
+use crate::output::payload::Once;
 use crate::output::Responder;
 use crate::rt::AppEndpoint;
 
@@ -142,7 +142,7 @@ mod service {
 
     use crate::generic::Either;
     use crate::input::body::ReqBody;
-    use crate::output::payloads::Once;
+    use crate::output::payload::Once;
     use crate::output::Responder;
     use crate::rt::AppEndpoint;
 
