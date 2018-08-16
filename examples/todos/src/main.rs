@@ -1,8 +1,8 @@
-#![feature(async_await, await_macro, futures_api, pin, integer_atomics)]
+#![feature(async_await, await_macro, futures_api)]
 
 use failure::Fallible;
 
-use finchers::endpoint::EndpointExt;
+use finchers::endpoint::{lazy, EndpointExt};
 use finchers::endpoints::body;
 use finchers::{route, routes};
 
@@ -11,26 +11,32 @@ use crate::db::ConnPool;
 fn main() -> Fallible<()> {
     let pool = ConnPool::default();
 
+    // Create an endpoint which establishes a connection to the DB.
+    let conn = lazy(move |_| {
+        let conn = pool.conn();
+        async { Ok(conn) }
+    });
+
     let find_todo = route!(@get / u64 /)
-        .and(pool.clone())
+        .and(conn.clone())
         .and_then(crate::api::find_todo);
 
     let list_todos = route!(@get /)
-        .and(pool.clone())
+        .and(conn.clone())
         .and_then(crate::api::list_todos);
 
     let add_todo = route!(@post /)
         .and(body::json())
-        .and(pool.clone())
+        .and(conn.clone())
         .and_then(crate::api::create_todo);
 
     let patch_todo = route!(@patch / u64 /)
         .and(body::json())
-        .and(pool.clone())
+        .and(conn.clone())
         .and_then(crate::api::patch_todo);
 
     let delete_todo = route!(@delete / u64 /)
-        .and(pool.clone())
+        .and(conn.clone())
         .and_then(crate::api::delete_todo);
 
     let endpoint = route!(/ "api" / "v1" / "todos").and(routes![
@@ -47,12 +53,10 @@ fn main() -> Fallible<()> {
 
 mod api {
     use failure::format_err;
-    use std::mem;
 
     use finchers::error::{internal_server_error, Error};
     use finchers::output::status::Created;
-    use finchers::output::Json;
-    use finchers::output::Responder;
+    use finchers::output::{Json, Responder};
 
     use crate::db::Conn;
     use crate::model::{NewTodo, PatchTodo, Todo};
@@ -77,11 +81,10 @@ mod api {
             completed: new_todo.completed,
         };
 
-        let new_id = match db.counter.checked_add(1) {
-            Some(id) => id,
-            None => return Err(internal_server_error(format_err!("overflow detected"))),
-        };
-        mem::replace(&mut db.counter, new_id);
+        db.counter = db
+            .counter
+            .checked_add(1)
+            .ok_or_else(|| internal_server_error(format_err!("overflow detected")))?;
 
         db.todos.push(new_todo.clone());
 
@@ -145,13 +148,7 @@ mod model {
 
 mod db {
     use failure::{format_err, Fallible};
-    use futures::future::{ready, Ready};
-    use std::mem::PinMut;
     use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
-
-    use finchers::endpoint::Endpoint;
-    use finchers::error::Error;
-    use finchers::input::{Cursor, Input};
 
     use crate::model::Todo;
 
@@ -166,17 +163,11 @@ mod db {
         db: Arc<RwLock<Database>>,
     }
 
-    impl Endpoint for ConnPool {
-        type Output = (Conn,);
-        type Future = Ready<Result<(Conn,), Error>>;
-
-        fn apply<'c>(&self, _: PinMut<Input>, c: Cursor<'c>) -> Option<(Self::Future, Cursor<'c>)> {
-            Some((
-                ready(Ok((Conn {
-                    db: self.db.clone(),
-                },))),
-                c,
-            ))
+    impl ConnPool {
+        pub fn conn(&self) -> Conn {
+            Conn {
+                db: self.db.clone(),
+            }
         }
     }
 
