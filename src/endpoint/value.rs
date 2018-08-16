@@ -41,7 +41,7 @@ pub fn value<T: Clone>(x: T) -> Value<T> {
 }
 
 #[allow(missing_docs)]
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct Value<T> {
     x: T,
 }
