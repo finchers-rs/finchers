@@ -56,6 +56,7 @@
 #![cfg_attr(feature = "strict", deny(warnings))]
 
 extern crate bytes;
+extern crate cookie;
 extern crate failure;
 extern crate futures;      // 0.1
 extern crate futures_core; // 0.3
@@ -71,6 +72,7 @@ extern crate serde;
 extern crate serde_json;
 extern crate serde_qs;
 extern crate structopt;
+extern crate time;
 extern crate tokio;
 extern crate tokio_fs;
 

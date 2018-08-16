@@ -1,6 +1,7 @@
 //! Components for parsing the incoming HTTP request.
 
 pub mod body;
+pub mod cookie;
 pub mod header;
 pub mod query;
 
@@ -17,6 +18,7 @@ pub use self::global::with_set_cx;
 
 // ====
 
+use cookie::CookieJar;
 use failure::Fail;
 use http;
 use http::{Request, StatusCode};
@@ -26,8 +28,10 @@ use std::marker::{PhantomData, Pinned};
 use std::mem::PinMut;
 use std::ops::Deref;
 
+use crate::error::{bad_request, Error, HttpError};
+
 use self::body::{Payload, ReqBody};
-use crate::error::HttpError;
+use self::cookie::Cookies;
 
 /// The contextual information with an incoming HTTP request.
 #[derive(Debug)]
@@ -35,18 +39,16 @@ pub struct Input {
     request: Request<ReqBody>,
     #[cfg_attr(feature = "cargo-clippy", allow(option_option))]
     media_type: Option<Option<Mime>>,
+    cookie_jar: Option<CookieJar>,
     _marker: PhantomData<(UnsafeCell<()>, Pinned)>,
 }
 
 impl Input {
-    /// Create an instance of `Input` from components.
-    ///
-    /// Some fields remain uninitialized and their values are set when the corresponding
-    /// method will be called.
-    pub fn new(request: Request<ReqBody>) -> Input {
+    pub(crate) fn new(request: Request<ReqBody>) -> Input {
         Input {
             request,
             media_type: None,
+            cookie_jar: None,
             _marker: PhantomData,
         }
     }
@@ -91,6 +93,31 @@ impl Input {
                 Ok(this.media_type.get_or_insert(mime).as_ref())
             }
         }
+    }
+
+    /// Returns a `Cookies<'_>` or initialize the internal Cookie jar.
+    pub fn cookies<'a>(self: PinMut<'a, Self>) -> Result<Cookies<'a>, Error> {
+        let this = unsafe { PinMut::get_mut_unchecked(self) };
+
+        match this.cookie_jar {
+            Some(ref mut jar) => Ok(Cookies {
+                jar,
+                _marker: PhantomData,
+            }),
+            None => {
+                let cookie_jar =
+                    self::cookie::parse_cookies(this.request.headers()).map_err(bad_request)?;
+                let jar = this.cookie_jar.get_or_insert(cookie_jar);
+                Ok(Cookies {
+                    jar,
+                    _marker: PhantomData,
+                })
+            }
+        }
+    }
+
+    pub(crate) fn cookie_jar(&self) -> Option<&CookieJar> {
+        self.cookie_jar.as_ref()
     }
 }
 
