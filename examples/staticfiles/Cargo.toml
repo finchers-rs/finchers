@@ -1,0 +1,21 @@
+cargo-features = ["edition"]
+
+[package]
+name = "example-staticfiles"
+version = "0.0.0"
+edition = "2018"
+authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
+publish = false
+
+[[bin]]
+name = "staticfiles"
+path = "src/main.rs"
+doc = false
+
+[dependencies]
+finchers = { path = "../.." }
+tokio = "0.1"
+futures-preview = { version = "0.3.0-alpha.3", features = ["tokio-compat"] }
+mime_guess = "2.0.0-alpha.6"
+http = "0.1.10"
+bytes = "0.4.9"

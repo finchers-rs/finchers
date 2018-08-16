@@ -29,6 +29,7 @@ members = [
   "examples/diesel",
   "examples/todos",
   "examples/template-tera",
+  "examples/staticfiles",
 ]
 
 [dependencies]
