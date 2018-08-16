@@ -47,12 +47,16 @@ macro_rules! routes_impl {
     }};
 
     ($e1:expr, $e2:expr) => {{
-        use $crate::endpoint::IntoEndpoint;
-        use $crate::endpoint::EndpointExt;
-        use $crate::generic::{map_left, map_right};
-
-        IntoEndpoint::into_endpoint($e1).map(map_left())
-            .or(IntoEndpoint::into_endpoint($e2).map(map_right()))
+        $crate::endpoint::EndpointExt::or(
+            $crate::endpoint::EndpointExt::map(
+                $crate::endpoint::IntoEndpoint::into_endpoint($e1),
+                $crate::generic::map_left(),
+            ),
+            $crate::endpoint::EndpointExt::map(
+                $crate::endpoint::IntoEndpoint::into_endpoint($e2),
+                $crate::generic::map_right(),
+            )
+        )
     }};
 
     (@error) => { compile_error!("The `routes!()` macro requires at least two elements."); };
