@@ -66,6 +66,7 @@ extern crate serde_json;
 extern crate serde_qs;
 extern crate structopt;
 extern crate tokio;
+extern crate tokio_fs;
 
 #[macro_use]
 mod macros;
