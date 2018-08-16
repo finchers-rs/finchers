@@ -58,6 +58,7 @@ extern crate http;
 extern crate hyper;
 extern crate log;
 extern crate mime;
+extern crate mime_guess;
 extern crate percent_encoding;
 extern crate pin_utils;
 extern crate serde;

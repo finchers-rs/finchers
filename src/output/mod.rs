@@ -6,6 +6,7 @@ pub mod status;
 mod binary;
 mod debug;
 mod json;
+mod named_file;
 mod text;
 
 use http::{Response, StatusCode};
@@ -20,6 +21,7 @@ use crate::input::Input;
 pub use self::binary::Binary;
 pub use self::debug::Debug;
 pub use self::json::Json;
+pub use self::named_file::NamedFile;
 pub use self::text::Text;
 
 /// Trait representing types to be converted into an HTTP response.
