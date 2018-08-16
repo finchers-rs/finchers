@@ -7,6 +7,7 @@ mod lazy;
 mod map;
 mod or;
 mod reject;
+mod then;
 mod try_chain;
 mod unit;
 mod value;
@@ -17,6 +18,7 @@ pub use self::and_then::AndThen;
 pub use self::boxed::{Boxed, BoxedLocal};
 pub use self::map::Map;
 pub use self::or::Or;
+pub use self::then::Then;
 
 pub use self::lazy::{lazy, Lazy};
 pub use self::reject::{reject, Reject};
@@ -29,7 +31,7 @@ use std::mem::PinMut;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use futures_core::future::TryFuture;
+use futures_core::future::{Future, TryFuture};
 
 use crate::error::Error;
 use crate::generic::{Combine, Func, Tuple};
@@ -172,6 +174,15 @@ pub trait EndpointExt: Endpoint + Sized {
         F: Func<Self::Output> + Clone,
     {
         (Map { endpoint: self, f }).output::<(F::Out,)>()
+    }
+
+    #[allow(missing_docs)]
+    fn then<F>(self, f: F) -> Then<Self, F>
+    where
+        F: Func<Self::Output> + Clone,
+        F::Out: Future,
+    {
+        (Then { endpoint: self, f }).output::<(<F::Out as Future>::Output,)>()
     }
 
     #[allow(missing_docs)]
