@@ -1,9 +1,9 @@
-#![feature(async_await, await_macro, pin, futures_api)]
+#![feature(rust_2018_preview)]
 
-mod fs;
-mod named_file;
+extern crate finchers;
 
 use finchers::endpoint::EndpointExt;
+use finchers::endpoints::fs;
 use finchers::{route, routes};
 
 fn main() -> finchers::rt::LaunchResult<()> {

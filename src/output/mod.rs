@@ -1,5 +1,6 @@
 //! Components for constructing HTTP responses.
 
+pub mod fs;
 pub mod payload;
 pub mod status;
 
@@ -19,6 +20,7 @@ use crate::input::Input;
 
 pub use self::binary::Binary;
 pub use self::debug::Debug;
+pub use self::fs::NamedFile;
 pub use self::json::Json;
 pub use self::text::Text;
 

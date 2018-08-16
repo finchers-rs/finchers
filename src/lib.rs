@@ -58,6 +58,7 @@ extern crate http;
 extern crate hyper;
 extern crate log;
 extern crate mime;
+extern crate mime_guess;
 extern crate percent_encoding;
 extern crate pin_utils;
 extern crate serde;
@@ -65,6 +66,7 @@ extern crate serde_json;
 extern crate serde_qs;
 extern crate structopt;
 extern crate tokio;
+extern crate tokio_fs;
 
 #[macro_use]
 mod macros;
