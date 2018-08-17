@@ -19,31 +19,39 @@ matrix:
       addons:
         apt:
           packages:
-            - libssl-dev
+            - libcurl4-openssl-dev
+            - libelf-dev
+            - libdw-dev
+            - binutils-dev
       before_script:
         - rustup component add rustfmt-preview
         - rustup component add clippy-preview
-        - RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install cargo-tarpaulin || true
+        - cargo install cargo-update || true
+        - cargo install cargo-kcov || true
+        - cargo install-update -a
       script:
         - cargo clean
         - cargo test --features strict
-        # example codes
-        - cargo test -p example-todos
+        # examples
         - cargo test -p example-diesel
+        - cargo test -p example-staticfiles
+        - cargo test -p example-todos
         # format check
         - cargo fmt -- --check
         # clippy
         - cargo clippy
       after_success:
-        - >
-            cargo tarpaulin --ciserver travis-ci --coveralls $TRAVIS_JOB_ID \
-                --packages finchers-core finchers
+        - cargo kcov --print-install-kcov-sh | sh
+        - cargo kcov -v --all --coveralls
 
     - rust: nightly
       script:
         - cargo clean
         - cargo test --features strict
-        - cargo test -p example-todo
+        # examples
+        - cargo test -p example-diesel
+        - cargo test -p example-staticfiles
+        - cargo test -p example-todos
 
     - rust: nightly-2018-08-14
       env: DEPLOY_DOCS
