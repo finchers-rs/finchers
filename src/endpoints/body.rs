@@ -8,15 +8,15 @@ use std::{fmt, mem, task};
 
 use bytes::Bytes;
 use bytes::BytesMut;
-use failure::format_err;
 use futures_util::try_ready;
+use http::StatusCode;
 use mime;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use serde::de::DeserializeOwned;
 use serde_json;
 
 use crate::endpoint::{Endpoint, EndpointExt};
-use crate::error::{bad_request, internal_server_error, Error};
+use crate::error::{bad_request, err_msg, Error};
 use crate::generic::{one, One};
 use crate::input::body::{FromBody, Payload};
 use crate::input::query::{FromQuery, QueryItems};
@@ -131,9 +131,10 @@ impl Future for ReceiveAll {
 }
 
 fn stolen_payload() -> Error {
-    internal_server_error(format_err!(
-        "The instance of Payload has already been stolen by another endpoint."
-    ))
+    err_msg(
+        StatusCode::INTERNAL_SERVER_ERROR,
+        "The instance of Payload has already been stolen by another endpoint.",
+    )
 }
 
 // ==== Body ====
@@ -277,9 +278,9 @@ where
 
     fn poll(mut self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
         let err = with_get_cx(|input| match input.content_type() {
-            Ok(Some(m)) if *m != mime::APPLICATION_JSON => Some(bad_request(format_err!(
-                "The content type must be application/json"
-            ))),
+            Ok(Some(m)) if *m != mime::APPLICATION_JSON => {
+                Some(bad_request("The content type must be application/json"))
+            }
             Err(err) => Some(bad_request(err)),
             _ => None,
         });
@@ -352,7 +353,7 @@ where
     fn poll(mut self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
         let err = with_get_cx(|input| match input.content_type() {
             Ok(Some(m)) if *m != mime::APPLICATION_WWW_FORM_URLENCODED => Some(bad_request(
-                format_err!("The content type must be application/www-x-urlformencoded"),
+                "The content type must be application/www-x-urlformencoded",
             )),
             Err(err) => Some(bad_request(err)),
             _ => None,

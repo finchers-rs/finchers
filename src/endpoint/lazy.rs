@@ -20,7 +20,6 @@ use crate::input::{Cursor, Input};
 /// # extern crate futures_util;
 /// # extern crate failure;
 /// # use finchers::endpoint::{lazy, EndpointExt};
-/// # use finchers::error::internal_server_error;
 /// # use finchers::route;
 /// # use futures_core::future::Future;
 /// # use futures_util::future::ready;
@@ -45,7 +44,7 @@ use crate::input::{Cursor, Input};
 /// let pool = ConnPool::default();
 /// let acquire_conn = lazy(move |_| {
 ///     pool.get_conn()
-///         .map_err(internal_server_error)
+///         .map_err(Into::into)
 /// });
 ///
 /// let endpoint = route!(@get / "posts" / u32 /)

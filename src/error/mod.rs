@@ -1,26 +1,25 @@
 //! Error primitives.
 
-mod failure;
 mod never;
 
-pub use self::failure::{bad_request, internal_server_error};
 pub use self::never::Never;
 
-use std::error;
+use std::any::TypeId;
 use std::fmt;
-use std::ops::Deref;
+use std::fmt::{Debug, Display};
+use std::io;
 
+use failure;
 use failure::Fail;
 use http::header::{HeaderMap, HeaderValue};
 use http::{header, Response, StatusCode};
-
-use crate::generic::Either;
+use serde::ser::{Serialize, SerializeMap, Serializer};
 
 /// Trait representing error values from endpoints.
 ///
 /// The types which implements this trait will be implicitly converted to an HTTP response
 /// by the runtime.
-pub trait HttpError: Fail {
+pub trait HttpError: Debug + Display + Send + Sync + 'static {
     /// Return the HTTP status code associated with this error type.
     fn status_code(&self) -> StatusCode {
         StatusCode::INTERNAL_SERVER_ERROR
@@ -29,35 +28,31 @@ pub trait HttpError: Fail {
     /// Append a set of header values to the header map.
     #[allow(unused_variables)]
     fn headers(&self, headers: &mut HeaderMap) {}
-}
 
-impl<L, R> HttpError for Either<L, R>
-where
-    L: HttpError + error::Error,
-    R: HttpError + error::Error,
-{
-    fn status_code(&self) -> StatusCode {
-        match self {
-            Either::Left(ref t) => t.status_code(),
-            Either::Right(ref t) => t.status_code(),
-        }
+    #[allow(missing_docs)]
+    fn cause(&self) -> Option<&dyn Fail> {
+        None
     }
 
-    fn headers(&self, headers: &mut HeaderMap) {
-        match self {
-            Either::Left(ref t) => t.headers(headers),
-            Either::Right(ref t) => t.headers(headers),
-        }
+    #[doc(hidden)]
+    fn __private_type_id__(&self) -> TypeId {
+        TypeId::of::<Self>()
     }
 }
 
-#[derive(Debug, Fail)]
-#[fail(display = "no route")]
-pub(crate) struct NoRoute;
-
-impl HttpError for NoRoute {
+impl HttpError for io::Error {
     fn status_code(&self) -> StatusCode {
-        StatusCode::NOT_FOUND
+        match self.kind() {
+            io::ErrorKind::NotFound => StatusCode::NOT_FOUND,
+            io::ErrorKind::PermissionDenied => StatusCode::FORBIDDEN,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+}
+
+impl HttpError for failure::Error {
+    fn cause(&self) -> Option<&dyn Fail> {
+        self.as_fail().cause()
     }
 }
 
@@ -71,30 +66,73 @@ impl<E: HttpError> From<E> for Error {
     }
 }
 
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(&*self.0, f)
-    }
-}
-
-impl Deref for Error {
-    type Target = dyn HttpError;
-
-    fn deref(&self) -> &Self::Target {
+impl AsRef<dyn HttpError> for Error {
+    fn as_ref(&self) -> &dyn HttpError {
         &*self.0
     }
 }
 
-impl PartialEq for Error {
-    fn eq(&self, other: &Self) -> bool {
-        self.status_code() == other.status_code()
+impl Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Display::fmt(&*self.0, f)
     }
 }
 
 impl Error {
+    /// Returns `true` if the type of contained value is the same as `T`.
+    pub fn is<T: HttpError>(&self) -> bool {
+        self.0.__private_type_id__() == TypeId::of::<T>()
+    }
+
+    /// Attempts to downcast the boxed value to a conrete type by reference.
+    pub fn downcast_ref<T: HttpError>(&self) -> Option<&T> {
+        if self.is::<T>() {
+            unsafe { Some(&*(&*self.0 as *const dyn HttpError as *const T)) }
+        } else {
+            None
+        }
+    }
+
+    /// Attempts to downcast the boxed value to a conrete type by mutable reference.
+    pub fn downcast_mut<T: HttpError>(&mut self) -> Option<&mut T> {
+        if self.is::<T>() {
+            unsafe { Some(&mut *(&mut *self.0 as *mut dyn HttpError as *mut T)) }
+        } else {
+            None
+        }
+    }
+
+    /// Attempts to downcast the boxed value to a conrete type.
+    pub fn downcast<T: HttpError>(self) -> Result<T, Error> {
+        if self.is::<T>() {
+            unsafe {
+                Ok(*Box::from_raw(
+                    Box::into_raw(self.0) as *mut dyn HttpError as *mut T
+                ))
+            }
+        } else {
+            Err(self)
+        }
+    }
+
+    /// Return the HTTP status code associated with contained value.
+    pub fn status_code(&self) -> StatusCode {
+        self.0.status_code()
+    }
+
+    /// Append a set of header values to the header map.
+    pub fn headers(&self, headers: &mut HeaderMap) {
+        self.0.headers(headers)
+    }
+
+    /// Returns a reference to the underlying cause of contained error value.
+    pub fn cause(&self) -> Option<&dyn Fail> {
+        self.0.cause()
+    }
+
     pub(crate) fn to_response(&self) -> Response<String> {
         let mut response = Response::new(format!("{:#}", self.0));
-        *response.status_mut() = self.0.status_code();
+        *response.status_mut() = self.status_code();
         response.headers_mut().insert(
             header::CONTENT_TYPE,
             HeaderValue::from_static("text/plain; charset=utf-8"),
@@ -102,4 +140,100 @@ impl Error {
         self.0.headers(response.headers_mut());
         response
     }
+}
+
+impl Serialize for Error {
+    fn serialize<S>(&self, ser: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut map = ser.serialize_map(None)?;
+        map.serialize_entry("code", &self.status_code().as_u16())?;
+        map.serialize_entry("description", &self.to_string())?;
+        // TODO: causes
+        map.end()
+    }
+}
+
+// ==== Failure ====
+
+#[derive(Debug)]
+struct Failure<F: Fail>(F);
+
+impl<F: Fail> Display for Failure<F> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Display::fmt(&self.0, f)
+    }
+}
+
+impl<F: Fail> HttpError for Failure<F> {
+    fn cause(&self) -> Option<&dyn Fail> {
+        self.0.cause()
+    }
+}
+
+#[allow(missing_docs)]
+pub fn fail(err: impl Fail) -> Error {
+    Failure(err).into()
+}
+
+// ==== err_msg ====
+
+#[allow(missing_docs)]
+pub fn bad_request(msg: impl Debug + Display + Send + Sync + 'static) -> Error {
+    err_msg(StatusCode::BAD_REQUEST, msg)
+}
+
+#[allow(missing_docs)]
+pub fn err_msg(status: StatusCode, msg: impl Debug + Display + Send + Sync + 'static) -> Error {
+    ErrorMessage { status, msg }.into()
+}
+
+#[derive(Debug)]
+struct ErrorMessage<D: fmt::Debug + fmt::Display + Send + 'static> {
+    status: StatusCode,
+    msg: D,
+}
+
+impl<D> fmt::Display for ErrorMessage<D>
+where
+    D: fmt::Debug + fmt::Display + Send + 'static,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.msg, f)
+    }
+}
+
+impl<D> HttpError for ErrorMessage<D>
+where
+    D: fmt::Debug + fmt::Display + Send + Sync + 'static,
+{
+    fn status_code(&self) -> StatusCode {
+        self.status
+    }
+}
+
+// ==== NoRoute ====
+
+#[doc(hidden)]
+#[derive(Debug)]
+pub struct NoRoute {
+    _priv: (),
+}
+
+impl Display for NoRoute {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("no route")
+    }
+}
+
+impl HttpError for NoRoute {
+    fn status_code(&self) -> StatusCode {
+        StatusCode::NOT_FOUND
+    }
+}
+
+#[allow(missing_docs)]
+pub(crate) fn no_route() -> Error {
+    NoRoute { _priv: () }.into()
 }

@@ -105,7 +105,6 @@ impl Endpoint for EndPath {
 pub fn param<T>() -> Param<T>
 where
     T: FromEncodedStr,
-    T::Error: Fail,
 {
     Param {
         _marker: PhantomData,
@@ -135,7 +134,6 @@ impl<T> fmt::Debug for Param<T> {
 impl<T> Endpoint for Param<T>
 where
     T: FromEncodedStr,
-    T::Error: Fail,
 {
     type Output = One<T>;
     type Future = future::Ready<Result<Self::Output, Error>>;
@@ -152,11 +150,16 @@ where
     }
 }
 
-#[allow(missing_docs)]
-#[derive(Debug, Fail)]
-#[fail(display = "failed to parse a path segment: {}", cause)]
-pub struct ParamError<E: Fail> {
+#[doc(hidden)]
+#[derive(Debug)]
+pub struct ParamError<E> {
     cause: E,
+}
+
+impl<E: fmt::Display> fmt::Display for ParamError<E> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "failed to parse a path segment: {}", self.cause)
+    }
 }
 
 impl<E: Fail> HttpError for ParamError<E> {
@@ -185,7 +188,6 @@ impl<E: Fail> HttpError for ParamError<E> {
 pub fn remains<T>() -> Remains<T>
 where
     T: FromEncodedStr,
-    T::Error: Fail,
 {
     Remains {
         _marker: PhantomData,
@@ -215,7 +217,6 @@ impl<T> fmt::Debug for Remains<T> {
 impl<T> Endpoint for Remains<T>
 where
     T: FromEncodedStr,
-    T::Error: Fail,
 {
     type Output = One<T>;
     type Future = future::Ready<Result<Self::Output, Error>>;

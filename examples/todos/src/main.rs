@@ -54,7 +54,7 @@ fn main() -> Fallible<()> {
 mod api {
     use failure::format_err;
 
-    use finchers::error::{internal_server_error, Error};
+    use finchers::error::Error;
     use finchers::output::status::Created;
     use finchers::output::{Json, Responder};
 
@@ -62,18 +62,18 @@ mod api {
     use crate::model::{NewTodo, PatchTodo, Todo};
 
     pub async fn find_todo(id: u64, conn: Conn) -> Result<impl Responder, Error> {
-        let db = conn.read().map_err(internal_server_error)?;
+        let db = conn.read()?;
         let found = db.todos.iter().find(|todo| todo.id == id).cloned();
         Ok(found.map(Json))
     }
 
     pub async fn list_todos(conn: Conn) -> Result<impl Responder, Error> {
-        let db = conn.read().map_err(internal_server_error)?;
+        let db = conn.read()?;
         Ok(Json(db.todos.clone()))
     }
 
     pub async fn create_todo(new_todo: NewTodo, mut conn: Conn) -> Result<impl Responder, Error> {
-        let mut db = conn.write().map_err(internal_server_error)?;
+        let mut db = conn.write()?;
 
         let new_todo = Todo {
             id: db.counter,
@@ -84,7 +84,7 @@ mod api {
         db.counter = db
             .counter
             .checked_add(1)
-            .ok_or_else(|| internal_server_error(format_err!("overflow detected")))?;
+            .ok_or_else(|| format_err!("overflow detected"))?;
 
         db.todos.push(new_todo.clone());
 
@@ -96,7 +96,7 @@ mod api {
         patch: PatchTodo,
         mut conn: Conn,
     ) -> Result<impl Responder, Error> {
-        let mut db = conn.write().map_err(internal_server_error)?;
+        let mut db = conn.write()?;
 
         Ok(db.todos.iter_mut().find(|todo| todo.id == id).map(|todo| {
             if let Some(text) = patch.text {
@@ -111,7 +111,7 @@ mod api {
     }
 
     pub async fn delete_todo(id: u64, mut conn: Conn) -> Result<impl Responder, Error> {
-        let mut db = conn.write().map_err(internal_server_error)?;
+        let mut db = conn.write()?;
 
         if let Some(pos) = db.todos.iter().position(|todo| todo.id == id) {
             db.todos.remove(pos);

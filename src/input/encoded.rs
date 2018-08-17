@@ -1,14 +1,11 @@
+use failure::Fail;
 use std::borrow::Cow;
 use std::fmt;
 use std::net;
 use std::path::PathBuf;
 use std::str::{self, FromStr, Utf8Error};
 
-use failure::Fail;
-use http::StatusCode;
 use percent_encoding::percent_decode;
-
-use crate::error::HttpError;
 
 /// A percent-encoded string.
 #[repr(C)]
@@ -121,7 +118,7 @@ fn replace_plus(input: &[u8]) -> Cow<'_, [u8]> {
 /// Trait representing the conversion from an encoded string.
 pub trait FromEncodedStr: Sized + 'static {
     /// The error type which will be returned from `from_encoded_str`.
-    type Error;
+    type Error: Fail;
 
     /// Converts an `EncodedStr` to a value of `Self`.
     fn from_encoded_str(s: &EncodedStr) -> Result<Self, Self::Error>;
@@ -134,12 +131,6 @@ pub enum FromEncodedStrError<E: Fail> {
     Decode { cause: Utf8Error },
     #[fail(display = "{}", cause)]
     Parse { cause: E },
-}
-
-impl<E: Fail> HttpError for FromEncodedStrError<E> {
-    fn status_code(&self) -> StatusCode {
-        StatusCode::BAD_REQUEST
-    }
 }
 
 macro_rules! impl_from_segment_from_str {

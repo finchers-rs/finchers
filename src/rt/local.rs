@@ -14,9 +14,9 @@
 //!     .map(|id: u32| format!("id = {}", id));
 //!
 //! let request = local::get("/posts/42/stars");
-//! let output = request.apply(&endpoint);
+//! let output = request.apply(&endpoint).map_err(drop);
 //!
-//! assert_eq!(output, Some(Ok(("id = 42".into(),))));
+//! assert_eq!(output, Ok(("id = 42".into(),)));
 //! ```
 
 use std::boxed::PinBox;
@@ -136,7 +136,7 @@ impl LocalRequest {
     }
 
     /// Apply this dummy request to the associated endpoint and get its response.
-    pub fn apply<E>(self, endpoint: E) -> Option<Result<E::Output, Error>>
+    pub fn apply<E>(self, endpoint: E) -> Result<E::Output, Error>
     where
         E: Endpoint,
     {
@@ -148,11 +148,10 @@ impl LocalRequest {
         let mut future = app.dispatch_request(request);
         let future = poll_fn(move |cx| {
             let future = unsafe { PinMut::new_unchecked(&mut future) };
-            future.poll_output(cx).map(Option::transpose)
+            future.poll_output(cx)
         });
 
         let mut rt = Runtime::new().expect("rt");
         rt.block_on(PinBox::new(future).compat(TokioDefaultSpawn))
-            .transpose()
     }
 }

@@ -3,8 +3,7 @@
 
 use failure::{Fallible, SyncFailure};
 use finchers::endpoint::{value, EndpointExt};
-use finchers::error::internal_server_error;
-use finchers::error::Error;
+use finchers::error::{fail, Error};
 use finchers::output::payload::Once;
 use finchers::{route, routes};
 use http::Response;
@@ -42,5 +41,5 @@ fn render_template(tera: Arc<Tera>, template: &str) -> Result<Response<Once<Stri
                 .header("content-type", "text/html; charset=utf-8")
                 .body(Once::new(body))
                 .unwrap()
-        }).map_err(|err| internal_server_error(SyncFailure::new(err)))
+        }).map_err(|err| fail(SyncFailure::new(err)))
 }

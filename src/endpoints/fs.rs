@@ -1,6 +1,5 @@
 //! Endpoints for serving static contents on the file system.
 
-use std::io;
 use std::mem::PinMut;
 use std::path::PathBuf;
 use std::task;
@@ -10,7 +9,7 @@ use futures_core::future::Future;
 use pin_utils::unsafe_unpinned;
 
 use crate::endpoint::Endpoint;
-use crate::error::{bad_request, internal_server_error, Error, NoRoute};
+use crate::error::{bad_request, Error};
 use crate::generic::{one, One};
 use crate::input::{Cursor, Input};
 use crate::output::fs::OpenNamedFile;
@@ -113,16 +112,8 @@ impl Future for FileFuture {
             State::Err(ref mut err) => Poll::Ready(Err(err.take().unwrap())),
             State::Opening(ref mut f) => {
                 let f = unsafe { PinMut::new_unchecked(f) };
-                f.poll(cx).map_ok(one).map_err(io_error)
+                f.poll(cx).map_ok(one).map_err(Into::into)
             }
         }
-    }
-}
-
-// TODO: impl HttpError for io::Error
-fn io_error(err: io::Error) -> Error {
-    match err {
-        ref e if e.kind() == io::ErrorKind::NotFound => Error::from(NoRoute),
-        e => internal_server_error(e),
     }
 }
