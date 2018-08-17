@@ -5,7 +5,7 @@ pub mod local;
 use failure;
 use futures::Future;
 use hyper::server::Server;
-use log::{error, info, log};
+use log::{error, info};
 use std::net::{IpAddr, SocketAddr};
 use structopt::StructOpt;
 use tokio;
