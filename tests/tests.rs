@@ -2,6 +2,7 @@
 #![feature(pin, arbitrary_self_types, futures_api)]
 
 extern crate bytes;
+extern crate failure;
 extern crate finchers;
 extern crate http;
 

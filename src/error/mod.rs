@@ -6,7 +6,6 @@ mod never;
 pub use self::failure::{bad_request, internal_server_error};
 pub use self::never::Never;
 
-use std::borrow::Cow;
 use std::error;
 use std::fmt;
 use std::ops::Deref;
@@ -52,37 +51,9 @@ where
     }
 }
 
-/// An error type indicating that a necessary elements was not given from the client.
-///
-/// This error value will return `400 Bad Request` as the HTTP status code.
-#[derive(Debug, Fail)]
-#[fail(display = "{}", message)]
-pub struct NotPresent {
-    message: Cow<'static, str>,
-}
-
-impl NotPresent {
-    #[allow(missing_docs)]
-    pub fn new<S>(message: S) -> NotPresent
-    where
-        S: Into<Cow<'static, str>>,
-    {
-        NotPresent {
-            message: message.into(),
-        }
-    }
-}
-
-impl HttpError for NotPresent {
-    fn status_code(&self) -> StatusCode {
-        StatusCode::BAD_REQUEST
-    }
-}
-
-#[allow(missing_docs)]
 #[derive(Debug, Fail)]
 #[fail(display = "no route")]
-pub struct NoRoute;
+pub(crate) struct NoRoute;
 
 impl HttpError for NoRoute {
     fn status_code(&self) -> StatusCode {
