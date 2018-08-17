@@ -120,6 +120,13 @@ where
                 }
             }).unwrap_or_else(|err| err.to_response().map(|body| Either::Left(Once::new(body))));
 
+        if let Some(jar) = input.cookie_jar() {
+            for cookie in jar.delta() {
+                let val = HeaderValue::from_str(&cookie.encoded().to_string()).unwrap();
+                response.headers_mut().insert(header::SET_COOKIE, val);
+            }
+        }
+
         response
             .headers_mut()
             .entry(header::SERVER)
