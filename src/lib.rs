@@ -1,4 +1,10 @@
-#![feature(rust_2018_preview, pin, arbitrary_self_types, futures_api)]
+#![feature(
+    rust_2018_preview,
+    pin,
+    arbitrary_self_types,
+    futures_api,
+    transpose_result
+)]
 
 //! A combinator library for building asynchronous HTTP services.
 //!
@@ -71,6 +77,7 @@ extern crate tokio_fs;
 #[macro_use]
 mod macros;
 
+pub mod app;
 pub mod endpoint;
 pub mod endpoints;
 pub mod error;

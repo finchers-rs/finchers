@@ -4,17 +4,16 @@
 //!
 //! ```
 //! # #![feature(rust_2018_preview)]
-//! # #![feature(use_extern_macros)]
-//! # use finchers::endpoints::method::get;
+//! #
 //! # use finchers::endpoints::path::{path, param};
 //! # use finchers::endpoint::EndpointExt;
-//! # use finchers::rt::local;
-//! # use finchers::route;
+//! use finchers::rt::local;
+//! use finchers::route;
 //!
-//! let endpoint = route![@get / "api" / "v1" / "posts" / u32 / "stars"]
+//! let endpoint = route!(@get / "posts" / u32 / "stars")
 //!     .map(|id: u32| format!("id = {}", id));
 //!
-//! let request = local::get("/api/v1/posts/42/stars");
+//! let request = local::get("/posts/42/stars");
 //! let output = request.apply(&endpoint);
 //!
 //! assert_eq!(output, Some(Ok(("id = 42".into(),))));
@@ -23,22 +22,19 @@
 use std::boxed::PinBox;
 use std::mem;
 use std::mem::PinMut;
-use std::task::Poll;
 
-use futures_core::future::TryFuture;
 use futures_util::compat::TokioDefaultSpawn;
 use futures_util::future::poll_fn;
 use futures_util::try_future::TryFutureExt;
 use http::header::{HeaderName, HeaderValue};
 use http::{HttpTryFrom, Method, Request, Uri};
 use hyper::body::Body;
-use pin_utils::pin_mut;
 use tokio::runtime::current_thread::Runtime;
 
+use crate::app::App;
 use crate::endpoint::Endpoint;
 use crate::error::Error;
 use crate::input::body::ReqBody;
-use crate::input::{with_set_cx, Cursor, Input};
 
 macro_rules! impl_constructors {
     ($(
@@ -147,34 +143,16 @@ impl LocalRequest {
         let LocalRequest { mut request } = self;
         let request = request.take().expect("The request has already applied");
 
+        let app = App::new(&endpoint);
+
+        let mut future = app.dispatch_request(request);
+        let future = poll_fn(move |cx| {
+            let future = unsafe { PinMut::new_unchecked(&mut future) };
+            future.poll_output(cx).map(Option::transpose)
+        });
+
         let mut rt = Runtime::new().expect("rt");
-
-        let input = Input::new(request);
-        pin_mut!(input);
-
-        let future = {
-            let mut in_flight = {
-                let cursor = unsafe {
-                    let path = &*(input.uri().path() as *const str);
-                    Cursor::new(path)
-                };
-                endpoint.apply(input.reborrow(), cursor).map(|res| res.0)
-            };
-
-            poll_fn(move |cx| match in_flight {
-                Some(ref mut f) => with_set_cx(input.reborrow(), || {
-                    unsafe { PinMut::new_unchecked(f) }
-                        .try_poll(cx)
-                        .map_ok(Some)
-                }),
-                None => Poll::Ready(Ok(None)),
-            })
-        };
-
-        match rt.block_on(PinBox::new(future).compat(TokioDefaultSpawn)) {
-            Ok(Some(ok)) => Some(Ok(ok)),
-            Ok(None) => None,
-            Err(err) => Some(Err(err)),
-        }
+        rt.block_on(PinBox::new(future).compat(TokioDefaultSpawn))
+            .transpose()
     }
 }
