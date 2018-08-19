@@ -1,0 +1,169 @@
+use std::future::Future;
+use std::mem::PinMut;
+use std::task;
+use std::task::Poll;
+
+use futures_core::future::TryFuture;
+use http::Response;
+use pin_utils::unsafe_pinned;
+
+use crate::endpoint::Endpoint;
+use crate::error::Error;
+use crate::generic::{one, Either, One};
+use crate::input::{Cursor, Input};
+use crate::output::Responder;
+
+#[allow(missing_docs)]
+#[derive(Debug, Copy, Clone)]
+pub struct Recover<E, F> {
+    pub(super) endpoint: E,
+    pub(super) f: F,
+}
+
+impl<E, F, R> Endpoint for Recover<E, F>
+where
+    E: Endpoint,
+    F: FnOnce(Error) -> R + Clone,
+    R: TryFuture<Error = Error>,
+{
+    type Output = One<Recovered<E::Output, R::Ok>>;
+    type Future = RecoverFuture<E::Future, R, F>;
+
+    fn apply<'c>(
+        &self,
+        input: PinMut<'_, Input>,
+        cursor: Cursor<'c>,
+    ) -> Option<(Self::Future, Cursor<'c>)> {
+        let (f1, cursor) = self.endpoint.apply(input, cursor)?;
+        let f = self.f.clone();
+        Some((
+            RecoverFuture {
+                try_chain: TryChain::new(f1, f),
+            },
+            cursor,
+        ))
+    }
+}
+
+#[derive(Debug)]
+pub struct Recovered<L, R>(Either<L, R>);
+
+impl<L, R> Responder for Recovered<L, R>
+where
+    L: Responder,
+    R: Responder,
+{
+    type Body = Either<L::Body, R::Body>;
+    type Error = Error;
+
+    #[inline(always)]
+    fn respond(self, input: PinMut<'_, Input>) -> Result<Response<Self::Body>, Self::Error> {
+        self.0.respond(input)
+    }
+}
+
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct RecoverFuture<F1, F2, F>
+where
+    F1: TryFuture<Error = Error>,
+    F2: TryFuture<Error = Error>,
+    F: FnOnce(Error) -> F2,
+{
+    try_chain: TryChain<F1, F2, F>,
+}
+
+impl<F1, F2, F> RecoverFuture<F1, F2, F>
+where
+    F1: TryFuture<Error = Error>,
+    F2: TryFuture<Error = Error>,
+    F: FnOnce(Error) -> F2,
+{
+    unsafe_pinned!(try_chain: TryChain<F1, F2, F>);
+}
+
+impl<F1, F2, F> Future for RecoverFuture<F1, F2, F>
+where
+    F1: TryFuture<Error = Error>,
+    F2: TryFuture<Error = Error>,
+    F: FnOnce(Error) -> F2,
+{
+    type Output = Result<One<Recovered<F1::Ok, F2::Ok>>, Error>;
+
+    fn poll(mut self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
+        self.try_chain()
+            .poll(cx, |result, f| match result {
+                Ok(ok) => TryChainAction::Output(Ok(Either::Left(ok))),
+                Err(err) => TryChainAction::Future(f(err)),
+            }).map_ok(|ok| one(Recovered(ok)))
+    }
+}
+
+#[derive(Debug)]
+enum TryChain<F1, F2, T> {
+    First(F1, Option<T>),
+    Second(F2),
+    Empty,
+}
+
+pub(super) enum TryChainAction<F1, F2>
+where
+    F1: TryFuture<Error = Error>,
+    F2: TryFuture<Error = Error>,
+{
+    Future(F2),
+    Output(Result<Either<F1::Ok, F2::Ok>, Error>),
+}
+
+impl<F1, F2, T> TryChain<F1, F2, T>
+where
+    F1: TryFuture<Error = Error>,
+    F2: TryFuture<Error = Error>,
+{
+    pub(super) fn new(f1: F1, data: T) -> TryChain<F1, F2, T> {
+        TryChain::First(f1, Some(data))
+    }
+
+    pub(super) fn poll<F>(
+        self: PinMut<'_, Self>,
+        cx: &mut task::Context<'_>,
+        f: F,
+    ) -> Poll<Result<Either<F1::Ok, F2::Ok>, Error>>
+    where
+        F: FnOnce(Result<F1::Ok, F1::Error>, T) -> TryChainAction<F1, F2>,
+    {
+        let mut f = Some(f);
+
+        // Safety: the futures does not move in this method.
+        let this = unsafe { PinMut::get_mut_unchecked(self) };
+
+        loop {
+            let (out, data) = match this {
+                TryChain::First(f1, data) => {
+                    match unsafe { PinMut::new_unchecked(f1) }.try_poll(cx) {
+                        Poll::Pending => return Poll::Pending,
+                        Poll::Ready(out) => (out, data.take().unwrap()),
+                    }
+                }
+                TryChain::Second(f2) => {
+                    return unsafe { PinMut::new_unchecked(f2) }
+                        .try_poll(cx)
+                        .map_ok(Either::Right)
+                }
+                TryChain::Empty => panic!("This future has already polled."),
+            };
+
+            let f = f.take().unwrap();
+            match f(out, data) {
+                TryChainAction::Future(f2) => {
+                    *this = TryChain::Second(f2);
+                    continue;
+                }
+                TryChainAction::Output(out) => {
+                    *this = TryChain::Empty;
+                    return Poll::Ready(out);
+                }
+            }
+        }
+    }
+}

@@ -3,9 +3,11 @@
 mod and;
 mod and_then;
 mod boxed;
+mod fixed;
 mod lazy;
 mod map;
 mod or;
+mod recover;
 mod reject;
 mod then;
 mod try_chain;
@@ -16,8 +18,10 @@ mod value;
 pub use self::and::And;
 pub use self::and_then::AndThen;
 pub use self::boxed::{Boxed, BoxedLocal};
+pub use self::fixed::Fixed;
 pub use self::map::Map;
 pub use self::or::Or;
+pub use self::recover::Recover;
 pub use self::then::Then;
 
 pub use self::lazy::{lazy, Lazy};
@@ -210,6 +214,20 @@ pub trait EndpointExt: Endpoint + Sized {
         Self::Future: 'a,
     {
         BoxedLocal::new(self).output::<Self::Output>()
+    }
+
+    #[allow(missing_docs)]
+    fn recover<F, R>(self, f: F) -> Recover<Self, F>
+    where
+        F: FnOnce(Error) -> R + Clone,
+        R: TryFuture<Error = Error>,
+    {
+        (Recover { endpoint: self, f }).output::<(self::recover::Recovered<Self::Output, R::Ok>,)>()
+    }
+
+    #[allow(missing_docs)]
+    fn fixed(self) -> Fixed<Self> {
+        Fixed { endpoint: self }
     }
 }
 
