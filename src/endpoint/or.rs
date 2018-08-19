@@ -33,42 +33,49 @@ where
         mut input: PinMut<'_, Input>,
         cursor: Cursor<'c>,
     ) -> EndpointResult<'c, Self::Future> {
-        let v1 = self.e1.apply(input.reborrow(), cursor.clone());
-        let v2 = self.e2.apply(input, cursor);
-
-        match (v1, v2) {
-            (Ok((future1, cursor1)), Ok((future2, cursor2))) => {
-                // If both endpoints are matched, the one with the larger number of
-                // (consumed) path segments is choosen.
-                if cursor1.popped() >= cursor2.popped() {
-                    Ok((
+        match self.e1.apply(input.reborrow(), cursor.clone()) {
+            Ok((future1, cursor1)) => {
+                match self.e2.apply(input, cursor) {
+                    // If both endpoints are matched, the one with the larger number of
+                    // (consumed) path segments is choosen.
+                    Ok((_, ref cursor2)) if cursor1.popped() >= cursor2.popped() => Ok((
                         OrFuture {
                             inner: Either::Left(future1),
                         },
                         cursor1,
-                    ))
-                } else {
-                    Ok((
+                    )),
+                    Ok((future2, cursor2)) => Ok((
                         OrFuture {
                             inner: Either::Right(future2),
                         },
                         cursor2,
-                    ))
+                    )),
+                    Err(..) => Ok((
+                        OrFuture {
+                            inner: Either::Left(future1),
+                        },
+                        cursor1,
+                    )),
                 }
             }
-            (Ok((future, cursor)), Err(..)) => Ok((
-                OrFuture {
-                    inner: Either::Left(future),
+            Err(err1) => match self.e2.apply(input, cursor) {
+                Err(EndpointErrorKind::MethodNotAllowed(allows2)) => match err1 {
+                    EndpointErrorKind::MethodNotAllowed(mut allows1) => {
+                        allows1.extend(allows2);
+                        Err(EndpointErrorKind::MethodNotAllowed(allows1))
+                    }
+                    EndpointErrorKind::NotMatched => {
+                        Err(EndpointErrorKind::MethodNotAllowed(allows2))
+                    }
                 },
-                cursor,
-            )),
-            (Err(..), Ok((future, cursor))) => Ok((
-                OrFuture {
-                    inner: Either::Right(future),
-                },
-                cursor,
-            )),
-            (Err(..), Err(..)) => Err(EndpointErrorKind::NotMatched),
+                Err(EndpointErrorKind::NotMatched) => Err(err1),
+                Ok((future2, cursor2)) => Ok((
+                    OrFuture {
+                        inner: Either::Right(future2),
+                    },
+                    cursor2,
+                )),
+            },
         }
     }
 }

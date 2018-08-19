@@ -5,8 +5,8 @@ use std::task::Poll;
 use futures_core::future::{Future, TryFuture};
 use pin_utils::unsafe_unpinned;
 
-use crate::endpoint::{Endpoint, EndpointResult};
-use crate::error::{no_route, Error};
+use crate::endpoint::{Endpoint, EndpointErrorKind, EndpointResult};
+use crate::error::Error;
 use crate::input::{Cursor, Input};
 
 #[allow(missing_docs)]
@@ -28,15 +28,15 @@ where
         mut cursor: Cursor<'c>,
     ) -> EndpointResult<'c, Self::Future> {
         match self.endpoint.apply(input, cursor.clone()) {
-            Ok((future, cursor)) => Ok((
-                FixedFuture {
-                    inner: Some(future),
-                },
-                cursor,
-            )),
-            Err(..) => {
+            Ok((future, cursor)) => Ok((FixedFuture { inner: Ok(future) }, cursor)),
+            Err(err) => {
                 let _ = cursor.by_ref().count();
-                Ok((FixedFuture { inner: None }, cursor))
+                Ok((
+                    FixedFuture {
+                        inner: Err(Some(err)),
+                    },
+                    cursor,
+                ))
             }
         }
     }
@@ -44,11 +44,11 @@ where
 
 #[derive(Debug)]
 pub struct FixedFuture<F> {
-    inner: Option<F>,
+    inner: Result<F, Option<EndpointErrorKind>>,
 }
 
 impl<F> FixedFuture<F> {
-    unsafe_unpinned!(inner: Option<F>);
+    unsafe_unpinned!(inner: Result<F, Option<EndpointErrorKind>>);
 }
 
 impl<F> Future for FixedFuture<F>
@@ -59,8 +59,8 @@ where
 
     fn poll(mut self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
         match self.inner() {
-            Some(ref mut f) => unsafe { PinMut::new_unchecked(f).try_poll(cx) },
-            None => Poll::Ready(Err(no_route())),
+            Ok(ref mut f) => unsafe { PinMut::new_unchecked(f).try_poll(cx) },
+            Err(ref mut err) => Poll::Ready(Err(err.take().unwrap().into())),
         }
     }
 }

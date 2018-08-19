@@ -25,7 +25,9 @@ impl<E: Endpoint> Endpoint for MatchMethod<E> {
         if *input.method() == self.method {
             self.endpoint.apply(input, cursor)
         } else {
-            Err(EndpointErrorKind::NotMatched)
+            Err(EndpointErrorKind::MethodNotAllowed(vec![
+                self.method.clone(),
+            ]))
         }
     }
 }
@@ -75,7 +77,7 @@ macro_rules! define_method {
                 if *input.method() == Method::$method {
                     self.endpoint.apply(input, cursor)
                 } else {
-                    Err(EndpointErrorKind::NotMatched)
+                    Err(EndpointErrorKind::MethodNotAllowed(vec![Method::$method]))
                 }
             }
         }

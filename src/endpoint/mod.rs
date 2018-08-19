@@ -31,13 +31,15 @@ pub use self::value::{value, Value};
 
 // ====
 
+use std::fmt;
 use std::mem::PinMut;
 use std::rc::Rc;
 use std::sync::Arc;
 
 use futures_core::future::{Future, TryFuture};
+use http::{Method, StatusCode};
 
-use crate::error::Error;
+use crate::error::{Error, HttpError};
 use crate::generic::{Combine, Func, Tuple};
 use crate::input::{Cursor, Input};
 
@@ -45,6 +47,35 @@ use crate::input::{Cursor, Input};
 #[derive(Debug)]
 pub enum EndpointErrorKind {
     NotMatched,
+    MethodNotAllowed(Vec<Method>),
+}
+
+impl fmt::Display for EndpointErrorKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            EndpointErrorKind::NotMatched => f.write_str("no route"),
+            EndpointErrorKind::MethodNotAllowed(ref allowed_methods) => {
+                if f.alternate() {
+                    write!(
+                        f,
+                        "method not allowed (allowed methods: {:?})",
+                        allowed_methods
+                    )
+                } else {
+                    f.write_str("method not allowed")
+                }
+            }
+        }
+    }
+}
+
+impl HttpError for EndpointErrorKind {
+    fn status_code(&self) -> StatusCode {
+        match self {
+            EndpointErrorKind::NotMatched => StatusCode::NOT_FOUND,
+            EndpointErrorKind::MethodNotAllowed(..) => StatusCode::METHOD_NOT_ALLOWED,
+        }
+    }
 }
 
 #[allow(missing_docs)]

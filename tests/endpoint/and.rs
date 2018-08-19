@@ -1,7 +1,8 @@
 use failure::format_err;
 use finchers::endpoint::{reject, unit, value, EndpointExt};
-use finchers::error::{bad_request, NoRoute};
+use finchers::error::bad_request;
 use finchers::rt::local;
+use http::StatusCode;
 
 #[test]
 fn test_and_all_ok() {
@@ -16,7 +17,7 @@ fn test_and_with_err_1() {
 
     assert_matches!(
         local::get("/").apply(&endpoint),
-        Err(ref e) if !e.is::<NoRoute>()
+        Err(ref e) if e.status_code() == StatusCode::BAD_REQUEST
     );
 }
 
@@ -28,7 +29,7 @@ fn test_and_with_err_2() {
 
     assert_matches!(
         local::get("/").apply(&endpoint),
-        Err(ref e) if !e.is::<NoRoute>()
+        Err(ref e) if e.status_code() == StatusCode::BAD_REQUEST
     );
 }
 

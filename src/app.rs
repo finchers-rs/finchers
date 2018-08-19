@@ -14,7 +14,7 @@ use http::header::HeaderValue;
 use http::{header, Request, Response};
 
 use crate::endpoint::Endpoint;
-use crate::error::{no_route, Error};
+use crate::error::Error;
 use crate::generic::Either;
 use crate::input::body::ReqBody;
 use crate::input::{with_set_cx, Cursor, Input};
@@ -84,9 +84,9 @@ where
                     };
                     match result {
                         Ok((future, _cursor)) => this.state = State::InFlight(future),
-                        Err(..) => {
+                        Err(err) => {
                             this.state = State::Gone;
-                            return Poll::Ready(Err(no_route()));
+                            return Poll::Ready(Err(err.into()));
                         }
                     }
                 }
