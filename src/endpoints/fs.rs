@@ -8,10 +8,10 @@ use std::task::Poll;
 use futures_core::future::Future;
 use pin_utils::unsafe_unpinned;
 
-use crate::endpoint::{Endpoint, EndpointResult};
+use crate::endpoint::{Cursor, Endpoint, EndpointResult};
 use crate::error::{bad_request, Error};
 use crate::generic::{one, One};
-use crate::input::{Cursor, Input};
+use crate::input::Input;
 use crate::output::fs::OpenNamedFile;
 use crate::output::NamedFile;
 

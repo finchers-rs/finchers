@@ -6,11 +6,11 @@ use std::mem::PinMut;
 use std::task::Poll;
 use std::{fmt, task};
 
-use crate::endpoint::{Endpoint, EndpointResult};
+use crate::endpoint::{Cursor, Endpoint, EndpointResult};
 use crate::error::{bad_request, Error};
 use crate::generic::{one, One};
 use crate::input::query::{FromQuery, QueryItems};
-use crate::input::{with_get_cx, Cursor, Input};
+use crate::input::{with_get_cx, Input};
 
 /// Create an endpoint which parse the query string in the HTTP request
 /// to the value of `T`.

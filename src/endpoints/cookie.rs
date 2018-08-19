@@ -5,13 +5,13 @@ use std::borrow::Cow;
 use std::fmt;
 use std::mem::PinMut;
 
-use crate::endpoint::{Endpoint, EndpointErrorKind, EndpointResult};
+use crate::endpoint::{Cursor, Endpoint, EndpointErrorKind, EndpointResult};
 use crate::error::Error;
 use crate::generic::{one, One};
 use crate::input::cookie::Cookie;
 #[cfg(feature = "secure")]
 use crate::input::cookie::Key;
-use crate::input::{Cursor, Input};
+use crate::input::Input;
 
 #[derive(Clone)]
 enum Mode {

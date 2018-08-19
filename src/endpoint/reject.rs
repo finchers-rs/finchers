@@ -2,9 +2,9 @@ use futures_util::future;
 use std::marker::PhantomData;
 use std::mem::PinMut;
 
-use crate::endpoint::{Endpoint, EndpointExt, EndpointResult};
+use crate::endpoint::{Cursor, Endpoint, EndpointExt, EndpointResult};
 use crate::error::Error;
-use crate::input::{Cursor, Input};
+use crate::input::Input;
 
 /// Creates an endpoint which always rejects the request with the specified error.
 pub fn reject<F, E>(f: F) -> Reject<F, E>

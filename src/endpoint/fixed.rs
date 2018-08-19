@@ -5,9 +5,9 @@ use std::task::Poll;
 use futures_core::future::{Future, TryFuture};
 use pin_utils::unsafe_unpinned;
 
-use crate::endpoint::{Endpoint, EndpointErrorKind, EndpointResult};
+use crate::endpoint::{Cursor, Endpoint, EndpointErrorKind, EndpointResult};
 use crate::error::Error;
-use crate::input::{Cursor, Input};
+use crate::input::Input;
 
 #[allow(missing_docs)]
 #[derive(Debug, Copy, Clone)]

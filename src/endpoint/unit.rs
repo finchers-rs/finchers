@@ -1,9 +1,9 @@
 use futures_util::future;
 use std::mem::PinMut;
 
-use crate::endpoint::{Endpoint, EndpointResult};
+use crate::endpoint::{Cursor, Endpoint, EndpointResult};
 use crate::error::Error;
-use crate::input::{Cursor, Input};
+use crate::input::Input;
 
 /// Create an endpoint which simply returns an unit (`()`).
 pub fn unit() -> Unit {

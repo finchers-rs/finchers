@@ -10,11 +10,11 @@ use failure::format_err;
 use futures_util::future;
 use http::header::HeaderValue;
 
-use crate::endpoint::{Endpoint, EndpointErrorKind, EndpointExt, EndpointResult};
+use crate::endpoint::{Cursor, Endpoint, EndpointErrorKind, EndpointExt, EndpointResult};
 use crate::error::{bad_request, Error};
 use crate::generic::{one, One};
 use crate::input::header::FromHeader;
-use crate::input::{with_get_cx, Cursor, Input};
+use crate::input::{with_get_cx, Input};
 
 // ==== Optional ====
 

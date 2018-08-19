@@ -3,6 +3,7 @@
 mod and;
 mod and_then;
 mod boxed;
+mod cursor;
 mod fixed;
 mod lazy;
 mod map;
@@ -15,6 +16,8 @@ mod unit;
 mod value;
 
 // re-exports
+pub use self::cursor::Cursor;
+
 pub use self::and::And;
 pub use self::and_then::AndThen;
 pub use self::boxed::{Boxed, BoxedLocal};
@@ -41,7 +44,7 @@ use http::{Method, StatusCode};
 
 use crate::error::{Error, HttpError};
 use crate::generic::{Combine, Func, Tuple};
-use crate::input::{Cursor, Input};
+use crate::input::Input;
 
 #[allow(missing_docs)]
 #[derive(Debug)]

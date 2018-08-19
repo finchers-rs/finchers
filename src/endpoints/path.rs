@@ -9,10 +9,10 @@ use futures_util::future;
 use http::StatusCode;
 use percent_encoding::{define_encode_set, percent_encode, DEFAULT_ENCODE_SET};
 
-use crate::endpoint::{Endpoint, EndpointErrorKind, EndpointResult};
+use crate::endpoint::{Cursor, Endpoint, EndpointErrorKind, EndpointResult};
 use crate::error::{Error, HttpError};
 use crate::generic::{one, One};
-use crate::input::{Cursor, FromEncodedStr, Input};
+use crate::input::{FromEncodedStr, Input};
 
 define_encode_set! {
     /// The encode set for MatchPath

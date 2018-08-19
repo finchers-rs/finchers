@@ -5,11 +5,9 @@ pub mod cookie;
 pub mod header;
 pub mod query;
 
-mod cursor;
 mod encoded;
 mod global;
 
-pub use self::cursor::Cursor;
 pub use self::encoded::{EncodedStr, FromEncodedStr};
 
 pub use self::global::with_get_cx;

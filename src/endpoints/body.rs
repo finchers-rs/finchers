@@ -15,12 +15,12 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use serde::de::DeserializeOwned;
 use serde_json;
 
-use crate::endpoint::{Endpoint, EndpointExt, EndpointResult};
+use crate::endpoint::{Cursor, Endpoint, EndpointExt, EndpointResult};
 use crate::error::{bad_request, err_msg, Error};
 use crate::generic::{one, One};
 use crate::input::body::{FromBody, Payload};
 use crate::input::query::{FromQuery, QueryItems};
-use crate::input::{with_get_cx, Cursor, Input};
+use crate::input::{with_get_cx, Input};
 
 /// Creates an endpoint which takes the instance of [`Payload`](input::body::Payload)
 /// from the context.

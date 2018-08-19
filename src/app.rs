@@ -13,11 +13,11 @@ use futures_util::ready;
 use http::header::HeaderValue;
 use http::{header, Request, Response};
 
-use crate::endpoint::Endpoint;
+use crate::endpoint::{Cursor, Endpoint};
 use crate::error::Error;
 use crate::generic::Either;
 use crate::input::body::ReqBody;
-use crate::input::{with_set_cx, Cursor, Input};
+use crate::input::{with_set_cx, Input};
 use crate::output::payload::Once;
 use crate::output::Responder;
 

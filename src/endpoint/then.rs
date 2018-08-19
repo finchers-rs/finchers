@@ -7,10 +7,10 @@ use futures_core::future::TryFuture;
 use futures_util::future::{FutureExt, Map};
 use pin_utils::unsafe_pinned;
 
-use crate::endpoint::{Endpoint, EndpointResult};
+use crate::endpoint::{Cursor, Endpoint, EndpointResult};
 use crate::error::Error;
 use crate::generic::{one, Func, One, Tuple};
-use crate::input::{Cursor, Input};
+use crate::input::Input;
 
 use super::try_chain::{TryChain, TryChainAction};
 

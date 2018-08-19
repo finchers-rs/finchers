@@ -2,10 +2,10 @@ use futures_core::future::TryFuture;
 use futures_util::try_future::{MapOk, TryFutureExt};
 use std::mem::PinMut;
 
-use crate::endpoint::{Endpoint, EndpointResult};
+use crate::endpoint::{Cursor, Endpoint, EndpointResult};
 use crate::error::Error;
 use crate::generic::{one, One};
-use crate::input::{Cursor, Input};
+use crate::input::Input;
 
 /// Create an endpoint which executes the provided closure for each request.
 ///

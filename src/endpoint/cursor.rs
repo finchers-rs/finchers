@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 use std::rc::Rc;
 use std::str;
 
-use super::encoded::EncodedStr;
+use crate::input::EncodedStr;
 
 /// An iterator over the remaining path segments.
 #[derive(Debug, Clone)]

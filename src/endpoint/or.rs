@@ -7,10 +7,10 @@ use futures_core::future::TryFuture;
 use http::Response;
 use pin_utils::unsafe_pinned;
 
-use crate::endpoint::{Endpoint, EndpointErrorKind, EndpointResult};
+use crate::endpoint::{Cursor, Endpoint, EndpointErrorKind, EndpointResult};
 use crate::error::Error;
 use crate::generic::{one, Either, One};
-use crate::input::{Cursor, Input};
+use crate::input::Input;
 use crate::output::Responder;
 
 #[allow(missing_docs)]

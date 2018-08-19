@@ -6,10 +6,10 @@ use std::fmt;
 use std::future::{FutureObj, LocalFutureObj};
 use std::mem::PinMut;
 
-use crate::endpoint::{Endpoint, EndpointResult};
+use crate::endpoint::{Cursor, Endpoint, EndpointResult};
 use crate::error::Error;
 use crate::generic::Tuple;
-use crate::input::{Cursor, Input};
+use crate::input::Input;
 
 type EndpointFn<T> = dyn for<'a, 'c> Fn(PinMut<'a, Input>, Cursor<'c>)
         -> EndpointResult<'c, FutureObj<'static, Result<T, Error>>>
