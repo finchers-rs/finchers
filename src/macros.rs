@@ -48,14 +48,8 @@ macro_rules! routes_impl {
 
     ($e1:expr, $e2:expr) => {{
         $crate::endpoint::EndpointExt::or(
-            $crate::endpoint::EndpointExt::map(
-                $crate::endpoint::IntoEndpoint::into_endpoint($e1),
-                $crate::generic::map_left(),
-            ),
-            $crate::endpoint::EndpointExt::map(
-                $crate::endpoint::IntoEndpoint::into_endpoint($e2),
-                $crate::generic::map_right(),
-            )
+            $crate::endpoint::IntoEndpoint::into_endpoint($e1),
+            $crate::endpoint::IntoEndpoint::into_endpoint($e2),
         )
     }};
 

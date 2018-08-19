@@ -4,32 +4,30 @@ use std::mem::PinMut;
 
 use crate::endpoint::{Endpoint, EndpointExt};
 use crate::error::Error;
-use crate::generic::Tuple;
 use crate::input::{Cursor, Input};
 
 /// Creates an endpoint which always rejects the request with the specified error.
-pub fn reject<F, T, E>(f: F) -> Reject<F, T, E>
+pub fn reject<F, E>(f: F) -> Reject<F, E>
 where
     F: Fn(PinMut<'_, Input>) -> E,
-    T: Tuple,
     E: Into<Error>,
 {
     (Reject {
         f,
         _marker: PhantomData,
-    }).output::<T>()
+    }).output::<()>()
 }
 
 #[allow(missing_docs)]
 #[derive(Debug)]
-pub struct Reject<F, T, E> {
+pub struct Reject<F, E> {
     f: F,
-    _marker: PhantomData<fn() -> Result<T, E>>,
+    _marker: PhantomData<fn() -> E>,
 }
 
-impl<F: Copy, T, E> Copy for Reject<F, T, E> {}
+impl<F: Copy, E> Copy for Reject<F, E> {}
 
-impl<F: Clone, T, E> Clone for Reject<F, T, E> {
+impl<F: Clone, E> Clone for Reject<F, E> {
     fn clone(&self) -> Self {
         Reject {
             f: self.f.clone(),
@@ -38,13 +36,12 @@ impl<F: Clone, T, E> Clone for Reject<F, T, E> {
     }
 }
 
-impl<F, T, E> Endpoint for Reject<F, T, E>
+impl<F, E> Endpoint for Reject<F, E>
 where
     F: Fn(PinMut<'_, Input>) -> E,
-    T: Tuple,
     E: Into<Error>,
 {
-    type Output = T;
+    type Output = ();
     type Future = future::Ready<Result<Self::Output, Error>>;
 
     fn apply<'c>(

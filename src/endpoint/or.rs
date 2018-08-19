@@ -1,14 +1,17 @@
-use futures_core::future::TryFuture;
-use pin_utils::unsafe_pinned;
 use std::future::Future;
 use std::mem::PinMut;
 use std::task;
 use std::task::Poll;
 
+use futures_core::future::TryFuture;
+use http::Response;
+use pin_utils::unsafe_pinned;
+
 use crate::endpoint::Endpoint;
 use crate::error::Error;
-use crate::generic::Either;
+use crate::generic::{one, Either, One};
 use crate::input::{Cursor, Input};
+use crate::output::Responder;
 
 #[allow(missing_docs)]
 #[derive(Debug, Copy, Clone)]
@@ -20,9 +23,9 @@ pub struct Or<E1, E2> {
 impl<E1, E2> Endpoint for Or<E1, E2>
 where
     E1: Endpoint,
-    E2: Endpoint<Output = E1::Output>,
+    E2: Endpoint,
 {
-    type Output = E1::Output;
+    type Output = One<WrappedEither<E1::Output, E2::Output>>;
     type Future = OrFuture<E1::Future, E2::Future>;
 
     fn apply<'c>(
@@ -70,6 +73,23 @@ where
     }
 }
 
+#[derive(Debug)]
+pub struct WrappedEither<L, R>(Either<L, R>);
+
+impl<L, R> Responder for WrappedEither<L, R>
+where
+    L: Responder,
+    R: Responder,
+{
+    type Body = Either<L::Body, R::Body>;
+    type Error = Error;
+
+    #[inline(always)]
+    fn respond(self, input: PinMut<'_, Input>) -> Result<Response<Self::Body>, Self::Error> {
+        self.0.respond(input)
+    }
+}
+
 #[allow(missing_docs)]
 #[derive(Debug)]
 pub struct OrFuture<L, R> {
@@ -80,18 +100,22 @@ impl<L, R> OrFuture<L, R> {
     unsafe_pinned!(inner: Either<L, R>);
 }
 
-impl<L, R, T> Future for OrFuture<L, R>
+impl<L, R> Future for OrFuture<L, R>
 where
-    L: TryFuture<Ok = T, Error = Error>,
-    R: TryFuture<Ok = T, Error = Error>,
+    L: TryFuture<Error = Error>,
+    R: TryFuture<Error = Error>,
 {
-    type Output = Result<T, Error>;
+    type Output = Result<One<WrappedEither<L::Ok, R::Ok>>, Error>;
 
     #[inline(always)]
     fn poll(mut self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
         match self.inner().as_pin_mut() {
-            Either::Left(t) => t.try_poll(cx),
-            Either::Right(t) => t.try_poll(cx),
+            Either::Left(t) => t
+                .try_poll(cx)
+                .map_ok(|t| one(WrappedEither(Either::Left(t)))),
+            Either::Right(t) => t
+                .try_poll(cx)
+                .map_ok(|t| one(WrappedEither(Either::Right(t)))),
         }
     }
 }

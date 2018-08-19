@@ -11,9 +11,9 @@ fn test_or_1() {
     let e2 = path("bar").and(value("bar"));
     let endpoint = e1.or(e2);
 
-    assert_matches!(local::get("/foo").apply(&endpoint), Ok(("foo",)));
+    assert_matches!(local::get("/foo").apply(&endpoint), Ok(..));
 
-    assert_matches!(local::get("/bar").apply(&endpoint), Ok(("bar",)));
+    assert_matches!(local::get("/bar").apply(&endpoint), Ok(..));
 }
 
 #[test]
@@ -22,9 +22,9 @@ fn test_or_choose_longer_segments() {
     let e2 = path("foo").and(path("bar")).and(value("foobar"));
     let endpoint = e1.or(e2);
 
-    assert_matches!(local::get("/foo").apply(&endpoint), Ok(("foo",)));
+    assert_matches!(local::get("/foo").apply(&endpoint), Ok(..));
 
-    assert_matches!(local::get("/foo/bar").apply(&endpoint), Ok(("foobar",)));
+    assert_matches!(local::get("/foo/bar").apply(&endpoint), Ok(..));
 }
 
 #[test]
@@ -33,13 +33,11 @@ fn test_or_with_rejection_path() {
         .or(path("bar"))
         .or(reject(|_| bad_request(format_err!("custom rejection"))));
 
-    assert_matches!(local::get("/foo").apply(&endpoint), Ok(()));
+    assert_matches!(local::get("/foo").apply(&endpoint), Ok(..));
 
-    assert_eq!(
-        local::get("/baz")
-            .apply(&endpoint)
-            .map_err(|e| e.to_string()),
-        Err("custom rejection".into())
+    assert_matches!(
+        local::get("/baz").apply(&endpoint),
+        Err(ref e) if e.to_string() == "custom rejection"
     );
 }
 
@@ -70,11 +68,11 @@ fn test_or_with_rejection_header() {
         local::get("/")
             .header("authorization", "Basic xxxx")
             .apply(&endpoint),
-        Ok((Authorization(..),))
+        Ok((..))
     );
 
-    assert_eq!(
-        local::get("/").apply(&endpoint).map_err(|e| e.to_string()),
-        Err("missing authorization header".into())
+    assert_matches!(
+        local::get("/").apply(&endpoint),
+        Err(ref e) if e.to_string() == "missing authorization header"
     );
 }
