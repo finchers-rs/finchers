@@ -41,6 +41,15 @@ use crate::error::Error;
 use crate::generic::{Combine, Func, Tuple};
 use crate::input::{Cursor, Input};
 
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub enum EndpointErrorKind {
+    NotMatched,
+}
+
+#[allow(missing_docs)]
+pub type EndpointResult<'c, F> = Result<(F, Cursor<'c>), EndpointErrorKind>;
+
 /// Trait representing an endpoint.
 pub trait Endpoint {
     /// The inner type associated with this endpoint.
@@ -55,7 +64,7 @@ pub trait Endpoint {
         &self,
         input: PinMut<'_, Input>,
         cursor: Cursor<'c>,
-    ) -> Option<(Self::Future, Cursor<'c>)>;
+    ) -> EndpointResult<'c, Self::Future>;
 }
 
 impl<'e, E: Endpoint> Endpoint for &'e E {
@@ -66,7 +75,7 @@ impl<'e, E: Endpoint> Endpoint for &'e E {
         &self,
         input: PinMut<'_, Input>,
         cursor: Cursor<'c>,
-    ) -> Option<(Self::Future, Cursor<'c>)> {
+    ) -> EndpointResult<'c, Self::Future> {
         (*self).apply(input, cursor)
     }
 }
@@ -79,7 +88,7 @@ impl<E: Endpoint> Endpoint for Box<E> {
         &self,
         input: PinMut<'_, Input>,
         cursor: Cursor<'c>,
-    ) -> Option<(Self::Future, Cursor<'c>)> {
+    ) -> EndpointResult<'c, Self::Future> {
         (**self).apply(input, cursor)
     }
 }
@@ -92,7 +101,7 @@ impl<E: Endpoint> Endpoint for Rc<E> {
         &self,
         input: PinMut<'_, Input>,
         cursor: Cursor<'c>,
-    ) -> Option<(Self::Future, Cursor<'c>)> {
+    ) -> EndpointResult<'c, Self::Future> {
         (**self).apply(input, cursor)
     }
 }
@@ -105,7 +114,7 @@ impl<E: Endpoint> Endpoint for Arc<E> {
         &self,
         input: PinMut<'_, Input>,
         cursor: Cursor<'c>,
-    ) -> Option<(Self::Future, Cursor<'c>)> {
+    ) -> EndpointResult<'c, Self::Future> {
         (**self).apply(input, cursor)
     }
 }

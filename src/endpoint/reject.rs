@@ -2,7 +2,7 @@ use futures_util::future;
 use std::marker::PhantomData;
 use std::mem::PinMut;
 
-use crate::endpoint::{Endpoint, EndpointExt};
+use crate::endpoint::{Endpoint, EndpointExt, EndpointResult};
 use crate::error::Error;
 use crate::input::{Cursor, Input};
 
@@ -48,8 +48,8 @@ where
         &self,
         input: PinMut<'_, Input>,
         mut cursor: Cursor<'c>,
-    ) -> Option<(Self::Future, Cursor<'c>)> {
+    ) -> EndpointResult<'c, Self::Future> {
         cursor.by_ref().count();
-        Some((future::ready(Err((self.f)(input).into())), cursor))
+        Ok((future::ready(Err((self.f)(input).into())), cursor))
     }
 }

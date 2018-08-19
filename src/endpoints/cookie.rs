@@ -5,7 +5,7 @@ use std::borrow::Cow;
 use std::fmt;
 use std::mem::PinMut;
 
-use crate::endpoint::Endpoint;
+use crate::endpoint::{Endpoint, EndpointErrorKind, EndpointResult};
 use crate::error::Error;
 use crate::generic::{one, One};
 use crate::input::cookie::Cookie;
@@ -105,9 +105,13 @@ impl Endpoint for Required {
         &self,
         input: PinMut<'_, Input>,
         c: Cursor<'c>,
-    ) -> Option<(Self::Future, Cursor<'c>)> {
-        let cookie = self.mode.extract_cookie(input, &self.name).transpose()?;
-        Some((ready(cookie.map(one)), c))
+    ) -> EndpointResult<'c, Self::Future> {
+        let cookie = self
+            .mode
+            .extract_cookie(input, &self.name)
+            .transpose()
+            .ok_or_else(|| EndpointErrorKind::NotMatched)?;
+        Ok((ready(cookie.map(one)), c))
     }
 }
 
@@ -171,8 +175,8 @@ impl Endpoint for Optional {
         &self,
         input: PinMut<'_, Input>,
         c: Cursor<'c>,
-    ) -> Option<(Self::Future, Cursor<'c>)> {
-        Some((
+    ) -> EndpointResult<'c, Self::Future> {
+        Ok((
             ready(self.mode.extract_cookie(input, &self.name).map(one)),
             c,
         ))

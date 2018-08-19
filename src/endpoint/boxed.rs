@@ -6,21 +6,20 @@ use std::fmt;
 use std::future::{FutureObj, LocalFutureObj};
 use std::mem::PinMut;
 
-use crate::endpoint::Endpoint;
+use crate::endpoint::{Endpoint, EndpointResult};
 use crate::error::Error;
 use crate::generic::Tuple;
 use crate::input::{Cursor, Input};
 
-type EndpointFn<T> =
-    dyn for<'a, 'c> Fn(PinMut<'a, Input>, Cursor<'c>)
-            -> Option<(FutureObj<'static, Result<T, Error>>, Cursor<'c>)>
-        + Send
-        + Sync
-        + 'static;
+type EndpointFn<T> = dyn for<'a, 'c> Fn(PinMut<'a, Input>, Cursor<'c>)
+        -> EndpointResult<'c, FutureObj<'static, Result<T, Error>>>
+    + Send
+    + Sync
+    + 'static;
 
 type LocalEndpointFn<'a, T> =
     dyn for<'i, 'c> Fn(PinMut<'i, Input>, Cursor<'c>)
-            -> Option<(LocalFutureObj<'a, Result<T, Error>>, Cursor<'c>)>
+            -> EndpointResult<'c, LocalFutureObj<'a, Result<T, Error>>>
         + 'a;
 
 #[allow(missing_docs)]
@@ -43,7 +42,7 @@ impl<T: Tuple> Boxed<T> {
         Boxed {
             inner: Box::new(move |input, cursor| {
                 let (future, cursor) = endpoint.apply(input, cursor)?;
-                Some((FutureObj::new(PinBox::new(future.into_future())), cursor))
+                Ok((FutureObj::new(PinBox::new(future.into_future())), cursor))
             }),
         }
     }
@@ -57,7 +56,7 @@ impl<T: Tuple> Endpoint for Boxed<T> {
         &self,
         input: PinMut<'_, Input>,
         cursor: Cursor<'c>,
-    ) -> Option<(Self::Future, Cursor<'c>)> {
+    ) -> EndpointResult<'c, Self::Future> {
         (self.inner)(input, cursor)
     }
 }
@@ -81,7 +80,7 @@ impl<'a, T: Tuple> BoxedLocal<'a, T> {
         BoxedLocal {
             inner: Box::new(move |input, cursor| {
                 let (future, cursor) = endpoint.apply(input, cursor)?;
-                Some((
+                Ok((
                     LocalFutureObj::new(PinBox::new(future.into_future())),
                     cursor,
                 ))
@@ -98,7 +97,7 @@ impl<'a, T: Tuple> Endpoint for BoxedLocal<'a, T> {
         &self,
         input: PinMut<'_, Input>,
         cursor: Cursor<'c>,
-    ) -> Option<(Self::Future, Cursor<'c>)> {
+    ) -> EndpointResult<'c, Self::Future> {
         (self.inner)(input, cursor)
     }
 }

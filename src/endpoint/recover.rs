@@ -7,7 +7,7 @@ use futures_core::future::TryFuture;
 use http::Response;
 use pin_utils::unsafe_pinned;
 
-use crate::endpoint::Endpoint;
+use crate::endpoint::{Endpoint, EndpointResult};
 use crate::error::Error;
 use crate::generic::{one, Either, One};
 use crate::input::{Cursor, Input};
@@ -33,10 +33,10 @@ where
         &self,
         input: PinMut<'_, Input>,
         cursor: Cursor<'c>,
-    ) -> Option<(Self::Future, Cursor<'c>)> {
+    ) -> EndpointResult<'c, Self::Future> {
         let (f1, cursor) = self.endpoint.apply(input, cursor)?;
         let f = self.f.clone();
-        Some((
+        Ok((
             RecoverFuture {
                 try_chain: TryChain::new(f1, f),
             },

@@ -83,8 +83,8 @@ where
                         this.endpoint.apply(input.reborrow(), cursor)
                     };
                     match result {
-                        Some((future, _cursor)) => this.state = State::InFlight(future),
-                        None => {
+                        Ok((future, _cursor)) => this.state = State::InFlight(future),
+                        Err(..) => {
                             this.state = State::Gone;
                             return Poll::Ready(Err(no_route()));
                         }

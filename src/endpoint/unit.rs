@@ -1,7 +1,7 @@
 use futures_util::future;
 use std::mem::PinMut;
 
-use crate::endpoint::Endpoint;
+use crate::endpoint::{Endpoint, EndpointResult};
 use crate::error::Error;
 use crate::input::{Cursor, Input};
 
@@ -20,7 +20,7 @@ impl Endpoint for Unit {
     type Output = ();
     type Future = future::Ready<Result<Self::Output, Error>>;
 
-    fn apply<'c>(&self, _: PinMut<'_, Input>, c: Cursor<'c>) -> Option<(Self::Future, Cursor<'c>)> {
-        Some((future::ready(Ok(())), c))
+    fn apply<'c>(&self, _: PinMut<'_, Input>, c: Cursor<'c>) -> EndpointResult<'c, Self::Future> {
+        Ok((future::ready(Ok(())), c))
     }
 }

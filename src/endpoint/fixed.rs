@@ -5,7 +5,7 @@ use std::task::Poll;
 use futures_core::future::{Future, TryFuture};
 use pin_utils::unsafe_unpinned;
 
-use crate::endpoint::Endpoint;
+use crate::endpoint::{Endpoint, EndpointResult};
 use crate::error::{no_route, Error};
 use crate::input::{Cursor, Input};
 
@@ -26,17 +26,17 @@ where
         &self,
         input: PinMut<'_, Input>,
         mut cursor: Cursor<'c>,
-    ) -> Option<(Self::Future, Cursor<'c>)> {
+    ) -> EndpointResult<'c, Self::Future> {
         match self.endpoint.apply(input, cursor.clone()) {
-            Some((future, cursor)) => Some((
+            Ok((future, cursor)) => Ok((
                 FixedFuture {
                     inner: Some(future),
                 },
                 cursor,
             )),
-            None => {
+            Err(..) => {
                 let _ = cursor.by_ref().count();
-                Some((FixedFuture { inner: None }, cursor))
+                Ok((FixedFuture { inner: None }, cursor))
             }
         }
     }

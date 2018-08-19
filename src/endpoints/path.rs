@@ -9,7 +9,7 @@ use futures_util::future;
 use http::StatusCode;
 use percent_encoding::{define_encode_set, percent_encode, DEFAULT_ENCODE_SET};
 
-use crate::endpoint::Endpoint;
+use crate::endpoint::{Endpoint, EndpointErrorKind, EndpointResult};
 use crate::error::{Error, HttpError};
 use crate::generic::{one, One};
 use crate::input::{Cursor, FromEncodedStr, Input};
@@ -46,11 +46,12 @@ impl Endpoint for MatchPath {
         &self,
         _: PinMut<'_, Input>,
         mut cursor: Cursor<'c>,
-    ) -> Option<(Self::Future, Cursor<'c>)> {
-        if cursor.next()? == self.encoded {
-            Some((future::ready(Ok(())), cursor))
+    ) -> EndpointResult<'c, Self::Future> {
+        let s = cursor.next().ok_or_else(|| EndpointErrorKind::NotMatched)?;
+        if s == self.encoded {
+            Ok((future::ready(Ok(())), cursor))
         } else {
-            None
+            Err(EndpointErrorKind::NotMatched)
         }
     }
 }
@@ -76,11 +77,10 @@ impl Endpoint for EndPath {
         &self,
         _: PinMut<'_, Input>,
         mut cursor: Cursor<'c>,
-    ) -> Option<(Self::Future, Cursor<'c>)> {
-        if cursor.next().is_none() {
-            Some((future::ready(Ok(())), cursor))
-        } else {
-            None
+    ) -> EndpointResult<'c, Self::Future> {
+        match cursor.next() {
+            None => Ok((future::ready(Ok(())), cursor)),
+            Some(..) => Err(EndpointErrorKind::NotMatched),
         }
     }
 }
@@ -142,11 +142,12 @@ where
         &self,
         _: PinMut<'_, Input>,
         mut cursor: Cursor<'c>,
-    ) -> Option<(Self::Future, Cursor<'c>)> {
-        let result = T::from_encoded_str(cursor.next()?)
+    ) -> EndpointResult<'c, Self::Future> {
+        let s = cursor.next().ok_or_else(|| EndpointErrorKind::NotMatched)?;
+        let result = T::from_encoded_str(s)
             .map(one)
             .map_err(|cause| ParamError { cause }.into());
-        Some((future::ready(result), cursor))
+        Ok((future::ready(result), cursor))
     }
 }
 
@@ -225,11 +226,11 @@ where
         &self,
         _: PinMut<'_, Input>,
         mut cursor: Cursor<'c>,
-    ) -> Option<(Self::Future, Cursor<'c>)> {
+    ) -> EndpointResult<'c, Self::Future> {
         let result = T::from_encoded_str(cursor.remaining_path())
             .map(one)
             .map_err(|cause| ParamError { cause }.into());
         let _ = cursor.by_ref().count();
-        Some((future::ready(result), cursor))
+        Ok((future::ready(result), cursor))
     }
 }

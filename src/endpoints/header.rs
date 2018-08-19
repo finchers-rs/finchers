@@ -10,7 +10,7 @@ use failure::format_err;
 use futures_util::future;
 use http::header::HeaderValue;
 
-use crate::endpoint::{Endpoint, EndpointExt};
+use crate::endpoint::{Endpoint, EndpointErrorKind, EndpointExt, EndpointResult};
 use crate::error::{bad_request, Error};
 use crate::generic::{one, One};
 use crate::input::header::FromHeader;
@@ -105,16 +105,16 @@ where
         &self,
         input: PinMut<'_, Input>,
         cursor: Cursor<'c>,
-    ) -> Option<(Self::Future, Cursor<'c>)> {
+    ) -> EndpointResult<'c, Self::Future> {
         if input.headers().contains_key(H::HEADER_NAME) {
-            Some((
+            Ok((
                 OptionalFuture {
                     _marker: PhantomData,
                 },
                 cursor,
             ))
         } else {
-            None
+            Err(EndpointErrorKind::NotMatched)
         }
     }
 }
@@ -236,8 +236,8 @@ where
         &self,
         _: PinMut<'_, Input>,
         cursor: Cursor<'c>,
-    ) -> Option<(Self::Future, Cursor<'c>)> {
-        Some((
+    ) -> EndpointResult<'c, Self::Future> {
+        Ok((
             RequiredFuture {
                 _marker: PhantomData,
             },
@@ -313,10 +313,10 @@ where
         &self,
         input: PinMut<'_, Input>,
         cursor: Cursor<'c>,
-    ) -> Option<(Self::Future, Cursor<'c>)> {
+    ) -> EndpointResult<'c, Self::Future> {
         match input.headers().get(self.name) {
-            Some(h) if *h == self.value => Some((future::ready(Ok(())), cursor)),
-            _ => None,
+            Some(h) if *h == self.value => Ok((future::ready(Ok(())), cursor)),
+            _ => Err(EndpointErrorKind::NotMatched),
         }
     }
 }

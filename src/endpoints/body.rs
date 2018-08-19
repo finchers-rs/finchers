@@ -15,7 +15,7 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use serde::de::DeserializeOwned;
 use serde_json;
 
-use crate::endpoint::{Endpoint, EndpointExt};
+use crate::endpoint::{Endpoint, EndpointExt, EndpointResult};
 use crate::error::{bad_request, err_msg, Error};
 use crate::generic::{one, One};
 use crate::input::body::{FromBody, Payload};
@@ -51,8 +51,8 @@ impl Endpoint for Raw {
         &self,
         _: PinMut<'_, Input>,
         cursor: Cursor<'c>,
-    ) -> Option<(Self::Future, Cursor<'c>)> {
-        Some((RawFuture { _priv: () }, cursor))
+    ) -> EndpointResult<'c, Self::Future> {
+        Ok((RawFuture { _priv: () }, cursor))
     }
 }
 
@@ -181,8 +181,8 @@ where
         &self,
         _: PinMut<'_, Input>,
         cursor: Cursor<'c>,
-    ) -> Option<(Self::Future, Cursor<'c>)> {
-        Some((
+    ) -> EndpointResult<'c, Self::Future> {
+        Ok((
             ParseFuture {
                 receive_all: ReceiveAll::new(),
                 _marker: PhantomData,
@@ -248,8 +248,8 @@ where
         &self,
         _: PinMut<'_, Input>,
         cursor: Cursor<'c>,
-    ) -> Option<(Self::Future, Cursor<'c>)> {
-        Some((
+    ) -> EndpointResult<'c, Self::Future> {
+        Ok((
             JsonFuture {
                 receive_all: ReceiveAll::new(),
                 _marker: PhantomData,
@@ -322,8 +322,8 @@ where
         &self,
         _: PinMut<'_, Input>,
         cursor: Cursor<'c>,
-    ) -> Option<(Self::Future, Cursor<'c>)> {
-        Some((
+    ) -> EndpointResult<'c, Self::Future> {
+        Ok((
             UrlEncodedFuture {
                 receive_all: ReceiveAll::new(),
                 _marker: PhantomData,

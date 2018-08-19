@@ -7,7 +7,7 @@ use futures_core::future::TryFuture;
 use http::Response;
 use pin_utils::unsafe_pinned;
 
-use crate::endpoint::Endpoint;
+use crate::endpoint::{Endpoint, EndpointErrorKind, EndpointResult};
 use crate::error::Error;
 use crate::generic::{one, Either, One};
 use crate::input::{Cursor, Input};
@@ -32,23 +32,23 @@ where
         &self,
         mut input: PinMut<'_, Input>,
         cursor: Cursor<'c>,
-    ) -> Option<(Self::Future, Cursor<'c>)> {
+    ) -> EndpointResult<'c, Self::Future> {
         let v1 = self.e1.apply(input.reborrow(), cursor.clone());
         let v2 = self.e2.apply(input, cursor);
 
         match (v1, v2) {
-            (Some((future1, cursor1)), Some((future2, cursor2))) => {
+            (Ok((future1, cursor1)), Ok((future2, cursor2))) => {
                 // If both endpoints are matched, the one with the larger number of
                 // (consumed) path segments is choosen.
                 if cursor1.popped() >= cursor2.popped() {
-                    Some((
+                    Ok((
                         OrFuture {
                             inner: Either::Left(future1),
                         },
                         cursor1,
                     ))
                 } else {
-                    Some((
+                    Ok((
                         OrFuture {
                             inner: Either::Right(future2),
                         },
@@ -56,19 +56,19 @@ where
                     ))
                 }
             }
-            (Some((future, cursor)), None) => Some((
+            (Ok((future, cursor)), Err(..)) => Ok((
                 OrFuture {
                     inner: Either::Left(future),
                 },
                 cursor,
             )),
-            (None, Some((future, cursor))) => Some((
+            (Err(..), Ok((future, cursor))) => Ok((
                 OrFuture {
                     inner: Either::Right(future),
                 },
                 cursor,
             )),
-            (None, None) => None,
+            (Err(..), Err(..)) => Err(EndpointErrorKind::NotMatched),
         }
     }
 }
