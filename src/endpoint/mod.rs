@@ -164,12 +164,12 @@ pub trait EndpointExt: Endpoint + Sized {
     /// from either `self` or `e` matched "better" to the input.
     fn or<E>(self, other: E) -> Or<Self, E::Endpoint>
     where
-        E: IntoEndpoint<Output = Self::Output>,
+        E: IntoEndpoint,
     {
         (Or {
             e1: self,
             e2: other.into_endpoint(),
-        }).output::<Self::Output>()
+        }).output::<(self::or::WrappedEither<Self::Output, E::Output>,)>()
     }
 
     /// Create an endpoint which maps the returned value to a different type.
