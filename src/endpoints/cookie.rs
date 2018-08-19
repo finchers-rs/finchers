@@ -5,13 +5,13 @@ use std::borrow::Cow;
 use std::fmt;
 use std::mem::PinMut;
 
-use crate::endpoint::{Endpoint, EndpointErrorKind, EndpointResult};
+use crate::endpoint::{Context, Endpoint, EndpointErrorKind, EndpointResult};
 use crate::error::Error;
 use crate::generic::{one, One};
 use crate::input::cookie::Cookie;
 #[cfg(feature = "secure")]
 use crate::input::cookie::Key;
-use crate::input::{Cursor, Input};
+use crate::input::Input;
 
 #[derive(Clone)]
 enum Mode {
@@ -101,17 +101,13 @@ impl Endpoint for Required {
     type Output = One<Cookie<'static>>;
     type Future = Ready<Result<Self::Output, Error>>;
 
-    fn apply<'c>(
-        &self,
-        input: PinMut<'_, Input>,
-        c: Cursor<'c>,
-    ) -> EndpointResult<'c, Self::Future> {
+    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
         let cookie = self
             .mode
-            .extract_cookie(input, &self.name)
+            .extract_cookie(ecx.input(), &self.name)
             .transpose()
             .ok_or_else(|| EndpointErrorKind::NotMatched)?;
-        Ok((ready(cookie.map(one)), c))
+        Ok(ready(cookie.map(one)))
     }
 }
 
@@ -171,14 +167,9 @@ impl Endpoint for Optional {
     type Output = One<Option<Cookie<'static>>>;
     type Future = Ready<Result<Self::Output, Error>>;
 
-    fn apply<'c>(
-        &self,
-        input: PinMut<'_, Input>,
-        c: Cursor<'c>,
-    ) -> EndpointResult<'c, Self::Future> {
-        Ok((
-            ready(self.mode.extract_cookie(input, &self.name).map(one)),
-            c,
+    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+        Ok(ready(
+            self.mode.extract_cookie(ecx.input(), &self.name).map(one),
         ))
     }
 }

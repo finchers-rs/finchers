@@ -2,17 +2,16 @@
 
 use std::fmt;
 use std::marker::PhantomData;
-use std::mem::PinMut;
 
 use failure::Fail;
 use futures_util::future;
 use http::StatusCode;
 use percent_encoding::{define_encode_set, percent_encode, DEFAULT_ENCODE_SET};
 
-use crate::endpoint::{Endpoint, EndpointErrorKind, EndpointResult};
+use crate::endpoint::{Context, Endpoint, EndpointErrorKind, EndpointResult};
 use crate::error::{Error, HttpError};
 use crate::generic::{one, One};
-use crate::input::{Cursor, FromEncodedStr, Input};
+use crate::input::FromEncodedStr;
 
 define_encode_set! {
     /// The encode set for MatchPath
@@ -42,14 +41,12 @@ impl Endpoint for MatchPath {
     type Output = ();
     type Future = future::Ready<Result<Self::Output, Error>>;
 
-    fn apply<'c>(
-        &self,
-        _: PinMut<'_, Input>,
-        mut cursor: Cursor<'c>,
-    ) -> EndpointResult<'c, Self::Future> {
-        let s = cursor.next().ok_or_else(|| EndpointErrorKind::NotMatched)?;
+    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+        let s = ecx
+            .next_segment()
+            .ok_or_else(|| EndpointErrorKind::NotMatched)?;
         if s == self.encoded {
-            Ok((future::ready(Ok(())), cursor))
+            Ok(future::ready(Ok(())))
         } else {
             Err(EndpointErrorKind::NotMatched)
         }
@@ -73,13 +70,9 @@ impl Endpoint for EndPath {
     type Output = ();
     type Future = future::Ready<Result<Self::Output, Error>>;
 
-    fn apply<'c>(
-        &self,
-        _: PinMut<'_, Input>,
-        mut cursor: Cursor<'c>,
-    ) -> EndpointResult<'c, Self::Future> {
-        match cursor.next() {
-            None => Ok((future::ready(Ok(())), cursor)),
+    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+        match ecx.next_segment() {
+            None => Ok(future::ready(Ok(()))),
             Some(..) => Err(EndpointErrorKind::NotMatched),
         }
     }
@@ -138,16 +131,14 @@ where
     type Output = One<T>;
     type Future = future::Ready<Result<Self::Output, Error>>;
 
-    fn apply<'c>(
-        &self,
-        _: PinMut<'_, Input>,
-        mut cursor: Cursor<'c>,
-    ) -> EndpointResult<'c, Self::Future> {
-        let s = cursor.next().ok_or_else(|| EndpointErrorKind::NotMatched)?;
+    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+        let s = ecx
+            .next_segment()
+            .ok_or_else(|| EndpointErrorKind::NotMatched)?;
         let result = T::from_encoded_str(s)
             .map(one)
             .map_err(|cause| ParamError { cause }.into());
-        Ok((future::ready(result), cursor))
+        Ok(future::ready(result))
     }
 }
 
@@ -222,15 +213,11 @@ where
     type Output = One<T>;
     type Future = future::Ready<Result<Self::Output, Error>>;
 
-    fn apply<'c>(
-        &self,
-        _: PinMut<'_, Input>,
-        mut cursor: Cursor<'c>,
-    ) -> EndpointResult<'c, Self::Future> {
-        let result = T::from_encoded_str(cursor.remaining_path())
+    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+        let result = T::from_encoded_str(ecx.remaining_path())
             .map(one)
             .map_err(|cause| ParamError { cause }.into());
-        let _ = cursor.by_ref().count();
-        Ok((future::ready(result), cursor))
+        while let Some(..) = ecx.next_segment() {}
+        Ok(future::ready(result))
     }
 }

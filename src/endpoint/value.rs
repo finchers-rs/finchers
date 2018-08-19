@@ -1,10 +1,8 @@
 use futures_util::future;
-use std::mem::PinMut;
 
-use crate::endpoint::{Endpoint, EndpointResult};
+use crate::endpoint::{Context, Endpoint, EndpointResult};
 use crate::error::Error;
 use crate::generic::{one, One};
-use crate::input::{Cursor, Input};
 
 /// Create an endpoint which simply clones the specified value.
 ///
@@ -50,11 +48,7 @@ impl<T: Clone> Endpoint for Value<T> {
     type Output = One<T>;
     type Future = future::Ready<Result<Self::Output, Error>>;
 
-    fn apply<'c>(
-        &self,
-        _: PinMut<'_, Input>,
-        cursor: Cursor<'c>,
-    ) -> EndpointResult<'c, Self::Future> {
-        Ok((future::ready(Ok(one(self.x.clone()))), cursor))
+    fn apply(&self, _: &mut Context<'_>) -> EndpointResult<Self::Future> {
+        Ok(future::ready(Ok(one(self.x.clone()))))
     }
 }

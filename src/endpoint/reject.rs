@@ -2,9 +2,9 @@ use futures_util::future;
 use std::marker::PhantomData;
 use std::mem::PinMut;
 
-use crate::endpoint::{Endpoint, EndpointExt, EndpointResult};
+use crate::endpoint::{Context, Endpoint, EndpointExt, EndpointResult};
 use crate::error::Error;
-use crate::input::{Cursor, Input};
+use crate::input::Input;
 
 /// Creates an endpoint which always rejects the request with the specified error.
 pub fn reject<F, E>(f: F) -> Reject<F, E>
@@ -44,12 +44,8 @@ where
     type Output = ();
     type Future = future::Ready<Result<Self::Output, Error>>;
 
-    fn apply<'c>(
-        &self,
-        input: PinMut<'_, Input>,
-        mut cursor: Cursor<'c>,
-    ) -> EndpointResult<'c, Self::Future> {
-        cursor.by_ref().count();
-        Ok((future::ready(Err((self.f)(input).into())), cursor))
+    fn apply<'c>(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+        while let Some(..) = ecx.next_segment() {}
+        Ok(future::ready(Err((self.f)(ecx.input()).into())))
     }
 }

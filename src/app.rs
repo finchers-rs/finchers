@@ -13,11 +13,11 @@ use futures_util::ready;
 use http::header::HeaderValue;
 use http::{header, Request, Response};
 
-use crate::endpoint::Endpoint;
+use crate::endpoint::{Context, Endpoint};
 use crate::error::Error;
 use crate::generic::Either;
 use crate::input::body::ReqBody;
-use crate::input::{with_set_cx, Cursor, Input};
+use crate::input::{with_set_cx, Input};
 use crate::output::payload::Once;
 use crate::output::Responder;
 
@@ -78,12 +78,9 @@ where
         loop {
             match this.state {
                 State::Uninitialized => {
-                    let result = {
-                        let cursor = unsafe { Cursor::new(&*(input.uri().path() as *const str)) };
-                        this.endpoint.apply(input.reborrow(), cursor)
-                    };
-                    match result {
-                        Ok((future, _cursor)) => this.state = State::InFlight(future),
+                    let mut ecx = Context::new(input.reborrow());
+                    match this.endpoint.apply(&mut ecx) {
+                        Ok(future) => this.state = State::InFlight(future),
                         Err(err) => {
                             this.state = State::Gone;
                             return Poll::Ready(Err(err.into()));

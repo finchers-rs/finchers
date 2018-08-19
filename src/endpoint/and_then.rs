@@ -6,10 +6,9 @@ use std::task::Poll;
 use futures_core::future::TryFuture;
 use pin_utils::unsafe_pinned;
 
-use crate::endpoint::{Endpoint, EndpointResult};
+use crate::endpoint::{Context, Endpoint, EndpointResult};
 use crate::error::Error;
 use crate::generic::{one, Func, One, Tuple};
-use crate::input::{Cursor, Input};
 
 use super::try_chain::{TryChain, TryChainAction};
 
@@ -29,19 +28,12 @@ where
     type Output = One<<F::Out as TryFuture>::Ok>;
     type Future = AndThenFuture<E::Future, F::Out, F>;
 
-    fn apply<'c>(
-        &self,
-        input: PinMut<'_, Input>,
-        cursor: Cursor<'c>,
-    ) -> EndpointResult<'c, Self::Future> {
-        let (f1, cursor) = self.endpoint.apply(input, cursor)?;
+    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+        let f1 = self.endpoint.apply(ecx)?;
         let f = self.f.clone();
-        Ok((
-            AndThenFuture {
-                try_chain: TryChain::new(f1, f),
-            },
-            cursor,
-        ))
+        Ok(AndThenFuture {
+            try_chain: TryChain::new(f1, f),
+        })
     }
 }
 

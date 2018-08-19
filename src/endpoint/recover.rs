@@ -7,10 +7,10 @@ use futures_core::future::TryFuture;
 use http::Response;
 use pin_utils::unsafe_pinned;
 
-use crate::endpoint::{Endpoint, EndpointResult};
+use crate::endpoint::{Context, Endpoint, EndpointResult};
 use crate::error::Error;
 use crate::generic::{one, Either, One};
-use crate::input::{Cursor, Input};
+use crate::input::Input;
 use crate::output::Responder;
 
 #[allow(missing_docs)]
@@ -29,19 +29,12 @@ where
     type Output = One<Recovered<E::Output, R::Ok>>;
     type Future = RecoverFuture<E::Future, R, F>;
 
-    fn apply<'c>(
-        &self,
-        input: PinMut<'_, Input>,
-        cursor: Cursor<'c>,
-    ) -> EndpointResult<'c, Self::Future> {
-        let (f1, cursor) = self.endpoint.apply(input, cursor)?;
+    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+        let f1 = self.endpoint.apply(ecx)?;
         let f = self.f.clone();
-        Ok((
-            RecoverFuture {
-                try_chain: TryChain::new(f1, f),
-            },
-            cursor,
-        ))
+        Ok(RecoverFuture {
+            try_chain: TryChain::new(f1, f),
+        })
     }
 }
 
