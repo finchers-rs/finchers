@@ -8,7 +8,7 @@ use std::task::Poll;
 use futures_core::future::Future;
 use pin_utils::unsafe_unpinned;
 
-use crate::endpoint::Endpoint;
+use crate::endpoint::{Endpoint, EndpointResult};
 use crate::error::{bad_request, Error};
 use crate::generic::{one, One};
 use crate::input::{Cursor, Input};
@@ -30,8 +30,8 @@ impl Endpoint for File {
     type Output = One<NamedFile>;
     type Future = FileFuture;
 
-    fn apply<'c>(&self, _: PinMut<'_, Input>, c: Cursor<'c>) -> Option<(Self::Future, Cursor<'c>)> {
-        Some((
+    fn apply<'c>(&self, _: PinMut<'_, Input>, c: Cursor<'c>) -> EndpointResult<'c, Self::Future> {
+        Ok((
             FileFuture {
                 state: State::Opening(NamedFile::open(self.path.clone())),
             },
@@ -59,13 +59,13 @@ impl Endpoint for Dir {
         &self,
         _: PinMut<'_, Input>,
         mut cursor: Cursor<'c>,
-    ) -> Option<(Self::Future, Cursor<'c>)> {
+    ) -> EndpointResult<'c, Self::Future> {
         let path = cursor.remaining_path().percent_decode();
         let _ = cursor.by_ref().count();
         let path = match path {
             Ok(path) => PathBuf::from(path.into_owned()),
             Err(e) => {
-                return Some((
+                return Ok((
                     FileFuture {
                         state: State::Err(Some(bad_request(e))),
                     },
@@ -79,7 +79,7 @@ impl Endpoint for Dir {
             path = path.join("index.html");
         }
 
-        Some((
+        Ok((
             FileFuture {
                 state: State::Opening(NamedFile::open(path)),
             },

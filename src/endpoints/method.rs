@@ -3,7 +3,7 @@
 use http::Method;
 use std::mem::PinMut;
 
-use crate::endpoint::{Endpoint, IntoEndpoint};
+use crate::endpoint::{Endpoint, EndpointErrorKind, EndpointResult, IntoEndpoint};
 use crate::input::{Cursor, Input};
 
 #[allow(missing_docs)]
@@ -21,11 +21,13 @@ impl<E: Endpoint> Endpoint for MatchMethod<E> {
         &self,
         input: PinMut<'_, Input>,
         cursor: Cursor<'c>,
-    ) -> Option<(Self::Future, Cursor<'c>)> {
+    ) -> EndpointResult<'c, Self::Future> {
         if *input.method() == self.method {
             self.endpoint.apply(input, cursor)
         } else {
-            None
+            Err(EndpointErrorKind::MethodNotAllowed(vec![
+                self.method.clone(),
+            ]))
         }
     }
 }
@@ -71,11 +73,11 @@ macro_rules! define_method {
                 &self,
                 input: PinMut<'_, Input>,
                 cursor: Cursor<'c>,
-            ) -> Option<(Self::Future, Cursor<'c>)> {
+            ) -> EndpointResult<'c, Self::Future> {
                 if *input.method() == Method::$method {
                     self.endpoint.apply(input, cursor)
                 } else {
-                    None
+                    Err(EndpointErrorKind::MethodNotAllowed(vec![Method::$method]))
                 }
             }
         }

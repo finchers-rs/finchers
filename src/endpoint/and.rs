@@ -7,7 +7,7 @@ use std::mem::PinMut;
 use std::task;
 use std::task::Poll;
 
-use crate::endpoint::Endpoint;
+use crate::endpoint::{Endpoint, EndpointResult};
 use crate::error::Error;
 use crate::generic::{Combine, Tuple};
 use crate::input::{Cursor, Input};
@@ -32,10 +32,10 @@ where
         &self,
         mut input: PinMut<'_, Input>,
         cursor: Cursor<'c>,
-    ) -> Option<(Self::Future, Cursor<'c>)> {
+    ) -> EndpointResult<'c, Self::Future> {
         let (f1, cursor) = self.e1.apply(input.reborrow(), cursor)?;
         let (f2, cursor) = self.e2.apply(input, cursor)?;
-        Some((
+        Ok((
             AndFuture {
                 f1: maybe_done(f1.into_future()),
                 f2: maybe_done(f2.into_future()),

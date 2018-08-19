@@ -212,28 +212,3 @@ where
         self.status
     }
 }
-
-// ==== NoRoute ====
-
-#[doc(hidden)]
-#[derive(Debug)]
-pub struct NoRoute {
-    _priv: (),
-}
-
-impl Display for NoRoute {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("no route")
-    }
-}
-
-impl HttpError for NoRoute {
-    fn status_code(&self) -> StatusCode {
-        StatusCode::NOT_FOUND
-    }
-}
-
-#[allow(missing_docs)]
-pub(crate) fn no_route() -> Error {
-    NoRoute { _priv: () }.into()
-}

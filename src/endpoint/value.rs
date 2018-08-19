@@ -1,7 +1,7 @@
 use futures_util::future;
 use std::mem::PinMut;
 
-use crate::endpoint::Endpoint;
+use crate::endpoint::{Endpoint, EndpointResult};
 use crate::error::Error;
 use crate::generic::{one, One};
 use crate::input::{Cursor, Input};
@@ -54,7 +54,7 @@ impl<T: Clone> Endpoint for Value<T> {
         &self,
         _: PinMut<'_, Input>,
         cursor: Cursor<'c>,
-    ) -> Option<(Self::Future, Cursor<'c>)> {
-        Some((future::ready(Ok(one(self.x.clone()))), cursor))
+    ) -> EndpointResult<'c, Self::Future> {
+        Ok((future::ready(Ok(one(self.x.clone()))), cursor))
     }
 }

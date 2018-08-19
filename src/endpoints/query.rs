@@ -6,7 +6,7 @@ use std::mem::PinMut;
 use std::task::Poll;
 use std::{fmt, task};
 
-use crate::endpoint::Endpoint;
+use crate::endpoint::{Endpoint, EndpointResult};
 use crate::error::{bad_request, Error};
 use crate::generic::{one, One};
 use crate::input::query::{FromQuery, QueryItems};
@@ -79,8 +79,8 @@ where
         &self,
         _: PinMut<'_, Input>,
         cursor: Cursor<'c>,
-    ) -> Option<(Self::Future, Cursor<'c>)> {
-        Some((
+    ) -> EndpointResult<'c, Self::Future> {
+        Ok((
             ParseFuture {
                 _marker: PhantomData,
             },
@@ -127,8 +127,8 @@ impl Endpoint for Raw {
     type Output = One<String>;
     type Future = RawFuture;
 
-    fn apply<'c>(&self, _: PinMut<'_, Input>, c: Cursor<'c>) -> Option<(Self::Future, Cursor<'c>)> {
-        Some((RawFuture { _priv: () }, c))
+    fn apply<'c>(&self, _: PinMut<'_, Input>, c: Cursor<'c>) -> EndpointResult<'c, Self::Future> {
+        Ok((RawFuture { _priv: () }, c))
     }
 }
 

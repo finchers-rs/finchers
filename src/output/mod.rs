@@ -11,10 +11,11 @@ mod text;
 
 use http::{Response, StatusCode};
 use hyper::body::Payload;
+use std::fmt;
 use std::mem::PinMut;
 
 use self::payload::Empty;
-use crate::error::{no_route, Error, Never};
+use crate::error::{Error, HttpError, Never};
 use crate::generic::Either;
 use crate::input::Input;
 
@@ -76,9 +77,27 @@ where
     type Error = Error;
 
     fn respond(self, input: PinMut<'_, Input>) -> Result<Response<Self::Body>, Self::Error> {
-        self.ok_or_else(no_route)?
+        self.ok_or_else(|| NoRoute { _priv: () })?
             .respond(input)
             .map_err(Into::into)
+    }
+}
+
+#[doc(hidden)]
+#[derive(Debug)]
+pub struct NoRoute {
+    _priv: (),
+}
+
+impl fmt::Display for NoRoute {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("no route")
+    }
+}
+
+impl HttpError for NoRoute {
+    fn status_code(&self) -> StatusCode {
+        StatusCode::NOT_FOUND
     }
 }
 
