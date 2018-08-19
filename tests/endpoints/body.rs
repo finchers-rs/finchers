@@ -25,8 +25,8 @@ fn test_body_1() {
 
     let message = "The quick brown fox jumps over the lazy dog";
 
-    assert_eq!(
+    assert_matches!(
         local::post("/").body(message).apply(&endpoint),
-        Some(Ok((message.into(),))),
+        Ok((ref s,)) if s == message
     );
 }

@@ -14,7 +14,7 @@ use hyper::body::Payload;
 use std::mem::PinMut;
 
 use self::payload::Empty;
-use crate::error::{Error, Never, NoRoute};
+use crate::error::{no_route, Error, Never};
 use crate::generic::Either;
 use crate::input::Input;
 
@@ -76,7 +76,7 @@ where
     type Error = Error;
 
     fn respond(self, input: PinMut<'_, Input>) -> Result<Response<Self::Body>, Self::Error> {
-        self.ok_or_else(|| NoRoute)?
+        self.ok_or_else(no_route)?
             .respond(input)
             .map_err(Into::into)
     }

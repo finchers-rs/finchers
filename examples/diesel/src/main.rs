@@ -20,7 +20,6 @@ use std::env;
 
 use finchers::endpoint::{lazy, EndpointExt};
 use finchers::endpoints::{body, query};
-use finchers::error::internal_server_error;
 use finchers::{route, routes};
 
 use crate::database::ConnectionPool;
@@ -31,7 +30,7 @@ fn main() -> Fallible<()> {
     let pool = ConnectionPool::init(env::var("DATABASE_URL")?)?;
     let acquire_conn = lazy(move |_| {
         let fut = pool.acquire_conn();
-        async move { await!(fut).map_err(internal_server_error) }
+        async move { await!(fut).map_err(Into::into) }
     });
 
     let endpoint = route!(/"api"/"v1"/"posts").and(routes!{

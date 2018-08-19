@@ -1,7 +1,8 @@
+use failure::format_err;
 use finchers::endpoint::{reject, value, EndpointExt};
 use finchers::endpoints::header;
 use finchers::endpoints::path::path;
-use finchers::error::NotPresent;
+use finchers::error::bad_request;
 use finchers::rt::local;
 
 #[test]
@@ -10,9 +11,9 @@ fn test_or_1() {
     let e2 = path("bar").and(value("bar"));
     let endpoint = e1.or(e2);
 
-    assert_eq!(local::get("/foo").apply(&endpoint), Some(Ok(("foo",))),);
+    assert_matches!(local::get("/foo").apply(&endpoint), Ok(("foo",)));
 
-    assert_eq!(local::get("/bar").apply(&endpoint), Some(Ok(("bar",))),);
+    assert_matches!(local::get("/bar").apply(&endpoint), Ok(("bar",)));
 }
 
 #[test]
@@ -21,32 +22,24 @@ fn test_or_choose_longer_segments() {
     let e2 = path("foo").and(path("bar")).and(value("foobar"));
     let endpoint = e1.or(e2);
 
-    assert_eq!(local::get("/foo").apply(&endpoint), Some(Ok(("foo",))),);
+    assert_matches!(local::get("/foo").apply(&endpoint), Ok(("foo",)));
 
-    assert_eq!(
-        local::get("/foo/bar").apply(&endpoint),
-        Some(Ok(("foobar",))),
-    );
+    assert_matches!(local::get("/foo/bar").apply(&endpoint), Ok(("foobar",)));
 }
 
 #[test]
 fn test_or_with_rejection_path() {
     let endpoint = path("foo")
         .or(path("bar"))
-        .or(reject(|_| NotPresent::new("custom rejection")));
+        .or(reject(|_| bad_request(format_err!("custom rejection"))));
 
-    assert_eq!(
-        local::get("/foo")
-            .apply(&endpoint)
-            .map(|res| res.map_err(|e| e.to_string())),
-        Some(Ok(())),
-    );
+    assert_matches!(local::get("/foo").apply(&endpoint), Ok(()));
 
     assert_eq!(
         local::get("/baz")
             .apply(&endpoint)
-            .map(|res| res.map_err(|e| e.to_string())),
-        Some(Err("custom rejection".into()))
+            .map_err(|e| e.to_string()),
+        Err("custom rejection".into())
     );
 }
 
@@ -69,21 +62,19 @@ fn test_or_with_rejection_header() {
         }
     }
 
-    let endpoint = header::optional::<Authorization>()
-        .or(reject(|_| NotPresent::new("missing authorization header")));
+    let endpoint = header::optional::<Authorization>().or(reject(|_| {
+        bad_request(format_err!("missing authorization header"))
+    }));
 
-    assert_eq!(
+    assert_matches!(
         local::get("/")
             .header("authorization", "Basic xxxx")
-            .apply(&endpoint)
-            .map(|res| res.map_err(|e| e.to_string())),
-        Some(Ok((Authorization("Basic xxxx".into()),))),
+            .apply(&endpoint),
+        Ok((Authorization(..),))
     );
 
     assert_eq!(
-        local::get("/")
-            .apply(&endpoint)
-            .map(|res| res.map_err(|e| e.to_string())),
-        Some(Err("missing authorization header".into()))
+        local::get("/").apply(&endpoint).map_err(|e| e.to_string()),
+        Err("missing authorization header".into())
     );
 }

@@ -14,7 +14,7 @@ use http::header::HeaderValue;
 use http::{header, Request, Response};
 
 use crate::endpoint::Endpoint;
-use crate::error::{Error, NoRoute};
+use crate::error::{no_route, Error};
 use crate::generic::Either;
 use crate::input::body::ReqBody;
 use crate::input::{with_set_cx, Cursor, Input};
@@ -71,7 +71,7 @@ where
     pub fn poll_output(
         self: PinMut<'_, Self>,
         cx: &mut task::Context<'_>,
-    ) -> Poll<Option<Result<E::Output, Error>>> {
+    ) -> Poll<Result<E::Output, Error>> {
         let this = unsafe { PinMut::get_mut_unchecked(self) };
         let mut input = unsafe { PinMut::new_unchecked(&mut this.input) };
 
@@ -86,13 +86,13 @@ where
                         Some((future, _cursor)) => this.state = State::InFlight(future),
                         None => {
                             this.state = State::Gone;
-                            return Poll::Ready(None);
+                            return Poll::Ready(Err(no_route()));
                         }
                     }
                 }
                 State::InFlight(ref mut f) => {
                     let f = unsafe { PinMut::new_unchecked(f) };
-                    break with_set_cx(input.reborrow(), || f.try_poll(cx)).map(Some);
+                    break with_set_cx(input.reborrow(), || f.try_poll(cx));
                 }
                 State::Gone => panic!("cannot poll AppServiceFuture twice"),
             }
@@ -106,7 +106,7 @@ where
     where
         E::Output: Responder,
     {
-        let output = ready!(self.reborrow().poll_output(cx)).unwrap_or_else(|| Err(NoRoute.into()));
+        let output = ready!(self.reborrow().poll_output(cx));
 
         let this = unsafe { PinMut::get_mut_unchecked(self) };
         let mut input = unsafe { PinMut::new_unchecked(&mut this.input) };

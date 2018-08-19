@@ -1,4 +1,3 @@
-use failure::Fail;
 use http::header::HeaderValue;
 use http::{header, Response};
 use serde::Serialize;
@@ -6,7 +5,7 @@ use serde_json;
 use serde_json::Value;
 use std::mem::PinMut;
 
-use crate::error::{HttpError, Never};
+use crate::error::{fail, Error, Never};
 use crate::input::Input;
 use crate::output::payload::Once;
 use crate::output::Responder;
@@ -27,10 +26,10 @@ where
     T: Serialize,
 {
     type Body = Once<Vec<u8>>;
-    type Error = JsonSerializeError;
+    type Error = Error;
 
     fn respond(self, _: PinMut<'_, Input>) -> Result<Response<Self::Body>, Self::Error> {
-        let body = serde_json::to_vec(&self.0).map_err(|cause| JsonSerializeError { cause })?;
+        let body = serde_json::to_vec(&self.0).map_err(fail)?;
 
         let mut response = Response::new(Once::new(body));
         response.headers_mut().insert(
@@ -58,12 +57,3 @@ impl Responder for Value {
         Ok(response)
     }
 }
-
-/// An error type which will occur during serialize to a JSON value.
-#[derive(Debug, Fail)]
-#[fail(display = "failed to serialize to JSON value: {}", cause)]
-pub struct JsonSerializeError {
-    cause: serde_json::Error,
-}
-
-impl HttpError for JsonSerializeError {}

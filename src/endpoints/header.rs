@@ -54,15 +54,15 @@ use crate::input::{with_get_cx, Cursor, Input};
 ///     local::get("/")
 ///         .header("x-api-key", "some-api-key")
 ///         .apply(&endpoint)
-///         .map(|res| res.map_err(drop)),
-///     Some(Ok((APIKey("some-api-key".into()),)))
+///         .map_err(drop),
+///     Ok((APIKey("some-api-key".into()),))
 /// );
 ///
 /// assert_eq!(
 ///     local::get("/")
 ///         .apply(&endpoint)
-///         .map(|res| res.map_err(drop)),
-///     None
+///         .map_err(drop),
+///     Err(())
 /// );
 /// ```
 pub fn optional<H>() -> Optional<H>
@@ -184,15 +184,16 @@ where
 /// assert_eq!(
 ///     local::get("/")
 ///         .header("x-api-key", "some-api-key")
-///         .apply(&endpoint),
-///     Some(Ok((APIKey("some-api-key".into()),)))
+///         .apply(&endpoint)
+///         .map_err(drop),
+///     Ok((APIKey("some-api-key".into()),))
 /// );
 ///
 /// assert_eq!(
 ///     local::get("/")
 ///         .apply(&endpoint)
-///         .map(|res| res.map_err(|err| err.status_code())),
-///     Some(Err(StatusCode::BAD_REQUEST))
+///         .map_err(|err| err.status_code()),
+///     Err(StatusCode::BAD_REQUEST)
 /// );
 /// ```
 pub fn required<H>() -> Required<H>

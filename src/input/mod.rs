@@ -19,16 +19,15 @@ pub use self::global::with_set_cx;
 // ====
 
 use cookie::CookieJar;
-use failure::Fail;
 use http;
-use http::{Request, StatusCode};
-use mime::{self, Mime};
+use http::Request;
+use mime::Mime;
 use std::cell::UnsafeCell;
 use std::marker::{PhantomData, Pinned};
 use std::mem::PinMut;
 use std::ops::Deref;
 
-use crate::error::{bad_request, Error, HttpError};
+use crate::error::{bad_request, Error};
 
 use self::body::{Payload, ReqBody};
 use self::cookie::Cookies;
@@ -70,9 +69,7 @@ impl Input {
     /// The result of this method is cached and it will return the reference to the cached value
     /// on subsequent calls.
     #[cfg_attr(feature = "cargo-clippy", allow(needless_lifetimes))]
-    pub fn content_type<'a>(
-        self: PinMut<'a, Self>,
-    ) -> Result<Option<&'a Mime>, InvalidContentType> {
+    pub fn content_type<'a>(self: PinMut<'a, Self>) -> Result<Option<&'a Mime>, Error> {
         let this = unsafe { PinMut::get_mut_unchecked(self) };
 
         match this.media_type {
@@ -80,12 +77,8 @@ impl Input {
             None => {
                 let mime = match this.request.headers().get(http::header::CONTENT_TYPE) {
                     Some(raw) => {
-                        let raw_str = raw
-                            .to_str()
-                            .map_err(|cause| InvalidContentType::DecodeToStr { cause })?;
-                        let mime = raw_str
-                            .parse()
-                            .map_err(|cause| InvalidContentType::ParseToMime { cause })?;
+                        let raw_str = raw.to_str().map_err(bad_request)?;
+                        let mime = raw_str.parse().map_err(bad_request)?;
                         Some(mime)
                     }
                     None => None,
@@ -126,23 +119,5 @@ impl Deref for Input {
 
     fn deref(&self) -> &Self::Target {
         self.request()
-    }
-}
-
-/// An error type during parsing the value of `Content-type` header.
-#[derive(Debug, Fail)]
-pub enum InvalidContentType {
-    #[allow(missing_docs)]
-    #[fail(display = "Content-type is invalid: {}", cause)]
-    DecodeToStr { cause: http::header::ToStrError },
-
-    #[allow(missing_docs)]
-    #[fail(display = "Content-type is invalid: {}", cause)]
-    ParseToMime { cause: mime::FromStrError },
-}
-
-impl HttpError for InvalidContentType {
-    fn status_code(&self) -> StatusCode {
-        StatusCode::BAD_REQUEST
     }
 }
