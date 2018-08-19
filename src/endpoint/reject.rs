@@ -2,7 +2,7 @@ use futures_util::future;
 use std::marker::PhantomData;
 use std::mem::PinMut;
 
-use crate::endpoint::{Cursor, Endpoint, EndpointExt, EndpointResult};
+use crate::endpoint::{Context, Endpoint, EndpointExt, EndpointResult};
 use crate::error::Error;
 use crate::input::Input;
 
@@ -44,12 +44,8 @@ where
     type Output = ();
     type Future = future::Ready<Result<Self::Output, Error>>;
 
-    fn apply<'c>(
-        &self,
-        input: PinMut<'_, Input>,
-        mut cursor: Cursor<'c>,
-    ) -> EndpointResult<'c, Self::Future> {
-        cursor.by_ref().count();
-        Ok((future::ready(Err((self.f)(input).into())), cursor))
+    fn apply<'c>(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+        while let Some(..) = ecx.next_segment() {}
+        Ok(future::ready(Err((self.f)(ecx.input()).into())))
     }
 }

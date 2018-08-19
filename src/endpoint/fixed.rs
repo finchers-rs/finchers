@@ -5,9 +5,8 @@ use std::task::Poll;
 use futures_core::future::{Future, TryFuture};
 use pin_utils::unsafe_unpinned;
 
-use crate::endpoint::{Cursor, Endpoint, EndpointErrorKind, EndpointResult};
+use crate::endpoint::{Context, Endpoint, EndpointErrorKind, EndpointResult};
 use crate::error::Error;
-use crate::input::Input;
 
 #[allow(missing_docs)]
 #[derive(Debug, Copy, Clone)]
@@ -22,21 +21,14 @@ where
     type Output = E::Output;
     type Future = FixedFuture<E::Future>;
 
-    fn apply<'c>(
-        &self,
-        input: PinMut<'_, Input>,
-        mut cursor: Cursor<'c>,
-    ) -> EndpointResult<'c, Self::Future> {
-        match self.endpoint.apply(input, cursor.clone()) {
-            Ok((future, cursor)) => Ok((FixedFuture { inner: Ok(future) }, cursor)),
+    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+        match self.endpoint.apply(ecx) {
+            Ok(future) => Ok(FixedFuture { inner: Ok(future) }),
             Err(err) => {
-                let _ = cursor.by_ref().count();
-                Ok((
-                    FixedFuture {
-                        inner: Err(Some(err)),
-                    },
-                    cursor,
-                ))
+                while let Some(..) = ecx.next_segment() {}
+                Ok(FixedFuture {
+                    inner: Err(Some(err)),
+                })
             }
         }
     }

@@ -8,10 +8,9 @@ use std::task::Poll;
 use futures_core::future::Future;
 use pin_utils::unsafe_unpinned;
 
-use crate::endpoint::{Cursor, Endpoint, EndpointResult};
+use crate::endpoint::{Context, Endpoint, EndpointResult};
 use crate::error::{bad_request, Error};
 use crate::generic::{one, One};
-use crate::input::Input;
 use crate::output::fs::OpenNamedFile;
 use crate::output::NamedFile;
 
@@ -30,13 +29,10 @@ impl Endpoint for File {
     type Output = One<NamedFile>;
     type Future = FileFuture;
 
-    fn apply<'c>(&self, _: PinMut<'_, Input>, c: Cursor<'c>) -> EndpointResult<'c, Self::Future> {
-        Ok((
-            FileFuture {
-                state: State::Opening(NamedFile::open(self.path.clone())),
-            },
-            c,
-        ))
+    fn apply(&self, _: &mut Context<'_>) -> EndpointResult<Self::Future> {
+        Ok(FileFuture {
+            state: State::Opening(NamedFile::open(self.path.clone())),
+        })
     }
 }
 
@@ -55,22 +51,21 @@ impl Endpoint for Dir {
     type Output = One<NamedFile>;
     type Future = FileFuture;
 
-    fn apply<'c>(
-        &self,
-        _: PinMut<'_, Input>,
-        mut cursor: Cursor<'c>,
-    ) -> EndpointResult<'c, Self::Future> {
-        let path = cursor.remaining_path().percent_decode();
-        let _ = cursor.by_ref().count();
+    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+        let path = {
+            match ecx.remaining_path().percent_decode() {
+                Ok(path) => Ok(PathBuf::from(path.into_owned())),
+                Err(e) => Err(e),
+            }
+        };
+        while let Some(..) = ecx.next_segment() {}
+
         let path = match path {
-            Ok(path) => PathBuf::from(path.into_owned()),
+            Ok(path) => path,
             Err(e) => {
-                return Ok((
-                    FileFuture {
-                        state: State::Err(Some(bad_request(e))),
-                    },
-                    cursor,
-                ))
+                return Ok(FileFuture {
+                    state: State::Err(Some(bad_request(e))),
+                })
             }
         };
 
@@ -79,12 +74,9 @@ impl Endpoint for Dir {
             path = path.join("index.html");
         }
 
-        Ok((
-            FileFuture {
-                state: State::Opening(NamedFile::open(path)),
-            },
-            cursor,
-        ))
+        Ok(FileFuture {
+            state: State::Opening(NamedFile::open(path)),
+        })
     }
 }
 

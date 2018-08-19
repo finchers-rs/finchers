@@ -2,7 +2,7 @@ use futures_core::future::TryFuture;
 use futures_util::try_future::{MapOk, TryFutureExt};
 use std::mem::PinMut;
 
-use crate::endpoint::{Cursor, Endpoint, EndpointResult};
+use crate::endpoint::{Context, Endpoint, EndpointResult};
 use crate::error::Error;
 use crate::generic::{one, One};
 use crate::input::Input;
@@ -76,11 +76,7 @@ where
     type Output = One<R::Ok>;
     type Future = MapOk<R, fn(R::Ok) -> Self::Output>;
 
-    fn apply<'c>(
-        &self,
-        input: PinMut<'_, Input>,
-        cursor: Cursor<'c>,
-    ) -> EndpointResult<'c, Self::Future> {
-        Ok(((self.f)(input).map_ok(one as fn(_) -> _), cursor))
+    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+        Ok((self.f)(ecx.input()).map_ok(one as fn(_) -> _))
     }
 }

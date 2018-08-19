@@ -7,10 +7,9 @@ use std::mem::PinMut;
 use std::task;
 use std::task::Poll;
 
-use crate::endpoint::{Cursor, Endpoint, EndpointResult};
+use crate::endpoint::{Context, Endpoint, EndpointResult};
 use crate::error::Error;
 use crate::generic::{Combine, Tuple};
-use crate::input::Input;
 
 #[allow(missing_docs)]
 #[derive(Copy, Clone, Debug)]
@@ -28,20 +27,13 @@ where
     type Output = <E1::Output as Combine<E2::Output>>::Out;
     type Future = AndFuture<IntoFuture<E1::Future>, IntoFuture<E2::Future>>;
 
-    fn apply<'c>(
-        &self,
-        mut input: PinMut<'_, Input>,
-        cursor: Cursor<'c>,
-    ) -> EndpointResult<'c, Self::Future> {
-        let (f1, cursor) = self.e1.apply(input.reborrow(), cursor)?;
-        let (f2, cursor) = self.e2.apply(input, cursor)?;
-        Ok((
-            AndFuture {
-                f1: maybe_done(f1.into_future()),
-                f2: maybe_done(f2.into_future()),
-            },
-            cursor,
-        ))
+    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+        let f1 = self.e1.apply(ecx)?;
+        let f2 = self.e2.apply(ecx)?;
+        Ok(AndFuture {
+            f1: maybe_done(f1.into_future()),
+            f2: maybe_done(f2.into_future()),
+        })
     }
 }
 

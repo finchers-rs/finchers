@@ -7,7 +7,7 @@ use futures_core::future::TryFuture;
 use http::Response;
 use pin_utils::unsafe_pinned;
 
-use crate::endpoint::{Cursor, Endpoint, EndpointErrorKind, EndpointResult};
+use crate::endpoint::{Context, Endpoint, EndpointErrorKind, EndpointResult};
 use crate::error::Error;
 use crate::generic::{one, Either, One};
 use crate::input::Input;
@@ -28,37 +28,41 @@ where
     type Output = One<WrappedEither<E1::Output, E2::Output>>;
     type Future = OrFuture<E1::Future, E2::Future>;
 
-    fn apply<'c>(
-        &self,
-        mut input: PinMut<'_, Input>,
-        cursor: Cursor<'c>,
-    ) -> EndpointResult<'c, Self::Future> {
-        match self.e1.apply(input.reborrow(), cursor.clone()) {
+    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+        match {
+            let mut ecx = ecx.clone_reborrowed();
+            let res = self.e1.apply(&mut ecx);
+            res.map(|future| (future, ecx.current_cursor()))
+        } {
             Ok((future1, cursor1)) => {
-                match self.e2.apply(input, cursor) {
+                match {
+                    let mut ecx = ecx.clone_reborrowed();
+                    let res = self.e2.apply(&mut ecx);
+                    res.map(|future| (future, ecx.current_cursor()))
+                } {
                     // If both endpoints are matched, the one with the larger number of
                     // (consumed) path segments is choosen.
-                    Ok((_, ref cursor2)) if cursor1.popped() >= cursor2.popped() => Ok((
-                        OrFuture {
+                    Ok((_, ref cursor2)) if cursor1.popped >= cursor2.popped => {
+                        ecx.reset_cursor(cursor1);
+                        Ok(OrFuture {
                             inner: Either::Left(future1),
-                        },
-                        cursor1,
-                    )),
-                    Ok((future2, cursor2)) => Ok((
-                        OrFuture {
+                        })
+                    }
+                    Ok((future2, cursor2)) => {
+                        ecx.reset_cursor(cursor2);
+                        Ok(OrFuture {
                             inner: Either::Right(future2),
-                        },
-                        cursor2,
-                    )),
-                    Err(..) => Ok((
-                        OrFuture {
+                        })
+                    }
+                    Err(..) => {
+                        ecx.reset_cursor(cursor1);
+                        Ok(OrFuture {
                             inner: Either::Left(future1),
-                        },
-                        cursor1,
-                    )),
+                        })
+                    }
                 }
             }
-            Err(err1) => match self.e2.apply(input, cursor) {
+            Err(err1) => match self.e2.apply(ecx) {
                 Err(EndpointErrorKind::MethodNotAllowed(allows2)) => match err1 {
                     EndpointErrorKind::MethodNotAllowed(mut allows1) => {
                         allows1.extend(allows2);
@@ -69,12 +73,9 @@ where
                     }
                 },
                 Err(EndpointErrorKind::NotMatched) => Err(err1),
-                Ok((future2, cursor2)) => Ok((
-                    OrFuture {
-                        inner: Either::Right(future2),
-                    },
-                    cursor2,
-                )),
+                Ok(future) => Ok(OrFuture {
+                    inner: Either::Right(future),
+                }),
             },
         }
     }

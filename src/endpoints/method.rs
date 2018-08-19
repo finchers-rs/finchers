@@ -1,10 +1,8 @@
 //! Components for checking the HTTP method.
 
 use http::Method;
-use std::mem::PinMut;
 
-use crate::endpoint::{Cursor, Endpoint, EndpointErrorKind, EndpointResult, IntoEndpoint};
-use crate::input::Input;
+use crate::endpoint::{Context, Endpoint, EndpointErrorKind, EndpointResult, IntoEndpoint};
 
 #[allow(missing_docs)]
 #[derive(Debug, Clone)]
@@ -17,13 +15,9 @@ impl<E: Endpoint> Endpoint for MatchMethod<E> {
     type Output = E::Output;
     type Future = E::Future;
 
-    fn apply<'c>(
-        &self,
-        input: PinMut<'_, Input>,
-        cursor: Cursor<'c>,
-    ) -> EndpointResult<'c, Self::Future> {
-        if *input.method() == self.method {
-            self.endpoint.apply(input, cursor)
+    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+        if *ecx.input().method() == self.method {
+            self.endpoint.apply(ecx)
         } else {
             Err(EndpointErrorKind::MethodNotAllowed(vec![
                 self.method.clone(),
@@ -69,13 +63,12 @@ macro_rules! define_method {
             type Output = E::Output;
             type Future = E::Future;
 
-            fn apply<'c>(
+            fn apply(
                 &self,
-                input: PinMut<'_, Input>,
-                cursor: Cursor<'c>,
-            ) -> EndpointResult<'c, Self::Future> {
-                if *input.method() == Method::$method {
-                    self.endpoint.apply(input, cursor)
+                ecx: &mut Context<'_>
+            ) -> EndpointResult<Self::Future> {
+                if *ecx.input().method() == Method::$method {
+                    self.endpoint.apply(ecx)
                 } else {
                     Err(EndpointErrorKind::MethodNotAllowed(vec![Method::$method]))
                 }

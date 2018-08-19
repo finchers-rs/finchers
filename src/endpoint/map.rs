@@ -4,10 +4,9 @@ use std::mem::PinMut;
 use std::task;
 use std::task::Poll;
 
-use crate::endpoint::{Cursor, Endpoint, EndpointResult};
+use crate::endpoint::{Context, Endpoint, EndpointResult};
 use crate::error::Error;
 use crate::generic::{one, Func, One, Tuple};
-use crate::input::Input;
 
 #[allow(missing_docs)]
 #[derive(Debug, Copy, Clone)]
@@ -24,14 +23,10 @@ where
     type Output = One<F::Out>;
     type Future = MapFuture<E::Future, F>;
 
-    fn apply<'c>(
-        &self,
-        input: PinMut<'_, Input>,
-        cursor: Cursor<'c>,
-    ) -> EndpointResult<'c, Self::Future> {
-        let (future, cursor) = self.endpoint.apply(input, cursor)?;
+    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+        let future = self.endpoint.apply(ecx)?;
         let f = self.f.clone();
-        Ok((MapFuture { future, f: Some(f) }, cursor))
+        Ok(MapFuture { future, f: Some(f) })
     }
 }
 

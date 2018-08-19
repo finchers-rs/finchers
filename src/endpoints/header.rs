@@ -10,11 +10,11 @@ use failure::format_err;
 use futures_util::future;
 use http::header::HeaderValue;
 
-use crate::endpoint::{Cursor, Endpoint, EndpointErrorKind, EndpointExt, EndpointResult};
+use crate::endpoint::{Context, Endpoint, EndpointErrorKind, EndpointExt, EndpointResult};
 use crate::error::{bad_request, Error};
 use crate::generic::{one, One};
 use crate::input::header::FromHeader;
-use crate::input::{with_get_cx, Input};
+use crate::input::with_get_cx;
 
 // ==== Optional ====
 
@@ -101,18 +101,11 @@ where
     type Output = One<H>;
     type Future = OptionalFuture<H>;
 
-    fn apply<'c>(
-        &self,
-        input: PinMut<'_, Input>,
-        cursor: Cursor<'c>,
-    ) -> EndpointResult<'c, Self::Future> {
-        if input.headers().contains_key(H::HEADER_NAME) {
-            Ok((
-                OptionalFuture {
-                    _marker: PhantomData,
-                },
-                cursor,
-            ))
+    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+        if ecx.input().headers().contains_key(H::HEADER_NAME) {
+            Ok(OptionalFuture {
+                _marker: PhantomData,
+            })
         } else {
             Err(EndpointErrorKind::NotMatched)
         }
@@ -232,17 +225,10 @@ where
     type Output = One<H>;
     type Future = RequiredFuture<H>;
 
-    fn apply<'c>(
-        &self,
-        _: PinMut<'_, Input>,
-        cursor: Cursor<'c>,
-    ) -> EndpointResult<'c, Self::Future> {
-        Ok((
-            RequiredFuture {
-                _marker: PhantomData,
-            },
-            cursor,
-        ))
+    fn apply(&self, _: &mut Context<'_>) -> EndpointResult<Self::Future> {
+        Ok(RequiredFuture {
+            _marker: PhantomData,
+        })
     }
 }
 
@@ -309,13 +295,9 @@ where
     type Output = ();
     type Future = future::Ready<Result<Self::Output, Error>>;
 
-    fn apply<'c>(
-        &self,
-        input: PinMut<'_, Input>,
-        cursor: Cursor<'c>,
-    ) -> EndpointResult<'c, Self::Future> {
-        match input.headers().get(self.name) {
-            Some(h) if *h == self.value => Ok((future::ready(Ok(())), cursor)),
+    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+        match ecx.input().headers().get(self.name) {
+            Some(h) if *h == self.value => Ok(future::ready(Ok(()))),
             _ => Err(EndpointErrorKind::NotMatched),
         }
     }

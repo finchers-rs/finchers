@@ -3,7 +3,7 @@
 mod and;
 mod and_then;
 mod boxed;
-mod cursor;
+mod context;
 mod fixed;
 mod lazy;
 mod map;
@@ -16,7 +16,7 @@ mod unit;
 mod value;
 
 // re-exports
-pub use self::cursor::Cursor;
+pub use self::context::Context;
 
 pub use self::and::And;
 pub use self::and_then::AndThen;
@@ -35,7 +35,6 @@ pub use self::value::{value, Value};
 // ====
 
 use std::fmt;
-use std::mem::PinMut;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -44,7 +43,6 @@ use http::{Method, StatusCode};
 
 use crate::error::{Error, HttpError};
 use crate::generic::{Combine, Func, Tuple};
-use crate::input::Input;
 
 #[allow(missing_docs)]
 #[derive(Debug)]
@@ -82,7 +80,7 @@ impl HttpError for EndpointErrorKind {
 }
 
 #[allow(missing_docs)]
-pub type EndpointResult<'c, F> = Result<(F, Cursor<'c>), EndpointErrorKind>;
+pub type EndpointResult<F> = Result<F, EndpointErrorKind>;
 
 /// Trait representing an endpoint.
 pub trait Endpoint {
@@ -94,23 +92,15 @@ pub trait Endpoint {
 
     /// Perform checking the incoming HTTP request and returns
     /// an instance of the associated Future if matched.
-    fn apply<'c>(
-        &self,
-        input: PinMut<'_, Input>,
-        cursor: Cursor<'c>,
-    ) -> EndpointResult<'c, Self::Future>;
+    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future>;
 }
 
 impl<'e, E: Endpoint> Endpoint for &'e E {
     type Output = E::Output;
     type Future = E::Future;
 
-    fn apply<'c>(
-        &self,
-        input: PinMut<'_, Input>,
-        cursor: Cursor<'c>,
-    ) -> EndpointResult<'c, Self::Future> {
-        (*self).apply(input, cursor)
+    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+        (*self).apply(ecx)
     }
 }
 
@@ -118,12 +108,8 @@ impl<E: Endpoint> Endpoint for Box<E> {
     type Output = E::Output;
     type Future = E::Future;
 
-    fn apply<'c>(
-        &self,
-        input: PinMut<'_, Input>,
-        cursor: Cursor<'c>,
-    ) -> EndpointResult<'c, Self::Future> {
-        (**self).apply(input, cursor)
+    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+        (**self).apply(ecx)
     }
 }
 
@@ -131,12 +117,8 @@ impl<E: Endpoint> Endpoint for Rc<E> {
     type Output = E::Output;
     type Future = E::Future;
 
-    fn apply<'c>(
-        &self,
-        input: PinMut<'_, Input>,
-        cursor: Cursor<'c>,
-    ) -> EndpointResult<'c, Self::Future> {
-        (**self).apply(input, cursor)
+    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+        (**self).apply(ecx)
     }
 }
 
@@ -144,12 +126,8 @@ impl<E: Endpoint> Endpoint for Arc<E> {
     type Output = E::Output;
     type Future = E::Future;
 
-    fn apply<'c>(
-        &self,
-        input: PinMut<'_, Input>,
-        cursor: Cursor<'c>,
-    ) -> EndpointResult<'c, Self::Future> {
-        (**self).apply(input, cursor)
+    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+        (**self).apply(ecx)
     }
 }
 

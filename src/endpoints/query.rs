@@ -6,11 +6,11 @@ use std::mem::PinMut;
 use std::task::Poll;
 use std::{fmt, task};
 
-use crate::endpoint::{Cursor, Endpoint, EndpointResult};
+use crate::endpoint::{Context, Endpoint, EndpointResult};
 use crate::error::{bad_request, Error};
 use crate::generic::{one, One};
 use crate::input::query::{FromQuery, QueryItems};
-use crate::input::{with_get_cx, Input};
+use crate::input::with_get_cx;
 
 /// Create an endpoint which parse the query string in the HTTP request
 /// to the value of `T`.
@@ -75,17 +75,10 @@ where
     type Output = One<T>;
     type Future = ParseFuture<T>;
 
-    fn apply<'c>(
-        &self,
-        _: PinMut<'_, Input>,
-        cursor: Cursor<'c>,
-    ) -> EndpointResult<'c, Self::Future> {
-        Ok((
-            ParseFuture {
-                _marker: PhantomData,
-            },
-            cursor,
-        ))
+    fn apply(&self, _: &mut Context<'_>) -> EndpointResult<Self::Future> {
+        Ok(ParseFuture {
+            _marker: PhantomData,
+        })
     }
 }
 
@@ -127,8 +120,8 @@ impl Endpoint for Raw {
     type Output = One<String>;
     type Future = RawFuture;
 
-    fn apply<'c>(&self, _: PinMut<'_, Input>, c: Cursor<'c>) -> EndpointResult<'c, Self::Future> {
-        Ok((RawFuture { _priv: () }, c))
+    fn apply(&self, _: &mut Context<'_>) -> EndpointResult<Self::Future> {
+        Ok(RawFuture { _priv: () })
     }
 }
 
