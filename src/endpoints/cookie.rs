@@ -5,7 +5,7 @@ use std::borrow::Cow;
 use std::fmt;
 use std::mem::PinMut;
 
-use crate::endpoint::{Context, Endpoint, EndpointError, EndpointResult};
+use crate::endpoint::{Context, Endpoint, EndpointResult};
 use crate::error::{bad_request, Error};
 use crate::generic::{one, One};
 use crate::input::cookie::Cookie;
@@ -105,10 +105,9 @@ impl<'a> Endpoint<'a> for Required {
         let cookie = self
             .mode
             .extract_cookie(ecx.input(), &self.name)
-            .transpose()
-            .ok_or_else(|| {
-                EndpointError::other(bad_request(format!("missing Cookie item: {}", self.name)))
-            })?;
+            .and_then(|cookie| {
+                cookie.ok_or_else(|| bad_request(format!("missing Cookie item: {}", self.name)))
+            });
         Ok(ready(cookie.map(one)))
     }
 }

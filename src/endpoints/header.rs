@@ -20,7 +20,7 @@ use crate::input::with_get_cx;
 
 /// Create an endpoint which parses an entry in the HTTP header.
 ///
-/// This endpoints will skip the request if the specified header is missing.
+/// This endpoints will report an error if the specified header is missing.
 ///
 /// # Example
 ///
@@ -94,17 +94,10 @@ where
     type Output = One<H>;
     type Future = RequiredFuture<H>;
 
-    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
-        if ecx.input().headers().contains_key(H::HEADER_NAME) {
-            Ok(RequiredFuture {
-                _marker: PhantomData,
-            })
-        } else {
-            Err(EndpointError::other(bad_request(format_err!(
-                "missing header: `{}'",
-                H::HEADER_NAME
-            ))))
-        }
+    fn apply(&self, _: &mut Context<'_>) -> EndpointResult<Self::Future> {
+        Ok(RequiredFuture {
+            _marker: PhantomData,
+        })
     }
 }
 
@@ -129,7 +122,10 @@ where
         Poll::Ready(with_get_cx(|input| {
             match input.request().headers().get(H::HEADER_NAME) {
                 Some(h) => H::from_header(h).map(one).map_err(bad_request),
-                None => unreachable!(),
+                None => Err(bad_request(format_err!(
+                    "missing header: `{}'",
+                    H::HEADER_NAME
+                ))),
             }
         }))
     }

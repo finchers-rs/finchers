@@ -1,11 +1,9 @@
 use bitflags::bitflags;
-use failure::Fail;
-use http::header::HeaderMap;
 use http::{Method, StatusCode};
 use std::fmt;
 
 use self::EndpointErrorKind::*;
-use crate::error::{Error, HttpError};
+use crate::error::HttpError;
 
 bitflags! {
     pub(crate) struct AllowedMethods: u32 {
@@ -42,7 +40,6 @@ impl AllowedMethods {
 enum EndpointErrorKind {
     NotMatched,
     MethodNotAllowed(AllowedMethods),
-    Other(Error),
 }
 
 #[allow(missing_docs)]
@@ -60,12 +57,6 @@ impl EndpointError {
     pub(crate) fn method_not_allowed(allowed: AllowedMethods) -> EndpointError {
         EndpointError {
             kind: MethodNotAllowed(allowed),
-        }
-    }
-
-    pub(crate) fn other(cause: impl Into<Error>) -> EndpointError {
-        EndpointError {
-            kind: Other(cause.into()),
         }
     }
 
@@ -116,7 +107,6 @@ impl fmt::Display for EndpointError {
                     f.write_str("method not allowed")
                 }
             }
-            Other(ref e) => fmt::Display::fmt(e, f),
         }
     }
 }
@@ -126,21 +116,6 @@ impl HttpError for EndpointError {
         match self.kind {
             NotMatched => StatusCode::NOT_FOUND,
             MethodNotAllowed(..) => StatusCode::METHOD_NOT_ALLOWED,
-            Other(ref e) => e.status_code(),
-        }
-    }
-
-    fn headers(&self, h: &mut HeaderMap) {
-        match self.kind {
-            Other(ref e) => e.headers(h),
-            _ => {}
-        }
-    }
-
-    fn cause(&self) -> Option<&dyn Fail> {
-        match self.kind {
-            Other(ref e) => e.cause(),
-            _ => None,
         }
     }
 }
