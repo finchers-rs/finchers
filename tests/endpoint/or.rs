@@ -60,7 +60,7 @@ fn test_or_with_rejection_header() {
         }
     }
 
-    let endpoint = header::optional::<Authorization>().or(reject(|_| {
+    let endpoint = header::required::<Authorization>().or(reject(|_| {
         bad_request(format_err!("missing authorization header"))
     }));
 

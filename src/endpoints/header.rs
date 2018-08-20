@@ -16,7 +16,7 @@ use crate::generic::{one, One};
 use crate::input::header::FromHeader;
 use crate::input::with_get_cx;
 
-// ==== Optional ====
+// ==== Required ====
 
 /// Create an endpoint which parses an entry in the HTTP header.
 ///
@@ -48,130 +48,6 @@ use crate::input::with_get_cx;
 /// #    }
 /// }
 ///
-/// let endpoint = header::optional::<APIKey>();
-///
-/// assert_eq!(
-///     local::get("/")
-///         .header("x-api-key", "some-api-key")
-///         .apply(&endpoint)
-///         .map_err(drop),
-///     Ok((APIKey("some-api-key".into()),))
-/// );
-///
-/// assert_eq!(
-///     local::get("/")
-///         .apply(&endpoint)
-///         .map_err(drop),
-///     Err(())
-/// );
-/// ```
-pub fn optional<H>() -> Optional<H>
-where
-    H: FromHeader,
-{
-    (Optional {
-        _marker: PhantomData,
-    }).output::<One<H>>()
-}
-
-#[allow(missing_docs)]
-pub struct Optional<H> {
-    _marker: PhantomData<fn() -> H>,
-}
-
-impl<H> Copy for Optional<H> {}
-
-impl<H> Clone for Optional<H> {
-    #[inline]
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl<H> fmt::Debug for Optional<H> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Optional").finish()
-    }
-}
-
-impl<H> Endpoint for Optional<H>
-where
-    H: FromHeader,
-{
-    type Output = One<H>;
-    type Future = OptionalFuture<H>;
-
-    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
-        if ecx.input().headers().contains_key(H::HEADER_NAME) {
-            Ok(OptionalFuture {
-                _marker: PhantomData,
-            })
-        } else {
-            Err(EndpointErrorKind::NotMatched)
-        }
-    }
-}
-
-#[doc(hidden)]
-pub struct OptionalFuture<H> {
-    _marker: PhantomData<fn() -> H>,
-}
-
-impl<H> fmt::Debug for OptionalFuture<H> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("OptionalFuture").finish()
-    }
-}
-
-impl<H> Future for OptionalFuture<H>
-where
-    H: FromHeader,
-{
-    type Output = Result<One<H>, Error>;
-
-    fn poll(self: PinMut<'_, Self>, _: &mut task::Context<'_>) -> Poll<Self::Output> {
-        Poll::Ready(with_get_cx(|input| {
-            match input.request().headers().get(H::HEADER_NAME) {
-                Some(h) => H::from_header(h).map(one).map_err(bad_request),
-                None => unreachable!(),
-            }
-        }))
-    }
-}
-
-// ==== Required ====
-
-/// Create an endpoint which parses an entry in the HTTP header.
-///
-/// This endpoint will not skip the request and will return an error if the
-/// header value is missing.
-///
-/// # Example
-///
-/// ```
-/// # #![feature(rust_2018_preview)]
-/// # extern crate finchers;
-/// # extern crate http;
-/// # use finchers::endpoint::EndpointExt;
-/// # use finchers::endpoints::header;
-/// # use finchers::input::header::FromHeader;
-/// # use finchers::rt::local;
-/// # use http::StatusCode;
-/// # use http::header::HeaderValue;
-/// #
-/// #[derive(Debug, PartialEq)]
-/// struct APIKey(String);
-/// impl FromHeader for APIKey {
-///     // ...
-/// #    const HEADER_NAME: &'static str = "x-api-key";
-/// #    type Error = std::str::Utf8Error;
-/// #    fn from_header(value: &HeaderValue) -> Result<Self, Self::Error> {
-/// #        std::str::from_utf8(value.as_bytes())
-/// #            .map(ToOwned::to_owned)
-/// #            .map(APIKey)
-/// #    }
-/// }
-///
 /// let endpoint = header::required::<APIKey>();
 ///
 /// assert_eq!(
@@ -180,13 +56,6 @@ where
 ///         .apply(&endpoint)
 ///         .map_err(drop),
 ///     Ok((APIKey("some-api-key".into()),))
-/// );
-///
-/// assert_eq!(
-///     local::get("/")
-///         .apply(&endpoint)
-///         .map_err(|err| err.status_code()),
-///     Err(StatusCode::BAD_REQUEST)
 /// );
 /// ```
 pub fn required<H>() -> Required<H>
@@ -225,10 +94,17 @@ where
     type Output = One<H>;
     type Future = RequiredFuture<H>;
 
-    fn apply(&self, _: &mut Context<'_>) -> EndpointResult<Self::Future> {
-        Ok(RequiredFuture {
-            _marker: PhantomData,
-        })
+    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+        if ecx.input().headers().contains_key(H::HEADER_NAME) {
+            Ok(RequiredFuture {
+                _marker: PhantomData,
+            })
+        } else {
+            Err(EndpointErrorKind::Other(bad_request(format_err!(
+                "missing header: `{}'",
+                H::HEADER_NAME
+            ))))
+        }
     }
 }
 
@@ -239,7 +115,7 @@ pub struct RequiredFuture<H> {
 
 impl<H> fmt::Debug for RequiredFuture<H> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("ParseHeaderFuture").finish()
+        f.debug_struct("RequiredFuture").finish()
     }
 }
 
@@ -253,10 +129,120 @@ where
         Poll::Ready(with_get_cx(|input| {
             match input.request().headers().get(H::HEADER_NAME) {
                 Some(h) => H::from_header(h).map(one).map_err(bad_request),
-                None => Err(bad_request(format_err!(
-                    "missing header: `{}'",
-                    H::HEADER_NAME
-                ))),
+                None => unreachable!(),
+            }
+        }))
+    }
+}
+
+// ==== Optional ====
+
+/// Create an endpoint which parses an entry in the HTTP header.
+///
+/// This endpoint will not skip the request and will return an error if the
+/// header value is missing.
+///
+/// # Example
+///
+/// ```
+/// # #![feature(rust_2018_preview)]
+/// # extern crate finchers;
+/// # extern crate http;
+/// # use finchers::endpoint::EndpointExt;
+/// # use finchers::endpoints::header;
+/// # use finchers::input::header::FromHeader;
+/// # use finchers::rt::local;
+/// # use http::StatusCode;
+/// # use http::header::HeaderValue;
+/// #
+/// #[derive(Debug, PartialEq)]
+/// struct APIKey(String);
+/// impl FromHeader for APIKey {
+///     // ...
+/// #    const HEADER_NAME: &'static str = "x-api-key";
+/// #    type Error = std::str::Utf8Error;
+/// #    fn from_header(value: &HeaderValue) -> Result<Self, Self::Error> {
+/// #        std::str::from_utf8(value.as_bytes())
+/// #            .map(ToOwned::to_owned)
+/// #            .map(APIKey)
+/// #    }
+/// }
+///
+/// let endpoint = header::optional::<APIKey>();
+///
+/// assert_eq!(
+///     local::get("/")
+///         .header("x-api-key", "some-api-key")
+///         .apply(&endpoint)
+///         .map_err(drop),
+///     Ok((Some(APIKey("some-api-key".into())),))
+/// );
+/// ```
+pub fn optional<H>() -> Optional<H>
+where
+    H: FromHeader,
+{
+    (Optional {
+        _marker: PhantomData,
+    }).output::<One<Option<H>>>()
+}
+
+#[allow(missing_docs)]
+pub struct Optional<H> {
+    _marker: PhantomData<fn() -> H>,
+}
+
+impl<H> Copy for Optional<H> {}
+
+impl<H> Clone for Optional<H> {
+    #[inline]
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<H> fmt::Debug for Optional<H> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Optional").finish()
+    }
+}
+
+impl<H> Endpoint for Optional<H>
+where
+    H: FromHeader,
+{
+    type Output = One<Option<H>>;
+    type Future = OptionalFuture<H>;
+
+    fn apply(&self, _: &mut Context<'_>) -> EndpointResult<Self::Future> {
+        Ok(OptionalFuture {
+            _marker: PhantomData,
+        })
+    }
+}
+
+#[doc(hidden)]
+pub struct OptionalFuture<H> {
+    _marker: PhantomData<fn() -> H>,
+}
+
+impl<H> fmt::Debug for OptionalFuture<H> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ParseHeaderFuture").finish()
+    }
+}
+
+impl<H> Future for OptionalFuture<H>
+where
+    H: FromHeader,
+{
+    type Output = Result<One<Option<H>>, Error>;
+
+    fn poll(self: PinMut<'_, Self>, _: &mut task::Context<'_>) -> Poll<Self::Output> {
+        Poll::Ready(with_get_cx(|input| {
+            match input.request().headers().get(H::HEADER_NAME) {
+                Some(h) => H::from_header(h).map(|h| one(Some(h))).map_err(bad_request),
+                None => Ok(one(None)),
             }
         }))
     }

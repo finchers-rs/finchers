@@ -6,7 +6,7 @@ use std::fmt;
 use std::mem::PinMut;
 
 use crate::endpoint::{Context, Endpoint, EndpointErrorKind, EndpointResult};
-use crate::error::Error;
+use crate::error::{bad_request, Error};
 use crate::generic::{one, One};
 use crate::input::cookie::Cookie;
 #[cfg(feature = "secure")]
@@ -106,7 +106,9 @@ impl Endpoint for Required {
             .mode
             .extract_cookie(ecx.input(), &self.name)
             .transpose()
-            .ok_or_else(|| EndpointErrorKind::NotMatched)?;
+            .ok_or_else(|| {
+                EndpointErrorKind::Other(bad_request(format!("missing Cookie item: {}", self.name)))
+            })?;
         Ok(ready(cookie.map(one)))
     }
 }
