@@ -19,51 +19,50 @@ pub struct AndThen<E, F> {
     pub(super) f: F,
 }
 
-impl<E, F> Endpoint for AndThen<E, F>
+impl<'a, E, F> Endpoint<'a> for AndThen<E, F>
 where
-    E: Endpoint,
-    F: Func<E::Output> + Clone,
+    E: Endpoint<'a>,
+    F: Func<E::Output> + 'a,
     F::Out: TryFuture<Error = Error>,
 {
     type Output = One<<F::Out as TryFuture>::Ok>;
-    type Future = AndThenFuture<E::Future, F::Out, F>;
+    type Future = AndThenFuture<'a, E::Future, F::Out, F>;
 
-    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'a self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
         let f1 = self.endpoint.apply(ecx)?;
-        let f = self.f.clone();
         Ok(AndThenFuture {
-            try_chain: TryChain::new(f1, f),
+            try_chain: TryChain::new(f1, &self.f),
         })
     }
 }
 
 #[allow(missing_docs)]
 #[derive(Debug)]
-pub struct AndThenFuture<F1, F2, F>
+pub struct AndThenFuture<'a, F1, F2, F>
 where
     F1: TryFuture<Error = Error>,
     F2: TryFuture<Error = Error>,
-    F: Func<F1::Ok, Out = F2>,
+    F: Func<F1::Ok, Out = F2> + 'a,
     F1::Ok: Tuple,
 {
-    try_chain: TryChain<F1, F2, F>,
+    try_chain: TryChain<F1, F2, &'a F>,
 }
 
-impl<F1, F2, F> AndThenFuture<F1, F2, F>
+impl<'a, F1, F2, F> AndThenFuture<'a, F1, F2, F>
 where
     F1: TryFuture<Error = Error>,
     F2: TryFuture<Error = Error>,
-    F: Func<F1::Ok, Out = F2>,
+    F: Func<F1::Ok, Out = F2> + 'a,
     F1::Ok: Tuple,
 {
-    unsafe_pinned!(try_chain: TryChain<F1, F2, F>);
+    unsafe_pinned!(try_chain: TryChain<F1, F2, &'a F>);
 }
 
-impl<F1, F2, F> Future for AndThenFuture<F1, F2, F>
+impl<'a, F1, F2, F> Future for AndThenFuture<'a, F1, F2, F>
 where
     F1: TryFuture<Error = Error>,
     F2: TryFuture<Error = Error>,
-    F: Func<F1::Ok, Out = F2>,
+    F: Func<F1::Ok, Out = F2> + 'a,
     F1::Ok: Tuple,
 {
     type Output = Result<One<F2::Ok>, Error>;

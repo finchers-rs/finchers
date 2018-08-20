@@ -37,7 +37,7 @@ pub struct MatchPath {
     encoded: String,
 }
 
-impl Endpoint for MatchPath {
+impl<'a> Endpoint<'a> for MatchPath {
     type Output = ();
     type Future = future::Ready<Result<Self::Output, Error>>;
 
@@ -66,7 +66,7 @@ pub struct EndPath {
     _priv: (),
 }
 
-impl Endpoint for EndPath {
+impl<'a> Endpoint<'a> for EndPath {
     type Output = ();
     type Future = future::Ready<Result<Self::Output, Error>>;
 
@@ -124,7 +124,7 @@ impl<T> fmt::Debug for Param<T> {
     }
 }
 
-impl<T> Endpoint for Param<T>
+impl<'a, T> Endpoint<'a> for Param<T>
 where
     T: FromEncodedStr,
 {
@@ -206,7 +206,7 @@ impl<T> fmt::Debug for Remains<T> {
     }
 }
 
-impl<T> Endpoint for Remains<T>
+impl<'a, T> Endpoint<'a> for Remains<T>
 where
     T: FromEncodedStr,
 {

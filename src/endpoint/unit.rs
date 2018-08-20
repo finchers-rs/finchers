@@ -14,11 +14,11 @@ pub struct Unit {
     _priv: (),
 }
 
-impl Endpoint for Unit {
+impl<'a> Endpoint<'a> for Unit {
     type Output = ();
     type Future = future::Ready<Result<Self::Output, Error>>;
 
-    fn apply(&self, _: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'a self, _: &mut Context<'_>) -> EndpointResult<Self::Future> {
         Ok(future::ready(Ok(())))
     }
 }

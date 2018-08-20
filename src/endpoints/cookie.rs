@@ -97,7 +97,7 @@ impl Required {
     }
 }
 
-impl Endpoint for Required {
+impl<'a> Endpoint<'a> for Required {
     type Output = One<Cookie<'static>>;
     type Future = Ready<Result<Self::Output, Error>>;
 
@@ -165,7 +165,7 @@ impl Optional {
     }
 }
 
-impl Endpoint for Optional {
+impl<'a> Endpoint<'a> for Optional {
     type Output = One<Option<Cookie<'static>>>;
     type Future = Ready<Result<Self::Output, Error>>;
 

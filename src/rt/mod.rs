@@ -67,13 +67,13 @@ pub type LaunchResult<T> = Result<T, failure::Error>;
 /// Start the server with given endpoint and default configuration.
 pub fn launch<E>(endpoint: E) -> LaunchResult<()>
 where
-    E: Endpoint + Send + Sync + 'static,
+    E: Endpoint<'static> + Send + Sync,
     E::Output: Responder,
-    E::Future: Send + 'static,
+    E::Future: Send,
 {
     let config = Config::from_env();
 
-    let endpoint: &'static _ = unsafe { &*(&endpoint as *const _) };
+    let endpoint: &'static E = unsafe { &*(&endpoint as *const _) };
     let new_service = App::new(endpoint);
 
     let server = Server::try_bind(&config.addr())?

@@ -20,15 +20,15 @@ pub struct Or<E1, E2> {
     pub(super) e2: E2,
 }
 
-impl<E1, E2> Endpoint for Or<E1, E2>
+impl<'a, E1, E2> Endpoint<'a> for Or<E1, E2>
 where
-    E1: Endpoint,
-    E2: Endpoint,
+    E1: Endpoint<'a>,
+    E2: Endpoint<'a>,
 {
     type Output = One<WrappedEither<E1::Output, E2::Output>>;
     type Future = OrFuture<E1::Future, E2::Future>;
 
-    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'a self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
         match {
             let mut ecx = ecx.clone_reborrowed();
             self.e1

@@ -68,15 +68,15 @@ pub struct Lazy<F> {
     f: F,
 }
 
-impl<F, R> Endpoint for Lazy<F>
+impl<'a, F, R> Endpoint<'a> for Lazy<F>
 where
-    F: Fn(PinMut<'_, Input>) -> R,
-    R: TryFuture<Error = Error>,
+    F: Fn(PinMut<'_, Input>) -> R + 'a,
+    R: TryFuture<Error = Error> + 'a,
 {
     type Output = One<R::Ok>;
     type Future = MapOk<R, fn(R::Ok) -> Self::Output>;
 
-    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'a self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
         Ok((self.f)(ecx.input()).map_ok(one as fn(_) -> _))
     }
 }

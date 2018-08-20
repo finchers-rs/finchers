@@ -60,7 +60,7 @@ use crate::input::with_get_cx;
 /// ```
 pub fn required<H>() -> Required<H>
 where
-    H: FromHeader,
+    H: FromHeader + 'static,
 {
     (Required {
         _marker: PhantomData,
@@ -87,9 +87,9 @@ impl<H> fmt::Debug for Required<H> {
     }
 }
 
-impl<H> Endpoint for Required<H>
+impl<'e, H> Endpoint<'e> for Required<H>
 where
-    H: FromHeader,
+    H: FromHeader + 'static,
 {
     type Output = One<H>;
     type Future = RequiredFuture<H>;
@@ -180,7 +180,7 @@ where
 /// ```
 pub fn optional<H>() -> Optional<H>
 where
-    H: FromHeader,
+    H: FromHeader + 'static,
 {
     (Optional {
         _marker: PhantomData,
@@ -207,9 +207,9 @@ impl<H> fmt::Debug for Optional<H> {
     }
 }
 
-impl<H> Endpoint for Optional<H>
+impl<'e, H> Endpoint<'e> for Optional<H>
 where
-    H: FromHeader,
+    H: FromHeader + 'static,
 {
     type Output = One<Option<H>>;
     type Future = OptionalFuture<H>;
@@ -274,14 +274,15 @@ pub struct Exact<V> {
     value: V,
 }
 
-impl<V> Endpoint for Exact<V>
+impl<'e, V> Endpoint<'e> for Exact<V>
 where
     HeaderValue: PartialEq<V>,
+    V: 'e,
 {
     type Output = ();
     type Future = future::Ready<Result<Self::Output, Error>>;
 
-    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'e self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
         match ecx.input().headers().get(self.name) {
             Some(h) if *h == self.value => Ok(future::ready(Ok(()))),
             _ => Err(EndpointErrorKind::NotMatched),

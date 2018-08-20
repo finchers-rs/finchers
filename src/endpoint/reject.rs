@@ -36,15 +36,15 @@ impl<F: Clone, E> Clone for Reject<F, E> {
     }
 }
 
-impl<F, E> Endpoint for Reject<F, E>
+impl<'a, F, E> Endpoint<'a> for Reject<F, E>
 where
-    F: Fn(PinMut<'_, Input>) -> E,
-    E: Into<Error>,
+    F: Fn(PinMut<'_, Input>) -> E + 'a,
+    E: Into<Error> + 'a,
 {
     type Output = ();
     type Future = future::Ready<Result<Self::Output, Error>>;
 
-    fn apply<'c>(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'a self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
         while let Some(..) = ecx.next_segment() {}
         Ok(future::ready(Err((self.f)(ecx.input()).into())))
     }

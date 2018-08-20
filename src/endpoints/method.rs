@@ -6,16 +6,16 @@ use crate::endpoint::{Context, Endpoint, EndpointErrorKind, EndpointResult, Into
 
 #[allow(missing_docs)]
 #[derive(Debug, Clone)]
-pub struct MatchMethod<E: Endpoint> {
+pub struct MatchMethod<E> {
     method: Method,
     endpoint: E,
 }
 
-impl<E: Endpoint> Endpoint for MatchMethod<E> {
+impl<'a, E: Endpoint<'a>> Endpoint<'a> for MatchMethod<E> {
     type Output = E::Output;
     type Future = E::Future;
 
-    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'a self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
         if *ecx.input().method() == self.method {
             self.endpoint.apply(ecx)
         } else {
@@ -27,14 +27,11 @@ impl<E: Endpoint> Endpoint for MatchMethod<E> {
 }
 
 /// Create an endpoint which will accept the request only if the request method is equal to the expected one.
-pub fn method<E>(method: Method, endpoint: E) -> MatchMethod<E::Endpoint>
+pub fn method<E>(method: Method, endpoint: E) -> MatchMethod<E>
 where
-    E: IntoEndpoint,
+    for<'e> E: Endpoint<'e>,
 {
-    MatchMethod {
-        method,
-        endpoint: endpoint.into_endpoint(),
-    }
+    MatchMethod { method, endpoint }
 }
 
 macro_rules! define_method {
@@ -44,9 +41,9 @@ macro_rules! define_method {
     )*) => {$(
 
         $(#[$doc])*
-        pub fn $name<E>(endpoint: E) -> $Endpoint<E::Endpoint>
+        pub fn $name<E>(endpoint: E) -> $Endpoint<E>
         where
-            E: IntoEndpoint,
+            for<'e> E: Endpoint<'e>,
         {
             $Endpoint {
                 endpoint: endpoint.into_endpoint(),
@@ -59,14 +56,11 @@ macro_rules! define_method {
             endpoint: E,
         }
 
-        impl<E: Endpoint> Endpoint for $Endpoint<E> {
+        impl<'e, E: Endpoint<'e>> Endpoint<'e> for $Endpoint<E> {
             type Output = E::Output;
             type Future = E::Future;
 
-            fn apply(
-                &self,
-                ecx: &mut Context<'_>
-            ) -> EndpointResult<Self::Future> {
+            fn apply(&'e self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
                 if *ecx.input().method() == Method::$method {
                     self.endpoint.apply(ecx)
                 } else {

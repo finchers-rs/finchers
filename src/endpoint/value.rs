@@ -44,7 +44,7 @@ pub struct Value<T> {
     x: T,
 }
 
-impl<T: Clone> Endpoint for Value<T> {
+impl<'a, T: Clone + 'a> Endpoint<'a> for Value<T> {
     type Output = One<T>;
     type Future = future::Ready<Result<Self::Output, Error>>;
 

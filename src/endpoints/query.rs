@@ -68,7 +68,7 @@ impl<T> fmt::Debug for Parse<T> {
     }
 }
 
-impl<T> Endpoint for Parse<T>
+impl<'a, T> Endpoint<'a> for Parse<T>
 where
     T: FromQuery,
 {
@@ -116,7 +116,7 @@ pub struct Raw {
     _priv: (),
 }
 
-impl Endpoint for Raw {
+impl<'a> Endpoint<'a> for Raw {
     type Output = One<String>;
     type Future = RawFuture;
 
