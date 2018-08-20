@@ -8,7 +8,7 @@ use futures_util::future;
 use http::StatusCode;
 use percent_encoding::{define_encode_set, percent_encode, DEFAULT_ENCODE_SET};
 
-use crate::endpoint::{Context, Endpoint, EndpointErrorKind, EndpointResult};
+use crate::endpoint::{Context, Endpoint, EndpointError, EndpointResult};
 use crate::error::{Error, HttpError};
 use crate::generic::{one, One};
 use crate::input::FromEncodedStr;
@@ -42,13 +42,11 @@ impl<'a> Endpoint<'a> for MatchPath {
     type Future = future::Ready<Result<Self::Output, Error>>;
 
     fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
-        let s = ecx
-            .next_segment()
-            .ok_or_else(|| EndpointErrorKind::NotMatched)?;
+        let s = ecx.next_segment().ok_or_else(EndpointError::not_matched)?;
         if s == self.encoded {
             Ok(future::ready(Ok(())))
         } else {
-            Err(EndpointErrorKind::NotMatched)
+            Err(EndpointError::not_matched())
         }
     }
 }
@@ -73,7 +71,7 @@ impl<'a> Endpoint<'a> for EndPath {
     fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
         match ecx.next_segment() {
             None => Ok(future::ready(Ok(()))),
-            Some(..) => Err(EndpointErrorKind::NotMatched),
+            Some(..) => Err(EndpointError::not_matched()),
         }
     }
 }
@@ -132,9 +130,7 @@ where
     type Future = future::Ready<Result<Self::Output, Error>>;
 
     fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
-        let s = ecx
-            .next_segment()
-            .ok_or_else(|| EndpointErrorKind::NotMatched)?;
+        let s = ecx.next_segment().ok_or_else(EndpointError::not_matched)?;
         let result = T::from_encoded_str(s)
             .map(one)
             .map_err(|cause| ParamError { cause }.into());

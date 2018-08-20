@@ -19,7 +19,8 @@ mod value;
 
 // re-exports
 pub use self::context::Context;
-pub use self::error::{AllowedMethods, EndpointErrorKind, EndpointResult};
+pub(crate) use self::error::AllowedMethods;
+pub use self::error::{EndpointError, EndpointResult};
 
 pub use self::and::And;
 pub use self::and_then::AndThen;

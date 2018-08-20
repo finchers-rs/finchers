@@ -3,7 +3,7 @@
 use http::Method;
 
 use crate::endpoint::{
-    AllowedMethods, Context, Endpoint, EndpointErrorKind, EndpointResult, IntoEndpoint,
+    AllowedMethods, Context, Endpoint, EndpointError, EndpointResult, IntoEndpoint,
 };
 
 #[allow(missing_docs)]
@@ -22,7 +22,7 @@ impl<'a, E: Endpoint<'a>> Endpoint<'a> for MatchMethod<E> {
         if *ecx.input().method() == self.method {
             self.endpoint.apply(ecx)
         } else {
-            Err(EndpointErrorKind::MethodNotAllowed(self.method_bit))
+            Err(EndpointError::method_not_allowed(self.method_bit))
         }
     }
 }
@@ -72,7 +72,7 @@ macro_rules! define_method {
                 if *ecx.input().method() == Method::$method {
                     self.endpoint.apply(ecx)
                 } else {
-                    Err(EndpointErrorKind::MethodNotAllowed(AllowedMethods::$method))
+                    Err(EndpointError::method_not_allowed(AllowedMethods::$method))
                 }
             }
         }

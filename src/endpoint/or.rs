@@ -7,7 +7,7 @@ use futures_core::future::TryFuture;
 use http::Response;
 use pin_utils::unsafe_pinned;
 
-use crate::endpoint::{Context, Endpoint, EndpointErrorKind, EndpointResult};
+use crate::endpoint::{Context, Endpoint, EndpointResult};
 use crate::error::Error;
 use crate::generic::{one, Either, One};
 use crate::input::Input;
@@ -59,17 +59,8 @@ where
                 }
             }
             Err(err1) => match self.e2.apply(ecx) {
-                Ok(future) => Ok(OrFuture {
-                    inner: Either::Right(future),
-                }),
-                Err(EndpointErrorKind::MethodNotAllowed(allows2)) => match err1 {
-                    EndpointErrorKind::MethodNotAllowed(mut allows1) => {
-                        allows1.insert(allows2);
-                        Err(EndpointErrorKind::MethodNotAllowed(allows1))
-                    }
-                    _ => Err(EndpointErrorKind::MethodNotAllowed(allows2)),
-                },
-                Err(e) => Err(e),
+                Ok(future) => Ok(OrFuture::right(future)),
+                Err(err2) => Err(err1.merge(err2)),
             },
         }
     }

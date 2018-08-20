@@ -8,7 +8,7 @@ use self::EndpointErrorKind::*;
 use crate::error::{Error, HttpError};
 
 bitflags! {
-    pub struct AllowedMethods: u32 {
+    pub(crate) struct AllowedMethods: u32 {
         const GET     = 0b_0000_0000_0001;
         const POST    = 0b_0000_0000_0010;
         const PUT     = 0b_0000_0000_0100;
@@ -39,16 +39,56 @@ impl AllowedMethods {
 
 #[allow(missing_docs)]
 #[derive(Debug)]
-pub enum EndpointErrorKind {
+enum EndpointErrorKind {
     NotMatched,
     MethodNotAllowed(AllowedMethods),
     Other(Error),
 }
 
-impl fmt::Display for EndpointErrorKind {
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct EndpointError {
+    kind: EndpointErrorKind,
+}
+
+#[allow(missing_docs)]
+impl EndpointError {
+    pub(crate) fn not_matched() -> EndpointError {
+        EndpointError { kind: NotMatched }
+    }
+
+    pub(crate) fn method_not_allowed(allowed: AllowedMethods) -> EndpointError {
+        EndpointError {
+            kind: MethodNotAllowed(allowed),
+        }
+    }
+
+    pub(crate) fn other(cause: impl Into<Error>) -> EndpointError {
+        EndpointError {
+            kind: Other(cause.into()),
+        }
+    }
+
+    pub(crate) fn merge(self, other: EndpointError) -> EndpointError {
+        match (self.kind, other.kind) {
+            (MethodNotAllowed(mut allows1), MethodNotAllowed(allows2)) => {
+                allows1.insert(allows2);
+                EndpointError {
+                    kind: MethodNotAllowed(allows1),
+                }
+            }
+            (_, MethodNotAllowed(allows2)) => EndpointError {
+                kind: MethodNotAllowed(allows2),
+            },
+            (_, kind2) => EndpointError { kind: kind2 },
+        }
+    }
+}
+
+impl fmt::Display for EndpointError {
     #[allow(unused_assignments)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
+        match self.kind {
             NotMatched => f.write_str("no route"),
             MethodNotAllowed(allowed_methods) => {
                 if f.alternate() {
@@ -81,9 +121,9 @@ impl fmt::Display for EndpointErrorKind {
     }
 }
 
-impl HttpError for EndpointErrorKind {
+impl HttpError for EndpointError {
     fn status_code(&self) -> StatusCode {
-        match self {
+        match self.kind {
             NotMatched => StatusCode::NOT_FOUND,
             MethodNotAllowed(..) => StatusCode::METHOD_NOT_ALLOWED,
             Other(ref e) => e.status_code(),
@@ -91,14 +131,14 @@ impl HttpError for EndpointErrorKind {
     }
 
     fn headers(&self, h: &mut HeaderMap) {
-        match self {
+        match self.kind {
             Other(ref e) => e.headers(h),
             _ => {}
         }
     }
 
     fn cause(&self) -> Option<&dyn Fail> {
-        match self {
+        match self.kind {
             Other(ref e) => e.cause(),
             _ => None,
         }
@@ -106,4 +146,4 @@ impl HttpError for EndpointErrorKind {
 }
 
 #[allow(missing_docs)]
-pub type EndpointResult<F> = Result<F, EndpointErrorKind>;
+pub type EndpointResult<T> = Result<T, EndpointError>;

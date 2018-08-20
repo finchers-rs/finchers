@@ -10,7 +10,7 @@ use failure::format_err;
 use futures_util::future;
 use http::header::HeaderValue;
 
-use crate::endpoint::{Context, Endpoint, EndpointErrorKind, EndpointExt, EndpointResult};
+use crate::endpoint::{Context, Endpoint, EndpointError, EndpointExt, EndpointResult};
 use crate::error::{bad_request, Error};
 use crate::generic::{one, One};
 use crate::input::header::FromHeader;
@@ -100,7 +100,7 @@ where
                 _marker: PhantomData,
             })
         } else {
-            Err(EndpointErrorKind::Other(bad_request(format_err!(
+            Err(EndpointError::other(bad_request(format_err!(
                 "missing header: `{}'",
                 H::HEADER_NAME
             ))))
@@ -285,7 +285,7 @@ where
     fn apply(&'e self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
         match ecx.input().headers().get(self.name) {
             Some(h) if *h == self.value => Ok(future::ready(Ok(()))),
-            _ => Err(EndpointErrorKind::NotMatched),
+            _ => Err(EndpointError::not_matched()),
         }
     }
 }

@@ -5,7 +5,7 @@ use std::task::Poll;
 use futures_core::future::{Future, TryFuture};
 use pin_utils::unsafe_unpinned;
 
-use crate::endpoint::{Context, Endpoint, EndpointErrorKind, EndpointResult};
+use crate::endpoint::{Context, Endpoint, EndpointError, EndpointResult};
 use crate::error::Error;
 
 #[allow(missing_docs)]
@@ -33,11 +33,11 @@ impl<'a, E: Endpoint<'a>> Endpoint<'a> for Fixed<E> {
 
 #[derive(Debug)]
 pub struct FixedFuture<F> {
-    inner: Result<F, Option<EndpointErrorKind>>,
+    inner: Result<F, Option<EndpointError>>,
 }
 
 impl<F> FixedFuture<F> {
-    unsafe_unpinned!(inner: Result<F, Option<EndpointErrorKind>>);
+    unsafe_unpinned!(inner: Result<F, Option<EndpointError>>);
 }
 
 impl<F> Future for FixedFuture<F>
