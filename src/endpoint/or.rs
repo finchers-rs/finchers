@@ -31,51 +31,45 @@ where
     fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
         match {
             let mut ecx = ecx.clone_reborrowed();
-            let res = self.e1.apply(&mut ecx);
-            res.map(|future| (future, ecx.current_cursor()))
+            self.e1
+                .apply(&mut ecx)
+                .map(|future| (future, ecx.current_cursor()))
         } {
             Ok((future1, cursor1)) => {
                 match {
                     let mut ecx = ecx.clone_reborrowed();
-                    let res = self.e2.apply(&mut ecx);
-                    res.map(|future| (future, ecx.current_cursor()))
+                    self.e2
+                        .apply(&mut ecx)
+                        .map(|future| (future, ecx.current_cursor()))
                 } {
                     // If both endpoints are matched, the one with the larger number of
                     // (consumed) path segments is choosen.
                     Ok((_, ref cursor2)) if cursor1.popped >= cursor2.popped => {
                         ecx.reset_cursor(cursor1);
-                        Ok(OrFuture {
-                            inner: Either::Left(future1),
-                        })
+                        Ok(OrFuture::left(future1))
                     }
                     Ok((future2, cursor2)) => {
                         ecx.reset_cursor(cursor2);
-                        Ok(OrFuture {
-                            inner: Either::Right(future2),
-                        })
+                        Ok(OrFuture::right(future2))
                     }
                     Err(..) => {
                         ecx.reset_cursor(cursor1);
-                        Ok(OrFuture {
-                            inner: Either::Left(future1),
-                        })
+                        Ok(OrFuture::left(future1))
                     }
                 }
             }
             Err(err1) => match self.e2.apply(ecx) {
+                Ok(future) => Ok(OrFuture {
+                    inner: Either::Right(future),
+                }),
                 Err(EndpointErrorKind::MethodNotAllowed(allows2)) => match err1 {
                     EndpointErrorKind::MethodNotAllowed(mut allows1) => {
                         allows1.extend(allows2);
                         Err(EndpointErrorKind::MethodNotAllowed(allows1))
                     }
-                    EndpointErrorKind::NotMatched => {
-                        Err(EndpointErrorKind::MethodNotAllowed(allows2))
-                    }
+                    _ => Err(EndpointErrorKind::MethodNotAllowed(allows2)),
                 },
-                Err(EndpointErrorKind::NotMatched) => Err(err1),
-                Ok(future) => Ok(OrFuture {
-                    inner: Either::Right(future),
-                }),
+                Err(e) => Err(e),
             },
         }
     }
@@ -105,6 +99,18 @@ pub struct OrFuture<L, R> {
 }
 
 impl<L, R> OrFuture<L, R> {
+    fn left(l: L) -> Self {
+        OrFuture {
+            inner: Either::Left(l),
+        }
+    }
+
+    fn right(r: R) -> Self {
+        OrFuture {
+            inner: Either::Right(r),
+        }
+    }
+
     unsafe_pinned!(inner: Either<L, R>);
 }
 

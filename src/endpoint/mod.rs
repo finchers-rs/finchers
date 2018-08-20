@@ -4,6 +4,7 @@ mod and;
 mod and_then;
 mod boxed;
 mod context;
+mod error;
 mod fixed;
 mod lazy;
 mod map;
@@ -17,6 +18,7 @@ mod value;
 
 // re-exports
 pub use self::context::Context;
+pub use self::error::{EndpointErrorKind, EndpointResult};
 
 pub use self::and::And;
 pub use self::and_then::AndThen;
@@ -34,53 +36,13 @@ pub use self::value::{value, Value};
 
 // ====
 
-use std::fmt;
 use std::rc::Rc;
 use std::sync::Arc;
 
 use futures_core::future::{Future, TryFuture};
-use http::{Method, StatusCode};
 
-use crate::error::{Error, HttpError};
+use crate::error::Error;
 use crate::generic::{Combine, Func, Tuple};
-
-#[allow(missing_docs)]
-#[derive(Debug)]
-pub enum EndpointErrorKind {
-    NotMatched,
-    MethodNotAllowed(Vec<Method>),
-}
-
-impl fmt::Display for EndpointErrorKind {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            EndpointErrorKind::NotMatched => f.write_str("no route"),
-            EndpointErrorKind::MethodNotAllowed(ref allowed_methods) => {
-                if f.alternate() {
-                    write!(
-                        f,
-                        "method not allowed (allowed methods: {:?})",
-                        allowed_methods
-                    )
-                } else {
-                    f.write_str("method not allowed")
-                }
-            }
-        }
-    }
-}
-
-impl HttpError for EndpointErrorKind {
-    fn status_code(&self) -> StatusCode {
-        match self {
-            EndpointErrorKind::NotMatched => StatusCode::NOT_FOUND,
-            EndpointErrorKind::MethodNotAllowed(..) => StatusCode::METHOD_NOT_ALLOWED,
-        }
-    }
-}
-
-#[allow(missing_docs)]
-pub type EndpointResult<F> = Result<F, EndpointErrorKind>;
 
 /// Trait representing an endpoint.
 pub trait Endpoint {
