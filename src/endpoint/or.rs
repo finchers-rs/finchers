@@ -64,7 +64,7 @@ where
                 }),
                 Err(EndpointErrorKind::MethodNotAllowed(allows2)) => match err1 {
                     EndpointErrorKind::MethodNotAllowed(mut allows1) => {
-                        allows1.extend(allows2);
+                        allows1.insert(allows2);
                         Err(EndpointErrorKind::MethodNotAllowed(allows1))
                     }
                     _ => Err(EndpointErrorKind::MethodNotAllowed(allows2)),

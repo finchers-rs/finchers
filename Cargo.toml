@@ -35,6 +35,8 @@ members = [
 [dependencies]
 # finchers-derive = { version = "0.12.0-dev", path = "finchers-derive" }
 
+bitflags = { git = "https://github.com/bitflags/bitflags.git", branch = "master" }
+# bitflags = "1.0.3"
 bytes = "0.4.9"
 cookie = { version = "0.11.0", features = ["percent-encode"] }
 failure = "0.1.2"
