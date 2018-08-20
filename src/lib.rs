@@ -55,6 +55,7 @@
 )]
 #![cfg_attr(feature = "strict", deny(warnings))]
 
+extern crate bitflags;
 extern crate bytes;
 extern crate cookie;
 extern crate failure;
