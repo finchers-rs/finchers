@@ -14,14 +14,11 @@ pub struct Fixed<E> {
     pub(super) endpoint: E,
 }
 
-impl<E> Endpoint for Fixed<E>
-where
-    E: Endpoint,
-{
+impl<'a, E: Endpoint<'a>> Endpoint<'a> for Fixed<E> {
     type Output = E::Output;
     type Future = FixedFuture<E::Future>;
 
-    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'a self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
         match self.endpoint.apply(ecx) {
             Ok(future) => Ok(FixedFuture { inner: Ok(future) }),
             Err(err) => {

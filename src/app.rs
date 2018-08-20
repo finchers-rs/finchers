@@ -23,21 +23,18 @@ use crate::output::Responder;
 
 /// A factory of HTTP service which wraps an `Endpoint`.
 #[derive(Debug)]
-pub struct App<'a, E: Endpoint + 'a> {
-    endpoint: &'a E,
+pub struct App<'e, E: Endpoint<'e>> {
+    endpoint: &'e E,
 }
 
-impl<'a, E> App<'a, E>
-where
-    E: Endpoint + 'a,
-{
+impl<'e, E: Endpoint<'e>> App<'e, E> {
     /// Create a new `App` from the provided components.
-    pub fn new(endpoint: &'a E) -> App<'a, E> {
+    pub fn new(endpoint: &'e E) -> App<'e, E> {
         App { endpoint }
     }
 
     #[allow(missing_docs)]
-    pub fn dispatch_request(&self, request: Request<ReqBody>) -> AppFuture<'a, E> {
+    pub fn dispatch_request(&self, request: Request<ReqBody>) -> AppFuture<'e, E> {
         AppFuture {
             state: State::Uninitialized,
             input: Input::new(request),
@@ -51,10 +48,10 @@ pub type ResBody<T: Responder> = Either<Once<String>, T::Body>;
 
 #[allow(missing_docs)]
 #[derive(Debug)]
-pub struct AppFuture<'a, E: Endpoint + 'a> {
+pub struct AppFuture<'e, E: Endpoint<'e>> {
     state: State<E::Future>,
     input: Input,
-    endpoint: &'a E,
+    endpoint: &'e E,
 }
 
 #[derive(Debug)]
@@ -64,9 +61,9 @@ enum State<T> {
     Gone,
 }
 
-impl<'a, E> AppFuture<'a, E>
+impl<'e, E> AppFuture<'e, E>
 where
-    E: Endpoint + 'a,
+    E: Endpoint<'e>,
 {
     pub fn poll_output(
         self: PinMut<'_, Self>,
@@ -137,9 +134,9 @@ where
     }
 }
 
-impl<'a, E> Future for AppFuture<'a, E>
+impl<'e, E> Future for AppFuture<'e, E>
 where
-    E: Endpoint + 'a,
+    E: Endpoint<'e>,
     E::Output: Responder,
 {
     type Output = io::Result<Response<ResBody<E::Output>>>;
@@ -166,7 +163,7 @@ mod service {
     use crate::input::body::ReqBody;
     use crate::output::Responder;
 
-    impl<'a, E: Endpoint> NewService for App<'a, E>
+    impl<'e, E: Endpoint<'e>> NewService for App<'e, E>
     where
         E::Output: Responder,
     {
@@ -184,14 +181,14 @@ mod service {
         }
     }
 
-    impl<'a, E: Endpoint> Service for App<'a, E>
+    impl<'e, E: Endpoint<'e>> Service for App<'e, E>
     where
         E::Output: Responder,
     {
         type ReqBody = Body;
         type ResBody = ResBody<E::Output>;
         type Error = io::Error;
-        type Future = Compat<PinBox<AppFuture<'a, E>>, TokioDefaultSpawn>;
+        type Future = Compat<PinBox<AppFuture<'e, E>>, TokioDefaultSpawn>;
 
         fn call(&mut self, request: Request<Self::ReqBody>) -> Self::Future {
             let future = self.dispatch_request(request.map(ReqBody::from_hyp));

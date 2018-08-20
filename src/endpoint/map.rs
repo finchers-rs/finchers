@@ -15,37 +15,39 @@ pub struct Map<E, F> {
     pub(super) f: F,
 }
 
-impl<E, F> Endpoint for Map<E, F>
+impl<'a, E, F> Endpoint<'a> for Map<E, F>
 where
-    E: Endpoint,
-    F: Func<E::Output> + Clone,
+    E: Endpoint<'a>,
+    F: Func<E::Output> + 'a,
 {
     type Output = One<F::Out>;
-    type Future = MapFuture<E::Future, F>;
+    type Future = MapFuture<'a, E::Future, F>;
 
-    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'a self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
         let future = self.endpoint.apply(ecx)?;
-        let f = self.f.clone();
-        Ok(MapFuture { future, f: Some(f) })
+        Ok(MapFuture {
+            future,
+            f: Some(&self.f),
+        })
     }
 }
 
 #[derive(Debug)]
-pub struct MapFuture<T, F> {
+pub struct MapFuture<'a, T, F: 'a> {
     future: T,
-    f: Option<F>,
+    f: Option<&'a F>,
 }
 
-impl<T, F> MapFuture<T, F> {
+impl<'a, T, F> MapFuture<'a, T, F> {
     unsafe_pinned!(future: T);
-    unsafe_unpinned!(f: Option<F>);
+    unsafe_unpinned!(f: Option<&'a F>);
 }
 
-impl<T, F> Future for MapFuture<T, F>
+impl<'a, T, F> Future for MapFuture<'a, T, F>
 where
     T: TryFuture<Error = Error>,
     T::Ok: Tuple,
-    F: Func<T::Ok>,
+    F: Func<T::Ok> + 'a,
 {
     type Output = Result<One<F::Out>, Error>;
 

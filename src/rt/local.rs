@@ -136,14 +136,11 @@ impl LocalRequest {
     }
 
     /// Apply this dummy request to the associated endpoint and get its response.
-    pub fn apply<E>(self, endpoint: E) -> Result<E::Output, Error>
-    where
-        E: Endpoint,
-    {
+    pub fn apply<'e, E: Endpoint<'e>>(self, endpoint: &'e E) -> Result<E::Output, Error> {
         let LocalRequest { mut request } = self;
         let request = request.take().expect("The request has already applied");
 
-        let app = App::new(&endpoint);
+        let app = App::new(endpoint);
 
         let mut future = app.dispatch_request(request);
         let future = poll_fn(move |cx| {

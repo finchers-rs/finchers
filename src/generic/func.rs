@@ -3,18 +3,18 @@ use super::hlist::Tuple;
 pub trait Func<Args: Tuple> {
     type Out;
 
-    fn call(self, args: Args) -> Self::Out;
+    fn call(&self, args: Args) -> Self::Out;
 }
 
 impl<F, R> Func<()> for F
 where
-    F: FnOnce() -> R,
+    F: Fn() -> R,
 {
     type Out = R;
 
     #[inline]
-    fn call(self, _: ()) -> Self::Out {
-        self()
+    fn call(&self, _: ()) -> Self::Out {
+        (*self)()
     }
 }
 
@@ -22,13 +22,13 @@ macro_rules! generics {
     ($T:ident) => {
         impl<F, R, $T> Func<($T,)> for F
         where
-            F: FnOnce($T) -> R,
+            F: Fn($T) -> R,
         {
             type Out = R;
 
             #[inline]
-            fn call(self, args: ($T,)) -> Self::Out {
-                (self)(args.0)
+            fn call(&self, args: ($T,)) -> Self::Out {
+                (*self)(args.0)
             }
         }
     };
@@ -37,15 +37,15 @@ macro_rules! generics {
 
         impl<F, R, $H, $($T),*> Func<($H, $($T),*)> for F
         where
-            F: FnOnce($H, $($T),*) -> R,
+            F: Fn($H, $($T),*) -> R,
         {
             type Out = R;
 
             #[inline]
-            fn call(self, args: ($H, $($T),*)) -> Self::Out {
+            fn call(&self, args: ($H, $($T),*)) -> Self::Out {
                 #[allow(non_snake_case)]
                 let ($H, $($T),*) = args;
-                (self)($H, $($T),*)
+                (*self)($H, $($T),*)
             }
         }
     };

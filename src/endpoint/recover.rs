@@ -20,20 +20,19 @@ pub struct Recover<E, F> {
     pub(super) f: F,
 }
 
-impl<E, F, R> Endpoint for Recover<E, F>
+impl<'a, E, F, R> Endpoint<'a> for Recover<E, F>
 where
-    E: Endpoint,
-    F: FnOnce(Error) -> R + Clone,
-    R: TryFuture<Error = Error>,
+    E: Endpoint<'a>,
+    F: Fn(Error) -> R + 'a,
+    R: TryFuture<Error = Error> + 'a,
 {
     type Output = One<Recovered<E::Output, R::Ok>>;
-    type Future = RecoverFuture<E::Future, R, F>;
+    type Future = RecoverFuture<E::Future, R, &'a F>;
 
-    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'a self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
         let f1 = self.endpoint.apply(ecx)?;
-        let f = self.f.clone();
         Ok(RecoverFuture {
-            try_chain: TryChain::new(f1, f),
+            try_chain: TryChain::new(f1, &self.f),
         })
     }
 }

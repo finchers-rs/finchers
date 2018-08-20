@@ -18,16 +18,16 @@ pub struct And<E1, E2> {
     pub(super) e2: E2,
 }
 
-impl<E1, E2> Endpoint for And<E1, E2>
+impl<'a, E1, E2> Endpoint<'a> for And<E1, E2>
 where
-    E1: Endpoint,
-    E2: Endpoint,
+    E1: Endpoint<'a>,
+    E2: Endpoint<'a>,
     E1::Output: Combine<E2::Output>,
 {
     type Output = <E1::Output as Combine<E2::Output>>::Out;
     type Future = AndFuture<IntoFuture<E1::Future>, IntoFuture<E2::Future>>;
 
-    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'a self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
         let f1 = self.e1.apply(ecx)?;
         let f2 = self.e2.apply(ecx)?;
         Ok(AndFuture {

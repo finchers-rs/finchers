@@ -1,10 +1,11 @@
 //! Components for constructing `Endpoint`.
 
+mod context;
+mod error;
+
 mod and;
 mod and_then;
 mod boxed;
-mod context;
-mod error;
 mod fixed;
 mod lazy;
 mod map;
@@ -45,67 +46,58 @@ use crate::error::Error;
 use crate::generic::{Combine, Func, Tuple};
 
 /// Trait representing an endpoint.
-pub trait Endpoint {
+pub trait Endpoint<'a>: 'a {
     /// The inner type associated with this endpoint.
     type Output: Tuple;
 
     /// The type of value which will be returned from `apply`.
-    type Future: TryFuture<Ok = Self::Output, Error = Error>;
+    type Future: TryFuture<Ok = Self::Output, Error = Error> + 'a;
 
     /// Perform checking the incoming HTTP request and returns
     /// an instance of the associated Future if matched.
-    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future>;
+    fn apply(&'a self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future>;
 }
 
-impl<'e, E: Endpoint> Endpoint for &'e E {
+impl<'a, E: Endpoint<'a>> Endpoint<'a> for Box<E> {
     type Output = E::Output;
     type Future = E::Future;
 
-    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
-        (*self).apply(ecx)
-    }
-}
-
-impl<E: Endpoint> Endpoint for Box<E> {
-    type Output = E::Output;
-    type Future = E::Future;
-
-    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'a self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
         (**self).apply(ecx)
     }
 }
 
-impl<E: Endpoint> Endpoint for Rc<E> {
+impl<'a, E: Endpoint<'a>> Endpoint<'a> for Rc<E> {
     type Output = E::Output;
     type Future = E::Future;
 
-    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'a self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
         (**self).apply(ecx)
     }
 }
 
-impl<E: Endpoint> Endpoint for Arc<E> {
+impl<'a, E: Endpoint<'a>> Endpoint<'a> for Arc<E> {
     type Output = E::Output;
     type Future = E::Future;
 
-    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'a self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
         (**self).apply(ecx)
     }
 }
 
 /// Trait representing the transformation into an `Endpoint`.
-pub trait IntoEndpoint {
+pub trait IntoEndpoint<'a> {
     /// The inner type of associated `Endpoint`.
     type Output: Tuple;
 
     /// The type of transformed `Endpoint`.
-    type Endpoint: Endpoint<Output = Self::Output>;
+    type Endpoint: Endpoint<'a, Output = Self::Output>;
 
     /// Consume itself and transform into an `Endpoint`.
     fn into_endpoint(self) -> Self::Endpoint;
 }
 
-impl<E: Endpoint> IntoEndpoint for E {
+impl<'a, E: Endpoint<'a>> IntoEndpoint<'a> for E {
     type Output = E::Output;
     type Endpoint = E;
 
@@ -116,12 +108,12 @@ impl<E: Endpoint> IntoEndpoint for E {
 }
 
 /// A set of extension methods used for composing complicate endpoints.
-pub trait EndpointExt: Endpoint + Sized {
+pub trait EndpointExt<'a>: Endpoint<'a> + Sized {
     #[allow(missing_docs)]
     #[inline]
     fn output<T: Tuple>(self) -> Self
     where
-        Self: Endpoint<Output = T>,
+        Self: Endpoint<'a, Output = T>,
     {
         self
     }
@@ -132,7 +124,7 @@ pub trait EndpointExt: Endpoint + Sized {
     /// `self` and `e` and resolved as a pair of values returned from theirs.
     fn and<E>(self, other: E) -> And<Self, E::Endpoint>
     where
-        E: IntoEndpoint,
+        E: IntoEndpoint<'a>,
         Self::Output: Combine<E::Output>,
     {
         (And {
@@ -147,7 +139,7 @@ pub trait EndpointExt: Endpoint + Sized {
     /// from either `self` or `e` matched "better" to the input.
     fn or<E>(self, other: E) -> Or<Self, E::Endpoint>
     where
-        E: IntoEndpoint,
+        E: IntoEndpoint<'a>,
     {
         (Or {
             e1: self,
@@ -158,7 +150,7 @@ pub trait EndpointExt: Endpoint + Sized {
     /// Create an endpoint which maps the returned value to a different type.
     fn map<F>(self, f: F) -> Map<Self, F>
     where
-        F: Func<Self::Output> + Clone,
+        F: Func<Self::Output> + 'a,
     {
         (Map { endpoint: self, f }).output::<(F::Out,)>()
     }
@@ -166,7 +158,7 @@ pub trait EndpointExt: Endpoint + Sized {
     #[allow(missing_docs)]
     fn then<F>(self, f: F) -> Then<Self, F>
     where
-        F: Func<Self::Output> + Clone,
+        F: Func<Self::Output> + 'a,
         F::Out: Future,
     {
         (Then { endpoint: self, f }).output::<(<F::Out as Future>::Output,)>()
@@ -175,35 +167,17 @@ pub trait EndpointExt: Endpoint + Sized {
     #[allow(missing_docs)]
     fn and_then<F>(self, f: F) -> AndThen<Self, F>
     where
-        F: Func<Self::Output> + Clone,
+        F: Func<Self::Output> + 'a,
         F::Out: TryFuture<Error = Error>,
     {
         (AndThen { endpoint: self, f }).output::<(<F::Out as TryFuture>::Ok,)>()
     }
 
     #[allow(missing_docs)]
-    fn boxed(self) -> Boxed<Self::Output>
-    where
-        Self: Send + Sync + 'static,
-        Self::Future: Send + 'static,
-    {
-        Boxed::new(self).output::<Self::Output>()
-    }
-
-    #[allow(missing_docs)]
-    fn boxed_local<'a>(self) -> BoxedLocal<'a, Self::Output>
-    where
-        Self: 'a,
-        Self::Future: 'a,
-    {
-        BoxedLocal::new(self).output::<Self::Output>()
-    }
-
-    #[allow(missing_docs)]
     fn recover<F, R>(self, f: F) -> Recover<Self, F>
     where
-        F: FnOnce(Error) -> R + Clone,
-        R: TryFuture<Error = Error>,
+        F: Fn(Error) -> R + 'a,
+        R: TryFuture<Error = Error> + 'a,
     {
         (Recover { endpoint: self, f }).output::<(self::recover::Recovered<Self::Output, R::Ok>,)>()
     }
@@ -212,6 +186,22 @@ pub trait EndpointExt: Endpoint + Sized {
     fn fixed(self) -> Fixed<Self> {
         Fixed { endpoint: self }
     }
+
+    #[allow(missing_docs)]
+    fn boxed<T: Tuple>(self) -> Boxed<T>
+    where
+        for<'e> Self: self::boxed::BoxedEndpoint<'e, Output = T> + Send + Sync + 'static,
+    {
+        Boxed::new(self).output::<T>()
+    }
+
+    #[allow(missing_docs)]
+    fn boxed_local<T: Tuple>(self) -> BoxedLocal<T>
+    where
+        for<'e> Self: self::boxed::LocalBoxedEndpoint<'e, Output = T> + 'static,
+    {
+        BoxedLocal::new(self).output::<T>()
+    }
 }
 
-impl<E: Endpoint> EndpointExt for E {}
+impl<'a, E: Endpoint<'a>> EndpointExt<'a> for E {}

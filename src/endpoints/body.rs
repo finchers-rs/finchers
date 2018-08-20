@@ -43,7 +43,7 @@ impl fmt::Debug for Raw {
     }
 }
 
-impl Endpoint for Raw {
+impl<'e> Endpoint<'e> for Raw {
     type Output = One<Payload>;
     type Future = RawFuture;
 
@@ -166,7 +166,7 @@ impl<T> fmt::Debug for Parse<T> {
     }
 }
 
-impl<T> Endpoint for Parse<T>
+impl<'e, T> Endpoint<'e> for Parse<T>
 where
     T: FromBody,
 {
@@ -226,9 +226,9 @@ pub struct Json<T> {
     _marker: PhantomData<fn() -> T>,
 }
 
-impl<T> Endpoint for Json<T>
+impl<'e, T> Endpoint<'e> for Json<T>
 where
-    T: DeserializeOwned,
+    T: DeserializeOwned + 'static,
 {
     type Output = (T,);
     type Future = JsonFuture<T>;
@@ -293,7 +293,7 @@ pub struct UrlEncoded<T> {
     _marker: PhantomData<fn() -> T>,
 }
 
-impl<T> Endpoint for UrlEncoded<T>
+impl<'e, T> Endpoint<'e> for UrlEncoded<T>
 where
     T: FromQuery,
 {
