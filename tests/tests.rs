@@ -20,3 +20,22 @@ macro_rules! assert_matches {
 //mod codegen;
 mod endpoint;
 mod endpoints;
+
+#[test]
+fn smoketest() {
+    use finchers::endpoint::EndpointExt;
+    use finchers::output::status::Created;
+    use finchers::output::Json;
+    use finchers::route;
+    use finchers::rt::local;
+
+    let endpoint = route!(@get / "api" / "v1" / "posts" / u32).map(|id: u32| Created(Json(id)));
+
+    let response = local::get("/api/v1/posts/42").respond(&endpoint);
+    assert_eq!(response.status().as_u16(), 201);
+    assert_eq!(
+        response.headers().get("content-type").map(|h| h.as_bytes()),
+        Some(&b"application/json"[..])
+    );
+    assert_eq!(response.body().to_utf8(), "42");
+}

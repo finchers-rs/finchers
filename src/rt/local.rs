@@ -5,36 +5,87 @@
 //! ```
 //! # #![feature(rust_2018_preview)]
 //! #
-//! # use finchers::endpoints::path::{path, param};
+//! # use finchers::endpoints::body;
 //! # use finchers::endpoint::EndpointExt;
-//! use finchers::rt::local;
-//! use finchers::route;
+//! # use finchers::rt::local;
+//! # use finchers::route;
+//! #
+//! // impl Endpoint<Output = (u32, String)>
+//! let endpoint = route!(@post / u32 /)
+//!     .and(body::parse::<String>());
 //!
-//! let endpoint = route!(@get / "posts" / u32 / "stars")
-//!     .map(|id: u32| format!("id = {}", id));
+//! const MSG: &str = "The quick brown fox jumps over the lazy dog";
 //!
-//! let request = local::get("/posts/42/stars");
-//! let output = request.apply(&endpoint).map_err(drop);
+//! let output = local::post("/42").body(MSG).apply(&endpoint);
+//! match output {
+//!     Ok((ref id, ref body)) => {
+//!         assert_eq!(*id, 42);
+//!         assert_eq!(body, MSG);
+//!     }
+//!     Err(..) => panic!("assertion failed"),
+//! }
+//! ```
 //!
-//! assert_eq!(output, Ok(("id = 42".into(),)));
+//! ```
+//! # #![feature(rust_2018_preview)]
+//! #
+//! # use finchers::endpoints::body;
+//! # use finchers::endpoint::EndpointExt;
+//! # use finchers::rt::local;
+//! # use finchers::route;
+//! #
+//! let endpoint = route!(@put / "posts" / u32 /)
+//!     .and(body::parse())
+//!     .map(|id: u32, body: String| {
+//!         format!("update a post (id = {}): {}", id, body)
+//!     });
+//!
+//! let response = local::put("/posts/42")
+//!     .body("Yee.")
+//!     .respond(&endpoint);
+//!
+//! assert_eq!(
+//!     response.status().as_u16(),
+//!     200
+//! );
+//! assert_eq!(
+//!     response.headers()
+//!         .get("content-type")
+//!         .map(|h| h.as_bytes()),
+//!     Some(&b"text/plain; charset=utf-8"[..])
+//! );
+//! assert_eq!(
+//!     response.body().to_utf8(),
+//!     "update a post (id = 42): Yee."
+//! );
 //! ```
 
+use std::borrow::Cow;
 use std::boxed::PinBox;
 use std::mem;
 use std::mem::PinMut;
 
+use futures::future as future01;
+use futures::stream as stream01;
+use futures::Async;
+use futures::Stream as _Stream01;
+
 use futures_util::compat::TokioDefaultSpawn;
 use futures_util::future::poll_fn;
 use futures_util::try_future::TryFutureExt;
-use http::header::{HeaderName, HeaderValue};
-use http::{HttpTryFrom, Method, Request, Uri};
+
+use bytes::{Buf, Bytes};
+use http::header::{HeaderMap, HeaderName, HeaderValue};
+use http::{HttpTryFrom, Method, Request, Response, Uri};
 use hyper::body::Body;
 use tokio::runtime::current_thread::Runtime;
 
 use crate::app::App;
 use crate::endpoint::Endpoint;
-use crate::error::Error;
+use crate::error::{Error, Never};
 use crate::input::body::ReqBody;
+use crate::output::payload::Payload;
+use crate::output::Responder;
 
 macro_rules! impl_constructors {
     ($(
@@ -150,5 +201,98 @@ impl LocalRequest {
 
         let mut rt = Runtime::new().expect("rt");
         rt.block_on(PinBox::new(future).compat(TokioDefaultSpawn))
+    }
+
+    #[allow(missing_docs)]
+    pub fn respond<'e, E>(self, endpoint: &'e E) -> Response<ResBody>
+    where
+        E: Endpoint<'e>,
+        E::Output: Responder,
+    {
+        let LocalRequest { mut request } = self;
+        let request = request.take().expect("The request has already applied");
+
+        let app = App::new(endpoint);
+
+        let mut future = app.dispatch_request(request);
+        let future = poll_fn(move |cx| {
+            let future = unsafe { PinMut::new_unchecked(&mut future) };
+            future.poll_response(cx).map(Ok::<_, Never>)
+        });
+
+        let mut rt = Runtime::new().expect("rt");
+
+        let response = rt
+            .block_on(PinBox::new(future).compat(TokioDefaultSpawn))
+            .expect("AppFuture::poll_response() never fail");
+        let (parts, mut body) = response.into_parts();
+
+        // construct ResBody
+        let content_length = body.content_length();
+
+        let data = rt
+            .block_on(
+                stream01::poll_fn(|| match body.poll_data() {
+                    Ok(Async::Ready(data)) => Ok(Async::Ready(data.map(Buf::collect))),
+                    Ok(Async::NotReady) => Ok(Async::NotReady),
+                    Err(err) => Err(err),
+                }).collect(),
+            ).expect("error during sending the response body.");
+
+        let trailers = rt
+            .block_on(future01::poll_fn(|| body.poll_trailers()))
+            .expect("error during sending trailers.");
+
+        let body = ResBody {
+            data,
+            trailers,
+            content_length,
+        };
+
+        Response::from_parts(parts, body)
+    }
+}
+
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct ResBody {
+    data: Vec<Bytes>,
+    trailers: Option<HeaderMap>,
+    content_length: Option<u64>,
+}
+
+#[allow(missing_docs)]
+impl ResBody {
+    pub fn into_chunks(self) -> Vec<Bytes> {
+        self.data
+    }
+
+    pub fn is_chunked(&self) -> bool {
+        self.content_length.is_none()
+    }
+
+    pub fn trailers(&self) -> Option<&HeaderMap> {
+        self.trailers.as_ref()
+    }
+
+    pub fn to_bytes(&self) -> Cow<'_, [u8]> {
+        match self.data.len() {
+            0 => Cow::Borrowed(&[]),
+            1 => Cow::Borrowed(self.data[0].as_ref()),
+            _ => Cow::Owned(self.data.iter().fold(Vec::new(), |mut acc, chunk| {
+                acc.extend_from_slice(&chunk);
+                acc
+            })),
+        }
+    }
+
+    pub fn to_utf8(&self) -> Cow<'_, str> {
+        match self.to_bytes() {
+            Cow::Borrowed(bytes) => String::from_utf8_lossy(bytes),
+            Cow::Owned(bytes) => match String::from_utf8_lossy(&bytes) {
+                Cow::Borrowed(..) => Cow::Owned(unsafe { String::from_utf8_unchecked(bytes) }),
+                Cow::Owned(bytes) => Cow::Owned(bytes),
+            },
+        }
     }
 }
