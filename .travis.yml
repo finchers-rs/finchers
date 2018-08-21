@@ -42,7 +42,7 @@ matrix:
         - cargo clippy
       after_success:
         - cargo kcov --print-install-kcov-sh | sh
-        - cargo kcov -v --all --coveralls
+        - cargo kcov -v --coveralls
 
     - rust: nightly
       script:
