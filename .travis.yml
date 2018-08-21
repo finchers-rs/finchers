@@ -35,6 +35,7 @@ matrix:
         # examples
         - cargo test -p example-diesel
         - cargo test -p example-staticfiles
+        - cargo test -p example-template-tera
         - cargo test -p example-todos
         # format check
         - cargo fmt -- --check
@@ -42,6 +43,7 @@ matrix:
         - cargo clippy
       after_success:
         - cargo kcov --print-install-kcov-sh | sh
+        - cargo clean
         - cargo kcov -v --coveralls
 
     - rust: nightly
@@ -51,6 +53,7 @@ matrix:
         # examples
         - cargo test -p example-diesel
         - cargo test -p example-staticfiles
+        - cargo test -p example-template-tera
         - cargo test -p example-todos
 
     - rust: nightly-2018-08-14
