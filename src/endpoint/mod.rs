@@ -1,7 +1,7 @@
 //! Components for constructing `Endpoint`.
 
 mod context;
-mod error;
+pub(crate) mod error;
 
 mod and;
 mod and_then;
@@ -19,7 +19,6 @@ mod value;
 
 // re-exports
 pub use self::context::Context;
-pub(crate) use self::error::AllowedMethods;
 pub use self::error::{EndpointError, EndpointResult};
 
 pub use self::and::And;

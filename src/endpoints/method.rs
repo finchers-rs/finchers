@@ -2,16 +2,15 @@
 
 use http::Method;
 
-use crate::endpoint::{
-    AllowedMethods, Context, Endpoint, EndpointError, EndpointResult, IntoEndpoint,
-};
+use crate::endpoint::error::Mask;
+use crate::endpoint::{Context, Endpoint, EndpointError, EndpointResult, IntoEndpoint};
 
 #[allow(missing_docs)]
 #[derive(Debug, Clone)]
 pub struct MatchMethod<E> {
-    method: Method,
-    method_bit: AllowedMethods,
     endpoint: E,
+    method: Method,
+    err: EndpointError,
 }
 
 impl<'a, E: Endpoint<'a>> Endpoint<'a> for MatchMethod<E> {
@@ -22,7 +21,7 @@ impl<'a, E: Endpoint<'a>> Endpoint<'a> for MatchMethod<E> {
         if *ecx.input().method() == self.method {
             self.endpoint.apply(ecx)
         } else {
-            Err(EndpointError::method_not_allowed(self.method_bit))
+            Err(self.err)
         }
     }
 }
@@ -32,11 +31,11 @@ pub fn method<E>(method: Method, endpoint: E) -> MatchMethod<E>
 where
     for<'e> E: Endpoint<'e>,
 {
-    match AllowedMethods::from_method(&method) {
-        Some(method_bit) => MatchMethod {
-            method,
-            method_bit,
+    match EndpointError::method_not_allowed(&method) {
+        Some(err) => MatchMethod {
             endpoint,
+            method,
+            err,
         },
         None => panic!("unsupported Method type"),
     }
@@ -72,7 +71,7 @@ macro_rules! define_method {
                 if *ecx.input().method() == Method::$method {
                     self.endpoint.apply(ecx)
                 } else {
-                    Err(EndpointError::method_not_allowed(AllowedMethods::$method))
+                    Err(EndpointError::from_mask(Mask::$method))
                 }
             }
         }
