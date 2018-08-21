@@ -2,6 +2,9 @@ use bitflags::bitflags;
 use http::{Method, StatusCode};
 use std::fmt;
 
+// FIXME: remove this after releasing bitflags-1.0.4 or later
+use bitflags::{__bitflags, __impl_bitflags};
+
 use crate::error::HttpError;
 
 #[allow(missing_docs)]
