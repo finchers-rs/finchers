@@ -4,7 +4,6 @@ use std::mem::PinMut;
 
 use crate::endpoint::{Context, Endpoint, EndpointResult};
 use crate::error::Error;
-use crate::generic::{one, One};
 use crate::input::Input;
 
 /// Create an endpoint which executes the provided closure for each request.
@@ -73,10 +72,10 @@ where
     F: Fn(PinMut<'_, Input>) -> R + 'a,
     R: TryFuture<Error = Error> + 'a,
 {
-    type Output = One<R::Ok>;
+    type Output = (R::Ok,);
     type Future = MapOk<R, fn(R::Ok) -> Self::Output>;
 
     fn apply(&'a self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
-        Ok((self.f)(ecx.input()).map_ok(one as fn(_) -> _))
+        Ok((self.f)(ecx.input()).map_ok((|ok| (ok,)) as fn(_) -> _))
     }
 }

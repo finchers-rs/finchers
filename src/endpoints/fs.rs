@@ -10,7 +10,6 @@ use pin_utils::unsafe_unpinned;
 
 use crate::endpoint::{Context, Endpoint, EndpointResult};
 use crate::error::{bad_request, Error};
-use crate::generic::{one, One};
 use crate::output::fs::OpenNamedFile;
 use crate::output::NamedFile;
 
@@ -26,7 +25,7 @@ pub struct File {
 }
 
 impl<'a> Endpoint<'a> for File {
-    type Output = One<NamedFile>;
+    type Output = (NamedFile,);
     type Future = FileFuture;
 
     fn apply(&self, _: &mut Context<'_>) -> EndpointResult<Self::Future> {
@@ -48,7 +47,7 @@ pub struct Dir {
 }
 
 impl<'a> Endpoint<'a> for Dir {
-    type Output = One<NamedFile>;
+    type Output = (NamedFile,);
     type Future = FileFuture;
 
     fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
@@ -97,14 +96,14 @@ impl FileFuture {
 }
 
 impl Future for FileFuture {
-    type Output = Result<One<NamedFile>, Error>;
+    type Output = Result<(NamedFile,), Error>;
 
     fn poll(mut self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
         match self.state() {
             State::Err(ref mut err) => Poll::Ready(Err(err.take().unwrap())),
             State::Opening(ref mut f) => {
                 let f = unsafe { PinMut::new_unchecked(f) };
-                f.poll(cx).map_ok(one).map_err(Into::into)
+                f.poll(cx).map_ok(|x| (x,)).map_err(Into::into)
             }
         }
     }

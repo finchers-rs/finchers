@@ -43,8 +43,8 @@ use std::sync::Arc;
 
 use futures_core::future::{Future, TryFuture};
 
+use crate::common::{Combine, Func, Tuple};
 use crate::error::Error;
-use crate::generic::{Combine, Func, Tuple};
 
 /// Trait representing an endpoint.
 pub trait Endpoint<'a>: 'a {
@@ -145,7 +145,7 @@ pub trait EndpointExt<'a>: Endpoint<'a> + Sized {
         (Or {
             e1: self,
             e2: other.into_endpoint(),
-        }).output::<(self::or::WrappedEither<Self::Output, E::Output>,)>()
+        }).output::<(self::or::Wrapped<Self::Output, E::Output>,)>()
     }
 
     /// Create an endpoint which maps the returned value to a different type.

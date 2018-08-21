@@ -81,11 +81,11 @@ extern crate tokio_fs;
 #[macro_use]
 mod macros;
 mod app;
+mod common;
 
 pub mod endpoint;
 pub mod endpoints;
 pub mod error;
-pub mod generic;
 pub mod input;
 pub mod launcher;
 pub mod local;

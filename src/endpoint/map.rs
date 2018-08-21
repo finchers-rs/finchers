@@ -4,9 +4,9 @@ use std::mem::PinMut;
 use std::task;
 use std::task::Poll;
 
+use crate::common::{Func, Tuple};
 use crate::endpoint::{Context, Endpoint, EndpointResult};
 use crate::error::Error;
-use crate::generic::{one, Func, One, Tuple};
 
 #[allow(missing_docs)]
 #[derive(Debug, Copy, Clone)]
@@ -20,7 +20,7 @@ where
     E: Endpoint<'a>,
     F: Func<E::Output> + 'a,
 {
-    type Output = One<F::Out>;
+    type Output = (F::Out,);
     type Future = MapFuture<'a, E::Future, F>;
 
     fn apply(&'a self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
@@ -49,14 +49,14 @@ where
     T::Ok: Tuple,
     F: Func<T::Ok> + 'a,
 {
-    type Output = Result<One<F::Out>, Error>;
+    type Output = Result<(F::Out,), Error>;
 
     fn poll(mut self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
         match self.future().try_poll(cx) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(result) => {
                 let f = self.f().take().expect("this future has already polled.");
-                Poll::Ready(result.map(|item| one(f.call(item))))
+                Poll::Ready(result.map(|item| (f.call(item),)))
             }
         }
     }

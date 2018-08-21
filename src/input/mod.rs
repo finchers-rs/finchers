@@ -11,8 +11,7 @@ mod global;
 pub use self::encoded::{EncodedStr, FromEncodedStr};
 
 pub use self::global::with_get_cx;
-#[doc(hidden)]
-pub use self::global::with_set_cx;
+pub(crate) use self::global::with_set_cx;
 
 // ====
 

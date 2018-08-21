@@ -14,10 +14,11 @@ use hyper::body::Payload;
 use std::fmt;
 use std::mem::PinMut;
 
-use self::payload::Empty;
+use crate::common::Either;
 use crate::error::{Error, HttpError, Never};
-use crate::generic::Either;
 use crate::input::Input;
+
+use self::payload::Empty;
 
 pub use self::binary::Binary;
 pub use self::debug::Debug;

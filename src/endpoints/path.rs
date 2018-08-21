@@ -10,7 +10,6 @@ use percent_encoding::{define_encode_set, percent_encode, DEFAULT_ENCODE_SET};
 
 use crate::endpoint::{Context, Endpoint, EndpointError, EndpointResult};
 use crate::error::{Error, HttpError};
-use crate::generic::{one, One};
 use crate::input::FromEncodedStr;
 
 define_encode_set! {
@@ -126,13 +125,13 @@ impl<'a, T> Endpoint<'a> for Param<T>
 where
     T: FromEncodedStr,
 {
-    type Output = One<T>;
+    type Output = (T,);
     type Future = future::Ready<Result<Self::Output, Error>>;
 
     fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
         let s = ecx.next_segment().ok_or_else(EndpointError::not_matched)?;
         let result = T::from_encoded_str(s)
-            .map(one)
+            .map(|x| (x,))
             .map_err(|cause| ParamError { cause }.into());
         Ok(future::ready(result))
     }
@@ -206,12 +205,12 @@ impl<'a, T> Endpoint<'a> for Remains<T>
 where
     T: FromEncodedStr,
 {
-    type Output = One<T>;
+    type Output = (T,);
     type Future = future::Ready<Result<Self::Output, Error>>;
 
     fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
         let result = T::from_encoded_str(ecx.remaining_path())
-            .map(one)
+            .map(|x| (x,))
             .map_err(|cause| ParamError { cause }.into());
         while let Some(..) = ecx.next_segment() {}
         Ok(future::ready(result))

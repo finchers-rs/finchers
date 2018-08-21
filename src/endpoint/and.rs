@@ -7,9 +7,9 @@ use std::mem::PinMut;
 use std::task;
 use std::task::Poll;
 
+use crate::common::{Combine, Tuple};
 use crate::endpoint::{Context, Endpoint, EndpointResult};
 use crate::error::Error;
-use crate::generic::{Combine, Tuple};
 
 #[allow(missing_docs)]
 #[derive(Copy, Clone, Debug)]

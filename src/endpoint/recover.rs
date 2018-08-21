@@ -7,9 +7,9 @@ use futures_core::future::TryFuture;
 use http::Response;
 use pin_utils::unsafe_pinned;
 
+use crate::common::Either;
 use crate::endpoint::{Context, Endpoint, EndpointResult};
 use crate::error::Error;
-use crate::generic::{one, Either, One};
 use crate::input::Input;
 use crate::output::Responder;
 
@@ -26,7 +26,7 @@ where
     F: Fn(Error) -> R + 'a,
     R: TryFuture<Error = Error> + 'a,
 {
-    type Output = One<Recovered<E::Output, R::Ok>>;
+    type Output = (Recovered<E::Output, R::Ok>,);
     type Future = RecoverFuture<E::Future, R, &'a F>;
 
     fn apply(&'a self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
@@ -80,14 +80,14 @@ where
     F2: TryFuture<Error = Error>,
     F: FnOnce(Error) -> F2,
 {
-    type Output = Result<One<Recovered<F1::Ok, F2::Ok>>, Error>;
+    type Output = Result<(Recovered<F1::Ok, F2::Ok>,), Error>;
 
     fn poll(mut self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
         self.try_chain()
             .poll(cx, |result, f| match result {
                 Ok(ok) => TryChainAction::Output(Ok(Either::Left(ok))),
                 Err(err) => TryChainAction::Future(f(err)),
-            }).map_ok(|ok| one(Recovered(ok)))
+            }).map_ok(|ok| (Recovered(ok),))
     }
 }
 

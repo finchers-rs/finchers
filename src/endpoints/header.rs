@@ -12,7 +12,6 @@ use http::header::HeaderValue;
 
 use crate::endpoint::{Context, Endpoint, EndpointError, EndpointExt, EndpointResult};
 use crate::error::{bad_request, Error};
-use crate::generic::{one, One};
 use crate::input::header::FromHeader;
 use crate::input::with_get_cx;
 
@@ -64,7 +63,7 @@ where
 {
     (Required {
         _marker: PhantomData,
-    }).output::<One<H>>()
+    }).output::<(H,)>()
 }
 
 #[allow(missing_docs)]
@@ -91,7 +90,7 @@ impl<'e, H> Endpoint<'e> for Required<H>
 where
     H: FromHeader + 'static,
 {
-    type Output = One<H>;
+    type Output = (H,);
     type Future = RequiredFuture<H>;
 
     fn apply(&self, _: &mut Context<'_>) -> EndpointResult<Self::Future> {
@@ -116,12 +115,12 @@ impl<H> Future for RequiredFuture<H>
 where
     H: FromHeader,
 {
-    type Output = Result<One<H>, Error>;
+    type Output = Result<(H,), Error>;
 
     fn poll(self: PinMut<'_, Self>, _: &mut task::Context<'_>) -> Poll<Self::Output> {
         Poll::Ready(with_get_cx(|input| {
             match input.request().headers().get(H::HEADER_NAME) {
-                Some(h) => H::from_header(h).map(one).map_err(bad_request),
+                Some(h) => H::from_header(h).map(|x| (x,)).map_err(bad_request),
                 None => Err(bad_request(format_err!(
                     "missing header: `{}'",
                     H::HEADER_NAME
@@ -180,7 +179,7 @@ where
 {
     (Optional {
         _marker: PhantomData,
-    }).output::<One<Option<H>>>()
+    }).output::<(Option<H>,)>()
 }
 
 #[allow(missing_docs)]
@@ -207,7 +206,7 @@ impl<'e, H> Endpoint<'e> for Optional<H>
 where
     H: FromHeader + 'static,
 {
-    type Output = One<Option<H>>;
+    type Output = (Option<H>,);
     type Future = OptionalFuture<H>;
 
     fn apply(&self, _: &mut Context<'_>) -> EndpointResult<Self::Future> {
@@ -232,13 +231,13 @@ impl<H> Future for OptionalFuture<H>
 where
     H: FromHeader,
 {
-    type Output = Result<One<Option<H>>, Error>;
+    type Output = Result<(Option<H>,), Error>;
 
     fn poll(self: PinMut<'_, Self>, _: &mut task::Context<'_>) -> Poll<Self::Output> {
         Poll::Ready(with_get_cx(|input| {
             match input.request().headers().get(H::HEADER_NAME) {
-                Some(h) => H::from_header(h).map(|h| one(Some(h))).map_err(bad_request),
-                None => Ok(one(None)),
+                Some(h) => H::from_header(h).map(|h| (Some(h),)).map_err(bad_request),
+                None => Ok((None,)),
             }
         }))
     }
