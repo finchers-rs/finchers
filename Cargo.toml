@@ -51,7 +51,6 @@ pin-utils = "0.1.0-alpha.1"
 serde = { version = "1.0.71", features = ["derive"] }
 serde_json = "1.0.24"
 serde_qs = "0.4.1"
-structopt = "0.2.10"
 time = "0.1.40"
 tokio = "0.1.7"
 tokio-fs = "0.1.3"

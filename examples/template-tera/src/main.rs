@@ -1,7 +1,7 @@
 #![feature(rust_2018_preview)]
 #![feature(async_await, futures_api)]
 
-use failure::{Fallible, SyncFailure};
+use failure::SyncFailure;
 use finchers::endpoint::{value, EndpointExt};
 use finchers::error::{fail, Error};
 use finchers::output::payload::Once;
@@ -10,7 +10,7 @@ use http::Response;
 use std::sync::Arc;
 use tera::{compile_templates, Context, Tera};
 
-fn main() -> Fallible<()> {
+fn main() {
     let tera = value(Arc::new(compile_templates!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/templates/**/*"
@@ -30,8 +30,7 @@ fn main() -> Fallible<()> {
 
     let endpoint = routes![index, detail, p404];
 
-    finchers::rt::launch(endpoint)?;
-    Ok(())
+    finchers::launch(endpoint).start("127.0.0.1:4000")
 }
 
 fn render_template(tera: Arc<Tera>, template: &str) -> Result<Response<Once<String>>, Error> {

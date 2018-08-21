@@ -1,6 +1,6 @@
 use finchers::endpoint::{EndpointError, EndpointExt};
 use finchers::endpoints::{method, path};
-use finchers::rt::local;
+use finchers::local;
 use futures_util::future::ready;
 use http::Response;
 

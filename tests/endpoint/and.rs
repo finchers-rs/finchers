@@ -1,7 +1,7 @@
 use failure::format_err;
 use finchers::endpoint::{reject, unit, value, EndpointExt};
 use finchers::error::bad_request;
-use finchers::rt::local;
+use finchers::local;
 use http::StatusCode;
 
 #[test]

@@ -49,6 +49,6 @@ fn main() -> Fallible<()> {
             .and_then(crate::api::find_post),
     });
 
-    finchers::rt::launch(endpoint)?;
+    finchers::launch(endpoint).start("127.0.0.1:4000");
     Ok(())
 }

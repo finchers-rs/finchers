@@ -1,6 +1,6 @@
 use finchers::endpoint::EndpointExt;
 use finchers::endpoints::path::{param, path, remains};
-use finchers::rt::local;
+use finchers::local;
 use http::StatusCode;
 
 #[test]

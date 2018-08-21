@@ -1,6 +1,6 @@
 use finchers::endpoint::EndpointExt;
+use finchers::local;
 use finchers::route;
-use finchers::rt::local;
 
 #[test]
 fn test_boxed() {

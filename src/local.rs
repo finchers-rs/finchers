@@ -7,7 +7,7 @@
 //! #
 //! # use finchers::endpoints::body;
 //! # use finchers::endpoint::EndpointExt;
-//! # use finchers::rt::local;
+//! # use finchers::local;
 //! # use finchers::route;
 //! #
 //! // impl Endpoint<Output = (u32, String)>
@@ -31,7 +31,7 @@
 //! #
 //! # use finchers::endpoints::body;
 //! # use finchers::endpoint::EndpointExt;
-//! # use finchers::rt::local;
+//! # use finchers::local;
 //! # use finchers::route;
 //! #
 //! let endpoint = route!(@put / "posts" / u32 /)
