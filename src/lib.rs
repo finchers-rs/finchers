@@ -22,25 +22,27 @@
 //! #![feature(rust_2018_preview)]
 //! #
 //! # extern crate finchers;
-//! #
-//! use finchers::{route, routes};
+//!
 //! use finchers::endpoint::EndpointExt;
-//! use finchers::endpoints::body;
+//! use finchers::endpoints::{body, path};
+//! use finchers::route;
 //!
-//! fn main() -> finchers::rt::LaunchResult<()> {
-//!     let endpoint = route!(/ "api" / "v1")
-//!         .and(routes![
-//!             route!(@get / u64 /)
-//!                 .map(|id: u64| format!("GET: id={}", id)),
+//! fn main() {
+//!     let get_post = route!(@get / u64 /)
+//!         .map(|id: u64| format!("GET: id={}", id));
 //!
-//!             route!(@post /)
-//!                 .and(body::parse())
-//!                 .map(|data: String| format!("POST: body={}", data))
-//!         ]);
+//!     let create_post = route!(@post /)
+//!         .and(body::parse())
+//!         .map(|data: String| format!("POST: body={}", data));
+//!
+//!     let post_api = path::path("posts")
+//!         .and(get_post
+//!             .or(create_post));
+//!
 //! # std::mem::drop(move || {
-//!     finchers::rt::launch(endpoint)
+//!     finchers::launch(post_api)
+//!         .start("127.0.0.1:4000")
 //! # });
-//! # Ok(())
 //! }
 //! ```
 
@@ -72,19 +74,22 @@ extern crate pin_utils;
 extern crate serde;
 extern crate serde_json;
 extern crate serde_qs;
-extern crate structopt;
 extern crate time;
 extern crate tokio;
 extern crate tokio_fs;
 
 #[macro_use]
 mod macros;
+mod app;
 
-pub mod app;
 pub mod endpoint;
 pub mod endpoints;
 pub mod error;
 pub mod generic;
 pub mod input;
+pub mod launcher;
+pub mod local;
 pub mod output;
-pub mod rt;
+
+#[doc(inline)]
+pub use crate::launcher::launch;

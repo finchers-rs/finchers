@@ -1,14 +1,12 @@
 #![feature(async_await, await_macro, futures_api)]
 
-use failure::Fallible;
-
 use finchers::endpoint::{lazy, EndpointExt};
 use finchers::endpoints::body;
 use finchers::{route, routes};
 
 use crate::db::ConnPool;
 
-fn main() -> Fallible<()> {
+fn main() {
     let pool = ConnPool::default();
 
     // Create an endpoint which establishes a connection to the DB.
@@ -47,8 +45,7 @@ fn main() -> Fallible<()> {
         delete_todo,
     ]);
 
-    finchers::rt::launch(endpoint)?;
-    Ok(())
+    finchers::launch(endpoint).start("127.0.0.1:4000")
 }
 
 mod api {

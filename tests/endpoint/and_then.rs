@@ -1,6 +1,6 @@
 use finchers::endpoint::{value, EndpointExt};
 use finchers::error::bad_request;
-use finchers::rt::local;
+use finchers::local;
 use futures_util::future::ready;
 
 #[test]

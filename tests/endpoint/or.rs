@@ -2,7 +2,7 @@ use failure::format_err;
 use finchers::endpoint::{reject, value, EndpointExt};
 use finchers::endpoints::path::path;
 use finchers::error::bad_request;
-use finchers::rt::local;
+use finchers::local;
 
 #[test]
 fn test_or_1() {

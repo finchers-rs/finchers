@@ -1,5 +1,5 @@
 use finchers::endpoint::{value, EndpointExt};
-use finchers::rt::local;
+use finchers::local;
 
 #[test]
 fn test_map() {

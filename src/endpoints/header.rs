@@ -31,7 +31,7 @@ use crate::input::with_get_cx;
 /// # use finchers::endpoint::EndpointExt;
 /// # use finchers::endpoints::header;
 /// # use finchers::input::header::FromHeader;
-/// # use finchers::rt::local;
+/// # use finchers::local;
 /// # use http::header::HeaderValue;
 /// #
 /// #[derive(Debug, PartialEq)]
@@ -147,7 +147,7 @@ where
 /// # use finchers::endpoint::EndpointExt;
 /// # use finchers::endpoints::header;
 /// # use finchers::input::header::FromHeader;
-/// # use finchers::rt::local;
+/// # use finchers::local;
 /// # use http::StatusCode;
 /// # use http::header::HeaderValue;
 /// #
