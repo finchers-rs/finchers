@@ -7,7 +7,6 @@ use std::mem::PinMut;
 
 use crate::endpoint::{Context, Endpoint, EndpointResult};
 use crate::error::{bad_request, Error};
-use crate::generic::{one, One};
 use crate::input::cookie::Cookie;
 #[cfg(feature = "secure")]
 use crate::input::cookie::Key;
@@ -98,7 +97,7 @@ impl Required {
 }
 
 impl<'a> Endpoint<'a> for Required {
-    type Output = One<Cookie<'static>>;
+    type Output = (Cookie<'static>,);
     type Future = Ready<Result<Self::Output, Error>>;
 
     fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
@@ -108,7 +107,7 @@ impl<'a> Endpoint<'a> for Required {
             .and_then(|cookie| {
                 cookie.ok_or_else(|| bad_request(format!("missing Cookie item: {}", self.name)))
             });
-        Ok(ready(cookie.map(one)))
+        Ok(ready(cookie.map(|x| (x,))))
     }
 }
 
@@ -165,12 +164,14 @@ impl Optional {
 }
 
 impl<'a> Endpoint<'a> for Optional {
-    type Output = One<Option<Cookie<'static>>>;
+    type Output = (Option<Cookie<'static>>,);
     type Future = Ready<Result<Self::Output, Error>>;
 
     fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
         Ok(ready(
-            self.mode.extract_cookie(ecx.input(), &self.name).map(one),
+            self.mode
+                .extract_cookie(ecx.input(), &self.name)
+                .map(|x| (x,)),
         ))
     }
 }

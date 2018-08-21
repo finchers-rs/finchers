@@ -8,7 +8,6 @@ use std::{fmt, task};
 
 use crate::endpoint::{Context, Endpoint, EndpointResult};
 use crate::error::{bad_request, Error};
-use crate::generic::{one, One};
 use crate::input::query::{FromQuery, QueryItems};
 use crate::input::with_get_cx;
 
@@ -72,7 +71,7 @@ impl<'a, T> Endpoint<'a> for Parse<T>
 where
     T: FromQuery,
 {
-    type Output = One<T>;
+    type Output = (T,);
     type Future = ParseFuture<T>;
 
     fn apply(&self, _: &mut Context<'_>) -> EndpointResult<Self::Future> {
@@ -92,7 +91,7 @@ impl<T> Future for ParseFuture<T>
 where
     T: FromQuery,
 {
-    type Output = Result<One<T>, Error>;
+    type Output = Result<(T,), Error>;
 
     fn poll(self: PinMut<'_, Self>, _: &mut task::Context<'_>) -> Poll<Self::Output> {
         Poll::Ready(with_get_cx(|input| {
@@ -100,7 +99,7 @@ where
                 Some(query) => unsafe { QueryItems::new_unchecked(query) },
                 None => QueryItems::empty(),
             };
-            T::from_query(items).map(one).map_err(bad_request)
+            T::from_query(items).map(|x| (x,)).map_err(bad_request)
         }))
     }
 }
@@ -117,7 +116,7 @@ pub struct Raw {
 }
 
 impl<'a> Endpoint<'a> for Raw {
-    type Output = One<String>;
+    type Output = (String,);
     type Future = RawFuture;
 
     fn apply(&self, _: &mut Context<'_>) -> EndpointResult<Self::Future> {
@@ -132,16 +131,17 @@ pub struct RawFuture {
 }
 
 impl Future for RawFuture {
-    type Output = Result<One<String>, Error>;
+    type Output = Result<(String,), Error>;
 
     fn poll(self: PinMut<'_, Self>, _: &mut task::Context<'_>) -> Poll<Self::Output> {
-        Poll::Ready(Ok(one(with_get_cx(|input| {
+        let raw = with_get_cx(|input| {
             input
                 .request()
                 .uri()
                 .query()
                 .map(ToOwned::to_owned)
                 .unwrap_or_else(|| "".into())
-        }))))
+        });
+        Poll::Ready(Ok((raw,)))
     }
 }

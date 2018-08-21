@@ -2,7 +2,6 @@ use futures_util::future;
 
 use crate::endpoint::{Context, Endpoint, EndpointResult};
 use crate::error::Error;
-use crate::generic::{one, One};
 
 /// Create an endpoint which simply clones the specified value.
 ///
@@ -45,10 +44,10 @@ pub struct Value<T> {
 }
 
 impl<'a, T: Clone + 'a> Endpoint<'a> for Value<T> {
-    type Output = One<T>;
+    type Output = (T,);
     type Future = future::Ready<Result<Self::Output, Error>>;
 
     fn apply(&self, _: &mut Context<'_>) -> EndpointResult<Self::Future> {
-        Ok(future::ready(Ok(one(self.x.clone()))))
+        Ok(future::ready(Ok((self.x.clone(),))))
     }
 }

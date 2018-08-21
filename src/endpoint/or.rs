@@ -7,9 +7,10 @@ use futures_core::future::TryFuture;
 use http::Response;
 use pin_utils::unsafe_pinned;
 
+use crate::common::Either;
+use crate::common::Either::*;
 use crate::endpoint::{Context, Endpoint, EndpointResult};
 use crate::error::Error;
-use crate::generic::{one, Either, One};
 use crate::input::Input;
 use crate::output::Responder;
 
@@ -25,7 +26,7 @@ where
     E1: Endpoint<'a>,
     E2: Endpoint<'a>,
 {
-    type Output = One<WrappedEither<E1::Output, E2::Output>>;
+    type Output = (Wrapped<E1::Output, E2::Output>,);
     type Future = OrFuture<E1::Future, E2::Future>;
 
     fn apply(&'a self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
@@ -67,9 +68,9 @@ where
 }
 
 #[derive(Debug)]
-pub struct WrappedEither<L, R>(Either<L, R>);
+pub struct Wrapped<L, R>(Either<L, R>);
 
-impl<L, R> Responder for WrappedEither<L, R>
+impl<L, R> Responder for Wrapped<L, R>
 where
     L: Responder,
     R: Responder,
@@ -110,17 +111,13 @@ where
     L: TryFuture<Error = Error>,
     R: TryFuture<Error = Error>,
 {
-    type Output = Result<One<WrappedEither<L::Ok, R::Ok>>, Error>;
+    type Output = Result<(Wrapped<L::Ok, R::Ok>,), Error>;
 
     #[inline(always)]
     fn poll(mut self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
         match self.inner().as_pin_mut() {
-            Either::Left(t) => t
-                .try_poll(cx)
-                .map_ok(|t| one(WrappedEither(Either::Left(t)))),
-            Either::Right(t) => t
-                .try_poll(cx)
-                .map_ok(|t| one(WrappedEither(Either::Right(t)))),
+            Left(t) => t.try_poll(cx).map_ok(|t| (Wrapped(Left(t)),)),
+            Right(t) => t.try_poll(cx).map_ok(|t| (Wrapped(Right(t)),)),
         }
     }
 }

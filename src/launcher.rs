@@ -28,9 +28,9 @@ where
 mod sealed {
     use futures_core::future::TryFuture;
 
+    use crate::common::Tuple;
     use crate::endpoint::{Context, Endpoint, EndpointResult};
     use crate::error::Error;
-    use crate::generic::Tuple;
     use crate::output::Responder;
 
     pub trait Sealed<'a>: Send + Sync + 'static {

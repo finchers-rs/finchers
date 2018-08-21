@@ -6,9 +6,9 @@ use std::task::Poll;
 use futures_core::future::TryFuture;
 use pin_utils::unsafe_pinned;
 
+use crate::common::{Func, Tuple};
 use crate::endpoint::{Context, Endpoint, EndpointResult};
 use crate::error::Error;
-use crate::generic::{one, Func, One, Tuple};
 
 use super::try_chain::{TryChain, TryChainAction};
 
@@ -25,7 +25,7 @@ where
     F: Func<E::Output> + 'a,
     F::Out: TryFuture<Error = Error>,
 {
-    type Output = One<<F::Out as TryFuture>::Ok>;
+    type Output = (<F::Out as TryFuture>::Ok,);
     type Future = AndThenFuture<'a, E::Future, F::Out, F>;
 
     fn apply(&'a self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
@@ -65,13 +65,13 @@ where
     F: Func<F1::Ok, Out = F2> + 'a,
     F1::Ok: Tuple,
 {
-    type Output = Result<One<F2::Ok>, Error>;
+    type Output = Result<(F2::Ok,), Error>;
 
     fn poll(mut self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
         self.try_chain()
             .poll(cx, |result, f| match result {
                 Ok(ok) => TryChainAction::Future(f.call(ok)),
                 Err(err) => TryChainAction::Output(Err(err)),
-            }).map_ok(one)
+            }).map_ok(|ok| (ok,))
     }
 }

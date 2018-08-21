@@ -5,9 +5,9 @@ use std::boxed::PinBox;
 use std::fmt;
 use std::future::{FutureObj, LocalFutureObj};
 
+use crate::common::Tuple;
 use crate::endpoint::{Context, Endpoint, EndpointResult};
 use crate::error::Error;
-use crate::generic::Tuple;
 
 pub trait BoxedEndpoint<'a>: 'a {
     type Output: Tuple;

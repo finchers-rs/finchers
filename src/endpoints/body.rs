@@ -17,7 +17,6 @@ use serde_json;
 
 use crate::endpoint::{Context, Endpoint, EndpointExt, EndpointResult};
 use crate::error::{bad_request, err_msg, Error};
-use crate::generic::{one, One};
 use crate::input::body::{FromBody, Payload};
 use crate::input::query::{FromQuery, QueryItems};
 use crate::input::with_get_cx;
@@ -28,7 +27,7 @@ use crate::input::with_get_cx;
 /// If the instance of `Payload` has already been stolen by another endpoint, it will
 /// return an error.
 pub fn raw() -> Raw {
-    (Raw { _priv: () }).output::<One<Payload>>()
+    (Raw { _priv: () }).output::<(Payload,)>()
 }
 
 #[allow(missing_docs)]
@@ -44,7 +43,7 @@ impl fmt::Debug for Raw {
 }
 
 impl<'e> Endpoint<'e> for Raw {
-    type Output = One<Payload>;
+    type Output = (Payload,);
     type Future = RawFuture;
 
     fn apply(&self, _: &mut Context<'_>) -> EndpointResult<Self::Future> {
@@ -59,12 +58,12 @@ pub struct RawFuture {
 }
 
 impl Future for RawFuture {
-    type Output = Result<One<Payload>, Error>;
+    type Output = Result<(Payload,), Error>;
 
     fn poll(self: PinMut<'_, Self>, _: &mut task::Context<'_>) -> Poll<Self::Output> {
         Poll::Ready(
             with_get_cx(|input| input.payload())
-                .map(one)
+                .map(|x| (x,))
                 .ok_or_else(stolen_payload),
         )
     }
@@ -143,7 +142,7 @@ where
 {
     (Parse {
         _marker: PhantomData,
-    }).output::<One<T>>()
+    }).output::<(T,)>()
 }
 
 #[allow(missing_docs)]
@@ -170,7 +169,7 @@ impl<'e, T> Endpoint<'e> for Parse<T>
 where
     T: FromBody,
 {
-    type Output = One<T>;
+    type Output = (T,);
     type Future = ParseFuture<T>;
 
     fn apply(&self, _: &mut Context<'_>) -> EndpointResult<Self::Future> {
@@ -196,13 +195,13 @@ impl<T> Future for ParseFuture<T>
 where
     T: FromBody,
 {
-    type Output = Result<One<T>, Error>;
+    type Output = Result<(T,), Error>;
 
     fn poll(mut self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
         let data = try_ready!(self.receive_all().poll(cx));
         Poll::Ready(
             with_get_cx(|input| T::from_body(data, input))
-                .map(one)
+                .map(|x| (x,))
                 .map_err(bad_request),
         )
     }
@@ -271,7 +270,11 @@ where
         }
 
         let data = try_ready!(self.receive_all().poll(cx));
-        Poll::Ready(serde_json::from_slice(&*data).map(one).map_err(bad_request))
+        Poll::Ready(
+            serde_json::from_slice(&*data)
+                .map(|x| (x,))
+                .map_err(bad_request),
+        )
     }
 }
 
@@ -339,6 +342,10 @@ where
 
         let data = try_ready!(self.receive_all().poll(cx));
         let items = unsafe { QueryItems::new_unchecked(&*data) };
-        Poll::Ready(FromQuery::from_query(items).map(one).map_err(bad_request))
+        Poll::Ready(
+            FromQuery::from_query(items)
+                .map(|x| (x,))
+                .map_err(bad_request),
+        )
     }
 }
