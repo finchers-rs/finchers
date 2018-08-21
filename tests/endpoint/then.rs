@@ -1,12 +1,14 @@
-use finchers_core::endpoint::ext::{just, EndpointExt};
-use finchers_core::future::ready;
-use finchers_runtime::local::Client;
+use finchers::endpoint::{value, EndpointExt};
+use finchers::rt::local;
+use futures_util::future::ready;
 
 #[test]
 fn test_then() {
-    let endpoint = just(()).then(|| ready::<(Result<_, ()>,)>((Ok(()),)));
-    let client = Client::new(endpoint);
+    let endpoint = value("Foo").then(|_| ready("Bar"));
 
-    let output = client.get("/").run();
-    assert!(output.is_some());
+    assert_matches!(
+        local::get("/")
+            .apply(&endpoint),
+        Ok((ref s,)) if *s == "Bar"
+    )
 }

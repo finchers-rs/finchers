@@ -4,6 +4,7 @@
 extern crate bytes;
 extern crate failure;
 extern crate finchers;
+extern crate futures_util;
 extern crate http;
 
 macro_rules! assert_matches {

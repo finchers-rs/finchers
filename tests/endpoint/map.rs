@@ -1,11 +1,13 @@
-use finchers_core::endpoint::ext::{just, EndpointExt};
-use finchers_runtime::local::Client;
+use finchers::endpoint::{value, EndpointExt};
+use finchers::rt::local;
 
 #[test]
 fn test_map() {
-    let endpoint = just(()).map(|| ("Foo",));
-    let client = Client::new(endpoint);
+    let endpoint = value("Foo").map(|_| "Bar");
 
-    let outcome = client.get("/").run();
-    assert_eq!(outcome, Some(("Foo",)));
+    assert_matches!(
+        local::get("/")
+            .apply(&endpoint),
+        Ok((ref s,)) if *s == "Bar"
+    );
 }

@@ -1,7 +1,7 @@
 mod and;
+mod and_then;
 mod boxed;
+mod map;
 mod or;
-
-// mod as_ok;
-// mod map;
-// mod then;
+mod recover;
+mod then;
