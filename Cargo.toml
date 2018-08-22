@@ -34,11 +34,13 @@ members = [
 ]
 
 [dependencies]
-bitflags = "1.0.3"
+bitflags = "1.0.4"
 bytes = "0.4.9"
 cookie = { version = "0.11.0", features = ["percent-encode"] }
 failure = "0.1.2"
 futures = "0.1.23"
+futures-core-preview = { version = "0.3.0-alpha.3" }
+futures-util-preview = { version = "0.3.0-alpha.3", features = ["tokio-compat"] }
 http = "0.1.10"
 hyper = "0.12.7"
 log = "0.4.3"
@@ -52,9 +54,6 @@ serde_qs = "0.4.1"
 time = "0.1.40"
 tokio = "0.1.7"
 tokio-fs = "0.1.3"
-
-futures-core-preview = { version = "0.3.0-alpha.3" }
-futures-util-preview = { version = "0.3.0-alpha.3", features = ["tokio-compat"] }
 
 [features]
 strict = []
