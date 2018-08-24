@@ -11,8 +11,7 @@ use crate::common::Either;
 use crate::common::Either::*;
 use crate::endpoint::{Context, Endpoint, EndpointResult};
 use crate::error::Error;
-use crate::input::Input;
-use crate::output::Responder;
+use crate::output::{Output, OutputContext};
 
 #[allow(missing_docs)]
 #[derive(Debug, Copy, Clone)]
@@ -70,17 +69,13 @@ where
 #[derive(Debug)]
 pub struct Wrapped<L, R>(Either<L, R>);
 
-impl<L, R> Responder for Wrapped<L, R>
-where
-    L: Responder,
-    R: Responder,
-{
+impl<L: Output, R: Output> Output for Wrapped<L, R> {
     type Body = Either<L::Body, R::Body>;
     type Error = Error;
 
     #[inline(always)]
-    fn respond(self, input: PinMut<'_, Input>) -> Result<Response<Self::Body>, Self::Error> {
-        self.0.respond(input)
+    fn respond(self, cx: &mut OutputContext<'_>) -> Result<Response<Self::Body>, Self::Error> {
+        self.0.respond(cx)
     }
 }
 

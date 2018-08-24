@@ -19,7 +19,7 @@ use crate::error::Error;
 use crate::input::body::ReqBody;
 use crate::input::{with_set_cx, Input};
 use crate::output::payload::Once;
-use crate::output::Responder;
+use crate::output::{Output, OutputContext};
 
 /// A factory of HTTP service which wraps an `Endpoint`.
 #[derive(Debug)]
@@ -44,7 +44,7 @@ impl<'e, E: Endpoint<'e>> App<'e, E> {
 }
 
 #[allow(type_alias_bounds)]
-pub type ResBody<T: Responder> = Either<Once<String>, T::Body>;
+pub type ResBody<T: Output> = Either<Once<String>, T::Body>;
 
 #[allow(missing_docs)]
 #[derive(Debug)]
@@ -98,7 +98,7 @@ where
         cx: &mut task::Context<'_>,
     ) -> Poll<Response<ResBody<E::Output>>>
     where
-        E::Output: Responder,
+        E::Output: Output,
     {
         let output = ready!(self.reborrow().poll_output(cx));
 
@@ -106,9 +106,9 @@ where
         let mut input = unsafe { PinMut::new_unchecked(&mut this.input) };
         let mut response = output
             .and_then({
-                let input = input.reborrow();
-                |out| {
-                    out.respond(input)
+                let mut cx = OutputContext::new(input.reborrow());
+                move |out| {
+                    out.respond(&mut cx)
                         .map(|res| res.map(Either::Right))
                         .map_err(Into::into)
                 }
@@ -137,7 +137,7 @@ where
 impl<'e, E> Future for AppFuture<'e, E>
 where
     E: Endpoint<'e>,
-    E::Output: Responder,
+    E::Output: Output,
 {
     type Output = io::Result<Response<ResBody<E::Output>>>;
 
@@ -161,11 +161,11 @@ mod service {
 
     use crate::endpoint::Endpoint;
     use crate::input::body::ReqBody;
-    use crate::output::Responder;
+    use crate::output::Output;
 
     impl<'e, E: Endpoint<'e>> NewService for App<'e, E>
     where
-        E::Output: Responder,
+        E::Output: Output,
     {
         type ReqBody = Body;
         type ResBody = ResBody<E::Output>;
@@ -183,7 +183,7 @@ mod service {
 
     impl<'e, E: Endpoint<'e>> Service for App<'e, E>
     where
-        E::Output: Responder,
+        E::Output: Output,
     {
         type ReqBody = Body;
         type ResBody = ResBody<E::Output>;

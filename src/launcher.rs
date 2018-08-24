@@ -11,7 +11,7 @@ use tokio::runtime::Runtime;
 
 use crate::app::App;
 use crate::endpoint::Endpoint;
-use crate::output::Responder;
+use crate::output::Output;
 
 // ==== LaunchEndpoint ====
 
@@ -21,7 +21,7 @@ pub trait LaunchEndpoint<'a>: sealed::Sealed<'a> {}
 impl<'a, E> LaunchEndpoint<'a> for E
 where
     E: Endpoint<'a> + Send + Sync + 'static,
-    E::Output: Responder,
+    E::Output: Output,
     E::Future: Send,
 {}
 
@@ -31,10 +31,10 @@ mod sealed {
     use crate::common::Tuple;
     use crate::endpoint::{Context, Endpoint, EndpointResult};
     use crate::error::Error;
-    use crate::output::Responder;
+    use crate::output::Output;
 
     pub trait Sealed<'a>: Send + Sync + 'static {
-        type Output: Tuple + Responder;
+        type Output: Tuple + Output;
         type Future: TryFuture<Ok = Self::Output, Error = Error> + Send + 'a;
 
         fn apply(&'a self, cx: &mut Context<'_>) -> EndpointResult<Self::Future>;
@@ -50,7 +50,7 @@ mod sealed {
     impl<'a, E> Sealed<'a> for E
     where
         E: Endpoint<'a> + Send + Sync + 'static,
-        E::Output: Responder,
+        E::Output: Output,
         E::Future: Send,
     {
         type Output = E::Output;

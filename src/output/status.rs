@@ -1,22 +1,20 @@
 #![allow(missing_docs)]
 
 use http::{Response, StatusCode};
-use std::mem::PinMut;
 
+use super::payload::Empty;
+use super::{Output, OutputContext};
 use crate::error::Never;
-use crate::input::Input;
-use crate::output::payload::Empty;
-use crate::output::Responder;
 
 #[derive(Debug)]
 pub struct Created<T>(pub T);
 
-impl<T: Responder> Responder for Created<T> {
+impl<T: Output> Output for Created<T> {
     type Body = T::Body;
     type Error = T::Error;
 
-    fn respond(self, input: PinMut<'_, Input>) -> Result<Response<Self::Body>, Self::Error> {
-        let mut response = self.0.respond(input)?;
+    fn respond(self, cx: &mut OutputContext<'_>) -> Result<Response<Self::Body>, Self::Error> {
+        let mut response = self.0.respond(cx)?;
         *response.status_mut() = StatusCode::CREATED;
         Ok(response)
     }
@@ -25,11 +23,11 @@ impl<T: Responder> Responder for Created<T> {
 #[derive(Debug)]
 pub struct NoContent;
 
-impl Responder for NoContent {
+impl Output for NoContent {
     type Body = Empty;
     type Error = Never;
 
-    fn respond(self, _: PinMut<'_, Input>) -> Result<Response<Self::Body>, Self::Error> {
+    fn respond(self, _: &mut OutputContext<'_>) -> Result<Response<Self::Body>, Self::Error> {
         let mut response = Response::new(Empty);
         *response.status_mut() = StatusCode::NO_CONTENT;
         Ok(response)
@@ -42,12 +40,12 @@ pub struct Status<T> {
     pub status: StatusCode,
 }
 
-impl<T: Responder> Responder for Status<T> {
+impl<T: Output> Output for Status<T> {
     type Body = T::Body;
     type Error = T::Error;
 
-    fn respond(self, input: PinMut<'_, Input>) -> Result<Response<Self::Body>, Self::Error> {
-        let mut response = self.value.respond(input)?;
+    fn respond(self, cx: &mut OutputContext<'_>) -> Result<Response<Self::Body>, Self::Error> {
+        let mut response = self.value.respond(cx)?;
         *response.status_mut() = self.status;
         Ok(response)
     }
