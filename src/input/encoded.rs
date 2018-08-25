@@ -30,6 +30,12 @@ impl PartialEq<str> for EncodedStr {
     }
 }
 
+impl<'a, 'b> PartialEq<&'b EncodedStr> for &'a EncodedStr {
+    fn eq(&self, other: &&'b EncodedStr) -> bool {
+        self.0 == *other.as_bytes()
+    }
+}
+
 impl<'a> PartialEq<str> for &'a EncodedStr {
     fn eq(&self, other: &str) -> bool {
         (*self).eq(other)
