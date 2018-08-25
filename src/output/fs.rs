@@ -14,8 +14,8 @@ use futures_core::future::Future;
 use futures::try_ready as try_ready_01;
 use futures::Future as Future01;
 
+use tokio::fs::file::{File, MetadataFuture, OpenFuture};
 use tokio::prelude::{Async, AsyncRead};
-use tokio_fs::file::{File, MetadataFuture, OpenFuture};
 
 use bytes::{BufMut, Bytes, BytesMut};
 use http::{header, Response};
