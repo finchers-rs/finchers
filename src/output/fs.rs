@@ -21,10 +21,9 @@ use bytes::{BufMut, Bytes, BytesMut};
 use http::{header, Response};
 use mime_guess::guess_mime_type;
 
+use super::payload::Payload;
+use super::{Output, OutputContext};
 use crate::error::Never;
-use crate::input::Input;
-use crate::output::payload::Payload;
-use crate::output::Responder;
 
 /// An instance of `Responder` representing a file on the file system.
 #[derive(Debug)]
@@ -102,11 +101,11 @@ impl Future for OpenNamedFile {
     }
 }
 
-impl Responder for NamedFile {
+impl Output for NamedFile {
     type Body = FileStream;
     type Error = Never;
 
-    fn respond(self, _: PinMut<'_, Input>) -> Result<Response<Self::Body>, Self::Error> {
+    fn respond(self, _: &mut OutputContext<'_>) -> Result<Response<Self::Body>, Self::Error> {
         let NamedFile { file, meta, path } = self;
 
         let body = FileStream::new(file, &meta);

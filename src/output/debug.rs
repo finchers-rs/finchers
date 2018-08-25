@@ -1,52 +1,27 @@
-use std::fmt;
-use std::mem::PinMut;
-
 use http::Response;
+use std::fmt;
 
+use super::payload::Once;
 use super::text::Text;
+use super::{Output, OutputContext};
 use crate::error::Never;
-use crate::input::Input;
-use crate::output::payload::Once;
-use crate::output::Responder;
 
 /// An instance of `Responder` representing text responses with debug output.
 ///
 /// NOTE: This wrapper is only for debugging and should not use in the production code.
 #[derive(Debug)]
-pub struct Debug<T> {
-    value: T,
-    pretty: bool,
-}
+pub struct Debug<T>(pub T);
 
-impl<T: fmt::Debug> Debug<T> {
-    /// Create an instance of `Debug` from an value whose type has an implementation of
-    /// `fmt::Debug`.
-    pub fn new(value: T) -> Debug<T> {
-        Debug {
-            value,
-            pretty: false,
-        }
-    }
-
-    /// Set whether this responder uses the pretty-printed specifier (`"{:#?}"`) or not.
-    pub fn pretty(self, enabled: bool) -> Self {
-        Debug {
-            pretty: enabled,
-            ..self
-        }
-    }
-}
-
-impl<T: fmt::Debug> Responder for Debug<T> {
+impl<T: fmt::Debug> Output for Debug<T> {
     type Body = Once<Text<String>>;
     type Error = Never;
 
-    fn respond(self, input: PinMut<'_, Input>) -> Result<Response<Self::Body>, Self::Error> {
-        let body = if self.pretty {
-            format!("{:#?}", self.value)
+    fn respond(self, cx: &mut OutputContext<'_>) -> Result<Response<Self::Body>, Self::Error> {
+        let body = if cx.is_pretty() {
+            format!("{:#?}", self.0)
         } else {
-            format!("{:?}", self.value)
+            format!("{:?}", self.0)
         };
-        Text(body).respond(input)
+        Text(body).respond(cx)
     }
 }

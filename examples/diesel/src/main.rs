@@ -5,6 +5,7 @@
     await_macro,
     futures_api
 )]
+#![allow(proc_macro_derive_resolution_fallback)]
 
 #[macro_use]
 extern crate diesel;
@@ -15,12 +16,13 @@ mod model;
 mod schema;
 
 use failure::Fallible;
+use http::StatusCode;
 use serde::Deserialize;
 use std::env;
 
 use finchers::endpoint::{lazy, EndpointExt};
 use finchers::endpoints::{body, query};
-use finchers::{route, routes};
+use finchers::{output, route, routes};
 
 use crate::database::ConnectionPool;
 
@@ -37,16 +39,23 @@ fn main() -> Fallible<()> {
         route!(@get /)
             .and(query::parse())
             .and(acquire_conn.clone())
-            .and_then(crate::api::get_posts),
+            .and_then(async move |query, conn| await!(crate::api::get_posts(query, conn)).map_err(Into::into))
+            .map(output::Json),
 
         route!(@post /)
             .and(body::json())
             .and(acquire_conn.clone())
-            .and_then(crate::api::create_post),
+            .and_then(async move |new_post, conn| await!(crate::api::create_post(new_post, conn)).map_err(Into::into))
+            .map(output::Json)
+            .map(output::status::Created),
 
         route!(@get / i32 /)
             .and(acquire_conn.clone())
-            .and_then(crate::api::find_post),
+            .and_then(async move |id, conn| {
+                await!(crate::api::find_post(id, conn))?
+                    .ok_or_else(|| finchers::error::err_msg(StatusCode::NOT_FOUND, "not found"))
+            })
+            .map(output::Json),
     });
 
     finchers::launch(endpoint).start("127.0.0.1:4000");

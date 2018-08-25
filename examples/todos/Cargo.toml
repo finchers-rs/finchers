@@ -17,3 +17,4 @@ finchers = { path = "../.." }
 futures-preview = "0.3.0-alpha.3"
 serde = { version = "1.0", features = ["derive"] }
 failure = "0.1"
+http = "0.1.10"

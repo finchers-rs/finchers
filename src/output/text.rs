@@ -1,12 +1,10 @@
 use http::header::HeaderValue;
 use http::{header, Response};
 use std::borrow::Cow;
-use std::mem::PinMut;
 
+use super::payload::Once;
+use super::{Output, OutputContext};
 use crate::error::Never;
-use crate::input::Input;
-use crate::output::payload::Once;
-use crate::output::Responder;
 
 /// An instance of `Responder` representing UTF-8 text responses.
 #[derive(Debug)]
@@ -18,11 +16,11 @@ impl<T: AsRef<str>> AsRef<[u8]> for Text<T> {
     }
 }
 
-impl<T: AsRef<str> + Send + 'static> Responder for Text<T> {
+impl<T: AsRef<str> + Send + 'static> Output for Text<T> {
     type Body = Once<Self>;
     type Error = Never;
 
-    fn respond(self, _: PinMut<'_, Input>) -> Result<Response<Self::Body>, Self::Error> {
+    fn respond(self, _: &mut OutputContext<'_>) -> Result<Response<Self::Body>, Self::Error> {
         let mut response = Response::new(Once::new(self));
         response.headers_mut().insert(
             header::CONTENT_TYPE,
@@ -32,29 +30,32 @@ impl<T: AsRef<str> + Send + 'static> Responder for Text<T> {
     }
 }
 
-impl Responder for &'static str {
+impl Output for &'static str {
     type Body = Once<Text<Self>>;
     type Error = Never;
 
-    fn respond(self, input: PinMut<'_, Input>) -> Result<Response<Self::Body>, Self::Error> {
-        Text(self).respond(input)
+    #[inline]
+    fn respond(self, cx: &mut OutputContext<'_>) -> Result<Response<Self::Body>, Self::Error> {
+        Text(self).respond(cx)
     }
 }
 
-impl Responder for String {
+impl Output for String {
     type Body = Once<Text<Self>>;
     type Error = Never;
 
-    fn respond(self, input: PinMut<'_, Input>) -> Result<Response<Self::Body>, Self::Error> {
-        Text(self).respond(input)
+    #[inline]
+    fn respond(self, cx: &mut OutputContext<'_>) -> Result<Response<Self::Body>, Self::Error> {
+        Text(self).respond(cx)
     }
 }
 
-impl Responder for Cow<'static, str> {
+impl Output for Cow<'static, str> {
     type Body = Once<Text<Self>>;
     type Error = Never;
 
-    fn respond(self, input: PinMut<'_, Input>) -> Result<Response<Self::Body>, Self::Error> {
-        Text(self).respond(input)
+    #[inline]
+    fn respond(self, cx: &mut OutputContext<'_>) -> Result<Response<Self::Body>, Self::Error> {
+        Text(self).respond(cx)
     }
 }

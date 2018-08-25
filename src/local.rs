@@ -85,7 +85,7 @@ use crate::endpoint::Endpoint;
 use crate::error::{Error, Never};
 use crate::input::body::ReqBody;
 use crate::output::payload::Payload;
-use crate::output::Responder;
+use crate::output::Output;
 
 macro_rules! impl_constructors {
     ($(
@@ -207,7 +207,7 @@ impl LocalRequest {
     pub fn respond<'e, E>(self, endpoint: &'e E) -> Response<ResBody>
     where
         E: Endpoint<'e>,
-        E::Output: Responder,
+        E::Output: Output,
     {
         let LocalRequest { mut request } = self;
         let request = request.take().expect("The request has already applied");

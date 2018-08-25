@@ -1,14 +1,11 @@
-use std::borrow::Cow;
-use std::mem::PinMut;
-
 use bytes::Bytes;
 use http::header::HeaderValue;
 use http::{header, Response};
+use std::borrow::Cow;
 
+use super::payload::Once;
+use super::{Output, OutputContext};
 use crate::error::Never;
-use crate::input::Input;
-use crate::output::payload::Once;
-use crate::output::Responder;
 
 /// An instance of `Responder` representing binary responses.
 #[derive(Debug)]
@@ -20,11 +17,11 @@ impl<T: AsRef<[u8]>> AsRef<[u8]> for Binary<T> {
     }
 }
 
-impl<T: AsRef<[u8]> + Send + 'static> Responder for Binary<T> {
+impl<T: AsRef<[u8]> + Send + 'static> Output for Binary<T> {
     type Body = Once<Self>;
     type Error = Never;
 
-    fn respond(self, _: PinMut<'_, Input>) -> Result<Response<Self::Body>, Self::Error> {
+    fn respond(self, _: &mut OutputContext<'_>) -> Result<Response<Self::Body>, Self::Error> {
         let mut response = Response::new(Once::new(self));
         response.headers_mut().insert(
             header::CONTENT_TYPE,
@@ -34,38 +31,41 @@ impl<T: AsRef<[u8]> + Send + 'static> Responder for Binary<T> {
     }
 }
 
-impl Responder for &'static [u8] {
+impl Output for &'static [u8] {
     type Body = Once<Binary<Self>>;
     type Error = Never;
 
-    fn respond(self, input: PinMut<'_, Input>) -> Result<Response<Self::Body>, Self::Error> {
-        Binary(self).respond(input)
+    #[inline]
+    fn respond(self, cx: &mut OutputContext<'_>) -> Result<Response<Self::Body>, Self::Error> {
+        Binary(self).respond(cx)
     }
 }
 
-impl Responder for Vec<u8> {
+impl Output for Vec<u8> {
     type Body = Once<Binary<Self>>;
     type Error = Never;
 
-    fn respond(self, input: PinMut<'_, Input>) -> Result<Response<Self::Body>, Self::Error> {
-        Binary(self).respond(input)
+    #[inline]
+    fn respond(self, cx: &mut OutputContext<'_>) -> Result<Response<Self::Body>, Self::Error> {
+        Binary(self).respond(cx)
     }
 }
 
-impl Responder for Cow<'static, [u8]> {
+impl Output for Cow<'static, [u8]> {
     type Body = Once<Binary<Self>>;
     type Error = Never;
 
-    fn respond(self, input: PinMut<'_, Input>) -> Result<Response<Self::Body>, Self::Error> {
-        Binary(self).respond(input)
+    fn respond(self, cx: &mut OutputContext<'_>) -> Result<Response<Self::Body>, Self::Error> {
+        Binary(self).respond(cx)
     }
 }
 
-impl Responder for Bytes {
+impl Output for Bytes {
     type Body = Once<Binary<Self>>;
     type Error = Never;
 
-    fn respond(self, input: PinMut<'_, Input>) -> Result<Response<Self::Body>, Self::Error> {
-        Binary(self).respond(input)
+    #[inline]
+    fn respond(self, cx: &mut OutputContext<'_>) -> Result<Response<Self::Body>, Self::Error> {
+        Binary(self).respond(cx)
     }
 }

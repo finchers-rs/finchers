@@ -2,7 +2,7 @@
 
 use finchers::endpoint::{lazy, EndpointExt};
 use finchers::endpoints::body;
-use finchers::{route, routes};
+use finchers::{output, route, routes};
 
 use crate::db::ConnPool;
 
@@ -17,25 +17,33 @@ fn main() {
 
     let find_todo = route!(@get / u64 /)
         .and(conn.clone())
-        .and_then(crate::api::find_todo);
+        .and_then(async move |id, conn| {
+            await!(crate::api::find_todo(id, conn))?.ok_or_else(crate::util::not_found)
+        }).map(output::Json);
 
     let list_todos = route!(@get /)
         .and(conn.clone())
-        .and_then(crate::api::list_todos);
+        .and_then(async move |conn| Ok(await!(crate::api::list_todos(conn))?))
+        .map(output::Json);
 
     let add_todo = route!(@post /)
         .and(body::json())
         .and(conn.clone())
-        .and_then(crate::api::create_todo);
+        .and_then(async move |new_todo, conn| Ok(await!(crate::api::create_todo(new_todo, conn))?))
+        .map(output::Json);
 
     let patch_todo = route!(@patch / u64 /)
         .and(body::json())
         .and(conn.clone())
-        .and_then(crate::api::patch_todo);
+        .and_then(async move |id, patch, conn| {
+            await!(crate::api::patch_todo(id, patch, conn))?.ok_or_else(crate::util::not_found)
+        }).map(output::Json);
 
     let delete_todo = route!(@delete / u64 /)
         .and(conn.clone())
-        .and_then(crate::api::delete_todo);
+        .and_then(async move |id, conn| {
+            await!(crate::api::delete_todo(id, conn))?.ok_or_else(crate::util::not_found)
+        });
 
     let endpoint = route!(/ "api" / "v1" / "todos").and(routes![
         find_todo,
@@ -49,27 +57,23 @@ fn main() {
 }
 
 mod api {
-    use failure::format_err;
-
-    use finchers::error::Error;
-    use finchers::output::status::Created;
-    use finchers::output::{Json, Responder};
+    use failure::{format_err, Fallible};
 
     use crate::db::Conn;
     use crate::model::{NewTodo, PatchTodo, Todo};
 
-    pub async fn find_todo(id: u64, conn: Conn) -> Result<impl Responder, Error> {
+    pub async fn find_todo(id: u64, conn: Conn) -> Fallible<Option<Todo>> {
         let db = conn.read()?;
         let found = db.todos.iter().find(|todo| todo.id == id).cloned();
-        Ok(found.map(Json))
+        Ok(found)
     }
 
-    pub async fn list_todos(conn: Conn) -> Result<impl Responder, Error> {
+    pub async fn list_todos(conn: Conn) -> Fallible<Vec<Todo>> {
         let db = conn.read()?;
-        Ok(Json(db.todos.clone()))
+        Ok(db.todos.clone())
     }
 
-    pub async fn create_todo(new_todo: NewTodo, mut conn: Conn) -> Result<impl Responder, Error> {
+    pub async fn create_todo(new_todo: NewTodo, mut conn: Conn) -> Fallible<Todo> {
         let mut db = conn.write()?;
 
         let new_todo = Todo {
@@ -85,14 +89,10 @@ mod api {
 
         db.todos.push(new_todo.clone());
 
-        Ok(Created(Json(new_todo)))
+        Ok(new_todo)
     }
 
-    pub async fn patch_todo(
-        id: u64,
-        patch: PatchTodo,
-        mut conn: Conn,
-    ) -> Result<impl Responder, Error> {
+    pub async fn patch_todo(id: u64, patch: PatchTodo, mut conn: Conn) -> Fallible<Option<Todo>> {
         let mut db = conn.write()?;
 
         Ok(db.todos.iter_mut().find(|todo| todo.id == id).map(|todo| {
@@ -103,11 +103,11 @@ mod api {
                 todo.completed = completed;
             }
 
-            Json(todo.clone())
+            todo.clone()
         }))
     }
 
-    pub async fn delete_todo(id: u64, mut conn: Conn) -> Result<impl Responder, Error> {
+    pub async fn delete_todo(id: u64, mut conn: Conn) -> Fallible<Option<()>> {
         let mut db = conn.write()?;
 
         if let Some(pos) = db.todos.iter().position(|todo| todo.id == id) {
@@ -181,5 +181,14 @@ mod db {
         pub fn write(&mut self) -> Fallible<RwLockWriteGuard<Database>> {
             self.db.write().map_err(|e| format_err!("{}", e))
         }
+    }
+}
+
+mod util {
+    use finchers::error::{err_msg, Error};
+    use http::StatusCode;
+
+    pub fn not_found() -> Error {
+        err_msg(StatusCode::NOT_FOUND, "not found")
     }
 }
