@@ -1,10 +1,8 @@
 use diesel::prelude::*;
+use failure::Fallible;
 use serde::Deserialize;
 
-use finchers::error::Error;
 use finchers::input::query::{FromQuery, QueryItems, Serde};
-use finchers::output::status::Created;
-use finchers::output::{Json, Responder};
 
 use crate::database::Connection;
 use crate::model::{NewPost, Post};
@@ -29,27 +27,25 @@ impl FromQuery for Query {
     }
 }
 
-pub async fn get_posts(query: Option<Query>, conn: Connection) -> Result<impl Responder, Error> {
+pub async fn get_posts(query: Option<Query>, conn: Connection) -> Fallible<Vec<Post>> {
     let query = query.unwrap_or_default();
-    let post = await!(conn.execute(move |conn| {
+    let posts = await!(conn.execute(move |conn| {
         use crate::schema::posts::dsl::*;
         posts.limit(query.count).load::<Post>(conn.get())
     }))?;
-
-    Ok(Json(post))
+    Ok(posts)
 }
 
-pub async fn create_post(new_post: NewPost, conn: Connection) -> Result<impl Responder, Error> {
+pub async fn create_post(new_post: NewPost, conn: Connection) -> Fallible<Post> {
     let post = await!(conn.execute(move |conn| {
         diesel::insert_into(posts::table)
             .values(&new_post)
             .get_result::<Post>(conn.get())
     }))?;
-
-    Ok(Created(Json(post)))
+    Ok(post)
 }
 
-pub async fn find_post(i: i32, conn: Connection) -> Result<impl Responder, Error> {
+pub async fn find_post(i: i32, conn: Connection) -> Fallible<Option<Post>> {
     let post_opt = await!(conn.execute(move |conn| {
         use crate::schema::posts::dsl::{id, posts};
         posts
@@ -57,6 +53,5 @@ pub async fn find_post(i: i32, conn: Connection) -> Result<impl Responder, Error
             .get_result::<Post>(conn.get())
             .optional()
     }))?;
-
-    Ok(post_opt.map(Json))
+    Ok(post_opt)
 }
