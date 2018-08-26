@@ -86,6 +86,7 @@ impl Input {
     }
 
     /// Returns a `Cookies<'_>` or initialize the internal Cookie jar.
+    #[cfg_attr(feature = "cargo-clippy", allow(needless_lifetimes))]
     pub fn cookies<'a>(self: PinMut<'a, Self>) -> Result<Cookies<'a>, Error> {
         let this = unsafe { PinMut::get_mut_unchecked(self) };
 

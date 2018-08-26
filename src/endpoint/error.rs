@@ -55,7 +55,7 @@ impl EndpointError {
         EndpointError(self.0 | other.0)
     }
 
-    pub fn is_not_matched(&self) -> bool {
+    pub fn is_not_matched(self) -> bool {
         self.0.is_empty()
     }
 }

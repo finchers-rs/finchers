@@ -46,6 +46,7 @@ where
     F: Func<F1::Ok, Out = F2> + 'a,
     F1::Ok: Tuple,
 {
+    #[cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
     try_chain: TryChain<F1, Map<F2, fn(F2::Output) -> Result<F2::Output, Error>>, &'a F>,
 }
 
@@ -73,7 +74,7 @@ where
     fn poll(mut self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
         self.try_chain()
             .poll(cx, |result, f| match result {
-                Ok(ok) => TryChainAction::Future(f.call(ok).map(|x| Ok(x))),
+                Ok(ok) => TryChainAction::Future(f.call(ok).map(Ok)),
                 Err(err) => TryChainAction::Output(Err(err)),
             }).map_ok(|x| (x,))
     }
