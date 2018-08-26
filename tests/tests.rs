@@ -6,6 +6,7 @@ extern crate failure;
 extern crate finchers;
 extern crate futures_util;
 extern crate http;
+extern crate serde;
 
 macro_rules! assert_matches {
     ($e:expr, $($t:tt)+) => {

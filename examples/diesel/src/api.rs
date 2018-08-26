@@ -2,8 +2,6 @@ use diesel::prelude::*;
 use failure::Fallible;
 use serde::Deserialize;
 
-use finchers::input::query::{FromQuery, QueryItems, Serde};
-
 use crate::database::Connection;
 use crate::model::{NewPost, Post};
 use crate::schema::posts;
@@ -16,14 +14,6 @@ pub struct Query {
 impl Default for Query {
     fn default() -> Query {
         Query { count: 20 }
-    }
-}
-
-impl FromQuery for Query {
-    type Error = <Serde<Query> as FromQuery>::Error;
-
-    fn from_query(items: QueryItems) -> Result<Self, Self::Error> {
-        FromQuery::from_query(items).map(Serde::into_inner)
     }
 }
 

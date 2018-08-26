@@ -20,42 +20,36 @@ pub trait FromQuery: Sized + 'static {
     fn from_query(query: QueryItems<'_>) -> Result<Self, Self::Error>;
 }
 
-impl<T: FromQuery> FromQuery for Option<T> {
-    type Error = T::Error;
-
-    fn from_query(query: QueryItems<'_>) -> Result<Self, Self::Error> {
-        if query.as_bytes().is_some() {
-            T::from_query(query).map(Some)
-        } else {
-            Ok(None)
-        }
-    }
-}
-
 /// An iterator over the elements of query items.
 #[derive(Debug)]
 pub struct QueryItems<'a> {
-    input: Option<&'a [u8]>,
+    input: &'a [u8],
 }
 
 impl<'a> QueryItems<'a> {
-    pub(crate) fn empty() -> QueryItems<'a> {
-        QueryItems { input: None }
-    }
-
     pub(crate) unsafe fn new_unchecked<S>(input: &'a S) -> QueryItems<'a>
     where
         S: AsRef<[u8]> + ?Sized,
     {
         QueryItems {
-            input: Some(input.as_ref()),
+            input: input.as_ref(),
         }
     }
 
     /// Returns a slice of bytes which contains the remaining query items.
     #[inline(always)]
+    pub fn remains(&self) -> &EncodedStr {
+        unsafe { EncodedStr::new_unchecked(self.input) }
+    }
+
+    #[doc(hidden)]
+    #[deprecated(
+        since = "0.12.0-alpha.2",
+        note = "use `QueryItems::remains()` instead."
+    )]
+    #[inline(always)]
     pub fn as_bytes(&self) -> Option<&[u8]> {
-        self.input
+        Some(self.input)
     }
 }
 
@@ -64,7 +58,7 @@ impl<'a> Iterator for QueryItems<'a> {
     type Item = (&'a EncodedStr, &'a EncodedStr);
 
     fn next(&mut self) -> Option<Self::Item> {
-        let input = self.input.as_mut()?;
+        let input = &mut self.input;
         loop {
             if input.is_empty() {
                 return None;
@@ -117,14 +111,11 @@ where
 
     #[inline]
     fn from_query(items: QueryItems<'_>) -> Result<Self, Self::Error> {
-        match items.as_bytes() {
-            Some(s) => serde_qs::from_bytes(s)
-                .map(Serde)
-                .map_err(|cause| SerdeParseError::Parse {
-                    cause: SyncFailure::new(cause),
-                }),
-            None => Err(SerdeParseError::MissingQuery),
-        }
+        serde_qs::from_bytes(items.remains().as_bytes())
+            .map(Serde)
+            .map_err(|cause| SerdeParseError::Parse {
+                cause: SyncFailure::new(cause),
+            })
     }
 }
 
@@ -133,8 +124,6 @@ where
 pub enum SerdeParseError {
     #[fail(display = "{}", cause)]
     Parse { cause: SyncFailure<serde_qs::Error> },
-    #[fail(display = "missing query")]
-    MissingQuery,
 }
 
 #[allow(missing_debug_implementations)]
@@ -176,16 +165,58 @@ where
         _marker: PhantomData,
     })
 }
-/*
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_from_segments() {
-        let mut segments = Segments::from("/foo/bar.txt");
-        let result = FromSegments::from_segments(&mut segments);
-        assert_eq!(result, Ok(PathBuf::from("foo/bar.txt")));
+    fn test_query_items_empty() {
+        let mut items = unsafe { QueryItems::new_unchecked("") };
+        assert_eq!(items.remains(), "");
+        assert!(items.next().is_none());
+    }
+
+    #[test]
+    fn test_query_items() {
+        let mut items = unsafe { QueryItems::new_unchecked("foo=bar&baz=foobar") };
+        assert_eq!(items.remains(), "foo=bar&baz=foobar");
+        assert_eq!(items.next(), unsafe {
+            Some((
+                EncodedStr::new_unchecked("foo"),
+                EncodedStr::new_unchecked("bar"),
+            ))
+        });
+        assert_eq!(items.remains(), "baz=foobar");
+        assert_eq!(items.next(), unsafe {
+            Some((
+                EncodedStr::new_unchecked("baz"),
+                EncodedStr::new_unchecked("foobar"),
+            ))
+        });
+        assert_eq!(items.remains(), "");
+        assert!(items.next().is_none());
+    }
+
+    #[test]
+    fn test_from_query() {
+        use serde::Deserialize;
+        #[derive(Debug, Deserialize, PartialEq)]
+        struct Query {
+            param: String,
+            count: Option<u32>,
+        }
+
+        let items = unsafe { QueryItems::new_unchecked("param=rustlang&count=42") };
+        match Serde::<Query>::from_query(items) {
+            Ok(Serde(query)) => assert_eq!(
+                query,
+                Query {
+                    param: "rustlang".into(),
+                    count: Some(42)
+                }
+            ),
+            Err(e) => panic!("failed to parse: {}", e),
+        }
     }
 }
-*/

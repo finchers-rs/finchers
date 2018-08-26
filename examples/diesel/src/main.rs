@@ -22,6 +22,7 @@ use std::env;
 
 use finchers::endpoint::{lazy, EndpointExt};
 use finchers::endpoints::{body, query};
+use finchers::input::query::Serde;
 use finchers::{output, route, routes};
 
 use crate::database::ConnectionPool;
@@ -37,7 +38,9 @@ fn main() -> Fallible<()> {
 
     let endpoint = route!(/"api"/"v1"/"posts").and(routes!{
         route!(@get /)
-            .and(query::parse())
+            .and(query::optional().map(|query: Option<_>| {
+                query.map(Serde::into_inner)
+            }))
             .and(acquire_conn.clone())
             .and_then(async move |query, conn| await!(crate::api::get_posts(query, conn)).map_err(Into::into))
             .map(output::Json),
