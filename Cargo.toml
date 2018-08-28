@@ -11,19 +11,21 @@ documentation = "https://docs.rs/finchers"
 keywords = ["finchers", "web", "framework", "server"]
 categories = ["web-programming::http-server"]
 
+build = "build.rs"
+
 include = [
   "Cargo.toml",
   "src/**/*",
   "tests/**/*",
 ]
 
+[package.metadata.docs.rs]
+features = ["secure"]
+
 [badges]
 travis-ci = { repository = "finchers-rs/finchers" }
 coveralls = { repository = "finchers-rs/finchers" }
 maintenance = { status = "actively-developed" }
-
-[package.metadata.docs.rs]
-features = ["secure"]
 
 [workspace]
 members = [
@@ -57,3 +59,6 @@ tokio = "0.1.8"
 [features]
 strict = []
 secure = ["cookie/secure"]
+
+[build-dependencies]
+version_check = "0.1.4"
