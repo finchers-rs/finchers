@@ -22,17 +22,22 @@ bitflags! {
     }
 }
 
-#[allow(missing_docs)]
+/// A type representing error values returned from `Endpoint::apply()`.
+///
+/// This error type represents the errors around routing determined
+/// before executing the `Future` returned from the endpoint.
 #[derive(Debug, Copy, Clone)]
 pub struct EndpointError(Mask);
 
-#[allow(missing_docs)]
 impl EndpointError {
-    pub(crate) fn not_matched() -> EndpointError {
+    /// Create a value of `EndpointError` with an annotation that
+    /// the current endpoint does not match to the provided request.
+    pub fn not_matched() -> EndpointError {
         EndpointError(Mask::NOT_MATCHED)
     }
 
-    pub(crate) fn method_not_allowed(allowed: &Method) -> Option<EndpointError> {
+    #[doc(hidden)]
+    pub fn method_not_allowed(allowed: &Method) -> Option<EndpointError> {
         macro_rules! pat {
             ($($METHOD:ident),*) => {
                 match allowed {
@@ -51,19 +56,24 @@ impl EndpointError {
         EndpointError(mask)
     }
 
-    pub(crate) fn merge(self, other: EndpointError) -> EndpointError {
+    #[doc(hidden)]
+    pub fn merge(self, other: EndpointError) -> EndpointError {
         EndpointError(self.0 | other.0)
     }
 
+    #[doc(hidden)]
+    #[deprecated(
+        since = "0.12.0-alpha.3",
+        note = "This method is going to remove before releasing 0.12.0."
+    )]
     pub fn is_not_matched(self) -> bool {
         self.0.is_empty()
     }
 }
 
 impl fmt::Display for EndpointError {
-    #[allow(unused_assignments)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.is_not_matched() {
+        if self.0.is_empty() {
             f.write_str("no route")
         } else {
             if !f.alternate() {
@@ -84,7 +94,7 @@ impl fmt::Display for EndpointError {
 
 impl HttpError for EndpointError {
     fn status_code(&self) -> StatusCode {
-        if self.is_not_matched() {
+        if self.0.is_empty() {
             StatusCode::NOT_FOUND
         } else {
             StatusCode::METHOD_NOT_ALLOWED
@@ -163,7 +173,7 @@ mod tests {
         let err1 = EndpointError::not_matched();
         let err2 = EndpointError::not_matched();
         let err = err1.merge(err2);
-        assert!(err.is_not_matched());
+        assert!(err.0.is_empty());
     }
 
     #[test]
@@ -171,7 +181,7 @@ mod tests {
         let err1 = EndpointError::not_matched();
         let err2 = EndpointError::method_not_allowed(&Method::GET).unwrap();
         let err = err1.merge(err2);
-        assert!(!err.is_not_matched());
+        assert!(!err.0.is_empty());
     }
 
     #[test]
@@ -179,7 +189,7 @@ mod tests {
         let err1 = EndpointError::method_not_allowed(&Method::GET).unwrap();
         let err2 = EndpointError::method_not_allowed(&Method::POST).unwrap();
         let err = err1.merge(err2);
-        assert!(!err.is_not_matched());
+        assert!(!err.0.is_empty());
 
         let methods: Vec<Method> = err.into_iter().cloned().collect();
         assert_eq!(methods, vec![Method::GET, Method::POST]);
