@@ -65,26 +65,27 @@ impl ReqBody {
     }
 }
 
-/// Trait representing the transformation from a message body.
+#[doc(hidden)]
+#[deprecated(
+    since = "0.12.0-alpha.3",
+    note = "This trait is going to remove before releasing 0.12.0."
+)]
 pub trait FromBody: 'static + Sized {
-    /// The error type which will be returned from `from_data`.
     type Error: Fail;
-
-    /// Performs conversion from raw bytes into itself.
     fn from_body(body: Bytes, input: PinMut<'_, Input>) -> Result<Self, Self::Error>;
 }
 
+#[allow(deprecated)]
 impl FromBody for Bytes {
     type Error = Never;
-
     fn from_body(body: Bytes, _: PinMut<'_, Input>) -> Result<Self, Self::Error> {
         Ok(body)
     }
 }
 
+#[allow(deprecated)]
 impl FromBody for String {
     type Error = FromUtf8Error;
-
     fn from_body(body: Bytes, _: PinMut<'_, Input>) -> Result<Self, Self::Error> {
         String::from_utf8(body.to_vec())
     }

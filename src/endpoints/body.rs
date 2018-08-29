@@ -6,19 +6,20 @@ use std::mem::PinMut;
 use std::task::Poll;
 use std::{fmt, mem, task};
 
+use futures_util::try_future;
+use futures_util::try_future::TryFutureExt;
+use futures_util::try_ready;
+
 use bytes::Bytes;
 use bytes::BytesMut;
-use futures_util::try_ready;
 use http::StatusCode;
-use mime;
-use pin_utils::{unsafe_pinned, unsafe_unpinned};
+use pin_utils::unsafe_unpinned;
 use serde::de::DeserializeOwned;
-use serde_json;
 
 use crate::endpoint::{Context, Endpoint, EndpointExt, EndpointResult};
-use crate::error::{bad_request, err_msg, Error};
-use crate::input::body::{FromBody, Payload};
-use crate::input::query::{FromQuery, QueryItems};
+use crate::error::{err_msg, Error};
+use crate::input::body::Payload;
+use crate::input::query::FromQuery;
 use crate::input::with_get_cx;
 
 /// Creates an endpoint which takes the instance of [`Payload`](input::body::Payload)
@@ -156,78 +157,133 @@ fn stolen_payload() -> Error {
     )
 }
 
-// ==== Body ====
+#[allow(deprecated)]
+mod deprecated_parse {
+    use std::fmt;
+    use std::future::Future;
+    use std::marker::PhantomData;
+    use std::mem::PinMut;
+    use std::task;
+    use std::task::Poll;
 
-/// Creates an endpoint which receives the all contents of the message body
-/// and transform the received bytes into a value of `T`.
-pub fn parse<T>() -> Parse<T>
-where
-    T: FromBody,
-{
-    (Parse {
-        _marker: PhantomData,
-    }).output::<(T,)>()
-}
+    use futures_util::try_ready;
+    use pin_utils::unsafe_pinned;
 
-#[allow(missing_docs)]
-pub struct Parse<T> {
-    _marker: PhantomData<fn() -> T>,
-}
+    use crate::endpoint::{Context, Endpoint, EndpointResult};
+    use crate::error::{bad_request, Error};
+    use crate::input::body::FromBody;
+    use crate::input::with_get_cx;
 
-impl<T> Copy for Parse<T> {}
+    use super::ReceiveAllFuture;
 
-impl<T> Clone for Parse<T> {
-    #[inline]
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl<T> fmt::Debug for Parse<T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Parse").finish()
-    }
-}
-
-impl<'e, T> Endpoint<'e> for Parse<T>
-where
-    T: FromBody,
-{
-    type Output = (T,);
-    type Future = ParseFuture<T>;
-
-    fn apply(&self, _: &mut Context<'_>) -> EndpointResult<Self::Future> {
-        Ok(ParseFuture {
-            receive_all: ReceiveAllFuture::new(),
+    #[doc(hidden)]
+    #[deprecated(
+        since = "0.12.0-alpha.3",
+        note = "This function is going to remove before releasing 0.12.0."
+    )]
+    pub fn parse<T>() -> Parse<T>
+    where
+        T: FromBody,
+    {
+        Parse {
             _marker: PhantomData,
-        })
+        }
+    }
+
+    #[doc(hidden)]
+    #[deprecated(
+        since = "0.12.0-alpha.3",
+        note = "This function is going to remove before releasing 0.12.0."
+    )]
+    pub struct Parse<T> {
+        _marker: PhantomData<fn() -> T>,
+    }
+
+    impl<T> Copy for Parse<T> {}
+
+    impl<T> Clone for Parse<T> {
+        #[inline]
+        fn clone(&self) -> Self {
+            *self
+        }
+    }
+
+    impl<T> fmt::Debug for Parse<T> {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.debug_struct("Parse").finish()
+        }
+    }
+
+    impl<'e, T> Endpoint<'e> for Parse<T>
+    where
+        T: FromBody,
+    {
+        type Output = (T,);
+        type Future = ParseFuture<T>;
+
+        fn apply(&self, _: &mut Context<'_>) -> EndpointResult<Self::Future> {
+            Ok(ParseFuture {
+                receive_all: ReceiveAllFuture::new(),
+                _marker: PhantomData,
+            })
+        }
+    }
+
+    #[allow(missing_debug_implementations)]
+    #[doc(hidden)]
+    #[deprecated(
+        since = "0.12.0-alpha.3",
+        note = "This function is going to remove before releasing 0.12.0."
+    )]
+    pub struct ParseFuture<T> {
+        receive_all: ReceiveAllFuture,
+        _marker: PhantomData<fn() -> T>,
+    }
+
+    impl<T> ParseFuture<T> {
+        unsafe_pinned!(receive_all: ReceiveAllFuture);
+    }
+
+    impl<T> Future for ParseFuture<T>
+    where
+        T: FromBody,
+    {
+        type Output = Result<(T,), Error>;
+
+        fn poll(mut self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
+            let (data,) = try_ready!(self.receive_all().poll(cx));
+            Poll::Ready(
+                with_get_cx(|input| T::from_body(data, input))
+                    .map(|x| (x,))
+                    .map_err(bad_request),
+            )
+        }
     }
 }
 
 #[doc(hidden)]
-#[allow(missing_debug_implementations)]
-pub struct ParseFuture<T> {
-    receive_all: ReceiveAllFuture,
-    _marker: PhantomData<fn() -> T>,
+#[allow(deprecated)]
+pub use self::deprecated_parse::{parse, Parse, ParseFuture};
+
+// ==== Text ====
+
+/// Create an endpoint which parses a request body into `String`.
+pub fn text() -> Text {
+    Text { _priv: () }
 }
 
-impl<T> ParseFuture<T> {
-    unsafe_pinned!(receive_all: ReceiveAllFuture);
+#[allow(missing_docs)]
+#[derive(Debug, Copy, Clone)]
+pub struct Text {
+    _priv: (),
 }
 
-impl<T> Future for ParseFuture<T>
-where
-    T: FromBody,
-{
-    type Output = Result<(T,), Error>;
+impl<'a> Endpoint<'a> for Text {
+    type Output = (String,);
+    type Future = parse::ParseFuture<String>;
 
-    fn poll(mut self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
-        let (data,) = try_ready!(self.receive_all().poll(cx));
-        Poll::Ready(
-            with_get_cx(|input| T::from_body(data, input))
-                .map(|x| (x,))
-                .map_err(bad_request),
-        )
+    fn apply(&'a self, _: &mut Context<'_>) -> EndpointResult<Self::Future> {
+        Ok(parse::ParseFuture::new())
     }
 }
 
@@ -254,55 +310,15 @@ where
     T: DeserializeOwned + 'static,
 {
     type Output = (T,);
-    type Future = JsonFuture<T>;
+    type Future =
+        try_future::MapOk<parse::ParseFuture<parse::Json<T>>, fn((parse::Json<T>,)) -> (T,)>;
 
     fn apply(&self, _: &mut Context<'_>) -> EndpointResult<Self::Future> {
-        Ok(JsonFuture {
-            receive_all: ReceiveAllFuture::new(),
-            _marker: PhantomData,
-        })
+        Ok(parse::ParseFuture::new().map_ok((|(parse::Json(v),)| (v,)) as fn(_) -> _))
     }
 }
 
-#[doc(hidden)]
-#[derive(Debug)]
-pub struct JsonFuture<T> {
-    receive_all: ReceiveAllFuture,
-    _marker: PhantomData<fn() -> T>,
-}
-
-impl<T> JsonFuture<T> {
-    unsafe_pinned!(receive_all: ReceiveAllFuture);
-}
-
-impl<T> Future for JsonFuture<T>
-where
-    T: DeserializeOwned,
-{
-    type Output = Result<(T,), Error>;
-
-    fn poll(mut self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
-        let err = with_get_cx(|input| match input.content_type() {
-            Ok(Some(m)) if *m != mime::APPLICATION_JSON => {
-                Some(bad_request("The content type must be application/json"))
-            }
-            Err(err) => Some(bad_request(err)),
-            _ => None,
-        });
-        if let Some(err) = err {
-            return Poll::Ready(Err(err));
-        }
-
-        let (data,) = try_ready!(self.receive_all().poll(cx));
-        Poll::Ready(
-            serde_json::from_slice(&*data)
-                .map(|x| (x,))
-                .map_err(bad_request),
-        )
-    }
-}
-
-// ==== Form ====
+// ==== UrlEncoded ====
 
 /// Create an endpoint which parses an urlencoded data.
 pub fn urlencoded<T>() -> UrlEncoded<T>
@@ -325,51 +341,126 @@ where
     T: FromQuery,
 {
     type Output = (T,);
-    type Future = UrlEncodedFuture<T>;
+    type Future = try_future::MapOk<
+        parse::ParseFuture<parse::UrlEncoded<T>>,
+        fn((parse::UrlEncoded<T>,)) -> (T,),
+    >;
 
     fn apply(&self, _: &mut Context<'_>) -> EndpointResult<Self::Future> {
-        Ok(UrlEncodedFuture {
-            receive_all: ReceiveAllFuture::new(),
-            _marker: PhantomData,
-        })
+        Ok(parse::ParseFuture::new().map_ok((|(parse::UrlEncoded(v),)| (v,)) as fn(_) -> _))
     }
 }
 
-#[doc(hidden)]
-#[derive(Debug)]
-pub struct UrlEncodedFuture<T> {
-    receive_all: ReceiveAllFuture,
-    _marker: PhantomData<fn() -> T>,
-}
+mod parse {
+    use std::future::Future;
+    use std::marker::PhantomData;
+    use std::mem::PinMut;
+    use std::task;
+    use std::task::Poll;
 
-impl<T> UrlEncodedFuture<T> {
-    unsafe_pinned!(receive_all: ReceiveAllFuture);
-}
+    use bytes::Bytes;
+    use futures_util::try_ready;
+    use mime::Mime;
+    use pin_utils::unsafe_pinned;
+    use serde::de::DeserializeOwned;
+    use serde_json;
 
-impl<T> Future for UrlEncodedFuture<T>
-where
-    T: FromQuery,
-{
-    type Output = Result<(T,), Error>;
+    use crate::error::{bad_request, Error};
+    use crate::input::query::{FromQuery, QueryItems};
+    use crate::input::with_get_cx;
 
-    fn poll(mut self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
-        let err = with_get_cx(|input| match input.content_type() {
-            Ok(Some(m)) if *m != mime::APPLICATION_WWW_FORM_URLENCODED => Some(bad_request(
-                "The content type must be application/www-x-urlformencoded",
-            )),
-            Err(err) => Some(bad_request(err)),
-            _ => None,
-        });
-        if let Some(err) = err {
-            return Poll::Ready(Err(err));
+    use super::ReceiveAllFuture;
+
+    #[allow(missing_debug_implementations)]
+    pub struct ParseFuture<T> {
+        receive_all: ReceiveAllFuture,
+        _marker: PhantomData<fn() -> T>,
+    }
+
+    impl<T> ParseFuture<T> {
+        pub(super) fn new() -> ParseFuture<T> {
+            ParseFuture {
+                receive_all: ReceiveAllFuture::new(),
+                _marker: PhantomData,
+            }
         }
 
-        let (data,) = try_ready!(self.receive_all().poll(cx));
-        let items = unsafe { QueryItems::new_unchecked(&*data) };
-        Poll::Ready(
+        unsafe_pinned!(receive_all: ReceiveAllFuture);
+    }
+
+    impl<T: FromBody> Future for ParseFuture<T> {
+        type Output = Result<(T,), Error>;
+
+        fn poll(mut self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
+            try_ready!(Poll::Ready(with_get_cx(|input| {
+                let content_type = input.content_type().map_err(bad_request)?;
+                T::validate(content_type)
+            })));
+            let (data,) = try_ready!(self.receive_all().poll(cx));
+            Poll::Ready(T::parse(data).map(|x| (x,)))
+        }
+    }
+
+    pub trait FromBody: Sized {
+        fn validate(content_type: Option<&Mime>) -> Result<(), Error>;
+        fn parse(body: Bytes) -> Result<Self, Error>;
+    }
+
+    impl FromBody for String {
+        fn validate(content_type: Option<&Mime>) -> Result<(), Error> {
+            match content_type.and_then(|m| m.get_param("charset")) {
+                Some(ref val) if *val == "utf-8" => Ok(()),
+                Some(_val) => Err(bad_request("Only the UTF-8 charset is supported.")),
+                None => Ok(()),
+            }
+        }
+
+        fn parse(body: Bytes) -> Result<Self, Error> {
+            String::from_utf8(body.to_vec()).map_err(bad_request)
+        }
+    }
+
+    #[derive(Debug)]
+    pub struct Json<T>(pub T);
+
+    impl<T: DeserializeOwned> FromBody for Json<T> {
+        fn validate(content_type: Option<&Mime>) -> Result<(), Error> {
+            let m = content_type.ok_or_else(|| bad_request("missing content type"))?;
+            if *m != mime::APPLICATION_JSON {
+                return Err(bad_request(
+                    "The value of `Content-type` must be `application/json`.",
+                ));
+            }
+            Ok(())
+        }
+
+        fn parse(body: Bytes) -> Result<Self, Error> {
+            serde_json::from_slice(&*body)
+                .map(Json)
+                .map_err(bad_request)
+        }
+    }
+
+    #[derive(Debug)]
+    pub struct UrlEncoded<T>(pub T);
+
+    impl<T: FromQuery> FromBody for UrlEncoded<T> {
+        fn validate(content_type: Option<&Mime>) -> Result<(), Error> {
+            let m = content_type.ok_or_else(|| bad_request("missing content type"))?;
+            if *m != mime::APPLICATION_WWW_FORM_URLENCODED {
+                return Err(bad_request(
+                    "The value of `Content-type` must be `application-x-www-form-urlencoded`.",
+                ));
+            }
+            Ok(())
+        }
+
+        fn parse(body: Bytes) -> Result<Self, Error> {
+            let s = std::str::from_utf8(&*body).map_err(bad_request)?;
+            let items = unsafe { QueryItems::new_unchecked(s) };
             FromQuery::from_query(items)
-                .map(|x| (x,))
-                .map_err(bad_request),
-        )
+                .map(UrlEncoded)
+                .map_err(bad_request)
+        }
     }
 }
