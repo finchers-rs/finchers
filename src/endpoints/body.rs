@@ -69,8 +69,32 @@ impl Future for RawFuture {
     }
 }
 
+/// Creates an endpoint which receives all of request body.
+///
+/// If the instance of `Payload` has already been stolen by another endpoint, it will
+/// return an error.
+pub fn receive_all() -> ReceiveAll {
+    ReceiveAll { _priv: () }
+}
+
+#[allow(missing_docs)]
+#[derive(Debug, Copy, Clone)]
+pub struct ReceiveAll {
+    _priv: (),
+}
+
+impl<'a> Endpoint<'a> for ReceiveAll {
+    type Output = (Bytes,);
+    type Future = ReceiveAllFuture;
+
+    fn apply(&'a self, _: &mut Context<'_>) -> EndpointResult<Self::Future> {
+        Ok(ReceiveAllFuture::new())
+    }
+}
+
+#[doc(hidden)]
 #[derive(Debug)]
-struct ReceiveAll {
+pub struct ReceiveAllFuture {
     state: State,
 }
 
@@ -81,18 +105,18 @@ enum State {
     Done,
 }
 
-impl ReceiveAll {
+impl ReceiveAllFuture {
     unsafe_unpinned!(state: State);
 
-    fn new() -> ReceiveAll {
-        ReceiveAll {
+    fn new() -> ReceiveAllFuture {
+        ReceiveAllFuture {
             state: State::Start,
         }
     }
 }
 
-impl Future for ReceiveAll {
-    type Output = Result<Bytes, Error>;
+impl Future for ReceiveAllFuture {
+    type Output = Result<(Bytes,), Error>;
 
     fn poll(mut self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
         'poll: loop {
@@ -117,7 +141,7 @@ impl Future for ReceiveAll {
                     continue 'poll;
                 }
                 State::Receiving(_, buf) => {
-                    return Poll::Ready(Ok(buf.freeze()));
+                    return Poll::Ready(Ok((buf.freeze(),)));
                 }
                 _ => panic!(),
             }
@@ -174,7 +198,7 @@ where
 
     fn apply(&self, _: &mut Context<'_>) -> EndpointResult<Self::Future> {
         Ok(ParseFuture {
-            receive_all: ReceiveAll::new(),
+            receive_all: ReceiveAllFuture::new(),
             _marker: PhantomData,
         })
     }
@@ -183,12 +207,12 @@ where
 #[doc(hidden)]
 #[allow(missing_debug_implementations)]
 pub struct ParseFuture<T> {
-    receive_all: ReceiveAll,
+    receive_all: ReceiveAllFuture,
     _marker: PhantomData<fn() -> T>,
 }
 
 impl<T> ParseFuture<T> {
-    unsafe_pinned!(receive_all: ReceiveAll);
+    unsafe_pinned!(receive_all: ReceiveAllFuture);
 }
 
 impl<T> Future for ParseFuture<T>
@@ -198,7 +222,7 @@ where
     type Output = Result<(T,), Error>;
 
     fn poll(mut self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
-        let data = try_ready!(self.receive_all().poll(cx));
+        let (data,) = try_ready!(self.receive_all().poll(cx));
         Poll::Ready(
             with_get_cx(|input| T::from_body(data, input))
                 .map(|x| (x,))
@@ -234,7 +258,7 @@ where
 
     fn apply(&self, _: &mut Context<'_>) -> EndpointResult<Self::Future> {
         Ok(JsonFuture {
-            receive_all: ReceiveAll::new(),
+            receive_all: ReceiveAllFuture::new(),
             _marker: PhantomData,
         })
     }
@@ -243,12 +267,12 @@ where
 #[doc(hidden)]
 #[derive(Debug)]
 pub struct JsonFuture<T> {
-    receive_all: ReceiveAll,
+    receive_all: ReceiveAllFuture,
     _marker: PhantomData<fn() -> T>,
 }
 
 impl<T> JsonFuture<T> {
-    unsafe_pinned!(receive_all: ReceiveAll);
+    unsafe_pinned!(receive_all: ReceiveAllFuture);
 }
 
 impl<T> Future for JsonFuture<T>
@@ -269,7 +293,7 @@ where
             return Poll::Ready(Err(err));
         }
 
-        let data = try_ready!(self.receive_all().poll(cx));
+        let (data,) = try_ready!(self.receive_all().poll(cx));
         Poll::Ready(
             serde_json::from_slice(&*data)
                 .map(|x| (x,))
@@ -305,7 +329,7 @@ where
 
     fn apply(&self, _: &mut Context<'_>) -> EndpointResult<Self::Future> {
         Ok(UrlEncodedFuture {
-            receive_all: ReceiveAll::new(),
+            receive_all: ReceiveAllFuture::new(),
             _marker: PhantomData,
         })
     }
@@ -314,12 +338,12 @@ where
 #[doc(hidden)]
 #[derive(Debug)]
 pub struct UrlEncodedFuture<T> {
-    receive_all: ReceiveAll,
+    receive_all: ReceiveAllFuture,
     _marker: PhantomData<fn() -> T>,
 }
 
 impl<T> UrlEncodedFuture<T> {
-    unsafe_pinned!(receive_all: ReceiveAll);
+    unsafe_pinned!(receive_all: ReceiveAllFuture);
 }
 
 impl<T> Future for UrlEncodedFuture<T>
@@ -340,7 +364,7 @@ where
             return Poll::Ready(Err(err));
         }
 
-        let data = try_ready!(self.receive_all().poll(cx));
+        let (data,) = try_ready!(self.receive_all().poll(cx));
         let items = unsafe { QueryItems::new_unchecked(&*data) };
         Poll::Ready(
             FromQuery::from_query(items)
