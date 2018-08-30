@@ -2,23 +2,16 @@
 ///
 /// # Example
 ///
-/// ```ignore
-/// #![feature(async_await)]
-/// #![feature(rust_2018_preview)]
-///
-/// # use finchers_core::{route, routes};
-/// # use finchers_core::endpoint::EndpointExt;
-/// # use finchers_core::endpoints::body::body;
+/// ```
+/// # use finchers::{route, routes};
+/// # use finchers::endpoint::EndpointExt;
+/// # use finchers::endpoints::body;
 /// #
-/// let get_post = route!(@get / i32)
-///     .and_then(async move |id| {
-///         Ok((format!("get_post: {}", id),))
-///     });
+/// let get_post = route!(@get / i32 /)
+///     .map(|id| format!("get_post: {}", id));
 ///
-/// let add_post = route!(@post /).and(body::<String>())
-///     .and_then(async move |data| {
-///         Ok((format!("add_post: {}", data),))
-///     });
+/// let add_post = route!(@post /).and(body::text())
+///     .map(|data: String| format!("add_post: {}", data));
 ///
 /// // ...
 ///
@@ -27,6 +20,7 @@
 ///     add_post,
 ///     // ...
 /// ]);
+/// # drop(endpoint);
 /// ```
 #[macro_export]
 macro_rules! routes {

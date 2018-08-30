@@ -19,10 +19,6 @@
 //! # Example
 //!
 //! ```
-//! #![feature(rust_2018_preview)]
-//! #
-//! # extern crate finchers;
-//!
 //! use finchers::endpoint::EndpointExt;
 //! use finchers::endpoints::{body, path};
 //! use finchers::route;
@@ -32,12 +28,11 @@
 //!         .map(|id: u64| format!("GET: id={}", id));
 //!
 //!     let create_post = route!(@post /)
-//!         .and(body::parse())
+//!         .and(body::text())
 //!         .map(|data: String| format!("POST: body={}", data));
 //!
 //!     let post_api = path::path("posts")
-//!         .and(get_post
-//!             .or(create_post));
+//!         .and(get_post.or(create_post));
 //!
 //! # std::mem::drop(move || {
 //!     finchers::launch(post_api)
@@ -46,7 +41,10 @@
 //! }
 //! ```
 
-#![doc(html_root_url = "https://docs.rs/finchers/0.12.0-alpha.2")]
+#![doc(
+    html_root_url = "https://docs.rs/finchers/0.12.0-alpha.2",
+    test(attr(feature(rust_2018_preview))),
+)]
 #![warn(
     missing_docs,
     missing_debug_implementations,
@@ -56,6 +54,7 @@
     unused,
 )]
 #![cfg_attr(feature = "strict", deny(warnings))]
+#![cfg_attr(feature = "strict", doc(test(attr(deny(warnings)))))]
 
 extern crate bitflags;
 extern crate bytes;

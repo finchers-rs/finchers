@@ -20,7 +20,6 @@ use crate::input::with_get_cx;
 /// # Example
 ///
 /// ```
-/// # #![feature(rust_2018_preview)]
 /// # extern crate finchers;
 /// # extern crate serde;
 /// # use finchers::endpoints::query;
@@ -40,6 +39,7 @@ use crate::input::with_get_cx;
 ///     .map(|param: Serde<Param>| {
 ///         format!("Received: {:?}", param)
 ///     });
+/// # drop(endpoint);
 /// ```
 pub fn required<T>() -> Required<T>
 where
@@ -116,7 +116,6 @@ where
 /// # Example
 ///
 /// ```
-/// # #![feature(rust_2018_preview)]
 /// # extern crate finchers;
 /// # extern crate serde;
 /// # use finchers::endpoints::query;
@@ -136,6 +135,7 @@ where
 ///     .map(|param: Option<Serde<Param>>| {
 ///         format!("Received: {:?}", param)
 ///     });
+/// # drop(endpoint);
 /// ```
 pub fn optional<T>() -> Optional<T>
 where

@@ -51,10 +51,8 @@ impl Mode {
 /// # Example
 ///
 /// ```
-/// # #![feature(rust_2018_preview)]
 /// # use finchers::endpoints::cookie;
 /// # use finchers::endpoint::{unit, EndpointExt};
-/// # use finchers::input::cookie::Cookie;
 /// # use finchers::{route, routes};
 /// #
 /// let home = route!(@get / "home")
@@ -63,6 +61,7 @@ impl Mode {
 ///             .map(|_| "authorized"),
 ///         unit().map(|| "unauthorized"),
 ///     ]);
+/// # drop(home);
 /// ```
 pub fn required(name: impl Into<Cow<'static, str>>) -> Required {
     Required {
@@ -118,18 +117,19 @@ impl<'a> Endpoint<'a> for Required {
 /// # Example
 ///
 /// ```
-/// # #![feature(rust_2018_preview)]
 /// # use finchers::endpoints::cookie;
-/// # use finchers::endpoint::{unit, EndpointExt};
+/// # use finchers::endpoint::EndpointExt;
 /// # use finchers::input::cookie::Cookie;
-/// # use finchers::{route, routes};
-///
+/// # use finchers::route;
+/// #
 /// let home = route!(@get / "home")
 ///     .and(cookie::optional("session"))
 ///     .map(|c: Option<Cookie>| {
 ///         // ...
+/// #       drop(c);
 /// #       ()
 ///     });
+/// # drop(home);
 /// ```
 pub fn optional(name: impl Into<Cow<'static, str>>) -> Optional {
     Optional {
