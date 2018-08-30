@@ -352,6 +352,7 @@ where
 }
 
 mod parse {
+    use std::fmt;
     use std::future::Future;
     use std::marker::PhantomData;
     use std::mem::PinMut;
@@ -371,10 +372,17 @@ mod parse {
 
     use super::ReceiveAllFuture;
 
-    #[allow(missing_debug_implementations)]
     pub struct ParseFuture<T> {
         receive_all: ReceiveAllFuture,
         _marker: PhantomData<fn() -> T>,
+    }
+
+    impl<T> fmt::Debug for ParseFuture<T> {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.debug_struct("ParseFuture")
+                .field("receive_all", &self.receive_all)
+                .finish()
+        }
     }
 
     impl<T> ParseFuture<T> {
