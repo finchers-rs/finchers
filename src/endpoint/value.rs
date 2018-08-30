@@ -30,8 +30,10 @@ use crate::error::Error;
 ///     .and(value(conn))
 ///     .and_then(|id: u32, conn: Conn| {
 ///         // ...
+/// #       drop(id);
 /// #       ready(Ok(conn))
 ///     });
+/// # drop(endpoint);
 /// ```
 pub fn value<T: Clone>(x: T) -> Value<T> {
     Value { x }

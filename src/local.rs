@@ -12,7 +12,7 @@
 //! #
 //! // impl Endpoint<Output = (u32, String)>
 //! let endpoint = route!(@post / u32 /)
-//!     .and(body::parse::<String>());
+//!     .and(body::text());
 //!
 //! const MSG: &str = "The quick brown fox jumps over the lazy dog";
 //!
@@ -35,7 +35,7 @@
 //! # use finchers::route;
 //! #
 //! let endpoint = route!(@put / "posts" / u32 /)
-//!     .and(body::parse())
+//!     .and(body::text())
 //!     .map(|id: u32, body: String| {
 //!         format!("update a post (id = {}): {}", id, body)
 //!     });

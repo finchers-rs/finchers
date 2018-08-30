@@ -310,6 +310,7 @@ where
     T: DeserializeOwned + 'static,
 {
     type Output = (T,);
+    #[cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
     type Future =
         try_future::MapOk<parse::ParseFuture<parse::Json<T>>, fn((parse::Json<T>,)) -> (T,)>;
 
@@ -341,6 +342,7 @@ where
     T: FromQuery,
 {
     type Output = (T,);
+    #[cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
     type Future = try_future::MapOk<
         parse::ParseFuture<parse::UrlEncoded<T>>,
         fn((parse::UrlEncoded<T>,)) -> (T,),

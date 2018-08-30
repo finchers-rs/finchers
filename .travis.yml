@@ -29,32 +29,27 @@ matrix:
         - cargo install cargo-update || true
         - cargo install cargo-kcov || true
         - cargo install-update -a
+        - export CARGO_INCREMENTAL=0
       script:
         - cargo clean
         - cargo test --features strict
+        # lints
+        - cargo fmt -- --check
+        - cargo clippy --features strict
         # examples
         - cargo test -p example-diesel
         - cargo test -p example-staticfiles
         - cargo test -p example-template-tera
         - cargo test -p example-todos
-        # format check
-        - cargo fmt -- --check
-        # clippy
-        - cargo clippy
       after_success:
         - cargo kcov --print-install-kcov-sh | sh
-        - cargo clean
         - cargo kcov -v --coveralls
 
     - rust: nightly
+      env: LATEST_NIGHTLY
       script:
         - cargo clean
-        - cargo test --features strict
-        # examples
-        - cargo test -p example-diesel
-        - cargo test -p example-staticfiles
-        - cargo test -p example-template-tera
-        - cargo test -p example-todos
+        - cargo test --all
 
     - rust: nightly-2018-08-27
       env: DEPLOY_DOCS

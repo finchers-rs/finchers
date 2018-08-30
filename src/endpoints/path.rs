@@ -86,11 +86,11 @@ impl<'a> Endpoint<'a> for EndPath {
 /// # Example
 ///
 /// ```
-/// # #![feature(rust_2018_preview)]
 /// # use finchers::endpoint::EndpointExt;
 /// # use finchers::endpoints::path::{path, param};
 /// let endpoint = path("posts").and(param())
 ///     .map(|id: i32| (format!("id={}", id),));
+/// # drop(endpoint);
 /// ```
 pub fn param<T>() -> Param<T>
 where
@@ -165,12 +165,12 @@ impl<E: Fail> HttpError for ParamError<E> {
 /// # Example
 ///
 /// ```
-/// #![feature(rust_2018_preview)]
 /// # use finchers::endpoint::EndpointExt;
 /// # use finchers::endpoints::path::{path, remains};
 /// # use std::path::PathBuf;
 /// let endpoint = path("foo").and(remains())
 ///     .map(|path: PathBuf| format!("path={}", path.display()));
+/// # drop(endpoint);
 /// ```
 pub fn remains<T>() -> Remains<T>
 where

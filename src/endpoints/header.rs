@@ -24,10 +24,8 @@ use crate::input::with_get_cx;
 /// # Example
 ///
 /// ```
-/// # #![feature(rust_2018_preview)]
 /// # extern crate finchers;
 /// # extern crate http;
-/// # use finchers::endpoint::EndpointExt;
 /// # use finchers::endpoints::header;
 /// # use finchers::input::header::FromHeader;
 /// # use finchers::local;
@@ -140,14 +138,11 @@ where
 /// # Example
 ///
 /// ```
-/// # #![feature(rust_2018_preview)]
 /// # extern crate finchers;
 /// # extern crate http;
-/// # use finchers::endpoint::EndpointExt;
 /// # use finchers::endpoints::header;
 /// # use finchers::input::header::FromHeader;
 /// # use finchers::local;
-/// # use http::StatusCode;
 /// # use http::header::HeaderValue;
 /// #
 /// #[derive(Debug, PartialEq)]
@@ -250,10 +245,9 @@ where
 /// # Examples
 ///
 /// ```
-/// use finchers::endpoint::EndpointExt;
-/// use finchers::endpoints::header;
-///
+/// # use finchers::endpoints::header;
 /// let endpoint = header::exact("accept", "*/*");
+/// # drop(endpoint);
 /// ```
 pub fn exact<V>(name: &'static str, value: V) -> Exact<V>
 where

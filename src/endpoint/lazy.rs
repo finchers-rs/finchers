@@ -11,7 +11,6 @@ use crate::input::Input;
 /// # Examples
 ///
 /// ```
-/// # #![feature(rust_2018_preview)]
 /// # #![feature(futures_api)]
 /// #
 /// # extern crate finchers;
@@ -50,8 +49,10 @@ use crate::input::Input;
 ///     .and(acquire_conn)
 ///     .and_then(|id: u32, conn: Conn| {
 ///         // ...
+/// #       drop(id);
 /// #       ready(Ok(conn))
 ///     });
+/// # drop(endpoint);
 /// ```
 pub fn lazy<F, R>(f: F) -> Lazy<F>
 where
