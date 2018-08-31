@@ -5,7 +5,6 @@ pub(crate) mod error;
 
 mod and;
 mod and_then;
-mod and_then_with;
 mod boxed;
 mod fixed;
 mod lazy;
@@ -24,7 +23,6 @@ pub use self::error::{EndpointError, EndpointResult};
 
 pub use self::and::And;
 pub use self::and_then::AndThen;
-pub use self::and_then_with::AndThenWith;
 pub use self::boxed::{Boxed, BoxedLocal};
 pub use self::fixed::Fixed;
 pub use self::map::Map;
@@ -166,32 +164,13 @@ pub trait EndpointExt<'a>: Endpoint<'a> + Sized {
         (Then { endpoint: self, f }).output::<(<F::Out as Future>::Output,)>()
     }
 
-    /// Creates an endpoint which returns the new Future using the output of this endpoint.
-    fn and_then<F, R>(self, f: F) -> AndThen<Self, F>
+    #[allow(missing_docs)]
+    fn and_then<F>(self, f: F) -> AndThen<Self, F>
     where
-        F: Func<Self::Output, Out = R> + 'a,
-        R: TryFuture<Error = Error>,
+        F: Func<Self::Output> + 'a,
+        F::Out: TryFuture<Error = Error>,
     {
-        (AndThen { endpoint: self, f }).output::<(R::Ok,)>()
-    }
-
-    /// Creates an endpoint which returns the new Future using the output
-    /// of this endpoint and the specified value.
-    ///
-    /// The role of this combinator is very similar to `and_then()`.
-    /// The difference is that the closure used by this combinator takes a value
-    /// *by reference* whose lifetime is equal to the endpoint.
-    fn and_then_with<T, F, R>(self, ctx: T, f: F) -> AndThenWith<Self, T, F>
-    where
-        T: 'a,
-        F: Fn(&'a T, Self::Output) -> R + 'a,
-        R: TryFuture<Error = Error> + 'a,
-    {
-        (AndThenWith {
-            endpoint: self,
-            ctx,
-            f,
-        }).output::<(R::Ok,)>()
+        (AndThen { endpoint: self, f }).output::<(<F::Out as TryFuture>::Ok,)>()
     }
 
     #[allow(missing_docs)]
