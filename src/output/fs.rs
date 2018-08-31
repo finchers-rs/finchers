@@ -4,8 +4,8 @@ use std::cmp;
 use std::fs::Metadata;
 use std::io;
 use std::mem;
-use std::mem::PinMut;
 use std::path::PathBuf;
+use std::pin::PinMut;
 use std::task;
 use std::task::Poll;
 

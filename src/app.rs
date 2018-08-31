@@ -4,7 +4,7 @@
 
 use std::future::Future;
 use std::io;
-use std::mem::PinMut;
+use std::pin::PinMut;
 use std::task;
 use std::task::Poll;
 
@@ -149,11 +149,11 @@ where
 mod service {
     use super::{App, AppFuture, ResBody};
 
-    use std::boxed::PinBox;
     use std::io;
+    use std::pin::PinBox;
 
     use futures as futures01;
-    use futures_util::compat::{Compat, TokioDefaultSpawn};
+    use futures_util::compat::{Compat, TokioDefaultSpawner};
     use futures_util::try_future::TryFutureExt;
     use http::Request;
     use hyper::body::Body;
@@ -188,11 +188,11 @@ mod service {
         type ReqBody = Body;
         type ResBody = ResBody<E::Output>;
         type Error = io::Error;
-        type Future = Compat<PinBox<AppFuture<'e, E>>, TokioDefaultSpawn>;
+        type Future = Compat<PinBox<AppFuture<'e, E>>, TokioDefaultSpawner>;
 
         fn call(&mut self, request: Request<Self::ReqBody>) -> Self::Future {
             let future = self.dispatch_request(request.map(ReqBody::from_hyp));
-            PinBox::new(future).compat(TokioDefaultSpawn)
+            PinBox::new(future).compat(TokioDefaultSpawner)
         }
     }
 }

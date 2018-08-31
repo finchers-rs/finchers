@@ -1,11 +1,11 @@
 //! Endpoints for serving static contents on the file system.
 
-use std::mem::PinMut;
 use std::path::PathBuf;
-use std::task;
-use std::task::Poll;
+use std::pin::PinMut;
 
 use futures_core::future::Future;
+use futures_core::task;
+use futures_core::task::Poll;
 use pin_utils::unsafe_unpinned;
 
 use crate::endpoint::{Context, Endpoint, EndpointResult};

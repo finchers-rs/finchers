@@ -1,9 +1,8 @@
-use std::future::Future;
-use std::mem::PinMut;
-use std::task;
-use std::task::Poll;
+use std::pin::PinMut;
 
-use futures_core::future::TryFuture;
+use futures_core::future::{Future, TryFuture};
+use futures_core::task;
+use futures_core::task::Poll;
 use pin_utils::unsafe_pinned;
 
 use crate::common::{Func, Tuple};

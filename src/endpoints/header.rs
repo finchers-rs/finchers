@@ -1,13 +1,15 @@
 //! Components for parsing the HTTP headers.
 
-use std::future::Future;
+use std::fmt;
 use std::marker::PhantomData;
-use std::mem::PinMut;
-use std::task::Poll;
-use std::{fmt, task};
+use std::pin::PinMut;
+
+use futures_core::future::Future;
+use futures_core::task;
+use futures_core::task::Poll;
+use futures_util::future;
 
 use failure::format_err;
-use futures_util::future;
 use http::header::HeaderValue;
 
 use crate::endpoint::{Context, Endpoint, EndpointError, EndpointExt, EndpointResult};

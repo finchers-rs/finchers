@@ -1,11 +1,12 @@
+use std::fmt;
+use std::pin::PinMut;
+use std::task;
+use std::task::Poll;
+
 use futures_core::future::Future;
 use futures_util::future::{maybe_done, MaybeDone};
 use futures_util::try_future::{IntoFuture, TryFutureExt};
 use pin_utils::unsafe_pinned;
-use std::fmt;
-use std::mem::PinMut;
-use std::task;
-use std::task::Poll;
 
 use crate::common::{Combine, Tuple};
 use crate::endpoint::{Context, Endpoint, EndpointResult};

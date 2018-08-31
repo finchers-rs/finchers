@@ -1,9 +1,10 @@
 #![allow(missing_docs)]
 
-use futures_util::try_future::TryFutureExt;
-use std::boxed::PinBox;
 use std::fmt;
-use std::future::{FutureObj, LocalFutureObj};
+use std::pin::PinBox;
+
+use futures_core::future::{FutureObj, LocalFutureObj};
+use futures_util::try_future::TryFutureExt;
 
 use crate::common::Tuple;
 use crate::endpoint::{Context, Endpoint, EndpointResult};

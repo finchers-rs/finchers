@@ -7,7 +7,7 @@ branches:
 environment:
   matrix:
     - TARGET: x86_64-pc-windows-msvc
-      TOOLCHAIN: nightly-2018-08-27
+      TOOLCHAIN: nightly-2018-08-30
     - TARGET: x86_64-pc-windows-msvc
       TOOLCHAIN: nightly
 

@@ -1,6 +1,7 @@
+use std::pin::PinMut;
+
 use futures_core::future::TryFuture;
 use futures_util::try_future::{MapOk, TryFutureExt};
-use std::mem::PinMut;
 
 use crate::endpoint::{Context, Endpoint, EndpointResult};
 use crate::error::Error;

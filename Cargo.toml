@@ -41,15 +41,15 @@ bytes = "0.4.9"
 cookie = { version = "0.11.0", features = ["percent-encode"] }
 failure = "0.1.2"
 futures = "0.1.23"
-futures-core-preview = { version = "0.3.0-alpha.3" }
-futures-util-preview = { version = "0.3.0-alpha.3", features = ["tokio-compat"] }
+futures-core-preview = { git = "https://github.com/rust-lang-nursery/futures-rs.git", branch = "master" }
+futures-util-preview = { git = "https://github.com/rust-lang-nursery/futures-rs.git", branch = "master", features = ["tokio-compat"] }
 http = "0.1.10"
 hyper = "0.12.7"
 log = "0.4.3"
 mime = "0.3.8"
 mime_guess = "2.0.0-alpha.6"
 percent-encoding = "1.0.1"
-pin-utils = "0.1.0-alpha.1"
+pin-utils = "0.1.0-alpha.2"
 serde = { version = "1.0.71", features = ["derive"] }
 serde_json = "1.0.24"
 serde_qs = "0.4.1"

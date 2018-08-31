@@ -1,11 +1,12 @@
 //! Endpoints for parsing the message body.
 
-use std::future::Future;
 use std::marker::PhantomData;
-use std::mem::PinMut;
-use std::task::Poll;
-use std::{fmt, mem, task};
+use std::pin::PinMut;
+use std::{fmt, mem};
 
+use futures_core::future::Future;
+use futures_core::task;
+use futures_core::task::Poll;
 use futures_util::try_future;
 use futures_util::try_future::TryFutureExt;
 use futures_util::try_ready;
@@ -160,12 +161,12 @@ fn stolen_payload() -> Error {
 #[allow(deprecated)]
 mod deprecated_parse {
     use std::fmt;
-    use std::future::Future;
     use std::marker::PhantomData;
-    use std::mem::PinMut;
-    use std::task;
-    use std::task::Poll;
+    use std::pin::PinMut;
 
+    use futures_core::future::Future;
+    use futures_core::task;
+    use futures_core::task::Poll;
     use futures_util::try_ready;
     use pin_utils::unsafe_pinned;
 
@@ -355,16 +356,17 @@ where
 
 mod parse {
     use std::fmt;
-    use std::future::Future;
     use std::marker::PhantomData;
-    use std::mem::PinMut;
-    use std::task;
-    use std::task::Poll;
+    use std::pin::PinMut;
+
+    use futures_core::future::Future;
+    use futures_core::task;
+    use futures_core::task::Poll;
+    use futures_util::try_ready;
+    use pin_utils::unsafe_pinned;
 
     use bytes::Bytes;
-    use futures_util::try_ready;
     use mime::Mime;
-    use pin_utils::unsafe_pinned;
     use serde::de::DeserializeOwned;
     use serde_json;
 

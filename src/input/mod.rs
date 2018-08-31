@@ -21,8 +21,8 @@ use http::Request;
 use mime::Mime;
 use std::cell::UnsafeCell;
 use std::marker::{PhantomData, Pinned};
-use std::mem::PinMut;
 use std::ops::Deref;
+use std::pin::PinMut;
 
 use crate::error::{bad_request, Error};
 

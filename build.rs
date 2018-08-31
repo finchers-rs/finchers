@@ -6,8 +6,8 @@ fn main() {
         _ => panic!("requires nightly compiler"),
     }
 
-    match version_check::is_min_date("2018-08-26") {
+    match version_check::is_min_date("2018-08-29") {
         Some((true, _)) => {}
-        _ => panic!("requires the compiler released on or after 2018-08-26"),
+        _ => panic!("requires the compiler released on or after 2018-08-29"),
     }
 }

@@ -13,7 +13,7 @@ use http::{Response, StatusCode};
 use hyper::body::Payload;
 use std::fmt;
 use std::marker::PhantomData;
-use std::mem::PinMut;
+use std::pin::PinMut;
 use std::rc::Rc;
 
 use crate::common::Either;

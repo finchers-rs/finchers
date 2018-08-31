@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 
-use std::mem::PinMut;
+use std::pin::PinMut;
 use std::string::FromUtf8Error;
 use std::task::{self, Poll};
 

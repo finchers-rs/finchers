@@ -1,14 +1,17 @@
 #![allow(missing_docs)]
 
-use bytes::Buf;
-use futures;
-use http::header::HeaderMap;
-use hyper::body::Payload;
 use std::error::Error as StdError;
 use std::fmt;
-use std::future::Future;
-use std::mem::PinMut;
-use std::task::{self, Poll};
+use std::pin::PinMut;
+
+use futures;
+use futures_core::future::Future;
+use futures_core::task;
+use futures_core::task::Poll;
+
+use bytes::Buf;
+use http::header::HeaderMap;
+use hyper::body::Payload;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Either<L, R> {

@@ -1,5 +1,5 @@
 use std::cell::Cell;
-use std::mem::PinMut;
+use std::pin::PinMut;
 use std::ptr::NonNull;
 
 use super::Input;

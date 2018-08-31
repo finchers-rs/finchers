@@ -2,7 +2,7 @@
 
 use std::future::Future;
 use std::marker::PhantomData;
-use std::mem::PinMut;
+use std::pin::PinMut;
 use std::task::Poll;
 use std::{fmt, task};
 

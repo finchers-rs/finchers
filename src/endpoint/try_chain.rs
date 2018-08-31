@@ -1,10 +1,10 @@
 // The original implementation is futures-util-preview/try_future/try_chain.rs.
 
-use std::mem::PinMut;
-use std::task;
-use std::task::Poll;
+use std::pin::PinMut;
 
 use futures_core::future::TryFuture;
+use futures_core::task;
+use futures_core::task::Poll;
 
 #[derive(Debug)]
 pub(super) enum TryChain<F1, F2, T> {

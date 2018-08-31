@@ -61,16 +61,15 @@
 //! ```
 
 use std::borrow::Cow;
-use std::boxed::PinBox;
 use std::mem;
-use std::mem::PinMut;
+use std::pin::{PinBox, PinMut};
 
 use futures::future as future01;
 use futures::stream as stream01;
 use futures::Async;
 use futures::Stream as _Stream01;
 
-use futures_util::compat::TokioDefaultSpawn;
+use futures_util::compat::TokioDefaultSpawner;
 use futures_util::future::poll_fn;
 use futures_util::try_future::TryFutureExt;
 
@@ -200,7 +199,7 @@ impl LocalRequest {
         });
 
         let mut rt = Runtime::new().expect("rt");
-        rt.block_on(PinBox::new(future).compat(TokioDefaultSpawn))
+        rt.block_on(PinBox::new(future).compat(TokioDefaultSpawner))
     }
 
     #[allow(missing_docs)]
@@ -223,7 +222,7 @@ impl LocalRequest {
         let mut rt = Runtime::new().expect("rt");
 
         let response = rt
-            .block_on(PinBox::new(future).compat(TokioDefaultSpawn))
+            .block_on(PinBox::new(future).compat(TokioDefaultSpawner))
             .expect("AppFuture::poll_response() never fail");
         let (parts, mut body) = response.into_parts();
 

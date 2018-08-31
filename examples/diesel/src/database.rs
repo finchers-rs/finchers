@@ -1,12 +1,14 @@
+use std::marker::{PhantomData, Unpin};
+use std::pin::PinMut;
+
 use std::future::Future;
-use std::marker::PhantomData;
-use std::marker::Unpin;
-use std::mem::PinMut;
-use std::task::{self, Poll};
+use std::task;
+use std::task::Poll;
 
 use diesel::pg::PgConnection;
 use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
-use failure::{self, Fallible};
+use failure;
+use failure::Fallible;
 use tokio::prelude::Async;
 use tokio_threadpool::blocking;
 

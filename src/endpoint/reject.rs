@@ -1,6 +1,7 @@
-use futures_util::future;
 use std::marker::PhantomData;
-use std::mem::PinMut;
+use std::pin::PinMut;
+
+use futures_util::future;
 
 use crate::endpoint::{Context, Endpoint, EndpointExt, EndpointResult};
 use crate::error::Error;

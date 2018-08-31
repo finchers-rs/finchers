@@ -1,5 +1,5 @@
 use std::marker::PhantomData;
-use std::mem::PinMut;
+use std::pin::PinMut;
 use std::rc::Rc;
 
 use crate::input::{EncodedStr, Input};

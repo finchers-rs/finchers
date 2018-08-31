@@ -1,9 +1,10 @@
 //! Endpoints for managing Cookie values.
 
-use futures_util::future::{ready, Ready};
 use std::borrow::Cow;
 use std::fmt;
-use std::mem::PinMut;
+use std::pin::PinMut;
+
+use futures_util::future::{ready, Ready};
 
 use crate::endpoint::{Context, Endpoint, EndpointResult};
 use crate::error::{bad_request, Error};
