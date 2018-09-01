@@ -2,7 +2,9 @@ use failure::format_err;
 use finchers::endpoint::{reject, unit, value, EndpointExt};
 use finchers::error::bad_request;
 use finchers::local;
+
 use http::StatusCode;
+use matches::assert_matches;
 
 #[test]
 fn test_and_all_ok() {

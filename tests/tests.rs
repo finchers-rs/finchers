@@ -6,17 +6,8 @@ extern crate failure;
 extern crate finchers;
 extern crate futures_util;
 extern crate http;
+extern crate matches;
 extern crate serde;
-
-macro_rules! assert_matches {
-    ($e:expr, $($t:tt)+) => {
-        assert_matches!(@hack match $e {
-            $($t)+ => {},
-            ref e => panic!("assertion failed: `{:?}` does not match `{}`", e, stringify!($($t)+)),
-        })
-    };
-    (@hack $v:expr) =>  { $v };
-}
 
 //mod codegen;
 mod endpoint;

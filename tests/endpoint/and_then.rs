@@ -1,7 +1,9 @@
 use finchers::endpoint::{value, EndpointExt};
 use finchers::error::bad_request;
 use finchers::local;
+
 use futures_util::future::ready;
+use matches::assert_matches;
 
 #[test]
 fn test_and_then_1() {

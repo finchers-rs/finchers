@@ -2,6 +2,8 @@ use finchers::endpoint::EndpointExt;
 use finchers::local;
 use finchers::route;
 
+use matches::assert_matches;
+
 #[test]
 fn test_boxed() {
     let endpoint = route!(@get /"foo");

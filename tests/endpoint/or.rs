@@ -3,6 +3,7 @@ use finchers::endpoint::{reject, value, EndpointExt};
 use finchers::endpoints::path::path;
 use finchers::error::bad_request;
 use finchers::local;
+use matches::assert_matches;
 
 #[test]
 fn test_or_1() {

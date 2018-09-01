@@ -1,6 +1,8 @@
 use finchers::endpoint::{value, EndpointExt};
 use finchers::local;
+
 use futures_util::future::ready;
+use matches::assert_matches;
 
 #[test]
 fn test_then() {

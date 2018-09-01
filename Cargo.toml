@@ -62,3 +62,6 @@ secure = ["cookie/secure"]
 
 [build-dependencies]
 version_check = "0.1.4"
+
+[dev-dependencies]
+matches = "0.1.8"
