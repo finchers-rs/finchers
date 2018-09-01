@@ -65,6 +65,7 @@ extern crate futures_core; // 0.3
 extern crate futures_util; // 0.3
 extern crate http;
 extern crate hyper;
+extern crate hyperx;
 extern crate log;
 extern crate mime;
 extern crate mime_guess;
@@ -75,6 +76,7 @@ extern crate serde_json;
 extern crate serde_qs;
 extern crate time;
 extern crate tokio;
+extern crate url;
 
 #[macro_use]
 mod macros;

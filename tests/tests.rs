@@ -7,6 +7,7 @@ extern crate finchers;
 extern crate futures_util;
 extern crate http;
 extern crate matches;
+extern crate mime;
 extern crate serde;
 
 //mod codegen;
