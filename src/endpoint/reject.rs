@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use std::marker::PhantomData;
 use std::pin::PinMut;
 
@@ -7,7 +9,11 @@ use crate::endpoint::{Context, Endpoint, EndpointExt, EndpointResult};
 use crate::error::Error;
 use crate::input::Input;
 
-/// Creates an endpoint which always rejects the request with the specified error.
+#[doc(hidden)]
+#[deprecated(
+    since = "0.12.0-alpha.3",
+    note = "This endpoint is going to remove before releasing 0.12.0."
+)]
 pub fn reject<F, E>(f: F) -> Reject<F, E>
 where
     F: Fn(PinMut<'_, Input>) -> E,
@@ -19,7 +25,11 @@ where
     }).output::<()>()
 }
 
-#[allow(missing_docs)]
+#[doc(hidden)]
+#[deprecated(
+    since = "0.12.0-alpha.3",
+    note = "This endpoint is going to remove before releasing 0.12.0."
+)]
 #[derive(Debug)]
 pub struct Reject<F, E> {
     f: F,

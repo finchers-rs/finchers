@@ -9,7 +9,7 @@ fn test_recover() {
     let endpoint = method::get(path::path("posts").and(path::param::<u32>()))
         .map(|id: u32| format!("param={}", id));
 
-    let recovered = endpoint.fixed().recover(|err| {
+    let recovered = endpoint.or_reject().recover(|err| {
         if err.is::<EndpointError>() {
             ready(Ok(Response::builder()
                 .status(err.status_code())

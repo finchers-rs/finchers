@@ -1,5 +1,5 @@
 use failure::format_err;
-use finchers::endpoint::{reject, value, EndpointExt};
+use finchers::endpoint::{value, EndpointExt};
 use finchers::endpoints::path::path;
 use finchers::error::bad_request;
 use finchers::local;
@@ -28,10 +28,10 @@ fn test_or_choose_longer_segments() {
 }
 
 #[test]
-fn test_or_with_rejection_path() {
+fn test_or_with_rejection() {
     let endpoint = path("foo")
         .or(path("bar"))
-        .or(reject(|_| bad_request(format_err!("custom rejection"))));
+        .or_reject_with(|_err, _cx| bad_request(format_err!("custom rejection")));
 
     assert_matches!(local::get("/foo").apply(&endpoint), Ok(..));
 

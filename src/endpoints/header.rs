@@ -16,7 +16,7 @@ use crate::endpoint::{Context, Endpoint, EndpointError, EndpointExt, EndpointRes
 use crate::error;
 use crate::error::Error;
 use crate::input::header::FromHeaderValue;
-use crate::input::{with_get_cx, Input};
+use crate::input::with_get_cx;
 
 // ==== Parse ====
 
@@ -32,11 +32,15 @@ use crate::input::{with_get_cx, Input};
 ///
 /// By default, this endpoint will skip the current request if the specified
 /// name of header does not exist. In order to trait the missing header as an
-/// error, call `required()` as follows:
+/// error, use `or_reject_with` as follows:
 ///
 /// ```
 /// # use finchers::endpoints::header;
-/// let endpoint = header::parse::<String>("x-api-key").required();
+/// # use finchers::endpoint::EndpointExt;
+/// use finchers::error::bad_request;
+///
+/// let endpoint = header::parse::<String>("x-api-key")
+///     .or_reject_with(|_, _| bad_request("missing header: x-api-key"));
 /// # drop(endpoint);
 /// ```
 pub fn parse<T>(name: &'static str) -> Parse<T>
@@ -45,7 +49,6 @@ where
 {
     (Parse {
         name: HeaderName::from_static(name),
-        skip_if_missing: true,
         _marker: PhantomData,
     }).output::<(T,)>()
 }
@@ -53,39 +56,12 @@ where
 #[allow(missing_docs)]
 pub struct Parse<T> {
     name: HeaderName,
-    skip_if_missing: bool,
     _marker: PhantomData<fn() -> T>,
 }
 
 impl<T> fmt::Debug for Parse<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Parse")
-            .field("name", &self.name)
-            .field("skip_if_missing", &self.skip_if_missing)
-            .finish()
-    }
-}
-
-impl<T> Parse<T>
-where
-    T: FromHeaderValue,
-{
-    /// Change the settings of this endpoint to return an error
-    /// without skipping when the value of specified header name
-    /// does not exist in the request.
-    pub fn required(self) -> Parse<T> {
-        Parse {
-            skip_if_missing: false,
-            ..self
-        }
-    }
-
-    fn parse_value(&self, input: &Input) -> Result<T, Error> {
-        let h = input.request().headers().get(&self.name).ok_or_else(|| {
-            let msg = format!("missing header: `{}'", self.name.as_str());
-            error::bad_request(msg)
-        })?;
-        T::from_header_value(h).map_err(error::bad_request)
+        f.debug_struct("Parse").field("name", &self.name).finish()
     }
 }
 
@@ -97,10 +73,11 @@ where
     type Future = ParseFuture<'e, T>;
 
     fn apply(&'e self, cx: &mut Context<'_>) -> EndpointResult<Self::Future> {
-        if self.skip_if_missing && !cx.input().headers().contains_key(&self.name) {
-            return Err(EndpointError::not_matched());
+        if cx.input().headers().contains_key(&self.name) {
+            Ok(ParseFuture { endpoint: self })
+        } else {
+            Err(EndpointError::not_matched())
         }
-        Ok(ParseFuture { endpoint: self })
     }
 }
 
@@ -118,7 +95,14 @@ where
 
     fn poll(self: PinMut<'_, Self>, _: &mut task::Context<'_>) -> Poll<Self::Output> {
         Poll::Ready(with_get_cx(|input| {
-            self.endpoint.parse_value(&*input).map(|parsed| (parsed,))
+            let h = input
+                .request()
+                .headers()
+                .get(&self.endpoint.name)
+                .expect("The header value should be always available inside of this Future.");
+            T::from_header_value(h)
+                .map_err(error::bad_request)
+                .map(|parsed| (parsed,))
         }))
     }
 }
@@ -216,11 +200,10 @@ where
 /// ```
 /// # use finchers::endpoint::EndpointExt;
 /// # use finchers::endpoints::header;
-/// use finchers::endpoint::reject;
 /// use finchers::error;
 ///
 /// let endpoint = header::matches("origin", "www.example.com")
-///     .or(reject(|_| error::bad_request("The value of Origin is invalid")));
+///     .or_reject_with(|_, _| error::bad_request("invalid header value"));
 /// # drop(endpoint);
 /// ```
 pub fn matches<K, V>(name: K, value: V) -> Matches<V>

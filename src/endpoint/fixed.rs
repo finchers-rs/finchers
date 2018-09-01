@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use std::pin::PinMut;
 
 use futures_core::future::{Future, TryFuture};
@@ -8,7 +10,11 @@ use pin_utils::unsafe_unpinned;
 use crate::endpoint::{Context, Endpoint, EndpointError, EndpointResult};
 use crate::error::Error;
 
-#[allow(missing_docs)]
+#[doc(hidden)]
+#[deprecated(
+    since = "0.12.0-alpha.3",
+    note = "This struct is going to remove before releasing 0.12.0."
+)]
 #[derive(Debug, Copy, Clone)]
 pub struct Fixed<E> {
     pub(super) endpoint: E,
