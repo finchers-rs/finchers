@@ -11,6 +11,7 @@ mod lazy;
 mod map;
 mod or;
 mod or_reject;
+mod or_strict;
 mod recover;
 mod reject;
 mod then;
@@ -31,6 +32,7 @@ pub use self::fixed::Fixed;
 pub use self::map::Map;
 pub use self::or::Or;
 pub use self::or_reject::{OrReject, OrRejectWith};
+pub use self::or_strict::OrStrict;
 pub use self::recover::Recover;
 pub use self::then::Then;
 
@@ -151,6 +153,26 @@ pub trait EndpointExt<'a>: Endpoint<'a> + Sized {
             e1: self,
             e2: other.into_endpoint(),
         }).output::<(self::or::Wrapped<Self::Output, E::Output>,)>()
+    }
+
+    /// Create an endpoint which evaluates `self` and `e` sequentially.
+    ///
+    /// The differences of behaviour to `Or` are as follows:
+    ///
+    /// * The associated type `E::Output` must be equal to `Self::Output`.
+    ///   It means that the generated endpoint has the same output type
+    ///   as the original endpoints and the return value will be used later.
+    /// * If `self` is matched to the request, `other.apply(cx)`
+    ///   is not called and the future returned from `self.apply(cx)` is
+    ///   immediately returned.
+    fn or_strict<E>(self, other: E) -> OrStrict<Self, E::Endpoint>
+    where
+        E: IntoEndpoint<'a, Output = Self::Output>,
+    {
+        (OrStrict {
+            e1: self,
+            e2: other.into_endpoint(),
+        }).output::<Self::Output>()
     }
 
     /// Create an endpoint which maps the returned value to a different type.
