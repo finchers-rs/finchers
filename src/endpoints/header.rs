@@ -216,11 +216,10 @@ where
 /// ```
 /// # use finchers::endpoint::EndpointExt;
 /// # use finchers::endpoints::header;
-/// use finchers::endpoint::reject;
 /// use finchers::error;
 ///
 /// let endpoint = header::matches("origin", "www.example.com")
-///     .or(reject(|_| error::bad_request("The value of Origin is invalid")));
+///     .or_reject_with(|_, _| error::bad_request("invalid header value"));
 /// # drop(endpoint);
 /// ```
 pub fn matches<K, V>(name: K, value: V) -> Matches<V>

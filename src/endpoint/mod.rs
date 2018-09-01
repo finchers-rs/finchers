@@ -10,6 +10,7 @@ mod fixed;
 mod lazy;
 mod map;
 mod or;
+mod or_reject;
 mod recover;
 mod reject;
 mod then;
@@ -24,13 +25,18 @@ pub use self::error::{EndpointError, EndpointResult};
 pub use self::and::And;
 pub use self::and_then::AndThen;
 pub use self::boxed::{Boxed, BoxedLocal};
+#[allow(deprecated)]
+#[doc(hidden)]
 pub use self::fixed::Fixed;
 pub use self::map::Map;
 pub use self::or::Or;
+pub use self::or_reject::{OrReject, OrRejectWith};
 pub use self::recover::Recover;
 pub use self::then::Then;
 
 pub use self::lazy::{lazy, Lazy};
+#[allow(deprecated)]
+#[doc(hidden)]
 pub use self::reject::{reject, Reject};
 pub use self::unit::{unit, Unit};
 pub use self::value::{value, Value};
@@ -173,6 +179,23 @@ pub trait EndpointExt<'a>: Endpoint<'a> + Sized {
         (AndThen { endpoint: self, f }).output::<(<F::Out as TryFuture>::Ok,)>()
     }
 
+    /// Creates an endpoint which returns the error value returned from
+    /// `Endpoint::apply()` as the return value from the associated `Future`.
+    fn or_reject(self) -> OrReject<Self> {
+        (OrReject { endpoint: self }).output::<Self::Output>()
+    }
+
+    /// Creates an endpoint which converts the error value returned from
+    /// `Endpoint::apply()` to the specified type and returns it as
+    /// the return value from the associated `Future`.
+    fn or_reject_with<F, R>(self, f: F) -> OrRejectWith<Self, F>
+    where
+        F: Fn(EndpointError, &mut Context<'_>) -> R + 'a,
+        R: Into<Error> + 'a,
+    {
+        (OrRejectWith { endpoint: self, f }).output::<Self::Output>()
+    }
+
     #[allow(missing_docs)]
     fn recover<F, R>(self, f: F) -> Recover<Self, F>
     where
@@ -182,7 +205,12 @@ pub trait EndpointExt<'a>: Endpoint<'a> + Sized {
         (Recover { endpoint: self, f }).output::<(self::recover::Recovered<Self::Output, R::Ok>,)>()
     }
 
-    #[allow(missing_docs)]
+    #[doc(hidden)]
+    #[deprecated(
+        since = "0.12.0-alpha.3",
+        note = "this method is going to remove before releasing 0.12.0."
+    )]
+    #[allow(deprecated)]
     fn fixed(self) -> Fixed<Self> {
         Fixed { endpoint: self }
     }

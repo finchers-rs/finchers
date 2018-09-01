@@ -1,4 +1,4 @@
-use finchers::endpoint::{reject, EndpointExt};
+use finchers::endpoint::EndpointExt;
 use finchers::endpoints::header;
 use finchers::error;
 use finchers::local;
@@ -71,9 +71,8 @@ fn test_header_optional() {
 
 #[test]
 fn test_header_matches_with_rejection() {
-    let endpoint = header::matches("origin", "www.example.com").or(reject(|_| {
-        error::bad_request("The value of Origin is invalid")
-    }));
+    let endpoint = header::matches("origin", "www.example.com")
+        .or_reject_with(|_, _| error::bad_request("The value of Origin is invalid"));
 
     assert_matches!(
         local::get("/")
