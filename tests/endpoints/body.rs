@@ -1,5 +1,7 @@
 use finchers::endpoints::body;
 use finchers::local;
+
+use matches::assert_matches;
 use serde::Deserialize;
 
 #[test]

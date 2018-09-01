@@ -3,6 +3,7 @@ use finchers::endpoints::query;
 use finchers::input::query::Serde;
 use finchers::local;
 
+use matches::assert_matches;
 use serde::Deserialize;
 
 #[test]
