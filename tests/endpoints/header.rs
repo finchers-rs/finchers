@@ -23,7 +23,7 @@ fn test_header_raw() {
 
 #[test]
 fn test_header_parse() {
-    let endpoint = header::parse::<Mime>("content-type");
+    let endpoint = header::parse::<Mime>("content-type").output::<(Mime,)>();
 
     assert_matches!(
         local::get("/")
@@ -40,7 +40,9 @@ fn test_header_parse() {
 
 #[test]
 fn test_header_parse_required() {
-    let endpoint = header::parse::<Mime>("content-type").required();
+    let endpoint = header::parse::<Mime>("content-type")
+        .or_reject_with(|_, _| error::bad_request("missing content-type"))
+        .output::<(Mime,)>();
 
     assert_matches!(
         local::get("/")
@@ -52,12 +54,13 @@ fn test_header_parse_required() {
     assert_matches!(
         local::get("/").apply(&endpoint),
         Err(ref e) if e.status_code().as_u16() == 400
+            && e.to_string() == "missing content-type"
     );
 }
 
 #[test]
 fn test_header_optional() {
-    let endpoint = header::optional::<Mime>("content-type");
+    let endpoint = header::optional::<Mime>("content-type").output::<(Option<Mime>,)>();
 
     assert_matches!(
         local::get("/")
@@ -72,7 +75,8 @@ fn test_header_optional() {
 #[test]
 fn test_header_matches_with_rejection() {
     let endpoint = header::matches("origin", "www.example.com")
-        .or_reject_with(|_, _| error::bad_request("The value of Origin is invalid"));
+        .or_reject_with(|_, _| error::bad_request("The value of Origin is invalid"))
+        .output::<()>();
 
     assert_matches!(
         local::get("/")
