@@ -34,7 +34,7 @@ fn test_header_parse() {
 
     assert_matches!(
         local::get("/").apply(&endpoint),
-        Err(ref e) if e.status_code().as_u16() == 404
+        Err(ref e) if e.status_code().as_u16() == 400
     );
 }
 

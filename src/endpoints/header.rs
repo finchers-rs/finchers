@@ -49,6 +49,7 @@ where
 {
     (Parse {
         name: HeaderName::from_static(name),
+        name_str: name,
         _marker: PhantomData,
     }).output::<(T,)>()
 }
@@ -56,6 +57,7 @@ where
 #[allow(missing_docs)]
 pub struct Parse<T> {
     name: HeaderName,
+    name_str: &'static str,
     _marker: PhantomData<fn() -> T>,
 }
 
@@ -76,7 +78,7 @@ where
         if cx.input().headers().contains_key(&self.name) {
             Ok(ParseFuture { endpoint: self })
         } else {
-            Err(EndpointError::not_matched())
+            Err(EndpointError::missing_header(self.name_str))
         }
     }
 }

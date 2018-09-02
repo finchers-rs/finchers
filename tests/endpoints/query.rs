@@ -1,3 +1,4 @@
+use finchers::endpoint::EndpointError;
 use finchers::endpoint::EndpointExt;
 use finchers::endpoints::query;
 use finchers::input::query::Serde;
@@ -20,7 +21,7 @@ fn test_query_raw() {
 }
 
 #[test]
-fn test_query_required() {
+fn test_query_parse() {
     #[derive(Debug, Deserialize)]
     struct Query {
         param: String,
@@ -33,6 +34,12 @@ fn test_query_required() {
         local::get("/?count=20&param=rustlang")
             .apply(&endpoint),
         Ok((ref query,)) if query.param == "rustlang" && query.count == Some(20)
+    );
+
+    assert_matches!(
+        local::get("/")
+            .apply(&endpoint),
+        Err(ref err) if err.is::<EndpointError>() && err.status_code().as_u16() == 400
     );
 }
 
