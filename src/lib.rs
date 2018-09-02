@@ -78,6 +78,9 @@ extern crate time;
 extern crate tokio;
 extern crate url;
 
+#[cfg(test)]
+extern crate matches;
+
 #[macro_use]
 mod macros;
 mod app;

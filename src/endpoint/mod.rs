@@ -1,7 +1,7 @@
 //! Components for constructing `Endpoint`.
 
 mod context;
-pub(crate) mod error;
+pub mod error;
 
 mod and;
 mod and_then;

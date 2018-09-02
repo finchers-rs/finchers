@@ -1,15 +1,91 @@
+//! Definition of `EndpointError` and supplemental components.
+
 use bitflags::bitflags;
 use http::{Method, StatusCode};
 use std::fmt;
+use std::ops::{BitOr, BitOrAssign};
 
 use crate::error::HttpError;
 
-#[allow(missing_docs)]
+/// A type alias of `Result<T, E>` with the error type fixed at `EndpointError`.
 pub type EndpointResult<T> = Result<T, EndpointError>;
 
+/// A type representing error values returned from `Endpoint::apply()`.
+///
+/// This error type represents the errors around routing determined
+/// before executing the `Future` returned from the endpoint.
+#[derive(Debug)]
+pub struct EndpointError(EndpointErrorKind);
+
+#[derive(Debug, Copy, Clone)]
+enum EndpointErrorKind {
+    NotMatched,
+    MethodNotAllowed(AllowedMethods),
+    #[doc(hidden)]
+    __NonExhausive(()),
+}
+
+impl EndpointError {
+    /// Create a value of `EndpointError` with an annotation that
+    /// the current endpoint does not match to the provided request.
+    pub fn not_matched() -> EndpointError {
+        EndpointError(EndpointErrorKind::NotMatched)
+    }
+
+    /// Create a value of `EndpointError` whth an annotation that
+    /// the current endpoint does not matche to the provided HTTP method.
+    pub fn method_not_allowed(allowed: AllowedMethods) -> EndpointError {
+        EndpointError(EndpointErrorKind::MethodNotAllowed(allowed))
+    }
+
+    #[doc(hidden)]
+    pub fn merge(self, other: EndpointError) -> EndpointError {
+        use self::EndpointErrorKind::*;
+        EndpointError(match (self.0, other.0) {
+            (NotMatched, NotMatched) => NotMatched,
+            (NotMatched, MethodNotAllowed(allowed)) => MethodNotAllowed(allowed),
+            (MethodNotAllowed(allowed), NotMatched) => MethodNotAllowed(allowed),
+            (MethodNotAllowed(allowed1), MethodNotAllowed(allowed2)) => {
+                MethodNotAllowed(AllowedMethods(allowed1.0 | allowed2.0))
+            }
+            _ => unreachable!(),
+        })
+    }
+}
+
+impl fmt::Display for EndpointError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use self::EndpointErrorKind::*;
+        match self.0 {
+            NotMatched => f.write_str("not matched"),
+            MethodNotAllowed(..) if !f.alternate() => f.write_str("method not allowed"),
+            MethodNotAllowed(allowed) => {
+                write!(f, "method not allowed (allowed methods: ")?;
+                for (i, method) in allowed.into_iter().enumerate() {
+                    if i > 0 {
+                        f.write_str(", ")?;
+                    }
+                    method.fmt(f)?;
+                }
+                f.write_str(")")
+            }
+            __NonExhausive(()) => unreachable!(),
+        }
+    }
+}
+
+impl HttpError for EndpointError {
+    fn status_code(&self) -> StatusCode {
+        match self.0 {
+            EndpointErrorKind::NotMatched => StatusCode::NOT_FOUND,
+            EndpointErrorKind::MethodNotAllowed(..) => StatusCode::METHOD_NOT_ALLOWED,
+            _ => unreachable!(),
+        }
+    }
+}
+
 bitflags! {
-    pub(crate) struct Mask: u32 {
-        const NOT_MATCHED = 0b_0000_0000_0000;
+    pub(crate) struct AllowedMethodsMask: u32 {
         const GET         = 0b_0000_0000_0001;
         const POST        = 0b_0000_0000_0010;
         const PUT         = 0b_0000_0000_0100;
@@ -22,27 +98,29 @@ bitflags! {
     }
 }
 
-/// A type representing error values returned from `Endpoint::apply()`.
-///
-/// This error type represents the errors around routing determined
-/// before executing the `Future` returned from the endpoint.
-#[derive(Debug, Copy, Clone)]
-pub struct EndpointError(Mask);
+/// A collection type which represents a set of allowed HTTP methods.
+#[derive(Debug, Clone, Copy)]
+pub struct AllowedMethods(pub(crate) AllowedMethodsMask);
 
-impl EndpointError {
-    /// Create a value of `EndpointError` with an annotation that
-    /// the current endpoint does not match to the provided request.
-    pub fn not_matched() -> EndpointError {
-        EndpointError(Mask::NOT_MATCHED)
-    }
+macro_rules! define_allowed_methods_constructors {
+    ($($METHOD:ident,)*) => {$(
+        #[allow(missing_docs)]
+        pub const $METHOD: AllowedMethods = AllowedMethods(AllowedMethodsMask::$METHOD);
+    )*};
+}
 
-    #[doc(hidden)]
-    pub fn method_not_allowed(allowed: &Method) -> Option<EndpointError> {
+impl AllowedMethods {
+    define_allowed_methods_constructors![
+        GET, POST, PUT, DELETE, HEAD, OPTIONS, CONNECT, PATCH, TRACE,
+    ];
+
+    #[allow(missing_docs)]
+    pub fn from_http(allowed: &Method) -> Option<AllowedMethods> {
         macro_rules! pat {
             ($($METHOD:ident),*) => {
                 match allowed {
                     $(
-                        ref m if *m == Method::$METHOD => Some(EndpointError(Mask::$METHOD)),
+                        ref m if *m == Method::$METHOD => Some(AllowedMethods(AllowedMethodsMask::$METHOD)),
                     )*
                     _ => None,
                 }
@@ -50,88 +128,55 @@ impl EndpointError {
         }
         pat!(GET, POST, PUT, DELETE, HEAD, OPTIONS, CONNECT, PATCH, TRACE)
     }
+}
 
-    #[inline(always)]
-    pub(crate) fn from_mask(mask: Mask) -> EndpointError {
-        EndpointError(mask)
-    }
+impl BitOr for AllowedMethods {
+    type Output = AllowedMethods;
 
-    #[doc(hidden)]
-    pub fn merge(self, other: EndpointError) -> EndpointError {
-        EndpointError(self.0 | other.0)
-    }
-
-    #[doc(hidden)]
-    #[deprecated(
-        since = "0.12.0-alpha.3",
-        note = "This method is going to remove before releasing 0.12.0."
-    )]
-    pub fn is_not_matched(self) -> bool {
-        self.0.is_empty()
+    #[inline]
+    fn bitor(self, other: AllowedMethods) -> Self::Output {
+        AllowedMethods(self.0 | other.0)
     }
 }
 
-impl fmt::Display for EndpointError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.0.is_empty() {
-            f.write_str("no route")
-        } else {
-            if !f.alternate() {
-                return f.write_str("method not allowed");
-            }
-
-            write!(f, "method not allowed (allowed methods: ")?;
-            for (i, method) in (*self).into_iter().enumerate() {
-                if i > 0 {
-                    f.write_str(", ")?;
-                }
-                method.fmt(f)?;
-            }
-            f.write_str(")")
-        }
+impl BitOrAssign for AllowedMethods {
+    #[inline]
+    fn bitor_assign(&mut self, other: AllowedMethods) {
+        self.0 |= other.0;
     }
 }
 
-impl HttpError for EndpointError {
-    fn status_code(&self) -> StatusCode {
-        if self.0.is_empty() {
-            StatusCode::NOT_FOUND
-        } else {
-            StatusCode::METHOD_NOT_ALLOWED
-        }
-    }
-}
-
-impl IntoIterator for EndpointError {
+impl IntoIterator for AllowedMethods {
     type Item = &'static Method;
-    type IntoIter = AllowedMethods;
+    type IntoIter = AllowedMethodsIter;
 
     fn into_iter(self) -> Self::IntoIter {
-        AllowedMethods {
-            mask: self.0,
-            cursor: Mask::GET,
+        AllowedMethodsIter {
+            allowed: self.0,
+            cursor: AllowedMethodsMask::GET,
         }
     }
 }
 
+#[allow(missing_docs)]
 #[derive(Debug)]
-pub struct AllowedMethods {
-    mask: Mask,
-    cursor: Mask,
+pub struct AllowedMethodsIter {
+    allowed: AllowedMethodsMask,
+    cursor: AllowedMethodsMask,
 }
 
-impl Iterator for AllowedMethods {
+impl Iterator for AllowedMethodsIter {
     type Item = &'static Method;
 
     fn next(&mut self) -> Option<Self::Item> {
         macro_rules! dump_method {
             ($m:expr => [$($METHOD:ident),*]) => {$(
-                if $m.contains(Mask::$METHOD) { return Some(&Method::$METHOD) }
+                if $m.contains(AllowedMethodsMask::$METHOD) { return Some(&Method::$METHOD) }
             )*}
         }
         loop {
-            let masked = self.mask & self.cursor;
-            self.cursor = Mask::from_bits_truncate(self.cursor.bits() << 1);
+            let masked = self.allowed & self.cursor;
+            self.cursor = AllowedMethodsMask::from_bits_truncate(self.cursor.bits() << 1);
             if self.cursor.is_empty() {
                 return None;
             }
@@ -153,19 +198,25 @@ impl Iterator for AllowedMethods {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use matches::assert_matches;
 
     #[test]
-    fn test_not_matched() {
-        let err = EndpointError::not_matched();
-        let methods: Vec<_> = err.into_iter().collect();
-        assert!(methods.is_empty());
+    fn test_methods_single_get() {
+        let methods: Vec<Method> = AllowedMethods(AllowedMethodsMask::GET)
+            .into_iter()
+            .cloned()
+            .collect();
+        assert_eq!(methods, vec![Method::GET]);
     }
 
     #[test]
-    fn test_method_not_allowed() {
-        let err = EndpointError::method_not_allowed(&Method::GET).unwrap();
-        let methods: Vec<Method> = err.into_iter().cloned().collect();
-        assert_eq!(methods, vec![Method::GET]);
+    fn test_methods_two_methods() {
+        let methods: Vec<Method> =
+            AllowedMethods(AllowedMethodsMask::GET | AllowedMethodsMask::POST)
+                .into_iter()
+                .cloned()
+                .collect();
+        assert_eq!(methods, vec![Method::GET, Method::POST]);
     }
 
     #[test]
@@ -173,25 +224,26 @@ mod tests {
         let err1 = EndpointError::not_matched();
         let err2 = EndpointError::not_matched();
         let err = err1.merge(err2);
-        assert!(err.0.is_empty());
+        assert_matches!(err.0, EndpointErrorKind::NotMatched);
     }
 
     #[test]
     fn test_merge_2() {
         let err1 = EndpointError::not_matched();
-        let err2 = EndpointError::method_not_allowed(&Method::GET).unwrap();
-        let err = err1.merge(err2);
-        assert!(!err.0.is_empty());
+        let err2 = EndpointError::method_not_allowed(AllowedMethods(AllowedMethodsMask::GET));
+        assert_matches!(
+            err1.merge(err2).0,
+            EndpointErrorKind::MethodNotAllowed(allowed) if allowed.0 == AllowedMethodsMask::GET
+        );
     }
 
     #[test]
     fn test_merge_3() {
-        let err1 = EndpointError::method_not_allowed(&Method::GET).unwrap();
-        let err2 = EndpointError::method_not_allowed(&Method::POST).unwrap();
-        let err = err1.merge(err2);
-        assert!(!err.0.is_empty());
-
-        let methods: Vec<Method> = err.into_iter().cloned().collect();
-        assert_eq!(methods, vec![Method::GET, Method::POST]);
+        let err1 = EndpointError::method_not_allowed(AllowedMethods(AllowedMethodsMask::GET));
+        let err2 = EndpointError::method_not_allowed(AllowedMethods(AllowedMethodsMask::POST));
+        assert_matches!(
+            err1.merge(err2).0,
+            EndpointErrorKind::MethodNotAllowed(allowed) if allowed.0 == AllowedMethodsMask::GET | AllowedMethodsMask::POST
+        );
     }
 }
