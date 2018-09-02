@@ -31,7 +31,7 @@ matrix:
         - cargo install-update -a
         - export CARGO_INCREMENTAL=0
       script:
-        - cargo clean
+        - cargo update
         - cargo test --features strict
         # lints
         - cargo fmt -- --check
@@ -47,8 +47,10 @@ matrix:
 
     - rust: nightly
       env: LATEST_NIGHTLY
+      before_script:
+        - export CARGO_INCREMENTAL=0
       script:
-        - cargo clean
+        - cargo update
         - cargo test --all
 
     - rust: nightly-2018-08-30
@@ -58,6 +60,7 @@ matrix:
         - chmod +x ./mdbook
       script:
         - cargo clean
+        - cargo update
         - cargo doc
         - ./mdbook build ./guide/
         - rm -f target/doc/.lock
