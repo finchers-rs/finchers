@@ -21,8 +21,22 @@ pub struct EndpointError(EndpointErrorKind);
 enum EndpointErrorKind {
     NotMatched,
     MethodNotAllowed(AllowedMethods),
-    #[doc(hidden)]
-    __NonExhausive(()),
+    InvalidRequest(InvalidRequest),
+}
+
+#[derive(Debug, Copy, Clone)]
+enum InvalidRequest {
+    MissingHeader(&'static str),
+    MissingQuery,
+}
+
+impl fmt::Display for InvalidRequest {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            InvalidRequest::MissingHeader(name) => write!(f, "missing header: `{}'", name),
+            InvalidRequest::MissingQuery => f.write_str("missing query"),
+        }
+    }
 }
 
 impl EndpointError {
@@ -38,17 +52,31 @@ impl EndpointError {
         EndpointError(EndpointErrorKind::MethodNotAllowed(allowed))
     }
 
+    pub(crate) fn missing_header(name: &'static str) -> EndpointError {
+        EndpointError(EndpointErrorKind::InvalidRequest(
+            InvalidRequest::MissingHeader(name),
+        ))
+    }
+
+    pub(crate) fn missing_query() -> EndpointError {
+        EndpointError(EndpointErrorKind::InvalidRequest(
+            InvalidRequest::MissingQuery,
+        ))
+    }
+
     #[doc(hidden)]
     pub fn merge(self, other: EndpointError) -> EndpointError {
         use self::EndpointErrorKind::*;
         EndpointError(match (self.0, other.0) {
             (NotMatched, NotMatched) => NotMatched,
             (NotMatched, MethodNotAllowed(allowed)) => MethodNotAllowed(allowed),
+            (NotMatched, InvalidRequest(reason)) => InvalidRequest(reason),
             (MethodNotAllowed(allowed), NotMatched) => MethodNotAllowed(allowed),
             (MethodNotAllowed(allowed1), MethodNotAllowed(allowed2)) => {
                 MethodNotAllowed(AllowedMethods(allowed1.0 | allowed2.0))
             }
-            _ => unreachable!(),
+            (MethodNotAllowed(..), InvalidRequest(reason)) => InvalidRequest(reason),
+            (InvalidRequest(reason), ..) => InvalidRequest(reason),
         })
     }
 }
@@ -69,7 +97,7 @@ impl fmt::Display for EndpointError {
                 }
                 f.write_str(")")
             }
-            __NonExhausive(()) => unreachable!(),
+            InvalidRequest(ref reason) => fmt::Display::fmt(reason, f),
         }
     }
 }
@@ -79,7 +107,7 @@ impl HttpError for EndpointError {
         match self.0 {
             EndpointErrorKind::NotMatched => StatusCode::NOT_FOUND,
             EndpointErrorKind::MethodNotAllowed(..) => StatusCode::METHOD_NOT_ALLOWED,
-            _ => unreachable!(),
+            EndpointErrorKind::InvalidRequest(..) => StatusCode::BAD_REQUEST,
         }
     }
 }

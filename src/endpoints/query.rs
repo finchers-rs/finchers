@@ -6,7 +6,7 @@ use std::pin::PinMut;
 use std::task::Poll;
 use std::{fmt, task};
 
-use crate::endpoint::{Context, Endpoint, EndpointResult};
+use crate::endpoint::{Context, Endpoint, EndpointError, EndpointResult};
 use crate::error::{bad_request, Error};
 use crate::input::query::{FromQuery, QueryItems};
 use crate::input::with_get_cx;
@@ -15,7 +15,7 @@ use crate::input::with_get_cx;
 
 /// Create an endpoint which parses the query string to the specified type.
 ///
-/// If the query string is missing, this endpoint will return an error.
+/// If the query string is missing, this endpoint will skip the current request.
 ///
 /// # Example
 ///
@@ -66,7 +66,7 @@ impl<T> Clone for Required<T> {
 
 impl<T> fmt::Debug for Required<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Parse").finish()
+        f.debug_struct("Required").finish()
     }
 }
 
@@ -77,10 +77,14 @@ where
     type Output = (T,);
     type Future = RequiredFuture<T>;
 
-    fn apply(&self, _: &mut Context<'_>) -> EndpointResult<Self::Future> {
-        Ok(RequiredFuture {
-            _marker: PhantomData,
-        })
+    fn apply(&self, cx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+        if cx.input().uri().query().is_some() {
+            Ok(RequiredFuture {
+                _marker: PhantomData,
+            })
+        } else {
+            Err(EndpointError::missing_query())
+        }
     }
 }
 
@@ -97,12 +101,14 @@ where
     type Output = Result<(T,), Error>;
 
     fn poll(self: PinMut<'_, Self>, _: &mut task::Context<'_>) -> Poll<Self::Output> {
-        Poll::Ready(with_get_cx(|input| match input.request().uri().query() {
-            Some(query) => {
-                let items = unsafe { QueryItems::new_unchecked(query) };
-                T::from_query(items).map(|x| (x,)).map_err(bad_request)
-            }
-            None => Err(bad_request("missing query string")),
+        Poll::Ready(with_get_cx(|input| {
+            let query = input
+                .request()
+                .uri()
+                .query()
+                .expect("The query string should be available inside of this future.");
+            let items = unsafe { QueryItems::new_unchecked(query) };
+            T::from_query(items).map(|x| (x,)).map_err(bad_request)
         }))
     }
 }
