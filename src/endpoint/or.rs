@@ -60,7 +60,7 @@ where
             }
             Err(err1) => match self.e2.apply(ecx) {
                 Ok(future) => Ok(OrFuture::right(future)),
-                Err(err2) => Err(err1.merge(err2)),
+                Err(err2) => Err(err1.merge(&err2)),
             },
         }
     }

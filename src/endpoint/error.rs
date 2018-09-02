@@ -65,7 +65,7 @@ impl EndpointError {
     }
 
     #[doc(hidden)]
-    pub fn merge(self, other: EndpointError) -> EndpointError {
+    pub fn merge(&self, other: &EndpointError) -> EndpointError {
         use self::EndpointErrorKind::*;
         EndpointError(match (self.0, other.0) {
             (NotMatched, NotMatched) => NotMatched,
@@ -251,7 +251,7 @@ mod tests {
     fn test_merge_1() {
         let err1 = EndpointError::not_matched();
         let err2 = EndpointError::not_matched();
-        let err = err1.merge(err2);
+        let err = err1.merge(&err2);
         assert_matches!(err.0, EndpointErrorKind::NotMatched);
     }
 
@@ -260,7 +260,7 @@ mod tests {
         let err1 = EndpointError::not_matched();
         let err2 = EndpointError::method_not_allowed(AllowedMethods(AllowedMethodsMask::GET));
         assert_matches!(
-            err1.merge(err2).0,
+            err1.merge(&err2).0,
             EndpointErrorKind::MethodNotAllowed(allowed) if allowed.0 == AllowedMethodsMask::GET
         );
     }
@@ -270,7 +270,7 @@ mod tests {
         let err1 = EndpointError::method_not_allowed(AllowedMethods(AllowedMethodsMask::GET));
         let err2 = EndpointError::method_not_allowed(AllowedMethods(AllowedMethodsMask::POST));
         assert_matches!(
-            err1.merge(err2).0,
+            err1.merge(&err2).0,
             EndpointErrorKind::MethodNotAllowed(allowed) if allowed.0 == AllowedMethodsMask::GET | AllowedMethodsMask::POST
         );
     }
