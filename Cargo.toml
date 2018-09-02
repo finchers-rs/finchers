@@ -41,8 +41,8 @@ bytes = "0.4.9"
 cookie = { version = "0.11.0", features = ["percent-encode"] }
 failure = "0.1.2"
 futures = "0.1.23"
-futures-core-preview = { git = "https://github.com/rust-lang-nursery/futures-rs.git", branch = "master" }
-futures-util-preview = { git = "https://github.com/rust-lang-nursery/futures-rs.git", branch = "master", features = ["tokio-compat"] }
+futures-core-preview = { version = "0.3.0-alpha.5" }
+futures-util-preview = { version = "0.3.0-alpha.5", features = ["tokio-compat"] }
 http = "0.1.10"
 hyper = "0.12.7"
 hyperx = "0.13.1"
