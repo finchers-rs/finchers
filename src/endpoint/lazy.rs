@@ -1,3 +1,7 @@
+#![allow(deprecated)]
+#![doc(hidden)]
+#![deprecated(since = "0.12.0-alpha.4", note = "use `lazy2()` instead.")]
+
 use std::pin::PinMut;
 
 use futures_core::future::TryFuture;
@@ -7,54 +11,6 @@ use crate::endpoint::{Context, Endpoint, EndpointResult};
 use crate::error::Error;
 use crate::input::Input;
 
-/// Create an endpoint which executes the provided closure for each request.
-///
-/// # Examples
-///
-/// ```
-/// # #![feature(futures_api)]
-/// #
-/// # extern crate finchers;
-/// # extern crate futures_core;
-/// # extern crate futures_util;
-/// # extern crate failure;
-/// # use finchers::endpoint::{lazy, EndpointExt};
-/// # use finchers::route;
-/// # use futures_core::future::Future;
-/// # use futures_util::future::ready;
-/// # use futures_util::try_future::TryFutureExt;
-/// use failure::Fallible;
-///
-/// # struct Conn { _p: (), }
-/// #
-/// #[derive(Default)]
-/// struct ConnPool {
-///     // ...
-/// #   _p: (),
-/// }
-///
-/// impl ConnPool {
-///     fn get_conn(&self) -> impl Future<Output = Fallible<Conn>> {
-///         // ...
-/// #       ready(Ok(Conn { _p: () }))
-///     }
-/// }
-///
-/// let pool = ConnPool::default();
-/// let acquire_conn = lazy(move |_| {
-///     pool.get_conn()
-///         .map_err(Into::into)
-/// });
-///
-/// let endpoint = route!(@get / "posts" / u32 /)
-///     .and(acquire_conn)
-///     .and_then(|id: u32, conn: Conn| {
-///         // ...
-/// #       drop(id);
-/// #       ready(Ok(conn))
-///     });
-/// # drop(endpoint);
-/// ```
 pub fn lazy<F, R>(f: F) -> Lazy<F>
 where
     F: Fn(PinMut<'_, Input>) -> R,
@@ -63,7 +19,6 @@ where
     Lazy { f }
 }
 
-#[allow(missing_docs)]
 #[derive(Debug, Copy, Clone)]
 pub struct Lazy<F> {
     f: F,

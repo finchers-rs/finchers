@@ -5,6 +5,7 @@ pub mod error;
 
 mod and;
 mod and_then;
+mod apply_fn;
 mod boxed;
 mod fixed;
 mod lazy;
@@ -36,6 +37,9 @@ pub use self::or_strict::OrStrict;
 pub use self::recover::Recover;
 pub use self::then::Then;
 
+pub use self::apply_fn::{apply_fn, ApplyFn};
+#[allow(deprecated)]
+#[doc(hidden)]
 pub use self::lazy::{lazy, Lazy};
 #[allow(deprecated)]
 #[doc(hidden)]
