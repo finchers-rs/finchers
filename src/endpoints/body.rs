@@ -17,7 +17,7 @@ use http::StatusCode;
 use pin_utils::unsafe_unpinned;
 use serde::de::DeserializeOwned;
 
-use crate::endpoint::{Context, Endpoint, EndpointExt, EndpointResult};
+use crate::endpoint::{Context, Endpoint, EndpointResult};
 use crate::error::{err_msg, Error};
 use crate::input::body::Payload;
 use crate::input::query::FromQuery;
@@ -29,7 +29,7 @@ use crate::input::with_get_cx;
 /// If the instance of `Payload` has already been stolen by another endpoint, it will
 /// return an error.
 pub fn raw() -> Raw {
-    (Raw { _priv: () }).output::<(Payload,)>()
+    (Raw { _priv: () }).with_output::<(Payload,)>()
 }
 
 #[allow(missing_docs)]

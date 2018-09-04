@@ -70,6 +70,15 @@ pub trait Endpoint<'a>: 'a {
     /// Perform checking the incoming HTTP request and returns
     /// an instance of the associated Future if matched.
     fn apply(&'a self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future>;
+
+    /// Add an annotation that the associated type `Output` is fixed to `T`.
+    #[inline(always)]
+    fn with_output<T: Tuple>(self) -> Self
+    where
+        Self: Endpoint<'a, Output = T> + Sized,
+    {
+        self
+    }
 }
 
 impl<'a, E: Endpoint<'a>> Endpoint<'a> for Box<E> {
@@ -123,7 +132,11 @@ impl<'a, E: Endpoint<'a>> IntoEndpoint<'a> for E {
 
 /// A set of extension methods used for composing complicate endpoints.
 pub trait EndpointExt<'a>: IntoEndpoint<'a> + Sized {
-    #[allow(missing_docs)]
+    #[doc(hidden)]
+    #[deprecated(
+        since = "0.12.0-alpha.4",
+        note = "use `Endpoint::with_output` instead."
+    )]
     #[inline]
     fn output<T: Tuple>(self) -> Self
     where
@@ -140,7 +153,7 @@ pub trait EndpointExt<'a>: IntoEndpoint<'a> + Sized {
         (BeforeApply {
             endpoint: self.into_endpoint(),
             f,
-        }).output::<Self::Output>()
+        }).with_output::<Self::Output>()
     }
 
     /// Create an endpoint which evaluates `self` and `e` and returns a pair of their tasks.
@@ -155,7 +168,7 @@ pub trait EndpointExt<'a>: IntoEndpoint<'a> + Sized {
         (And {
             e1: self.into_endpoint(),
             e2: other.into_endpoint(),
-        }).output::<<Self::Output as Combine<E::Output>>::Out>()
+        }).with_output::<<Self::Output as Combine<E::Output>>::Out>()
     }
 
     /// Create an endpoint which evaluates `self` and `e` sequentially.
@@ -169,7 +182,7 @@ pub trait EndpointExt<'a>: IntoEndpoint<'a> + Sized {
         (Or {
             e1: self.into_endpoint(),
             e2: other.into_endpoint(),
-        }).output::<(self::or::Wrapped<Self::Output, E::Output>,)>()
+        }).with_output::<(self::or::Wrapped<Self::Output, E::Output>,)>()
     }
 
     /// Create an endpoint which evaluates `self` and `e` sequentially.
@@ -189,7 +202,7 @@ pub trait EndpointExt<'a>: IntoEndpoint<'a> + Sized {
         (OrStrict {
             e1: self.into_endpoint(),
             e2: other.into_endpoint(),
-        }).output::<Self::Output>()
+        }).with_output::<Self::Output>()
     }
 
     /// Create an endpoint which maps the returned value to a different type.
@@ -200,7 +213,7 @@ pub trait EndpointExt<'a>: IntoEndpoint<'a> + Sized {
         (Map {
             endpoint: self.into_endpoint(),
             f,
-        }).output::<(F::Out,)>()
+        }).with_output::<(F::Out,)>()
     }
 
     #[allow(missing_docs)]
@@ -212,19 +225,19 @@ pub trait EndpointExt<'a>: IntoEndpoint<'a> + Sized {
         (Then {
             endpoint: self.into_endpoint(),
             f,
-        }).output::<(<F::Out as Future>::Output,)>()
+        }).with_output::<(<F::Out as Future>::Output,)>()
     }
 
     #[allow(missing_docs)]
     fn and_then<F>(self, f: F) -> AndThen<Self::Endpoint, F>
     where
         F: Func<Self::Output> + 'a,
-        F::Out: TryFuture<Error = Error>,
+        F::Out: TryFuture<Error = Error> + 'a,
     {
         (AndThen {
             endpoint: self.into_endpoint(),
             f,
-        }).output::<(<F::Out as TryFuture>::Ok,)>()
+        }).with_output::<(<F::Out as TryFuture>::Ok,)>()
     }
 
     /// Creates an endpoint which returns the error value returned from
@@ -232,7 +245,7 @@ pub trait EndpointExt<'a>: IntoEndpoint<'a> + Sized {
     fn or_reject(self) -> OrReject<Self::Endpoint> {
         (OrReject {
             endpoint: self.into_endpoint(),
-        }).output::<Self::Output>()
+        }).with_output::<Self::Output>()
     }
 
     /// Creates an endpoint which converts the error value returned from
@@ -246,7 +259,7 @@ pub trait EndpointExt<'a>: IntoEndpoint<'a> + Sized {
         (OrRejectWith {
             endpoint: self.into_endpoint(),
             f,
-        }).output::<Self::Output>()
+        }).with_output::<Self::Output>()
     }
 
     #[allow(missing_docs)]
@@ -258,7 +271,7 @@ pub trait EndpointExt<'a>: IntoEndpoint<'a> + Sized {
         (Recover {
             endpoint: self.into_endpoint(),
             f,
-        }).output::<(self::recover::Recovered<Self::Output, R::Ok>,)>()
+        }).with_output::<(self::recover::Recovered<Self::Output, R::Ok>,)>()
     }
 
     #[doc(hidden)]
@@ -278,7 +291,7 @@ pub trait EndpointExt<'a>: IntoEndpoint<'a> + Sized {
     where
         for<'e> Self::Endpoint: self::boxed::BoxedEndpoint<'e, Output = T> + Send + Sync + 'static,
     {
-        Boxed::new(self.into_endpoint()).output::<T>()
+        Boxed::new(self.into_endpoint()).with_output::<T>()
     }
 
     #[allow(missing_docs)]
@@ -286,7 +299,7 @@ pub trait EndpointExt<'a>: IntoEndpoint<'a> + Sized {
     where
         for<'e> Self::Endpoint: self::boxed::LocalBoxedEndpoint<'e, Output = T> + 'static,
     {
-        BoxedLocal::new(self.into_endpoint()).output::<T>()
+        BoxedLocal::new(self.into_endpoint()).with_output::<T>()
     }
 }
 

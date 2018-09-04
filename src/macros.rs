@@ -107,20 +107,20 @@ macro_rules! route_impl {
 
 #[cfg(test)]
 mod tests {
-    use crate::endpoint::EndpointExt;
+    use crate::endpoint::{Endpoint, EndpointExt};
     use crate::endpoints::path::path;
 
     #[test]
     fn compile_test_route() {
-        let _ = route!().output::<()>();
-        let _ = route!(/).output::<()>();
-        let _ = route!(/"foo"/i32).output::<(i32,)>();
+        let _ = route!().with_output::<()>();
+        let _ = route!(/).with_output::<()>();
+        let _ = route!(/"foo"/i32).with_output::<(i32,)>();
 
-        let _ = route!(@get /).output::<()>();
-        let _ = route!(@get / "foo" / String / "bar").output::<(String,)>();
-        let _ = route!(@get / "foo" / String / i32 / "bar" /).output::<(String, i32)>();
-        let _ = route!(@get / i32).output::<(i32,)>();
-        let _ = route!(@get / i32 / ).output::<(i32,)>();
+        let _ = route!(@get /).with_output::<()>();
+        let _ = route!(@get / "foo" / String / "bar").with_output::<(String,)>();
+        let _ = route!(@get / "foo" / String / i32 / "bar" /).with_output::<(String, i32)>();
+        let _ = route!(@get / i32).with_output::<(i32,)>();
+        let _ = route!(@get / i32 / ).with_output::<(i32,)>();
     }
 
     #[test]

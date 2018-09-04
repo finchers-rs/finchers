@@ -12,7 +12,7 @@ use futures_util::future;
 use http::header::{HeaderName, HeaderValue};
 use http::HttpTryFrom;
 
-use crate::endpoint::{Context, Endpoint, EndpointError, EndpointExt, EndpointResult};
+use crate::endpoint::{Context, Endpoint, EndpointError, EndpointResult};
 use crate::error;
 use crate::error::Error;
 use crate::input::header::FromHeaderValue;
@@ -51,7 +51,7 @@ where
         name: HeaderName::from_static(name),
         name_str: name,
         _marker: PhantomData,
-    }).output::<(T,)>()
+    }).with_output::<(T,)>()
 }
 
 #[allow(missing_docs)]
@@ -130,7 +130,7 @@ where
     (Optional {
         name: HeaderName::from_static(name),
         _marker: PhantomData,
-    }).output::<(Option<T>,)>()
+    }).with_output::<(Option<T>,)>()
 }
 
 #[allow(missing_docs)]
@@ -217,7 +217,7 @@ where
     (Matches {
         name: HeaderName::try_from(name).expect("invalid header name"),
         value,
-    }).output::<()>()
+    }).with_output::<()>()
 }
 
 #[allow(missing_docs)]

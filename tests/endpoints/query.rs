@@ -1,5 +1,5 @@
+use finchers::endpoint::Endpoint;
 use finchers::endpoint::EndpointError;
-use finchers::endpoint::EndpointExt;
 use finchers::endpoints::query;
 use finchers::input::query::Serde;
 use finchers::local;
@@ -9,7 +9,7 @@ use serde::Deserialize;
 
 #[test]
 fn test_query_raw() {
-    let endpoint = query::raw().output::<(Option<String>,)>();
+    let endpoint = query::raw().with_output::<(Option<String>,)>();
 
     assert_matches!(
         local::get("/?foo=bar")
