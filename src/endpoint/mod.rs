@@ -255,3 +255,71 @@ pub trait EndpointExt<'a>: Endpoint<'a> + Sized {
 }
 
 impl<'a, E: Endpoint<'a>> EndpointExt<'a> for E {}
+
+mod shared {
+    use futures_core::future::TryFuture;
+
+    use super::{Context, Endpoint, EndpointResult};
+    use crate::common::Tuple;
+    use crate::error::Error;
+
+    /// A helper trait representing an endpoint which can be shared between threads.
+    ///
+    /// The implementation of this trait is automatically provided if the type `E`
+    /// implemented `Endpoint<'a>` is satisfied with the following conditions:
+    ///
+    /// * `E: Send + Sync + 'static`
+    /// * `E::Future: Send`
+    ///
+    /// This trait is usually used in order to hide the detailed return type of a function
+    /// that builds an instance of `Endpoint`.
+    /// Note that it is required to call the method `into_endpoint()` to use the return value
+    /// as an instance of `Endpoint` (it is due to restrictions on Rust's trait system.)
+    pub trait SharedEndpoint<T: Tuple>: for<'a> Sealed<'a, Output = T> {
+        /// Convert itself into an representation as an `Endpoint`.
+        fn into_endpoint(self) -> IntoEndpoint<Self>
+        where
+            Self: Sized,
+        {
+            IntoEndpoint(self)
+        }
+    }
+
+    impl<E, T: Tuple> SharedEndpoint<T> for E where for<'a> E: Sealed<'a, Output = T> {}
+
+    pub trait Sealed<'a>: Send + Sync + 'static {
+        type Output: Tuple;
+        type Future: TryFuture<Ok = Self::Output, Error = Error> + Send + 'a;
+
+        fn apply_shared(&'a self, cx: &mut Context<'_>) -> EndpointResult<Self::Future>;
+    }
+
+    impl<'a, E> Sealed<'a> for E
+    where
+        E: Endpoint<'a> + Send + Sync + 'static,
+        E::Future: Send,
+    {
+        type Output = E::Output;
+        type Future = E::Future;
+
+        #[inline(always)]
+        fn apply_shared(&'a self, cx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+            self.apply(cx)
+        }
+    }
+
+    #[derive(Debug, Copy, Clone)]
+    pub struct IntoEndpoint<E>(E);
+
+    impl<'a, E: Sealed<'a>> Endpoint<'a> for IntoEndpoint<E> {
+        type Output = E::Output;
+        type Future = E::Future;
+
+        #[inline(always)]
+        fn apply(&'a self, cx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+            self.apply_shared(cx)
+        }
+    }
+}
+
+pub use self::shared::SharedEndpoint;
