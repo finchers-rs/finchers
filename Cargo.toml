@@ -15,6 +15,7 @@ build = "build.rs"
 
 include = [
   "Cargo.toml",
+  "build.rs",
   "src/**/*",
   "tests/**/*",
 ]
