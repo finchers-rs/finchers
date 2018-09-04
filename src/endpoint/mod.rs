@@ -6,6 +6,7 @@ pub mod error;
 mod and;
 mod and_then;
 mod apply_fn;
+mod before_apply;
 mod boxed;
 mod fixed;
 mod lazy;
@@ -26,6 +27,7 @@ pub use self::error::{EndpointError, EndpointResult};
 
 pub use self::and::And;
 pub use self::and_then::AndThen;
+pub use self::before_apply::BeforeApply;
 pub use self::boxed::{Boxed, BoxedLocal};
 #[allow(deprecated)]
 #[doc(hidden)]
@@ -128,6 +130,14 @@ pub trait EndpointExt<'a>: Endpoint<'a> + Sized {
         Self: Endpoint<'a, Output = T>,
     {
         self
+    }
+
+    #[allow(missing_docs)]
+    fn before_apply<F>(self, f: F) -> BeforeApply<Self, F>
+    where
+        F: Fn(&mut Context<'_>) -> EndpointResult<()> + 'a,
+    {
+        (BeforeApply { endpoint: self, f }).output::<Self::Output>()
     }
 
     /// Create an endpoint which evaluates `self` and `e` and returns a pair of their tasks.
