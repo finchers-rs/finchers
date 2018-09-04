@@ -1,4 +1,8 @@
-use futures_util::future;
+use std::pin::PinMut;
+
+use futures_core::future::Future;
+use futures_core::task;
+use futures_core::task::Poll;
 
 use crate::endpoint::{Context, Endpoint, EndpointResult};
 use crate::error::Error;
@@ -47,9 +51,22 @@ pub struct Value<T> {
 
 impl<'a, T: Clone + 'a> Endpoint<'a> for Value<T> {
     type Output = (T,);
-    type Future = future::Ready<Result<Self::Output, Error>>;
+    type Future = ValueFuture<'a, T>;
 
-    fn apply(&self, _: &mut Context<'_>) -> EndpointResult<Self::Future> {
-        Ok(future::ready(Ok((self.x.clone(),))))
+    fn apply(&'a self, _: &mut Context<'_>) -> EndpointResult<Self::Future> {
+        Ok(ValueFuture { x: &self.x })
+    }
+}
+
+#[derive(Debug)]
+pub struct ValueFuture<'a, T: 'a> {
+    x: &'a T,
+}
+
+impl<'a, T: Clone + 'a> Future for ValueFuture<'a, T> {
+    type Output = Result<(T,), Error>;
+
+    fn poll(self: PinMut<'_, Self>, _: &mut task::Context<'_>) -> Poll<Self::Output> {
+        Poll::Ready(Ok((self.x.clone(),)))
     }
 }
