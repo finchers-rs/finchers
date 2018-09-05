@@ -64,11 +64,12 @@ impl Mode {
 ///     ]);
 /// # drop(home);
 /// ```
+#[inline]
 pub fn required(name: impl Into<Cow<'static, str>>) -> Required {
-    Required {
+    (Required {
         name: name.into(),
         mode: Mode::Plain,
-    }
+    }).with_output::<(Cookie<'static>,)>()
 }
 
 #[allow(missing_docs)]
@@ -132,11 +133,12 @@ impl<'a> Endpoint<'a> for Required {
 ///     });
 /// # drop(home);
 /// ```
+#[inline]
 pub fn optional(name: impl Into<Cow<'static, str>>) -> Optional {
-    Optional {
+    (Optional {
         name: name.into(),
         mode: Mode::Plain,
-    }
+    }).with_output::<(Option<Cookie<'static>>,)>()
 }
 
 #[allow(missing_docs)]

@@ -1,4 +1,4 @@
-use finchers::endpoint::EndpointExt;
+use finchers::endpoint::Endpoint;
 use finchers::local;
 use finchers::route;
 

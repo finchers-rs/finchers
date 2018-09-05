@@ -11,7 +11,7 @@ where
     R: TryFuture<Error = Error>,
     R::Ok: Tuple,
 {
-    ApplyFn { f }
+    (ApplyFn { f }).with_output::<R::Ok>()
 }
 
 #[allow(missing_docs)]

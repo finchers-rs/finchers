@@ -12,7 +12,7 @@ use futures_util::future;
 use http::header::{HeaderName, HeaderValue};
 use http::HttpTryFrom;
 
-use crate::endpoint::{Context, Endpoint, EndpointError, EndpointExt, EndpointResult};
+use crate::endpoint::{Context, Endpoint, EndpointError, EndpointResult};
 use crate::error;
 use crate::error::Error;
 use crate::input::header::FromHeaderValue;
@@ -43,6 +43,7 @@ use crate::input::with_get_cx;
 ///     .or_reject_with(|_, _| bad_request("missing header: x-api-key"));
 /// # drop(endpoint);
 /// ```
+#[inline]
 pub fn parse<T>(name: &'static str) -> Parse<T>
 where
     T: FromHeaderValue,
@@ -51,7 +52,7 @@ where
         name: HeaderName::from_static(name),
         name_str: name,
         _marker: PhantomData,
-    }).output::<(T,)>()
+    }).with_output::<(T,)>()
 }
 
 #[allow(missing_docs)]
@@ -123,6 +124,7 @@ where
 /// let endpoint = header::optional::<String>("x-api-key");
 /// # drop(endpoint);
 /// ```
+#[inline]
 pub fn optional<T>(name: &'static str) -> Optional<T>
 where
     T: FromHeaderValue,
@@ -130,7 +132,7 @@ where
     (Optional {
         name: HeaderName::from_static(name),
         _marker: PhantomData,
-    }).output::<(Option<T>,)>()
+    }).with_output::<(Option<T>,)>()
 }
 
 #[allow(missing_docs)]
@@ -208,6 +210,7 @@ where
 ///     .or_reject_with(|_, _| error::bad_request("invalid header value"));
 /// # drop(endpoint);
 /// ```
+#[inline]
 pub fn matches<K, V>(name: K, value: V) -> Matches<V>
 where
     HeaderName: HttpTryFrom<K>,
@@ -217,7 +220,7 @@ where
     (Matches {
         name: HeaderName::try_from(name).expect("invalid header name"),
         value,
-    }).output::<()>()
+    }).with_output::<()>()
 }
 
 #[allow(missing_docs)]
@@ -245,14 +248,15 @@ where
 // ==== Raw ====
 
 /// Create an endpoint which retrieves the value of a header with the specified name.
+#[inline]
 pub fn raw<H>(name: H) -> Raw
 where
     HeaderName: HttpTryFrom<H>,
     <HeaderName as HttpTryFrom<H>>::Error: fmt::Debug,
 {
-    Raw {
+    (Raw {
         name: HeaderName::try_from(name).expect("invalid header name"),
-    }
+    }).with_output::<(Option<HeaderValue>,)>()
 }
 
 #[allow(missing_docs)]

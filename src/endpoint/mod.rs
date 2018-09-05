@@ -22,13 +22,13 @@ mod unit;
 mod value;
 
 // re-exports
+pub use self::boxed::{Boxed, BoxedLocal};
 pub use self::context::Context;
 pub use self::error::{EndpointError, EndpointResult};
 
 pub use self::and::And;
 pub use self::and_then::AndThen;
 pub use self::before_apply::BeforeApply;
-pub use self::boxed::{Boxed, BoxedLocal};
 #[allow(deprecated)]
 #[doc(hidden)]
 pub use self::fixed::Fixed;
@@ -70,6 +70,37 @@ pub trait Endpoint<'a>: 'a {
     /// Perform checking the incoming HTTP request and returns
     /// an instance of the associated Future if matched.
     fn apply(&'a self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future>;
+
+    /// Add an annotation that the associated type `Output` is fixed to `T`.
+    #[inline(always)]
+    fn with_output<T: Tuple>(self) -> Self
+    where
+        Self: Endpoint<'a, Output = T> + Sized,
+    {
+        self
+    }
+
+    /// Converts itself into an object which returns a `FutureObj`.
+    #[inline]
+    fn boxed<T: Tuple + 'static>(self) -> Boxed<T>
+    where
+        Self: self::boxed::IntoBoxed<T> + Sized,
+    {
+        (Boxed {
+            inner: Box::new(self),
+        }).with_output::<T>()
+    }
+
+    /// Converts itself into an object which returns a `LocalFutureObj`.
+    #[inline]
+    fn boxed_local<T: Tuple + 'static>(self) -> BoxedLocal<T>
+    where
+        Self: self::boxed::IntoBoxedLocal<T> + Sized,
+    {
+        (BoxedLocal {
+            inner: Box::new(self),
+        }).with_output::<T>()
+    }
 }
 
 impl<'a, E: Endpoint<'a>> Endpoint<'a> for Box<E> {
@@ -121,52 +152,179 @@ impl<'a, E: Endpoint<'a>> IntoEndpoint<'a> for E {
     }
 }
 
+impl<'a, E1, E2> IntoEndpoint<'a> for (E1, E2)
+where
+    E1: IntoEndpoint<'a>,
+    E2: IntoEndpoint<'a>,
+    E1::Output: Combine<E2::Output>,
+{
+    type Output = <E1::Output as Combine<E2::Output>>::Out;
+    type Endpoint = And<E1::Endpoint, E2::Endpoint>;
+
+    fn into_endpoint(self) -> Self::Endpoint {
+        (And {
+            e1: self.0.into_endpoint(),
+            e2: self.1.into_endpoint(),
+        }).with_output::<<E1::Output as Combine<E2::Output>>::Out>()
+    }
+}
+
+impl<'a, E1, E2, E3> IntoEndpoint<'a> for (E1, E2, E3)
+where
+    E1: IntoEndpoint<'a>,
+    E2: IntoEndpoint<'a>,
+    E3: IntoEndpoint<'a>,
+    E2::Output: Combine<E3::Output>,
+    E1::Output: Combine<<E2::Output as Combine<E3::Output>>::Out>,
+{
+    #[cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
+    type Output = <E1::Output as Combine<<E2::Output as Combine<E3::Output>>::Out>>::Out;
+    type Endpoint = And<E1::Endpoint, And<E2::Endpoint, E3::Endpoint>>;
+
+    fn into_endpoint(self) -> Self::Endpoint {
+        (And {
+            e1: self.0.into_endpoint(),
+            e2: And {
+                e1: self.1.into_endpoint(),
+                e2: self.2.into_endpoint(),
+            },
+        }).with_output::<<E1::Output as Combine<<E2::Output as Combine<E3::Output>>::Out>>::Out>()
+    }
+}
+
+impl<'a, E1, E2, E3, E4> IntoEndpoint<'a> for (E1, E2, E3, E4)
+where
+    E1: IntoEndpoint<'a>,
+    E2: IntoEndpoint<'a>,
+    E3: IntoEndpoint<'a>,
+    E4: IntoEndpoint<'a>,
+    E3::Output: Combine<E4::Output>,
+    E2::Output: Combine<<E3::Output as Combine<E4::Output>>::Out>,
+    E1::Output: Combine<<E2::Output as Combine<<E3::Output as Combine<E4::Output>>::Out>>::Out>,
+{
+    #[cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
+    type Output = <E1::Output as Combine<
+        <E2::Output as Combine<<E3::Output as Combine<E4::Output>>::Out>>::Out,
+    >>::Out;
+    #[cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
+    type Endpoint = And<E1::Endpoint, And<E2::Endpoint, And<E3::Endpoint, E4::Endpoint>>>;
+
+    fn into_endpoint(self) -> Self::Endpoint {
+        (And {
+            e1: self.0.into_endpoint(),
+            e2: And {
+                e1: self.1.into_endpoint(),
+                e2: And {
+                    e1: self.2.into_endpoint(),
+                    e2: self.3.into_endpoint(),
+                },
+            },
+        }).with_output::<<E1::Output as Combine<
+            <E2::Output as Combine<<E3::Output as Combine<E4::Output>>::Out>>::Out,
+        >>::Out>()
+    }
+}
+
+impl<'a, E1, E2, E3, E4, E5> IntoEndpoint<'a> for (E1, E2, E3, E4, E5)
+where
+    E1: IntoEndpoint<'a>,
+    E2: IntoEndpoint<'a>,
+    E3: IntoEndpoint<'a>,
+    E4: IntoEndpoint<'a>,
+    E5: IntoEndpoint<'a>,
+    E4::Output: Combine<E5::Output>,
+    E3::Output: Combine<<E4::Output as Combine<E5::Output>>::Out>,
+    E2::Output: Combine<<E3::Output as Combine<<E4::Output as Combine<E5::Output>>::Out>>::Out>,
+    E1::Output: Combine<
+        <E2::Output as Combine<
+            <E3::Output as Combine<<E4::Output as Combine<E5::Output>>::Out>>::Out,
+        >>::Out,
+    >,
+{
+    #[cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
+    type Output = <E1::Output as Combine<
+        <E2::Output as Combine<
+            <E3::Output as Combine<<E4::Output as Combine<E5::Output>>::Out>>::Out,
+        >>::Out,
+    >>::Out;
+    #[cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
+    type Endpoint =
+        And<E1::Endpoint, And<E2::Endpoint, And<E3::Endpoint, And<E4::Endpoint, E5::Endpoint>>>>;
+
+    fn into_endpoint(self) -> Self::Endpoint {
+        (And {
+            e1: self.0.into_endpoint(),
+            e2: And {
+                e1: self.1.into_endpoint(),
+                e2: And {
+                    e1: self.2.into_endpoint(),
+                    e2: And {
+                        e1: self.3.into_endpoint(),
+                        e2: self.4.into_endpoint(),
+                    },
+                },
+            },
+        }).with_output::<<E1::Output as Combine<
+            <E2::Output as Combine<
+                <E3::Output as Combine<<E4::Output as Combine<E5::Output>>::Out>>::Out,
+            >>::Out,
+        >>::Out>()
+    }
+}
+
 /// A set of extension methods used for composing complicate endpoints.
-pub trait EndpointExt<'a>: Endpoint<'a> + Sized {
-    #[allow(missing_docs)]
+pub trait EndpointExt<'a>: IntoEndpoint<'a> + Sized {
+    #[doc(hidden)]
+    #[deprecated(
+        since = "0.12.0-alpha.4",
+        note = "use `Endpoint::with_output` instead."
+    )]
     #[inline]
     fn output<T: Tuple>(self) -> Self
     where
-        Self: Endpoint<'a, Output = T>,
+        Self: IntoEndpoint<'a, Output = T>,
     {
         self
     }
 
     #[allow(missing_docs)]
-    fn before_apply<F>(self, f: F) -> BeforeApply<Self, F>
+    fn before_apply<F>(self, f: F) -> BeforeApply<Self::Endpoint, F>
     where
         F: Fn(&mut Context<'_>) -> EndpointResult<()> + 'a,
     {
-        (BeforeApply { endpoint: self, f }).output::<Self::Output>()
+        (BeforeApply {
+            endpoint: self.into_endpoint(),
+            f,
+        }).with_output::<Self::Output>()
     }
 
     /// Create an endpoint which evaluates `self` and `e` and returns a pair of their tasks.
     ///
     /// The returned future from this endpoint contains both futures from
     /// `self` and `e` and resolved as a pair of values returned from theirs.
-    fn and<E>(self, other: E) -> And<Self, E::Endpoint>
+    fn and<E>(self, other: E) -> And<Self::Endpoint, E::Endpoint>
     where
         E: IntoEndpoint<'a>,
         Self::Output: Combine<E::Output>,
     {
         (And {
-            e1: self,
+            e1: self.into_endpoint(),
             e2: other.into_endpoint(),
-        }).output::<<Self::Output as Combine<E::Output>>::Out>()
+        }).with_output::<<Self::Output as Combine<E::Output>>::Out>()
     }
 
     /// Create an endpoint which evaluates `self` and `e` sequentially.
     ///
     /// The returned future from this endpoint contains the one returned
     /// from either `self` or `e` matched "better" to the input.
-    fn or<E>(self, other: E) -> Or<Self, E::Endpoint>
+    fn or<E>(self, other: E) -> Or<Self::Endpoint, E::Endpoint>
     where
         E: IntoEndpoint<'a>,
     {
         (Or {
-            e1: self,
+            e1: self.into_endpoint(),
             e2: other.into_endpoint(),
-        }).output::<(self::or::Wrapped<Self::Output, E::Output>,)>()
+        }).with_output::<(self::or::Wrapped<Self::Output, E::Output>,)>()
     }
 
     /// Create an endpoint which evaluates `self` and `e` sequentially.
@@ -179,66 +337,83 @@ pub trait EndpointExt<'a>: Endpoint<'a> + Sized {
     /// * If `self` is matched to the request, `other.apply(cx)`
     ///   is not called and the future returned from `self.apply(cx)` is
     ///   immediately returned.
-    fn or_strict<E>(self, other: E) -> OrStrict<Self, E::Endpoint>
+    fn or_strict<E>(self, other: E) -> OrStrict<Self::Endpoint, E::Endpoint>
     where
         E: IntoEndpoint<'a, Output = Self::Output>,
     {
         (OrStrict {
-            e1: self,
+            e1: self.into_endpoint(),
             e2: other.into_endpoint(),
-        }).output::<Self::Output>()
+        }).with_output::<Self::Output>()
     }
 
     /// Create an endpoint which maps the returned value to a different type.
-    fn map<F>(self, f: F) -> Map<Self, F>
+    fn map<F>(self, f: F) -> Map<Self::Endpoint, F>
     where
         F: Func<Self::Output> + 'a,
     {
-        (Map { endpoint: self, f }).output::<(F::Out,)>()
+        (Map {
+            endpoint: self.into_endpoint(),
+            f,
+        }).with_output::<(F::Out,)>()
     }
 
     #[allow(missing_docs)]
-    fn then<F>(self, f: F) -> Then<Self, F>
+    fn then<F>(self, f: F) -> Then<Self::Endpoint, F>
     where
         F: Func<Self::Output> + 'a,
-        F::Out: Future,
+        F::Out: Future + 'a,
     {
-        (Then { endpoint: self, f }).output::<(<F::Out as Future>::Output,)>()
+        (Then {
+            endpoint: self.into_endpoint(),
+            f,
+        }).with_output::<(<F::Out as Future>::Output,)>()
     }
 
     #[allow(missing_docs)]
-    fn and_then<F>(self, f: F) -> AndThen<Self, F>
+    fn and_then<F>(self, f: F) -> AndThen<Self::Endpoint, F>
     where
         F: Func<Self::Output> + 'a,
-        F::Out: TryFuture<Error = Error>,
+        F::Out: TryFuture<Error = Error> + 'a,
     {
-        (AndThen { endpoint: self, f }).output::<(<F::Out as TryFuture>::Ok,)>()
+        (AndThen {
+            endpoint: self.into_endpoint(),
+            f,
+        }).with_output::<(<F::Out as TryFuture>::Ok,)>()
     }
 
     /// Creates an endpoint which returns the error value returned from
     /// `Endpoint::apply()` as the return value from the associated `Future`.
-    fn or_reject(self) -> OrReject<Self> {
-        (OrReject { endpoint: self }).output::<Self::Output>()
+    fn or_reject(self) -> OrReject<Self::Endpoint> {
+        (OrReject {
+            endpoint: self.into_endpoint(),
+        }).with_output::<Self::Output>()
     }
 
     /// Creates an endpoint which converts the error value returned from
     /// `Endpoint::apply()` to the specified type and returns it as
     /// the return value from the associated `Future`.
-    fn or_reject_with<F, R>(self, f: F) -> OrRejectWith<Self, F>
+    fn or_reject_with<F, R>(self, f: F) -> OrRejectWith<Self::Endpoint, F>
     where
         F: Fn(EndpointError, &mut Context<'_>) -> R + 'a,
         R: Into<Error> + 'a,
     {
-        (OrRejectWith { endpoint: self, f }).output::<Self::Output>()
+        (OrRejectWith {
+            endpoint: self.into_endpoint(),
+            f,
+        }).with_output::<Self::Output>()
     }
 
     #[allow(missing_docs)]
-    fn recover<F, R>(self, f: F) -> Recover<Self, F>
+    fn recover<F, R>(self, f: F) -> Recover<Self::Endpoint, F>
     where
         F: Fn(Error) -> R + 'a,
         R: TryFuture<Error = Error> + 'a,
     {
-        (Recover { endpoint: self, f }).output::<(self::recover::Recovered<Self::Output, R::Ok>,)>()
+        (Recover {
+            endpoint: self.into_endpoint(),
+            f,
+        }).with_output::<(self::recover::Recovered<Self::Output, R::Ok>,)>()
     }
 
     #[doc(hidden)]
@@ -247,28 +422,14 @@ pub trait EndpointExt<'a>: Endpoint<'a> + Sized {
         note = "this method is going to remove before releasing 0.12.0."
     )]
     #[allow(deprecated)]
-    fn fixed(self) -> Fixed<Self> {
-        Fixed { endpoint: self }
-    }
-
-    #[allow(missing_docs)]
-    fn boxed<T: Tuple>(self) -> Boxed<T>
-    where
-        for<'e> Self: self::boxed::BoxedEndpoint<'e, Output = T> + Send + Sync + 'static,
-    {
-        Boxed::new(self).output::<T>()
-    }
-
-    #[allow(missing_docs)]
-    fn boxed_local<T: Tuple>(self) -> BoxedLocal<T>
-    where
-        for<'e> Self: self::boxed::LocalBoxedEndpoint<'e, Output = T> + 'static,
-    {
-        BoxedLocal::new(self).output::<T>()
+    fn fixed(self) -> Fixed<Self::Endpoint> {
+        Fixed {
+            endpoint: self.into_endpoint(),
+        }
     }
 }
 
-impl<'a, E: Endpoint<'a>> EndpointExt<'a> for E {}
+impl<'a, E: IntoEndpoint<'a>> EndpointExt<'a> for E {}
 
 mod shared {
     use futures_core::future::TryFuture;

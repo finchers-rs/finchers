@@ -17,7 +17,7 @@ use http::StatusCode;
 use pin_utils::unsafe_unpinned;
 use serde::de::DeserializeOwned;
 
-use crate::endpoint::{Context, Endpoint, EndpointExt, EndpointResult};
+use crate::endpoint::{Context, Endpoint, EndpointResult};
 use crate::error::{err_msg, Error};
 use crate::input::body::Payload;
 use crate::input::query::FromQuery;
@@ -28,8 +28,9 @@ use crate::input::with_get_cx;
 ///
 /// If the instance of `Payload` has already been stolen by another endpoint, it will
 /// return an error.
+#[inline]
 pub fn raw() -> Raw {
-    (Raw { _priv: () }).output::<(Payload,)>()
+    (Raw { _priv: () }).with_output::<(Payload,)>()
 }
 
 #[allow(missing_docs)]
@@ -75,8 +76,9 @@ impl Future for RawFuture {
 ///
 /// If the instance of `Payload` has already been stolen by another endpoint, it will
 /// return an error.
+#[inline]
 pub fn receive_all() -> ReceiveAll {
-    ReceiveAll { _priv: () }
+    (ReceiveAll { _priv: () }).with_output::<(Bytes,)>()
 }
 
 #[allow(missing_docs)]
@@ -269,8 +271,9 @@ pub use self::deprecated_parse::{parse, Parse, ParseFuture};
 // ==== Text ====
 
 /// Create an endpoint which parses a request body into `String`.
+#[inline]
 pub fn text() -> Text {
-    Text { _priv: () }
+    (Text { _priv: () }).with_output::<(String,)>()
 }
 
 #[allow(missing_docs)]
@@ -291,13 +294,14 @@ impl<'a> Endpoint<'a> for Text {
 // ==== Json ====
 
 /// Create an endpoint which parses a request body into a JSON data.
+#[inline]
 pub fn json<T>() -> Json<T>
 where
-    T: DeserializeOwned,
+    T: DeserializeOwned + 'static,
 {
-    Json {
+    (Json {
         _marker: PhantomData,
-    }
+    }).with_output::<(T,)>()
 }
 
 #[allow(missing_docs)]
@@ -323,13 +327,14 @@ where
 // ==== UrlEncoded ====
 
 /// Create an endpoint which parses an urlencoded data.
+#[inline]
 pub fn urlencoded<T>() -> UrlEncoded<T>
 where
     T: FromQuery,
 {
-    UrlEncoded {
+    (UrlEncoded {
         _marker: PhantomData,
-    }
+    }).with_output::<(T,)>()
 }
 
 #[allow(missing_docs)]

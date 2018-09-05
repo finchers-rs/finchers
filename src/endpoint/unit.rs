@@ -8,12 +8,13 @@ use crate::endpoint::{Context, Endpoint, EndpointResult};
 use crate::error::Error;
 
 /// Create an endpoint which simply returns an unit (`()`).
+#[inline]
 pub fn unit() -> Unit {
-    Unit { _priv: () }
+    (Unit { _priv: () }).with_output::<()>()
 }
 
 #[allow(missing_docs)]
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct Unit {
     _priv: (),
 }

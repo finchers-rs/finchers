@@ -41,13 +41,14 @@ use crate::input::with_get_cx;
 ///     });
 /// # drop(endpoint);
 /// ```
+#[inline]
 pub fn required<T>() -> Required<T>
 where
     T: FromQuery,
 {
-    Required {
+    (Required {
         _marker: PhantomData,
-    }
+    }).with_output::<(T,)>()
 }
 
 #[allow(missing_docs)]
@@ -143,13 +144,14 @@ where
 ///     });
 /// # drop(endpoint);
 /// ```
+#[inline]
 pub fn optional<T>() -> Optional<T>
 where
     T: FromQuery,
 {
-    Optional {
+    (Optional {
         _marker: PhantomData,
-    }
+    }).with_output::<(Option<T>,)>()
 }
 
 #[allow(missing_docs)]
@@ -213,7 +215,7 @@ where
 
 /// Create an endpoint which extracts the query string from a request.
 pub fn raw() -> Raw {
-    Raw { _priv: () }
+    (Raw { _priv: () }).with_output::<(Option<String>,)>()
 }
 
 #[allow(missing_docs)]

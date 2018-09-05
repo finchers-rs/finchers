@@ -10,7 +10,11 @@ use crate::common::Tuple;
 use crate::endpoint::{Context, Endpoint, EndpointResult};
 use crate::error::Error;
 
-pub trait BoxedEndpoint<'a>: 'a {
+pub trait IntoBoxed<T>: for<'a> BoxedEndpoint<'a, Output = T> {}
+
+impl<T, E> IntoBoxed<T> for E where for<'a> E: BoxedEndpoint<'a, Output = T> {}
+
+pub trait BoxedEndpoint<'a>: Send + Sync + 'static {
     type Output: Tuple;
 
     fn apply_obj(
@@ -21,7 +25,7 @@ pub trait BoxedEndpoint<'a>: 'a {
 
 impl<'e, E> BoxedEndpoint<'e> for E
 where
-    E: Endpoint<'e>,
+    E: Endpoint<'e> + Send + Sync + 'static,
     E::Future: Send,
 {
     type Output = E::Output;
@@ -30,14 +34,13 @@ where
         &'e self,
         ecx: &mut Context<'_>,
     ) -> EndpointResult<FutureObj<'e, Result<Self::Output, Error>>> {
-        let future = self.apply(ecx)?.into_future();
-        Ok(FutureObj::new(PinBox::new(future)))
+        Ok(FutureObj::new(PinBox::new(self.apply(ecx)?.into_future())))
     }
 }
 
 #[allow(missing_docs)]
 pub struct Boxed<T> {
-    inner: Box<dyn for<'e> BoxedEndpoint<'e, Output = T> + Send + Sync + 'static>,
+    pub(super) inner: Box<dyn IntoBoxed<T, Output = T>>,
 }
 
 impl<T> fmt::Debug for Boxed<T> {
@@ -46,21 +49,11 @@ impl<T> fmt::Debug for Boxed<T> {
     }
 }
 
-impl<T: Tuple> Boxed<T> {
-    pub(super) fn new<E>(endpoint: E) -> Boxed<T>
-    where
-        for<'e> E: BoxedEndpoint<'e, Output = T> + Send + Sync + 'static,
-    {
-        Boxed {
-            inner: Box::new(endpoint),
-        }
-    }
-}
-
-impl<'e, T: Tuple + 'e> Endpoint<'e> for Boxed<T> {
+impl<'e, T: Tuple + 'static> Endpoint<'e> for Boxed<T> {
     type Output = T;
     type Future = FutureObj<'e, Result<T, Error>>;
 
+    #[inline(always)]
     fn apply(&'e self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
         self.inner.apply_obj(ecx)
     }
@@ -68,7 +61,11 @@ impl<'e, T: Tuple + 'e> Endpoint<'e> for Boxed<T> {
 
 // ==== BoxedLocal ====
 
-pub trait LocalBoxedEndpoint<'a>: 'a {
+pub trait IntoBoxedLocal<T>: for<'a> LocalBoxedEndpoint<'a, Output = T> {}
+
+impl<T, E> IntoBoxedLocal<T> for E where for<'a> E: LocalBoxedEndpoint<'a, Output = T> {}
+
+pub trait LocalBoxedEndpoint<'a>: 'static {
     type Output: Tuple;
 
     fn apply_obj(
@@ -79,7 +76,7 @@ pub trait LocalBoxedEndpoint<'a>: 'a {
 
 impl<'e, E> LocalBoxedEndpoint<'e> for E
 where
-    E: Endpoint<'e>,
+    E: Endpoint<'e> + 'static,
 {
     type Output = E::Output;
 
@@ -87,13 +84,14 @@ where
         &'e self,
         ecx: &mut Context<'_>,
     ) -> EndpointResult<LocalFutureObj<'e, Result<Self::Output, Error>>> {
-        let future = self.apply(ecx)?.into_future();
-        Ok(LocalFutureObj::new(PinBox::new(future)))
+        Ok(LocalFutureObj::new(PinBox::new(
+            self.apply(ecx)?.into_future(),
+        )))
     }
 }
 
 pub struct BoxedLocal<T> {
-    inner: Box<dyn for<'e> LocalBoxedEndpoint<'e, Output = T> + 'static>,
+    pub(super) inner: Box<dyn IntoBoxedLocal<T, Output = T>>,
 }
 
 impl<T> fmt::Debug for BoxedLocal<T> {
@@ -102,21 +100,11 @@ impl<T> fmt::Debug for BoxedLocal<T> {
     }
 }
 
-impl<T: Tuple> BoxedLocal<T> {
-    pub(super) fn new<E>(endpoint: E) -> BoxedLocal<T>
-    where
-        for<'e> E: LocalBoxedEndpoint<'e, Output = T> + 'static,
-    {
-        BoxedLocal {
-            inner: Box::new(endpoint),
-        }
-    }
-}
-
-impl<'e, T: Tuple + 'e> Endpoint<'e> for BoxedLocal<T> {
+impl<'e, T: Tuple + 'static> Endpoint<'e> for BoxedLocal<T> {
     type Output = T;
     type Future = LocalFutureObj<'e, Result<T, Error>>;
 
+    #[inline(always)]
     fn apply(&'e self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
         self.inner.apply_obj(ecx)
     }

@@ -20,7 +20,7 @@ use http::StatusCode;
 use serde::Deserialize;
 use std::env;
 
-use finchers::endpoint::{lazy, EndpointExt};
+use finchers::endpoint::{unit, EndpointExt};
 use finchers::endpoints::{body, query};
 use finchers::input::query::Serde;
 use finchers::{output, route, routes};
@@ -31,7 +31,7 @@ fn main() -> Fallible<()> {
     dotenv::dotenv()?;
 
     let pool = ConnectionPool::init(env::var("DATABASE_URL")?)?;
-    let acquire_conn = lazy(move |_| {
+    let acquire_conn = unit().and_then(move || {
         let fut = pool.acquire_conn();
         async move { await!(fut).map_err(Into::into) }
     });

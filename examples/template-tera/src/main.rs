@@ -1,4 +1,3 @@
-#![feature(rust_2018_preview)]
 #![feature(async_await, futures_api)]
 
 use failure::SyncFailure;
