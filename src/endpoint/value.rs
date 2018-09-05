@@ -16,7 +16,7 @@ use crate::error::Error;
 /// # extern crate finchers;
 /// # extern crate futures_util;
 /// # use finchers::endpoint::{value, EndpointExt};
-/// # use finchers::route;
+/// # use finchers::path;
 /// # use futures_util::future::ready;
 /// #
 /// #[derive(Clone)]
@@ -30,7 +30,7 @@ use crate::error::Error;
 /// #   Conn { _p: () }
 /// };
 ///
-/// let endpoint = route!(@get / "posts" / u32 /)
+/// let endpoint = path!(@get / "posts" / u32 /)
 ///     .and(value(conn))
 ///     .and_then(|id: u32, conn: Conn| {
 ///         // ...

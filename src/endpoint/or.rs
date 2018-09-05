@@ -123,23 +123,25 @@ where
 /// # Example
 ///
 /// ```
-/// # use finchers::{route, routes};
+/// # use finchers::{path, routes};
 /// # use finchers::endpoint::EndpointExt;
 /// # use finchers::endpoints::body;
 /// #
-/// let get_post = route!(@get / i32 /)
+/// let get_post = path!(@get / i32 /)
 ///     .map(|id| format!("get_post: {}", id));
 ///
-/// let add_post = route!(@post /).and(body::text())
+/// let add_post = path!(@post /)
+///     .and(body::text())
 ///     .map(|data: String| format!("add_post: {}", data));
 ///
 /// // ...
 ///
-/// let endpoint = route!(/ "posts").and(routes![
-///     get_post,
-///     add_post,
-///     // ...
-/// ]);
+/// let endpoint = path!(/ "posts")
+///     .and(routes![
+///         get_post,
+///         add_post,
+///         // ...
+///     ]);
 /// # drop(endpoint);
 /// ```
 #[macro_export]

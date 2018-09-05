@@ -20,8 +20,6 @@ define_encode_set! {
 
 // ==== MatchPath =====
 
-/// Create an endpoint which takes a path segment and check if it equals
-/// to the specified value.
 pub fn path(s: impl AsRef<str>) -> MatchPath {
     let s = s.as_ref();
     debug_assert!(!s.is_empty());
@@ -78,21 +76,6 @@ impl<'a> Endpoint<'a> for EndPath {
 
 // ==== Param ====
 
-/// Create an endpoint which extracts one segment from the path
-/// and converts it to the value of `T`.
-///
-/// If the segments is empty of the conversion to `T` is failed,
-/// this endpoint will skip the request.
-///
-/// # Example
-///
-/// ```
-/// # use finchers::endpoint::EndpointExt;
-/// # use finchers::endpoints::path::{path, param};
-/// let endpoint = path("posts").and(param())
-///     .map(|id: i32| (format!("id={}", id),));
-/// # drop(endpoint);
-/// ```
 #[inline]
 pub fn param<T>() -> Param<T>
 where
@@ -159,21 +142,6 @@ impl<E: Fail> HttpError for ParamError<E> {
 
 // ==== Remains ====
 
-/// Create an endpoint which extracts all remaining segments from
-/// the path and converts them to the value of `T`.
-///
-/// If the conversion to `T` is failed, this endpoint will skip the request.
-///
-/// # Example
-///
-/// ```
-/// # use finchers::endpoint::EndpointExt;
-/// # use finchers::endpoints::path::{path, remains};
-/// # use std::path::PathBuf;
-/// let endpoint = path("foo").and(remains())
-///     .map(|path: PathBuf| format!("path={}", path.display()));
-/// # drop(endpoint);
-/// ```
 #[inline]
 pub fn remains<T>() -> Remains<T>
 where

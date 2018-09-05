@@ -8,10 +8,10 @@
 //! # use finchers::endpoints::body;
 //! # use finchers::endpoint::EndpointExt;
 //! # use finchers::local;
-//! # use finchers::route;
+//! # use finchers::path;
 //! #
 //! // impl Endpoint<Output = (u32, String)>
-//! let endpoint = route!(@post / u32 /)
+//! let endpoint = path!(@post / u32 /)
 //!     .and(body::text());
 //!
 //! const MSG: &str = "The quick brown fox jumps over the lazy dog";
@@ -32,9 +32,9 @@
 //! # use finchers::endpoints::body;
 //! # use finchers::endpoint::EndpointExt;
 //! # use finchers::local;
-//! # use finchers::route;
+//! # use finchers::path;
 //! #
-//! let endpoint = route!(@put / "posts" / u32 /)
+//! let endpoint = path!(@put / "posts" / u32 /)
 //!     .and(body::text())
 //!     .map(|id: u32, body: String| {
 //!         format!("update a post (id = {}): {}", id, body)
