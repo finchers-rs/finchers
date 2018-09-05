@@ -129,7 +129,7 @@ impl Verbs {
         Verbs(Methods::all())
     }
 
-    pub(crate) fn contains(&self, method: &Method) -> bool {
+    pub(crate) fn contains(self, method: &Method) -> bool {
         macro_rules! compare_methods {
             ($($METHOD:ident),*) => {
                 match method {
