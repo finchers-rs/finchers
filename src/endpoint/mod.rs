@@ -2,6 +2,7 @@
 
 mod context;
 pub mod error;
+pub mod syntax;
 
 mod and;
 mod and_then;

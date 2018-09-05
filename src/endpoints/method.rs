@@ -2,7 +2,7 @@
 
 use http::Method;
 
-use crate::endpoint::error::{AllowedMethods, AllowedMethodsMask};
+use crate::endpoint::syntax::verb::Verbs;
 use crate::endpoint::{Context, Endpoint, EndpointError, EndpointResult, IntoEndpoint};
 
 #[allow(missing_docs)]
@@ -10,7 +10,7 @@ use crate::endpoint::{Context, Endpoint, EndpointError, EndpointResult, IntoEndp
 pub struct MatchMethod<E> {
     endpoint: E,
     method: Method,
-    allowed: AllowedMethods,
+    allowed: Verbs,
 }
 
 impl<'a, E: Endpoint<'a>> Endpoint<'a> for MatchMethod<E> {
@@ -31,7 +31,7 @@ pub fn method<E>(method: Method, endpoint: E) -> MatchMethod<E>
 where
     for<'e> E: Endpoint<'e>,
 {
-    let allowed = AllowedMethods::from_http(&method).expect("unsupported HTTP method");
+    let allowed = Verbs::single(&method).expect("unsupported HTTP method");
     MatchMethod {
         endpoint,
         method,
@@ -69,7 +69,7 @@ macro_rules! define_method {
                 if *ecx.input().method() == Method::$method {
                     self.endpoint.apply(ecx)
                 } else {
-                    Err(EndpointError::method_not_allowed(AllowedMethods(AllowedMethodsMask::$method)))
+                    Err(EndpointError::method_not_allowed(Verbs::$method))
                 }
             }
         }
