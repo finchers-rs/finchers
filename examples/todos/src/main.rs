@@ -1,19 +1,15 @@
 #![feature(async_await, await_macro, futures_api)]
 
-use finchers::endpoint::{lazy, EndpointExt};
+use finchers::endpoint::{unit, EndpointExt};
 use finchers::endpoints::body;
 use finchers::{output, route, routes};
 
 use crate::db::ConnPool;
 
 fn main() {
-    let pool = ConnPool::default();
-
     // Create an endpoint which establishes a connection to the DB.
-    let conn = lazy(move |_| {
-        let conn = pool.conn();
-        async { Ok(conn) }
-    });
+    let pool = ConnPool::default();
+    let conn = unit().map(move || pool.conn());
 
     let find_todo = route!(@get / u64 /)
         .and(conn.clone())

@@ -14,7 +14,7 @@ pub fn unit() -> Unit {
 }
 
 #[allow(missing_docs)]
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct Unit {
     _priv: (),
 }
