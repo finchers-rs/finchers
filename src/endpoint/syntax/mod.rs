@@ -247,3 +247,59 @@ where
         result.map(|x| Extracted(Some(x)))
     }
 }
+
+/// A helper macro for creating an endpoint which matches to the specified HTTP path.
+///
+/// # Example
+///
+/// The following macro call
+///
+/// ```ignore
+/// path!(@get / "api" / "v1" / "posts" / i32);
+/// ```
+///
+/// will be roughly expanded to:
+///
+/// ```ignore
+/// syntax::verb::get()
+///     .and("api")
+///     .and("v1")
+///     .and("posts")
+///     .and(syntax::param::<i32>())
+/// )
+/// ```
+#[macro_export]
+macro_rules! path {
+    // with method
+    (@$method:ident $($t:tt)*) => (
+        $crate::endpoint::EndpointExt::and(
+            $crate::endpoint::syntax::verb::$method(),
+            $crate::path_impl!(@start $($t)*)
+        )
+    );
+
+    // without method
+    (/ $($t:tt)*) => ( $crate::path_impl!(@start / $($t)*) );
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! path_impl {
+    (@start / $head:tt $(/ $tail:tt)*) => {{
+        let __p = $crate::path_impl!(@segment $head);
+        $(
+            let __p = $crate::endpoint::EndpointExt::and(__p, $crate::path_impl!(@segment $tail));
+        )*
+        __p
+    }};
+    (@start / $head:tt $(/ $tail:tt)* /) => {
+        $crate::endpoint::EndpointExt::and(
+            $crate::path_impl!(@start / $head $(/ $tail)*),
+            $crate::endpoint::syntax::eos(),
+        )
+    };
+    (@start /) => ( $crate::endpoint::syntax::eos() );
+
+    (@segment $t:ty) => ( $crate::endpoint::syntax::param::<$t>() );
+    (@segment $s:expr) => ( ($s) );
+}

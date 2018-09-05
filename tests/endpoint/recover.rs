@@ -1,13 +1,16 @@
-use finchers::endpoint::{EndpointError, EndpointExt};
-use finchers::endpoints::{method, path};
+use finchers::endpoint::syntax;
+use finchers::endpoint::{Endpoint, EndpointError, EndpointExt};
 use finchers::local;
 use futures_util::future::ready;
 use http::Response;
 
 #[test]
 fn test_recover() {
-    let endpoint = method::get(path::path("posts").and(path::param::<u32>()))
-        .map(|id: u32| format!("param={}", id));
+    let endpoint = syntax::verb::get()
+        .and(syntax::segment("posts"))
+        .and(syntax::param::<u32>())
+        .map(|id: u32| format!("param={}", id))
+        .with_output::<(String,)>();
 
     let recovered = endpoint.or_reject().recover(|err| {
         if err.is::<EndpointError>() {

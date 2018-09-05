@@ -1,10 +1,12 @@
 #![feature(async_await, futures_api)]
 
-use failure::SyncFailure;
+use finchers::endpoint::syntax::verb;
 use finchers::endpoint::{value, EndpointExt};
 use finchers::error::{fail, Error};
 use finchers::output::payload::Once;
-use finchers::{route, routes};
+use finchers::{path, routes};
+
+use failure::SyncFailure;
 use http::Response;
 use std::sync::Arc;
 use tera::{compile_templates, Context, Tera};
@@ -15,15 +17,15 @@ fn main() {
         "/templates/**/*"
     ))));
 
-    let index = route!(@get /)
+    let index = path!(@get /)
         .and(tera.clone())
         .map(|tera| render_template(tera, "index.html"));
 
-    let detail = route!(@get /"detail"/)
+    let detail = path!(@get /"detail"/)
         .and(tera.clone())
         .map(|tera| render_template(tera, "detail.html"));
 
-    let p404 = route!(@get)
+    let p404 = verb::get()
         .and(tera.clone())
         .map(|tera| render_template(tera, "404.html"));
 

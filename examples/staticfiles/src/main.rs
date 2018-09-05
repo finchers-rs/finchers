@@ -2,15 +2,16 @@
 
 extern crate finchers;
 
+use finchers::endpoint::syntax::verb;
 use finchers::endpoint::EndpointExt;
 use finchers::endpoints::fs;
-use finchers::{route, routes};
+use finchers::{path, routes};
 
 fn main() {
     let endpoint = routes![
-        route!(@get /).and(fs::file("./Cargo.toml")),
-        route!(@get / "public").and(fs::dir("./static")),
-        route!(@get).map(|| "Not found"),
+        path!(@get /).and(fs::file("./Cargo.toml")),
+        path!(@get / "public").and(fs::dir("./static")),
+        verb::get().map(|| "Not found"),
     ];
 
     finchers::launch(endpoint).start("127.0.0.1:5000")

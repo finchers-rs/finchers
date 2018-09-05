@@ -117,3 +117,55 @@ where
         }
     }
 }
+
+/// A helper macro for creating the instance of`Endpoint` from multiple routes.
+///
+/// # Example
+///
+/// ```
+/// # use finchers::{route, routes};
+/// # use finchers::endpoint::EndpointExt;
+/// # use finchers::endpoints::body;
+/// #
+/// let get_post = route!(@get / i32 /)
+///     .map(|id| format!("get_post: {}", id));
+///
+/// let add_post = route!(@post /).and(body::text())
+///     .map(|data: String| format!("add_post: {}", data));
+///
+/// // ...
+///
+/// let endpoint = route!(/ "posts").and(routes![
+///     get_post,
+///     add_post,
+///     // ...
+/// ]);
+/// # drop(endpoint);
+/// ```
+#[macro_export]
+macro_rules! routes {
+    () => { $crate::routes_impl!(@error); };
+    ($h:expr) => {  $crate::routes_impl!(@error); };
+    ($h:expr,) => {  $crate::routes_impl!(@error); };
+    ($e1:expr, $e2:expr) => { $crate::routes_impl!($e1, $e2); };
+    ($e1:expr, $e2:expr,) => { $crate::routes_impl!($e1, $e2); };
+    ($e1:expr, $e2:expr, $($t:expr),*) => { $crate::routes_impl!($e1, $e2, $($t),*); };
+    ($e1:expr, $e2:expr, $($t:expr,)+) => { $crate::routes_impl!($e1, $e2, $($t),+); };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! routes_impl {
+    ($e1:expr, $e2:expr, $($t:expr),*) => {{
+        $crate::routes_impl!($e1, $crate::routes_impl!($e2, $($t),*))
+    }};
+
+    ($e1:expr, $e2:expr) => {{
+        $crate::endpoint::EndpointExt::or(
+            $crate::endpoint::IntoEndpoint::into_endpoint($e1),
+            $crate::endpoint::IntoEndpoint::into_endpoint($e2),
+        )
+    }};
+
+    (@error) => { compile_error!("The `routes!()` macro requires at least two elements."); };
+}

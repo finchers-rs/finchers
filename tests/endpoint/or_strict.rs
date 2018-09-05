@@ -1,5 +1,6 @@
+use finchers::endpoint::syntax;
 use finchers::endpoint::EndpointExt;
-use finchers::endpoints::{body, method, query};
+use finchers::endpoints::{body, query};
 use finchers::input::query::{from_csv, Serde};
 use finchers::local;
 
@@ -16,8 +17,8 @@ struct Param {
 
 #[test]
 fn test_or_strict() {
-    let query = method::get(query::required::<Serde<Param>>());
-    let form = method::post(body::urlencoded::<Serde<Param>>());
+    let query = syntax::verb::get().and(query::required::<Serde<Param>>());
+    let form = syntax::verb::post().and(body::urlencoded::<Serde<Param>>());
     let endpoint = query.or_strict(form);
 
     let query_str = "query=rustlang&count=42&tags=tokio,hyper";

@@ -20,9 +20,9 @@ fn smoketest() {
     use finchers::local;
     use finchers::output::status::Created;
     use finchers::output::Json;
-    use finchers::route;
+    use finchers::path;
 
-    let endpoint = route!(@get / "api" / "v1" / "posts" / u32).map(|id: u32| Created(Json(id)));
+    let endpoint = path!(@get / "api" / "v1" / "posts" / u32).map(|id: u32| Created(Json(id)));
 
     let response = local::get("/api/v1/posts/42").respond(&endpoint);
     assert_eq!(response.status().as_u16(), 201);

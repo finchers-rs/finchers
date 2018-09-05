@@ -23,7 +23,7 @@ use std::env;
 use finchers::endpoint::{unit, EndpointExt};
 use finchers::endpoints::{body, query};
 use finchers::input::query::Serde;
-use finchers::{output, route, routes};
+use finchers::{output, path, routes};
 
 use crate::database::ConnectionPool;
 
@@ -36,8 +36,8 @@ fn main() -> Fallible<()> {
         async move { await!(fut).map_err(Into::into) }
     });
 
-    let endpoint = route!(/"api"/"v1"/"posts").and(routes!{
-        route!(@get /)
+    let endpoint = path!(/"api"/"v1"/"posts").and(routes!{
+        path!(@get /)
             .and(query::optional().map(|query: Option<_>| {
                 query.map(Serde::into_inner)
             }))
@@ -45,14 +45,14 @@ fn main() -> Fallible<()> {
             .and_then(async move |query, conn| await!(crate::api::get_posts(query, conn)).map_err(Into::into))
             .map(output::Json),
 
-        route!(@post /)
+        path!(@post /)
             .and(body::json())
             .and(acquire_conn.clone())
             .and_then(async move |new_post, conn| await!(crate::api::create_post(new_post, conn)).map_err(Into::into))
             .map(output::Json)
             .map(output::status::Created),
 
-        route!(@get / i32 /)
+        path!(@get / i32 /)
             .and(acquire_conn.clone())
             .and_then(async move |id, conn| {
                 await!(crate::api::find_post(id, conn))?
