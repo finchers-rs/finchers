@@ -1,5 +1,6 @@
 //! Definition of `EndpointError` and supplemental components.
 
+use failure::{Error, Fail};
 use http::StatusCode;
 use std::fmt;
 
@@ -30,26 +31,11 @@ pub type EndpointResult<T> = Result<T, EndpointError>;
 #[derive(Debug)]
 pub struct EndpointError(EndpointErrorKind);
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug)]
 enum EndpointErrorKind {
     NotMatched,
     MethodNotAllowed(Verbs),
-    InvalidRequest(InvalidRequest),
-}
-
-#[derive(Debug, Copy, Clone)]
-enum InvalidRequest {
-    MissingHeader(&'static str),
-    MissingQuery,
-}
-
-impl fmt::Display for InvalidRequest {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            InvalidRequest::MissingHeader(name) => write!(f, "missing header: `{}'", name),
-            InvalidRequest::MissingQuery => f.write_str("missing query"),
-        }
-    }
+    Other(Error),
 }
 
 impl EndpointError {
@@ -59,37 +45,33 @@ impl EndpointError {
         EndpointError(EndpointErrorKind::NotMatched)
     }
 
-    /// Create a value of `EndpointError` whth an annotation that
+    /// Create a value of `EndpointError` with an annotation that
     /// the current endpoint does not matche to the provided HTTP method.
     pub fn method_not_allowed(allowed: Verbs) -> EndpointError {
         EndpointError(EndpointErrorKind::MethodNotAllowed(allowed))
     }
 
-    pub(crate) fn missing_header(name: &'static str) -> EndpointError {
-        EndpointError(EndpointErrorKind::InvalidRequest(
-            InvalidRequest::MissingHeader(name),
-        ))
-    }
-
-    pub(crate) fn missing_query() -> EndpointError {
-        EndpointError(EndpointErrorKind::InvalidRequest(
-            InvalidRequest::MissingQuery,
-        ))
+    /// Create a value of `EndpointError` from the custom error value.
+    ///
+    /// The generated error has the HTTP status code `400 Bad Request`.
+    pub fn custom(cause: impl Into<Error>) -> EndpointError {
+        EndpointError(EndpointErrorKind::Other(cause.into()))
     }
 
     #[doc(hidden)]
-    pub fn merge(&self, other: &EndpointError) -> EndpointError {
+    pub fn merge(self, other: EndpointError) -> EndpointError {
         use self::EndpointErrorKind::*;
         EndpointError(match (self.0, other.0) {
-            (NotMatched, NotMatched) => NotMatched,
-            (NotMatched, MethodNotAllowed(allowed)) => MethodNotAllowed(allowed),
-            (NotMatched, InvalidRequest(reason)) => InvalidRequest(reason),
-            (MethodNotAllowed(allowed), NotMatched) => MethodNotAllowed(allowed),
+            (Other(reason), _) => Other(reason),
+            (_, Other(reason)) => Other(reason),
+
             (MethodNotAllowed(allowed1), MethodNotAllowed(allowed2)) => {
                 MethodNotAllowed(allowed1 | allowed2)
             }
-            (MethodNotAllowed(..), InvalidRequest(reason)) => InvalidRequest(reason),
-            (InvalidRequest(reason), ..) => InvalidRequest(reason),
+            (NotMatched, MethodNotAllowed(allowed)) => MethodNotAllowed(allowed),
+            (MethodNotAllowed(allowed), NotMatched) => MethodNotAllowed(allowed),
+
+            (NotMatched, NotMatched) => NotMatched,
         })
     }
 }
@@ -110,7 +92,7 @@ impl fmt::Display for EndpointError {
                 }
                 f.write_str(")")
             }
-            InvalidRequest(ref reason) => fmt::Display::fmt(reason, f),
+            Other(ref reason) => fmt::Display::fmt(reason, f),
         }
     }
 }
@@ -120,7 +102,14 @@ impl HttpError for EndpointError {
         match self.0 {
             EndpointErrorKind::NotMatched => StatusCode::NOT_FOUND,
             EndpointErrorKind::MethodNotAllowed(..) => StatusCode::METHOD_NOT_ALLOWED,
-            EndpointErrorKind::InvalidRequest(..) => StatusCode::BAD_REQUEST,
+            EndpointErrorKind::Other(..) => StatusCode::BAD_REQUEST,
+        }
+    }
+
+    fn cause(&self) -> Option<&dyn Fail> {
+        match self.0 {
+            EndpointErrorKind::Other(ref cause) => Some(cause.as_fail()),
+            _ => None,
         }
     }
 }
@@ -135,7 +124,7 @@ mod tests {
     fn test_merge_1() {
         let err1 = EndpointError::not_matched();
         let err2 = EndpointError::not_matched();
-        let err = err1.merge(&err2);
+        let err = err1.merge(err2);
         assert_matches!(err.0, EndpointErrorKind::NotMatched);
     }
 
@@ -144,7 +133,7 @@ mod tests {
         let err1 = EndpointError::not_matched();
         let err2 = EndpointError::method_not_allowed(Verbs::GET);
         assert_matches!(
-            err1.merge(&err2).0,
+            err1.merge(err2).0,
             EndpointErrorKind::MethodNotAllowed(allowed) if allowed.contains(&Method::GET)
         );
     }
@@ -154,7 +143,7 @@ mod tests {
         let err1 = EndpointError::method_not_allowed(Verbs::GET);
         let err2 = EndpointError::method_not_allowed(Verbs::POST);
         assert_matches!(
-            err1.merge(&err2).0,
+            err1.merge(err2).0,
             EndpointErrorKind::MethodNotAllowed(allowed) if allowed.contains(&Method::GET) && allowed.contains(&Method::POST)
         );
     }

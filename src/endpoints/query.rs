@@ -1,5 +1,6 @@
 //! Endpoints for parsing query strings.
 
+use failure::format_err;
 use std::future::Future;
 use std::marker::PhantomData;
 use std::pin::PinMut;
@@ -84,7 +85,7 @@ where
                 _marker: PhantomData,
             })
         } else {
-            Err(EndpointError::missing_query())
+            Err(EndpointError::custom(format_err!("missing query")))
         }
     }
 }

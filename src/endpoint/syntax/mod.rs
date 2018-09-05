@@ -193,7 +193,8 @@ where
 
     fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
         let s = ecx.next_segment().ok_or_else(EndpointError::not_matched)?;
-        let x = T::from_encoded_str(s).map_err(|_err| EndpointError::not_matched())?;
+        let x =
+            T::from_encoded_str(s).map_err(|err| EndpointError::custom(failure::err_msg(err)))?;
         Ok(Extracted(Some(x)))
     }
 }
@@ -241,8 +242,8 @@ where
     type Future = Extracted<T>;
 
     fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
-        let result =
-            T::from_encoded_str(ecx.remaining_path()).map_err(|_err| EndpointError::not_matched());
+        let result = T::from_encoded_str(ecx.remaining_path())
+            .map_err(|err| EndpointError::custom(failure::err_msg(err)));
         while let Some(..) = ecx.next_segment() {}
         result.map(|x| Extracted(Some(x)))
     }

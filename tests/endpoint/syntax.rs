@@ -1,5 +1,5 @@
 use finchers::endpoint::syntax;
-use finchers::endpoint::{Endpoint, EndpointExt};
+use finchers::endpoint::{Endpoint, EndpointError, EndpointExt};
 use finchers::local;
 use finchers::path;
 
@@ -48,7 +48,7 @@ fn test_extract_integer() {
     assert_matches!(local::get("/42").apply(&endpoint), Ok((42i32,)));
     assert_matches!(
         local::get("/foo").apply(&endpoint),
-        Err(ref e) if e.status_code() == StatusCode::BAD_REQUEST
+        Err(ref e) if e.is::<EndpointError>() && e.status_code() == StatusCode::BAD_REQUEST
     );
 }
 

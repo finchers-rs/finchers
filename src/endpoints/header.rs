@@ -9,6 +9,7 @@ use futures_core::task;
 use futures_core::task::Poll;
 use futures_util::future;
 
+use failure::format_err;
 use http::header::{HeaderName, HeaderValue};
 use http::HttpTryFrom;
 
@@ -50,7 +51,6 @@ where
 {
     (Parse {
         name: HeaderName::from_static(name),
-        name_str: name,
         _marker: PhantomData,
     }).with_output::<(T,)>()
 }
@@ -58,7 +58,6 @@ where
 #[allow(missing_docs)]
 pub struct Parse<T> {
     name: HeaderName,
-    name_str: &'static str,
     _marker: PhantomData<fn() -> T>,
 }
 
@@ -79,7 +78,10 @@ where
         if cx.input().headers().contains_key(&self.name) {
             Ok(ParseFuture { endpoint: self })
         } else {
-            Err(EndpointError::missing_header(self.name_str))
+            Err(EndpointError::custom(format_err!(
+                "missing header: `{}'",
+                self.name.as_str()
+            )))
         }
     }
 }
