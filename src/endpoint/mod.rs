@@ -22,13 +22,13 @@ mod unit;
 mod value;
 
 // re-exports
+pub use self::boxed::{Boxed, BoxedLocal};
 pub use self::context::Context;
 pub use self::error::{EndpointError, EndpointResult};
 
 pub use self::and::And;
 pub use self::and_then::AndThen;
 pub use self::before_apply::BeforeApply;
-pub use self::boxed::{Boxed, BoxedLocal};
 #[allow(deprecated)]
 #[doc(hidden)]
 pub use self::fixed::Fixed;
@@ -78,6 +78,28 @@ pub trait Endpoint<'a>: 'a {
         Self: Endpoint<'a, Output = T> + Sized,
     {
         self
+    }
+
+    /// Converts itself into an object which returns a `FutureObj`.
+    #[inline]
+    fn boxed<T: Tuple + 'static>(self) -> Boxed<T>
+    where
+        Self: self::boxed::IntoBoxed<T> + Sized,
+    {
+        (Boxed {
+            inner: Box::new(self),
+        }).with_output::<T>()
+    }
+
+    /// Converts itself into an object which returns a `LocalFutureObj`.
+    #[inline]
+    fn boxed_local<T: Tuple + 'static>(self) -> BoxedLocal<T>
+    where
+        Self: self::boxed::IntoBoxedLocal<T> + Sized,
+    {
+        (BoxedLocal {
+            inner: Box::new(self),
+        }).with_output::<T>()
     }
 }
 
@@ -284,22 +306,6 @@ pub trait EndpointExt<'a>: IntoEndpoint<'a> + Sized {
         Fixed {
             endpoint: self.into_endpoint(),
         }
-    }
-
-    #[allow(missing_docs)]
-    fn boxed<T: Tuple>(self) -> Boxed<T>
-    where
-        for<'e> Self::Endpoint: self::boxed::BoxedEndpoint<'e, Output = T> + Send + Sync + 'static,
-    {
-        Boxed::new(self.into_endpoint()).with_output::<T>()
-    }
-
-    #[allow(missing_docs)]
-    fn boxed_local<T: Tuple>(self) -> BoxedLocal<T>
-    where
-        for<'e> Self::Endpoint: self::boxed::LocalBoxedEndpoint<'e, Output = T> + 'static,
-    {
-        BoxedLocal::new(self.into_endpoint()).with_output::<T>()
     }
 }
 
