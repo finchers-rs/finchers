@@ -39,8 +39,9 @@ use crate::error::Error;
 ///     });
 /// # drop(endpoint);
 /// ```
+#[inline]
 pub fn value<T: Clone>(x: T) -> Value<T> {
-    Value { x }
+    (Value { x }).with_output::<(T,)>()
 }
 
 #[allow(missing_docs)]

@@ -25,9 +25,9 @@ define_encode_set! {
 pub fn path(s: impl AsRef<str>) -> MatchPath {
     let s = s.as_ref();
     debug_assert!(!s.is_empty());
-    MatchPath {
+    (MatchPath {
         encoded: percent_encode(s.as_bytes(), MATCH_PATH_ENCODE_SET).to_string(),
-    }
+    }).with_output::<()>()
 }
 
 #[allow(missing_docs)]
@@ -53,8 +53,9 @@ impl<'a> Endpoint<'a> for MatchPath {
 // ==== EndPath ====
 
 /// Create an endpoint to check if the path has reached the end.
+#[inline]
 pub fn end() -> EndPath {
-    EndPath { _priv: () }
+    (EndPath { _priv: () }).with_output::<()>()
 }
 
 #[allow(missing_docs)]
@@ -92,13 +93,14 @@ impl<'a> Endpoint<'a> for EndPath {
 ///     .map(|id: i32| (format!("id={}", id),));
 /// # drop(endpoint);
 /// ```
+#[inline]
 pub fn param<T>() -> Param<T>
 where
     T: FromEncodedStr,
 {
-    Param {
+    (Param {
         _marker: PhantomData,
-    }
+    }).with_output::<(T,)>()
 }
 
 #[allow(missing_docs)]
@@ -172,13 +174,14 @@ impl<E: Fail> HttpError for ParamError<E> {
 ///     .map(|path: PathBuf| format!("path={}", path.display()));
 /// # drop(endpoint);
 /// ```
+#[inline]
 pub fn remains<T>() -> Remains<T>
 where
     T: FromEncodedStr,
 {
-    Remains {
+    (Remains {
         _marker: PhantomData,
-    }
+    }).with_output::<(T,)>()
 }
 
 #[allow(missing_docs)]

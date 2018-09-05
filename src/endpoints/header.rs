@@ -43,6 +43,7 @@ use crate::input::with_get_cx;
 ///     .or_reject_with(|_, _| bad_request("missing header: x-api-key"));
 /// # drop(endpoint);
 /// ```
+#[inline]
 pub fn parse<T>(name: &'static str) -> Parse<T>
 where
     T: FromHeaderValue,
@@ -123,6 +124,7 @@ where
 /// let endpoint = header::optional::<String>("x-api-key");
 /// # drop(endpoint);
 /// ```
+#[inline]
 pub fn optional<T>(name: &'static str) -> Optional<T>
 where
     T: FromHeaderValue,
@@ -208,6 +210,7 @@ where
 ///     .or_reject_with(|_, _| error::bad_request("invalid header value"));
 /// # drop(endpoint);
 /// ```
+#[inline]
 pub fn matches<K, V>(name: K, value: V) -> Matches<V>
 where
     HeaderName: HttpTryFrom<K>,
@@ -245,14 +248,15 @@ where
 // ==== Raw ====
 
 /// Create an endpoint which retrieves the value of a header with the specified name.
+#[inline]
 pub fn raw<H>(name: H) -> Raw
 where
     HeaderName: HttpTryFrom<H>,
     <HeaderName as HttpTryFrom<H>>::Error: fmt::Debug,
 {
-    Raw {
+    (Raw {
         name: HeaderName::try_from(name).expect("invalid header name"),
-    }
+    }).with_output::<(Option<HeaderValue>,)>()
 }
 
 #[allow(missing_docs)]

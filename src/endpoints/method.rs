@@ -31,13 +31,11 @@ pub fn method<E>(method: Method, endpoint: E) -> MatchMethod<E>
 where
     for<'e> E: Endpoint<'e>,
 {
-    match AllowedMethods::from_http(&method) {
-        Some(allowed) => MatchMethod {
-            endpoint,
-            method,
-            allowed,
-        },
-        None => panic!("unsupported Method type"),
+    let allowed = AllowedMethods::from_http(&method).expect("unsupported HTTP method");
+    MatchMethod {
+        endpoint,
+        method,
+        allowed,
     }
 }
 

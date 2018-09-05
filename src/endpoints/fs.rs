@@ -14,8 +14,9 @@ use crate::output::fs::OpenNamedFile;
 use crate::output::NamedFile;
 
 /// Create an endpoint which serves a specified file on the file system.
+#[inline]
 pub fn file(path: impl Into<PathBuf>) -> File {
-    File { path: path.into() }
+    (File { path: path.into() }).with_output::<(NamedFile,)>()
 }
 
 #[allow(missing_docs)]
@@ -36,8 +37,9 @@ impl<'a> Endpoint<'a> for File {
 }
 
 /// Create an endpoint which serves files in the specified directory.
+#[inline]
 pub fn dir(root: impl Into<PathBuf>) -> Dir {
-    Dir { root: root.into() }
+    (Dir { root: root.into() }).with_output::<(NamedFile,)>()
 }
 
 #[allow(missing_docs)]
