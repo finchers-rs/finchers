@@ -2,6 +2,7 @@
 
 mod context;
 pub mod error;
+mod into_local;
 pub mod syntax;
 
 mod and;
@@ -26,6 +27,7 @@ mod value;
 pub use self::boxed::{Boxed, BoxedLocal};
 pub use self::context::Context;
 pub use self::error::{EndpointError, EndpointResult};
+pub use self::into_local::IntoLocal;
 
 pub use self::and::And;
 pub use self::and_then::AndThen;
@@ -128,6 +130,42 @@ impl<'a, E: Endpoint<'a>> Endpoint<'a> for Arc<E> {
 
     fn apply(&'a self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
         (**self).apply(ecx)
+    }
+}
+
+/// A trait representing an endpoint with a constraint that the returned "Future"
+/// to be transferred across thread boundaries.
+pub trait SendEndpoint<'a>: 'a {
+    #[allow(missing_docs)]
+    type Output: Tuple;
+
+    #[allow(missing_docs)]
+    type Future: TryFuture<Ok = Self::Output, Error = Error> + Send + 'a;
+
+    #[allow(missing_docs)]
+    fn apply(&'a self, cx: &mut Context<'_>) -> EndpointResult<Self::Future>;
+
+    /// Convert itself into an representation as an `Endpoint`.
+    #[inline]
+    fn into_local(self) -> IntoLocal<Self>
+    where
+        Self: Sized,
+    {
+        (IntoLocal { endpoint: self }).with_output::<Self::Output>()
+    }
+}
+
+impl<'a, E> SendEndpoint<'a> for E
+where
+    E: Endpoint<'a>,
+    E::Future: Send,
+{
+    type Output = E::Output;
+    type Future = E::Future;
+
+    #[inline(always)]
+    fn apply(&'a self, cx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+        self.apply(cx)
     }
 }
 
@@ -312,6 +350,7 @@ pub trait EndpointExt<'a>: IntoEndpoint<'a> + Sized {
 
 impl<'a, E: IntoEndpoint<'a>> EndpointExt<'a> for E {}
 
+#[allow(deprecated)]
 mod shared {
     use futures_core::future::TryFuture;
 
@@ -319,20 +358,12 @@ mod shared {
     use crate::common::Tuple;
     use crate::error::Error;
 
-    /// A helper trait representing an endpoint which can be shared between threads.
-    ///
-    /// The implementation of this trait is automatically provided if the type `E`
-    /// implemented `Endpoint<'a>` is satisfied with the following conditions:
-    ///
-    /// * `E: Send + Sync + 'static`
-    /// * `E::Future: Send`
-    ///
-    /// This trait is usually used in order to hide the detailed return type of a function
-    /// that builds an instance of `Endpoint`.
-    /// Note that it is required to call the method `into_endpoint()` to use the return value
-    /// as an instance of `Endpoint` (it is due to restrictions on Rust's trait system.)
+    #[doc(hidden)]
+    #[deprecated(
+        since = "0.12.0-alpha.4",
+        note = "use `SendEndpoint` instead"
+    )]
     pub trait SharedEndpoint<T: Tuple>: for<'a> Sealed<'a, Output = T> {
-        /// Convert itself into an representation as an `Endpoint`.
         fn into_endpoint(self) -> IntoEndpoint<Self>
         where
             Self: Sized,
@@ -378,4 +409,6 @@ mod shared {
     }
 }
 
+#[doc(hidden)]
+#[allow(deprecated)]
 pub use self::shared::SharedEndpoint;
