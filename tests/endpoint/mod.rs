@@ -6,5 +6,6 @@ mod map;
 mod or;
 mod or_strict;
 mod recover;
+mod send_endpoint;
 mod syntax;
 mod then;
