@@ -2,7 +2,7 @@
 
 use finchers::endpoint::{unit, EndpointExt};
 use finchers::endpoints::body;
-use finchers::{output, route, routes};
+use finchers::{output, path, routes};
 
 use crate::db::ConnPool;
 
@@ -11,37 +11,37 @@ fn main() {
     let pool = ConnPool::default();
     let conn = unit().map(move || pool.conn());
 
-    let find_todo = route!(@get / u64 /)
+    let find_todo = path!(@get / u64 /)
         .and(conn.clone())
         .and_then(async move |id, conn| {
             await!(crate::api::find_todo(id, conn))?.ok_or_else(crate::util::not_found)
         }).map(output::Json);
 
-    let list_todos = route!(@get /)
+    let list_todos = path!(@get /)
         .and(conn.clone())
         .and_then(async move |conn| Ok(await!(crate::api::list_todos(conn))?))
         .map(output::Json);
 
-    let add_todo = route!(@post /)
+    let add_todo = path!(@post /)
         .and(body::json())
         .and(conn.clone())
         .and_then(async move |new_todo, conn| Ok(await!(crate::api::create_todo(new_todo, conn))?))
         .map(output::Json);
 
-    let patch_todo = route!(@patch / u64 /)
+    let patch_todo = path!(@patch / u64 /)
         .and(body::json())
         .and(conn.clone())
         .and_then(async move |id, patch, conn| {
             await!(crate::api::patch_todo(id, patch, conn))?.ok_or_else(crate::util::not_found)
         }).map(output::Json);
 
-    let delete_todo = route!(@delete / u64 /)
+    let delete_todo = path!(@delete / u64 /)
         .and(conn.clone())
         .and_then(async move |id, conn| {
             await!(crate::api::delete_todo(id, conn))?.ok_or_else(crate::util::not_found)
         });
 
-    let endpoint = route!(/ "api" / "v1" / "todos").and(routes![
+    let endpoint = path!(/ "api" / "v1" / "todos").and(routes![
         find_todo,
         list_todos,
         add_todo,

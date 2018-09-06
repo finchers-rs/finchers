@@ -20,18 +20,18 @@
 //!
 //! ```
 //! use finchers::endpoint::EndpointExt;
-//! use finchers::endpoints::{body, path};
-//! use finchers::route;
+//! use finchers::endpoints::body;
+//! use finchers::path;
 //!
 //! fn main() {
-//!     let get_post = route!(@get / u64 /)
+//!     let get_post = path!(@get / u64 /)
 //!         .map(|id: u64| format!("GET: id={}", id));
 //!
-//!     let create_post = route!(@post /)
+//!     let create_post = path!(@post /)
 //!         .and(body::text())
 //!         .map(|data: String| format!("POST: body={}", data));
 //!
-//!     let post_api = path::path("posts")
+//!     let post_api = path!(/ "posts")
 //!         .and(get_post.or(create_post));
 //!
 //! # std::mem::drop(move || {

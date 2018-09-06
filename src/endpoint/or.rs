@@ -60,7 +60,7 @@ where
             }
             Err(err1) => match self.e2.apply(ecx) {
                 Ok(future) => Ok(OrFuture::right(future)),
-                Err(err2) => Err(err1.merge(&err2)),
+                Err(err2) => Err(err1.merge(err2)),
             },
         }
     }
@@ -116,4 +116,58 @@ where
             Right(t) => t.try_poll(cx).map_ok(|t| (Wrapped(Right(t)),)),
         }
     }
+}
+
+/// A helper macro for creating the instance of`Endpoint` from multiple routes.
+///
+/// # Example
+///
+/// ```
+/// # use finchers::{path, routes};
+/// # use finchers::endpoint::EndpointExt;
+/// # use finchers::endpoints::body;
+/// #
+/// let get_post = path!(@get / i32 /)
+///     .map(|id| format!("get_post: {}", id));
+///
+/// let add_post = path!(@post /)
+///     .and(body::text())
+///     .map(|data: String| format!("add_post: {}", data));
+///
+/// // ...
+///
+/// let endpoint = path!(/ "posts")
+///     .and(routes![
+///         get_post,
+///         add_post,
+///         // ...
+///     ]);
+/// # drop(endpoint);
+/// ```
+#[macro_export]
+macro_rules! routes {
+    () => { $crate::routes_impl!(@error); };
+    ($h:expr) => {  $crate::routes_impl!(@error); };
+    ($h:expr,) => {  $crate::routes_impl!(@error); };
+    ($e1:expr, $e2:expr) => { $crate::routes_impl!($e1, $e2); };
+    ($e1:expr, $e2:expr,) => { $crate::routes_impl!($e1, $e2); };
+    ($e1:expr, $e2:expr, $($t:expr),*) => { $crate::routes_impl!($e1, $e2, $($t),*); };
+    ($e1:expr, $e2:expr, $($t:expr,)+) => { $crate::routes_impl!($e1, $e2, $($t),+); };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! routes_impl {
+    ($e1:expr, $e2:expr, $($t:expr),*) => {{
+        $crate::routes_impl!($e1, $crate::routes_impl!($e2, $($t),*))
+    }};
+
+    ($e1:expr, $e2:expr) => {{
+        $crate::endpoint::EndpointExt::or(
+            $crate::endpoint::IntoEndpoint::into_endpoint($e1),
+            $crate::endpoint::IntoEndpoint::into_endpoint($e2),
+        )
+    }};
+
+    (@error) => { compile_error!("The `routes!()` macro requires at least two elements."); };
 }
