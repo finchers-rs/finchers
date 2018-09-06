@@ -24,7 +24,7 @@ mod unit;
 mod value;
 
 // re-exports
-pub use self::boxed::{Boxed, BoxedLocal};
+pub use self::boxed::{EndpointObj, LocalEndpointObj};
 pub use self::context::Context;
 pub use self::error::{EndpointError, EndpointResult};
 pub use self::into_local::IntoLocal;

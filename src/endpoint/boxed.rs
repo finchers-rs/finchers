@@ -31,29 +31,29 @@ impl<'e, E: SendEndpoint<'e>> FutureObjEndpoint<'e> for E {
 }
 
 #[allow(missing_docs)]
-pub struct Boxed<T: Tuple + 'static> {
+pub struct EndpointObj<T: Tuple + 'static> {
     inner: Box<dyn for<'a> FutureObjEndpoint<'a, Output = T> + Send + Sync + 'static>,
 }
 
-impl<T: Tuple + 'static> Boxed<T> {
+impl<T: Tuple + 'static> EndpointObj<T> {
     #[allow(missing_docs)]
-    pub fn new<E>(endpoint: E) -> Boxed<T>
+    pub fn new<E>(endpoint: E) -> EndpointObj<T>
     where
         for<'a> E: SendEndpoint<'a, Output = T> + Send + Sync + 'static,
     {
-        Boxed {
+        EndpointObj {
             inner: Box::new(endpoint),
         }
     }
 }
 
-impl<T: Tuple + 'static> fmt::Debug for Boxed<T> {
+impl<T: Tuple + 'static> fmt::Debug for EndpointObj<T> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.debug_struct("Boxed").finish()
+        formatter.debug_struct("EndpointObj").finish()
     }
 }
 
-impl<'e, T: Tuple + 'static> Endpoint<'e> for Boxed<T> {
+impl<'e, T: Tuple + 'static> Endpoint<'e> for EndpointObj<T> {
     type Output = T;
     type Future = FutureObj<'e, Result<T, Error>>;
 
@@ -88,29 +88,29 @@ impl<'e, E: Endpoint<'e>> LocalFutureObjEndpoint<'e> for E {
 }
 
 #[allow(missing_docs)]
-pub struct BoxedLocal<T: Tuple + 'static> {
+pub struct LocalEndpointObj<T: Tuple + 'static> {
     inner: Box<dyn for<'a> LocalFutureObjEndpoint<'a, Output = T> + 'static>,
 }
 
-impl<T: Tuple + 'static> BoxedLocal<T> {
+impl<T: Tuple + 'static> LocalEndpointObj<T> {
     #[allow(missing_docs)]
-    pub fn new<E>(endpoint: E) -> BoxedLocal<T>
+    pub fn new<E>(endpoint: E) -> LocalEndpointObj<T>
     where
         for<'a> E: Endpoint<'a, Output = T> + Send + Sync + 'static,
     {
-        BoxedLocal {
+        LocalEndpointObj {
             inner: Box::new(endpoint),
         }
     }
 }
 
-impl<T: Tuple + 'static> fmt::Debug for BoxedLocal<T> {
+impl<T: Tuple + 'static> fmt::Debug for LocalEndpointObj<T> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.debug_struct("BoxedLocal").finish()
+        formatter.debug_struct("LocalEndpointObj").finish()
     }
 }
 
-impl<'e, T: Tuple + 'static> Endpoint<'e> for BoxedLocal<T> {
+impl<'e, T: Tuple + 'static> Endpoint<'e> for LocalEndpointObj<T> {
     type Output = T;
     type Future = LocalFutureObj<'e, Result<T, Error>>;
 
