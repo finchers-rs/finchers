@@ -1,4 +1,4 @@
-use finchers::endpoint::Endpoint;
+use finchers::endpoint::{EndpointExt, EndpointObj, LocalEndpointObj};
 use finchers::local;
 use finchers::path;
 
@@ -7,7 +7,7 @@ use matches::assert_matches;
 #[test]
 fn test_boxed() {
     let endpoint = path!(@get /"foo");
-    let endpoint = endpoint.boxed::<()>();
+    let endpoint = EndpointObj::new(endpoint);
 
     assert_matches!(local::get("/foo").apply(&endpoint), Ok(()));
 }
@@ -15,7 +15,16 @@ fn test_boxed() {
 #[test]
 fn test_boxed_local() {
     let endpoint = path!(@get /"foo");
-    let endpoint = endpoint.boxed_local::<()>();
+    let endpoint = LocalEndpointObj::new(endpoint);
 
     assert_matches!(local::get("/foo").apply(&endpoint), Ok(..));
+}
+
+#[test]
+fn smoke_test() {
+    let endpoint = EndpointObj::new(path!(@get /"foo").map(|| "foo"));
+
+    drop(move || {
+        finchers::launch(endpoint).start("127.0.0.1:4000");
+    });
 }

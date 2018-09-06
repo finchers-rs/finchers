@@ -1,5 +1,6 @@
 //! Components for constructing `Endpoint`.
 
+mod boxed;
 mod context;
 pub mod error;
 mod into_local;
@@ -9,7 +10,6 @@ mod and;
 mod and_then;
 mod apply_fn;
 mod before_apply;
-mod boxed;
 mod fixed;
 mod lazy;
 mod map;
@@ -24,7 +24,7 @@ mod unit;
 mod value;
 
 // re-exports
-pub use self::boxed::{Boxed, BoxedLocal};
+pub use self::boxed::{EndpointObj, LocalEndpointObj};
 pub use self::context::Context;
 pub use self::error::{EndpointError, EndpointResult};
 pub use self::into_local::IntoLocal;
@@ -81,28 +81,6 @@ pub trait Endpoint<'a>: 'a {
         Self: Endpoint<'a, Output = T> + Sized,
     {
         self
-    }
-
-    /// Converts itself into an object which returns a `FutureObj`.
-    #[inline]
-    fn boxed<T: Tuple + 'static>(self) -> Boxed<T>
-    where
-        Self: self::boxed::IntoBoxed<T> + Sized,
-    {
-        (Boxed {
-            inner: Box::new(self),
-        }).with_output::<T>()
-    }
-
-    /// Converts itself into an object which returns a `LocalFutureObj`.
-    #[inline]
-    fn boxed_local<T: Tuple + 'static>(self) -> BoxedLocal<T>
-    where
-        Self: self::boxed::IntoBoxedLocal<T> + Sized,
-    {
-        (BoxedLocal {
-            inner: Box::new(self),
-        }).with_output::<T>()
     }
 }
 
