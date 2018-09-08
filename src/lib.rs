@@ -42,7 +42,7 @@
 //! ```
 
 #![doc(
-    html_root_url = "https://docs.rs/finchers/0.12.0-alpha.3",
+    html_root_url = "https://docs.rs/finchers/0.12.0-alpha.4",
     test(attr(feature(rust_2018_preview))),
 )]
 #![warn(

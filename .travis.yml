@@ -36,6 +36,7 @@ matrix:
         # lints
         - cargo fmt -- --check
         - cargo clippy --features strict
+        - if [[ "${TRAVIS_PULL_REQUEST_BRANCH:-}" = release-* ]]; then cargo publish --dry-run; fi
         # examples
         - cargo test -p example-diesel
         - cargo test -p example-staticfiles
