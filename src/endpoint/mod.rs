@@ -169,6 +169,18 @@ impl<'a, E: Endpoint<'a>> IntoEndpoint<'a> for E {
     }
 }
 
+/// A trait representing the conversion of an endpoint to another endpoint.
+pub trait Wrapper<'a, E: Endpoint<'a>> {
+    /// The inner type of converted `Endpoint`.
+    type Output: Tuple;
+
+    /// The type of converted `Endpoint`.
+    type Endpoint: Endpoint<'a, Output = Self::Output>;
+
+    /// Performs conversion from the provided endpoint into `Self::Endpoint`.
+    fn wrap(self, endpoint: E) -> Self::Endpoint;
+}
+
 /// A set of extension methods used for composing complicate endpoints.
 pub trait EndpointExt<'a>: IntoEndpoint<'a> + Sized {
     #[doc(hidden)]
@@ -311,6 +323,14 @@ pub trait EndpointExt<'a>: IntoEndpoint<'a> + Sized {
             endpoint: self.into_endpoint(),
             f,
         }).with_output::<(self::recover::Recovered<Self::Output, R::Ok>,)>()
+    }
+
+    /// Converts `self` using the provided `Wrapper`.
+    fn with<W>(self, wrapper: W) -> W::Endpoint
+    where
+        W: Wrapper<'a, Self::Endpoint>,
+    {
+        (wrapper.wrap(self.into_endpoint())).with_output::<W::Output>()
     }
 
     #[doc(hidden)]
