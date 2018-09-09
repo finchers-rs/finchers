@@ -31,6 +31,7 @@ maintenance = { status = "actively-developed" }
 [workspace]
 members = [
   "examples/diesel",
+  "examples/logging",
   "examples/todos",
   "examples/template-tera",
   "examples/staticfiles",
