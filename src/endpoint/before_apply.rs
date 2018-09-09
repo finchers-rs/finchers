@@ -1,6 +1,12 @@
+#![allow(deprecated)]
+
 use crate::endpoint::{Context, Endpoint, EndpointResult};
 
-#[allow(missing_docs)]
+#[doc(hidden)]
+#[deprecated(
+    since = "0.12.0-alpha.5",
+    note = "use `endpoint::wrappers::before_apply()` instead."
+)]
 #[derive(Debug, Copy, Clone)]
 pub struct BeforeApply<E, F> {
     pub(super) endpoint: E,

@@ -5,6 +5,7 @@ mod context;
 pub mod error;
 mod into_local;
 pub mod syntax;
+pub mod wrapper;
 
 mod and;
 mod and_then;
@@ -28,9 +29,12 @@ pub use self::boxed::{EndpointObj, LocalEndpointObj};
 pub use self::context::Context;
 pub use self::error::{EndpointError, EndpointResult};
 pub use self::into_local::IntoLocal;
+pub use self::wrapper::Wrapper;
 
 pub use self::and::And;
 pub use self::and_then::AndThen;
+#[allow(deprecated)]
+#[doc(hidden)]
 pub use self::before_apply::BeforeApply;
 #[allow(deprecated)]
 #[doc(hidden)]
@@ -169,18 +173,6 @@ impl<'a, E: Endpoint<'a>> IntoEndpoint<'a> for E {
     }
 }
 
-/// A trait representing the conversion of an endpoint to another endpoint.
-pub trait Wrapper<'a, E: Endpoint<'a>> {
-    /// The inner type of converted `Endpoint`.
-    type Output: Tuple;
-
-    /// The type of converted `Endpoint`.
-    type Endpoint: Endpoint<'a, Output = Self::Output>;
-
-    /// Performs conversion from the provided endpoint into `Self::Endpoint`.
-    fn wrap(self, endpoint: E) -> Self::Endpoint;
-}
-
 /// A set of extension methods used for composing complicate endpoints.
 pub trait EndpointExt<'a>: IntoEndpoint<'a> + Sized {
     #[doc(hidden)]
@@ -196,7 +188,12 @@ pub trait EndpointExt<'a>: IntoEndpoint<'a> + Sized {
         self
     }
 
-    #[allow(missing_docs)]
+    #[doc(hidden)]
+    #[deprecated(
+        since = "0.12.0-alpha.5",
+        note = "use `endpoint::wrappers::before_apply()` instead."
+    )]
+    #[allow(deprecated)]
     fn before_apply<F>(self, f: F) -> BeforeApply<Self::Endpoint, F>
     where
         F: Fn(&mut Context<'_>) -> EndpointResult<()> + 'a,
