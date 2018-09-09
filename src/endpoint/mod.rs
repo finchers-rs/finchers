@@ -5,6 +5,7 @@ mod context;
 pub mod error;
 mod into_local;
 pub mod syntax;
+pub mod wrapper;
 
 mod and;
 mod and_then;
@@ -28,9 +29,12 @@ pub use self::boxed::{EndpointObj, LocalEndpointObj};
 pub use self::context::Context;
 pub use self::error::{EndpointError, EndpointResult};
 pub use self::into_local::IntoLocal;
+pub use self::wrapper::Wrapper;
 
 pub use self::and::And;
 pub use self::and_then::AndThen;
+#[allow(deprecated)]
+#[doc(hidden)]
 pub use self::before_apply::BeforeApply;
 #[allow(deprecated)]
 #[doc(hidden)]
@@ -184,7 +188,12 @@ pub trait EndpointExt<'a>: IntoEndpoint<'a> + Sized {
         self
     }
 
-    #[allow(missing_docs)]
+    #[doc(hidden)]
+    #[deprecated(
+        since = "0.12.0-alpha.5",
+        note = "use `endpoint::wrappers::before_apply()` instead."
+    )]
+    #[allow(deprecated)]
     fn before_apply<F>(self, f: F) -> BeforeApply<Self::Endpoint, F>
     where
         F: Fn(&mut Context<'_>) -> EndpointResult<()> + 'a,
@@ -311,6 +320,14 @@ pub trait EndpointExt<'a>: IntoEndpoint<'a> + Sized {
             endpoint: self.into_endpoint(),
             f,
         }).with_output::<(self::recover::Recovered<Self::Output, R::Ok>,)>()
+    }
+
+    /// Converts `self` using the provided `Wrapper`.
+    fn with<W>(self, wrapper: W) -> W::Endpoint
+    where
+        W: Wrapper<'a, Self::Endpoint>,
+    {
+        (wrapper.wrap(self.into_endpoint())).with_output::<W::Output>()
     }
 
     #[doc(hidden)]
