@@ -28,6 +28,7 @@ build: false
 test_script:
   - cargo clean
   - cargo test --features strict
+  - cargo test -p example-custom-logging
   - cargo test -p example-staticfiles
   - cargo test -p example-template-tera
   - cargo test -p example-todos
