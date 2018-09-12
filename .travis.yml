@@ -14,7 +14,7 @@ matrix:
   allow_failures:
     - rust: nightly
   include:
-    - rust: nightly-2018-08-30
+    - rust: nightly-2018-09-11
       sudo: required
       addons:
         apt:
@@ -35,7 +35,7 @@ matrix:
         - cargo test --features strict
         # lints
         - cargo fmt -- --check
-        - cargo clippy --features strict
+        - cargo clippy
         - if [[ "${TRAVIS_PULL_REQUEST_BRANCH:-}" = release-* ]]; then cargo publish --dry-run; fi
         # examples
         - cargo test -p example-custom-logging
@@ -55,7 +55,7 @@ matrix:
         - cargo update
         - cargo test --all
 
-    - rust: nightly-2018-08-30
+    - rust: nightly-2018-09-11
       env: DEPLOY_DOCS
       before_script:
         - curl -sSLf https://github.com/rust-lang-nursery/mdBook/releases/download/v0.2.1/mdbook-v0.2.1-x86_64-unknown-linux-gnu.tar.gz | tar xzf -
