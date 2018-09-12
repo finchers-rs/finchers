@@ -1,7 +1,3 @@
-#![feature(rust_2018_preview)]
-
-extern crate finchers;
-
 use finchers::endpoint::syntax::verb;
 use finchers::endpoint::EndpointExt;
 use finchers::endpoints::fs;

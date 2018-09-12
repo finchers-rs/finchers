@@ -53,6 +53,7 @@
     rust_2018_idioms,
     unused,
 )]
+#![allow(keyword_idents)] // serde-rs/serde#1385
 #![cfg_attr(feature = "strict", deny(warnings))]
 #![cfg_attr(feature = "strict", doc(test(attr(deny(warnings)))))]
 
