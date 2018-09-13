@@ -2,9 +2,11 @@
 
 mod after_apply;
 mod before_apply;
+mod spawner;
 
 pub use self::after_apply::{after_apply, AfterApply};
 pub use self::before_apply::{before_apply, BeforeApply};
+pub use self::spawner::{spawner, Spawner};
 
 use super::Endpoint;
 use crate::common::Tuple;
