@@ -1,6 +1,6 @@
 [package]
 name = "finchers"
-version = "0.12.0-alpha.4" # don't forget to update html_root_url in lib.rs
+version = "0.12.0-alpha.5" # don't forget to update html_root_url in lib.rs
 description = "A combinator library for builidng asynchronous HTTP services"
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 license = "MIT/Apache-2.0"
