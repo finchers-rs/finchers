@@ -1,9 +1,8 @@
 #![feature(async_await, futures_api)]
 
-use finchers::endpoint::syntax::verb;
-use finchers::endpoint::{value, EndpointExt};
 use finchers::error::{fail, Error};
 use finchers::output::payload::Once;
+use finchers::prelude::*;
 use finchers::{path, routes};
 
 use failure::SyncFailure;
@@ -12,7 +11,7 @@ use std::sync::Arc;
 use tera::{compile_templates, Context, Tera};
 
 fn main() {
-    let tera = value(Arc::new(compile_templates!(concat!(
+    let tera = endpoint::value(Arc::new(compile_templates!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/templates/**/*"
     ))));
@@ -25,7 +24,7 @@ fn main() {
         .and(tera.clone())
         .map(|tera| render_template(tera, "detail.html"));
 
-    let p404 = verb::get()
+    let p404 = endpoint::syntax::verb::get()
         .and(tera.clone())
         .map(|tera| render_template(tera, "404.html"));
 

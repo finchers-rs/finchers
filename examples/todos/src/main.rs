@@ -1,7 +1,6 @@
 #![feature(async_await, await_macro, futures_api)]
 
-use finchers::endpoint::{unit, EndpointExt};
-use finchers::endpoints::body;
+use finchers::prelude::*;
 use finchers::{output, path, routes};
 
 use crate::db::ConnPool;
@@ -9,7 +8,7 @@ use crate::db::ConnPool;
 fn main() {
     // Create an endpoint which establishes a connection to the DB.
     let pool = ConnPool::default();
-    let conn = unit().map(move || pool.conn());
+    let conn = endpoint::unit().map(move || pool.conn());
 
     let find_todo = path!(@get / u64 /)
         .and(conn.clone())
@@ -23,13 +22,13 @@ fn main() {
         .map(output::Json);
 
     let add_todo = path!(@post /)
-        .and(body::json())
+        .and(endpoints::body::json())
         .and(conn.clone())
         .and_then(async move |new_todo, conn| Ok(await!(crate::api::create_todo(new_todo, conn))?))
         .map(output::Json);
 
     let patch_todo = path!(@patch / u64 /)
-        .and(body::json())
+        .and(endpoints::body::json())
         .and(conn.clone())
         .and_then(async move |id, patch, conn| {
             await!(crate::api::patch_todo(id, patch, conn))?.ok_or_else(crate::util::not_found)

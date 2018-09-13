@@ -2,8 +2,8 @@
 #[macro_use]
 extern crate slog;
 
-use finchers::endpoint::EndpointExt;
 use finchers::output::status::Created;
+use finchers::prelude::*;
 use finchers::{path, routes};
 
 use finchers::endpoints::logging::{logging_fn, Info};
@@ -41,7 +41,7 @@ fn main() {
         }
     });
 
-    let endpoint = endpoint.with(logging);
+    let endpoint = endpoint.wrap(logging);
 
     slog_info!(logger, "Listening on http://127.0.0.1:4000...");
     finchers::launch(endpoint).start("127.0.0.1:4000");
