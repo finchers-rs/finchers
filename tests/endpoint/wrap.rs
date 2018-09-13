@@ -1,4 +1,4 @@
-use finchers::endpoint::{Context, Endpoint, EndpointExt, EndpointResult, Wrapper};
+use finchers::endpoint::{Context, Endpoint, EndpointResult, Wrapper};
 use finchers::local;
 use finchers::path;
 
@@ -45,7 +45,7 @@ fn test_wrap() {
     let wrapper = Wrap {
         counter: counter.clone(),
     };
-    let endpoint = path!(@get /).with(wrapper);
+    let endpoint = path!(@get /).wrap(wrapper);
 
     assert_matches!(local::get("/").apply(&endpoint), Ok(..));
 

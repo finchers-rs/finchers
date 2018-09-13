@@ -86,6 +86,15 @@ pub trait Endpoint<'a>: 'a {
     {
         self
     }
+
+    /// Converts `self` using the provided `Wrapper`.
+    fn wrap<W>(self, wrapper: W) -> W::Endpoint
+    where
+        Self: Sized,
+        W: Wrapper<'a, Self>,
+    {
+        (wrapper.wrap(self)).with_output::<W::Output>()
+    }
 }
 
 impl<'a, E: Endpoint<'a>> Endpoint<'a> for Box<E> {
@@ -320,14 +329,6 @@ pub trait EndpointExt<'a>: IntoEndpoint<'a> + Sized {
             endpoint: self.into_endpoint(),
             f,
         }).with_output::<(self::recover::Recovered<Self::Output, R::Ok>,)>()
-    }
-
-    /// Converts `self` using the provided `Wrapper`.
-    fn with<W>(self, wrapper: W) -> W::Endpoint
-    where
-        W: Wrapper<'a, Self::Endpoint>,
-    {
-        (wrapper.wrap(self.into_endpoint())).with_output::<W::Output>()
     }
 
     #[doc(hidden)]
