@@ -53,7 +53,7 @@ impl Mode {
 ///
 /// ```
 /// # use finchers::endpoints::cookie;
-/// # use finchers::endpoint::{unit, EndpointExt};
+/// # use finchers::endpoint::{unit, EndpointExt, IntoEndpointExt};
 /// # use finchers::{path, routes};
 /// #
 /// let home = path!(@get / "home")
@@ -120,7 +120,7 @@ impl<'a> Endpoint<'a> for Required {
 ///
 /// ```
 /// # use finchers::endpoints::cookie;
-/// # use finchers::endpoint::EndpointExt;
+/// # use finchers::endpoint::{EndpointExt, IntoEndpointExt};
 /// # use finchers::input::cookie::Cookie;
 /// # use finchers::path;
 /// #

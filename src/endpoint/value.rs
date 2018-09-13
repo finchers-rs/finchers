@@ -15,7 +15,7 @@ use crate::error::Error;
 /// # #![feature(rust_2018_preview)]
 /// # extern crate finchers;
 /// # extern crate futures_util;
-/// # use finchers::endpoint::{value, EndpointExt};
+/// # use finchers::endpoint::{value, EndpointExt, IntoEndpointExt};
 /// # use finchers::path;
 /// # use futures_util::future::ready;
 /// #

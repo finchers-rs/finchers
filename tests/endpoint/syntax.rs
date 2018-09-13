@@ -1,5 +1,5 @@
 use finchers::endpoint::syntax;
-use finchers::endpoint::{Endpoint, EndpointError, EndpointExt};
+use finchers::endpoint::{Endpoint, EndpointError, EndpointExt, IntoEndpointExt};
 use finchers::local;
 use finchers::path;
 

@@ -1,5 +1,5 @@
 use finchers::endpoint::syntax;
-use finchers::endpoint::EndpointExt;
+use finchers::endpoint::IntoEndpointExt;
 use finchers::endpoints::{body, query};
 use finchers::input::query::{from_csv, Serde};
 use finchers::local;

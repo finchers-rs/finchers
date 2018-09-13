@@ -124,7 +124,7 @@ where
 ///
 /// ```
 /// # use finchers::{path, routes};
-/// # use finchers::endpoint::EndpointExt;
+/// # use finchers::endpoint::{EndpointExt, IntoEndpointExt};
 /// # use finchers::endpoints::body;
 /// #
 /// let get_post = path!(@get / i32 /)
@@ -163,7 +163,7 @@ macro_rules! routes_impl {
     }};
 
     ($e1:expr, $e2:expr) => {{
-        $crate::endpoint::EndpointExt::or(
+        $crate::endpoint::IntoEndpointExt::or(
             $crate::endpoint::IntoEndpoint::into_endpoint($e1),
             $crate::endpoint::IntoEndpoint::into_endpoint($e2),
         )

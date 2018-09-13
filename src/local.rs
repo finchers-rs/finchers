@@ -6,7 +6,7 @@
 //! # #![feature(rust_2018_preview)]
 //! #
 //! # use finchers::endpoints::body;
-//! # use finchers::endpoint::EndpointExt;
+//! # use finchers::endpoint::IntoEndpointExt;
 //! # use finchers::local;
 //! # use finchers::path;
 //! #
@@ -30,7 +30,7 @@
 //! # #![feature(rust_2018_preview)]
 //! #
 //! # use finchers::endpoints::body;
-//! # use finchers::endpoint::EndpointExt;
+//! # use finchers::endpoint::{EndpointExt, IntoEndpointExt};
 //! # use finchers::local;
 //! # use finchers::path;
 //! #

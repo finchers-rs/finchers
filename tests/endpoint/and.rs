@@ -1,4 +1,4 @@
-use finchers::endpoint::{unit, value, EndpointExt};
+use finchers::endpoint::{unit, value, IntoEndpointExt};
 use finchers::local;
 
 use matches::assert_matches;

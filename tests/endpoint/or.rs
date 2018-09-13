@@ -1,6 +1,6 @@
 use failure::format_err;
 use finchers::endpoint::syntax;
-use finchers::endpoint::{value, EndpointExt};
+use finchers::endpoint::{value, EndpointExt, IntoEndpointExt};
 use finchers::error::bad_request;
 use finchers::local;
 use matches::assert_matches;
