@@ -53,14 +53,14 @@ impl Mode {
 ///
 /// ```
 /// # use finchers::endpoints::cookie;
-/// # use finchers::endpoint::{unit, EndpointExt};
+/// # use finchers::prelude::*;
 /// # use finchers::{path, routes};
 /// #
 /// let home = path!(@get / "home")
 ///     .and(routes![
 ///         cookie::required("session")
 ///             .map(|_| "authorized"),
-///         unit().map(|| "unauthorized"),
+///         endpoint::unit().map(|| "unauthorized"),
 ///     ]);
 /// # drop(home);
 /// ```
@@ -120,7 +120,7 @@ impl<'a> Endpoint<'a> for Required {
 ///
 /// ```
 /// # use finchers::endpoints::cookie;
-/// # use finchers::endpoint::EndpointExt;
+/// # use finchers::prelude::*;
 /// # use finchers::input::cookie::Cookie;
 /// # use finchers::path;
 /// #

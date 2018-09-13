@@ -16,11 +16,11 @@ mod endpoints;
 
 #[test]
 fn smoketest() {
-    use finchers::endpoint::EndpointExt;
     use finchers::local;
     use finchers::output::status::Created;
     use finchers::output::Json;
     use finchers::path;
+    use finchers::prelude::*;
 
     let endpoint = path!(@get / "api" / "v1" / "posts" / u32).map(|id: u32| Created(Json(id)));
 

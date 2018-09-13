@@ -1,7 +1,8 @@
 use finchers::endpoint::syntax;
-use finchers::endpoint::{Endpoint, EndpointError, EndpointExt};
+use finchers::endpoint::EndpointError;
 use finchers::local;
 use finchers::path;
+use finchers::prelude::*;
 
 use http::StatusCode;
 use matches::assert_matches;

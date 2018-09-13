@@ -9,29 +9,29 @@ use crate::endpoint::{Context, Endpoint, EndpointResult};
 use super::Wrapper;
 
 /// Create a `Wrapper` to construct endpoints whose `Future` uses the specified spawner.
-pub fn spawner<Sp>(spawner: Sp) -> Spawner<Sp>
+pub fn with_spawner<Sp>(spawner: Sp) -> WithSpawner<Sp>
 where
     Sp: Spawn + Clone,
 {
-    Spawner { spawner }
+    WithSpawner { spawner }
 }
 
 #[allow(missing_docs)]
 #[derive(Debug)]
-pub struct Spawner<Sp> {
+pub struct WithSpawner<Sp> {
     spawner: Sp,
 }
 
-impl<'a, E, Sp> Wrapper<'a, E> for Spawner<Sp>
+impl<'a, E, Sp> Wrapper<'a, E> for WithSpawner<Sp>
 where
     E: Endpoint<'a>,
     Sp: Spawn + Clone + 'a,
 {
     type Output = E::Output;
-    type Endpoint = SpawnerEndpoint<E, Sp>;
+    type Endpoint = WithSpawnerEndpoint<E, Sp>;
 
     fn wrap(self, endpoint: E) -> Self::Endpoint {
-        SpawnerEndpoint {
+        WithSpawnerEndpoint {
             endpoint,
             spawner: self.spawner,
         }
@@ -39,12 +39,12 @@ where
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct SpawnerEndpoint<E, Sp> {
+pub struct WithSpawnerEndpoint<E, Sp> {
     endpoint: E,
     spawner: Sp,
 }
 
-impl<'a, E, Sp> Endpoint<'a> for SpawnerEndpoint<E, Sp>
+impl<'a, E, Sp> Endpoint<'a> for WithSpawnerEndpoint<E, Sp>
 where
     E: Endpoint<'a>,
     Sp: Spawn + Clone + 'a,

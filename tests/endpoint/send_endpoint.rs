@@ -1,11 +1,10 @@
-use finchers::endpoint::unit;
-use finchers::endpoint::{Endpoint, EndpointExt, SendEndpoint};
 use finchers::local;
+use finchers::prelude::*;
 
 use matches::assert_matches;
 
 fn foo() -> impl for<'a> SendEndpoint<'a, Output = (u32,)> {
-    unit().map(|| 42)
+    endpoint::unit().map(|| 42)
 }
 
 #[test]

@@ -8,19 +8,12 @@ pub mod syntax;
 pub mod wrapper;
 
 mod and;
-mod and_then;
 mod apply_fn;
-mod before_apply;
 mod fixed;
 mod lazy;
-mod map;
 mod or;
-mod or_reject;
 mod or_strict;
-mod recover;
 mod reject;
-mod then;
-mod try_chain;
 mod unit;
 mod value;
 
@@ -29,22 +22,14 @@ pub use self::boxed::{EndpointObj, LocalEndpointObj};
 pub use self::context::Context;
 pub use self::error::{EndpointError, EndpointResult};
 pub use self::into_local::IntoLocal;
-pub use self::wrapper::Wrapper;
+pub use self::wrapper::{EndpointWrapExt, Wrapper};
 
 pub use self::and::And;
-pub use self::and_then::AndThen;
-#[allow(deprecated)]
-#[doc(hidden)]
-pub use self::before_apply::BeforeApply;
 #[allow(deprecated)]
 #[doc(hidden)]
 pub use self::fixed::Fixed;
-pub use self::map::Map;
 pub use self::or::Or;
-pub use self::or_reject::{OrReject, OrRejectWith};
 pub use self::or_strict::OrStrict;
-pub use self::recover::Recover;
-pub use self::then::Then;
 
 pub use self::apply_fn::{apply_fn, ApplyFn};
 #[allow(deprecated)]
@@ -61,9 +46,9 @@ pub use self::value::{value, Value};
 use std::rc::Rc;
 use std::sync::Arc;
 
-use futures_core::future::{Future, TryFuture};
+use futures_core::future::TryFuture;
 
-use crate::common::{Combine, Func, Tuple};
+use crate::common::{Combine, Tuple};
 use crate::error::Error;
 
 /// Trait representing an endpoint.
@@ -85,6 +70,15 @@ pub trait Endpoint<'a>: 'a {
         Self: Endpoint<'a, Output = T> + Sized,
     {
         self
+    }
+
+    /// Converts `self` using the provided `Wrapper`.
+    fn wrap<W>(self, wrapper: W) -> W::Endpoint
+    where
+        Self: Sized,
+        W: Wrapper<'a, Self>,
+    {
+        (wrapper.wrap(self)).with_output::<W::Output>()
     }
 }
 
@@ -173,37 +167,8 @@ impl<'a, E: Endpoint<'a>> IntoEndpoint<'a> for E {
     }
 }
 
-/// A set of extension methods used for composing complicate endpoints.
-pub trait EndpointExt<'a>: IntoEndpoint<'a> + Sized {
-    #[doc(hidden)]
-    #[deprecated(
-        since = "0.12.0-alpha.4",
-        note = "use `Endpoint::with_output` instead."
-    )]
-    #[inline]
-    fn output<T: Tuple>(self) -> Self
-    where
-        Self: IntoEndpoint<'a, Output = T>,
-    {
-        self
-    }
-
-    #[doc(hidden)]
-    #[deprecated(
-        since = "0.12.0-alpha.5",
-        note = "use `endpoint::wrappers::before_apply()` instead."
-    )]
-    #[allow(deprecated)]
-    fn before_apply<F>(self, f: F) -> BeforeApply<Self::Endpoint, F>
-    where
-        F: Fn(&mut Context<'_>) -> EndpointResult<()> + 'a,
-    {
-        (BeforeApply {
-            endpoint: self.into_endpoint(),
-            f,
-        }).with_output::<Self::Output>()
-    }
-
+/// A set of extension methods for composing multiple endpoints.
+pub trait IntoEndpointExt<'a>: IntoEndpoint<'a> + Sized {
     /// Create an endpoint which evaluates `self` and `e` and returns a pair of their tasks.
     ///
     /// The returned future from this endpoint contains both futures from
@@ -252,98 +217,9 @@ pub trait EndpointExt<'a>: IntoEndpoint<'a> + Sized {
             e2: other.into_endpoint(),
         }).with_output::<Self::Output>()
     }
-
-    /// Create an endpoint which maps the returned value to a different type.
-    fn map<F>(self, f: F) -> Map<Self::Endpoint, F>
-    where
-        F: Func<Self::Output> + 'a,
-    {
-        (Map {
-            endpoint: self.into_endpoint(),
-            f,
-        }).with_output::<(F::Out,)>()
-    }
-
-    #[allow(missing_docs)]
-    fn then<F>(self, f: F) -> Then<Self::Endpoint, F>
-    where
-        F: Func<Self::Output> + 'a,
-        F::Out: Future + 'a,
-    {
-        (Then {
-            endpoint: self.into_endpoint(),
-            f,
-        }).with_output::<(<F::Out as Future>::Output,)>()
-    }
-
-    #[allow(missing_docs)]
-    fn and_then<F>(self, f: F) -> AndThen<Self::Endpoint, F>
-    where
-        F: Func<Self::Output> + 'a,
-        F::Out: TryFuture<Error = Error> + 'a,
-    {
-        (AndThen {
-            endpoint: self.into_endpoint(),
-            f,
-        }).with_output::<(<F::Out as TryFuture>::Ok,)>()
-    }
-
-    /// Creates an endpoint which returns the error value returned from
-    /// `Endpoint::apply()` as the return value from the associated `Future`.
-    fn or_reject(self) -> OrReject<Self::Endpoint> {
-        (OrReject {
-            endpoint: self.into_endpoint(),
-        }).with_output::<Self::Output>()
-    }
-
-    /// Creates an endpoint which converts the error value returned from
-    /// `Endpoint::apply()` to the specified type and returns it as
-    /// the return value from the associated `Future`.
-    fn or_reject_with<F, R>(self, f: F) -> OrRejectWith<Self::Endpoint, F>
-    where
-        F: Fn(EndpointError, &mut Context<'_>) -> R + 'a,
-        R: Into<Error> + 'a,
-    {
-        (OrRejectWith {
-            endpoint: self.into_endpoint(),
-            f,
-        }).with_output::<Self::Output>()
-    }
-
-    #[allow(missing_docs)]
-    fn recover<F, R>(self, f: F) -> Recover<Self::Endpoint, F>
-    where
-        F: Fn(Error) -> R + 'a,
-        R: TryFuture<Error = Error> + 'a,
-    {
-        (Recover {
-            endpoint: self.into_endpoint(),
-            f,
-        }).with_output::<(self::recover::Recovered<Self::Output, R::Ok>,)>()
-    }
-
-    /// Converts `self` using the provided `Wrapper`.
-    fn with<W>(self, wrapper: W) -> W::Endpoint
-    where
-        W: Wrapper<'a, Self::Endpoint>,
-    {
-        (wrapper.wrap(self.into_endpoint())).with_output::<W::Output>()
-    }
-
-    #[doc(hidden)]
-    #[deprecated(
-        since = "0.12.0-alpha.3",
-        note = "this method is going to remove before releasing 0.12.0."
-    )]
-    #[allow(deprecated)]
-    fn fixed(self) -> Fixed<Self::Endpoint> {
-        Fixed {
-            endpoint: self.into_endpoint(),
-        }
-    }
 }
 
-impl<'a, E: IntoEndpoint<'a>> EndpointExt<'a> for E {}
+impl<'a, E: IntoEndpoint<'a>> IntoEndpointExt<'a> for E {}
 
 #[allow(deprecated)]
 mod shared {

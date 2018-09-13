@@ -36,12 +36,13 @@ use crate::input::with_get_cx;
 /// error, use `or_reject_with` as follows:
 ///
 /// ```
+/// # use finchers::prelude::*;
 /// # use finchers::endpoints::header;
-/// # use finchers::endpoint::EndpointExt;
+/// use finchers::endpoint::wrapper::or_reject_with;
 /// use finchers::error::bad_request;
 ///
 /// let endpoint = header::parse::<String>("x-api-key")
-///     .or_reject_with(|_, _| bad_request("missing header: x-api-key"));
+///     .wrap(or_reject_with(|_, _| bad_request("missing header: x-api-key")));
 /// # drop(endpoint);
 /// ```
 #[inline]
@@ -204,12 +205,12 @@ where
 /// ```
 ///
 /// ```
-/// # use finchers::endpoint::EndpointExt;
+/// # use finchers::prelude::*;
 /// # use finchers::endpoints::header;
 /// use finchers::error;
 ///
 /// let endpoint = header::matches("origin", "www.example.com")
-///     .or_reject_with(|_, _| error::bad_request("invalid header value"));
+///     .wrap(endpoint::wrapper::or_reject_with(|_, _| error::bad_request("invalid header value")));
 /// # drop(endpoint);
 /// ```
 #[inline]

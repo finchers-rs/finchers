@@ -19,8 +19,7 @@
 //! # Example
 //!
 //! ```
-//! use finchers::endpoint::EndpointExt;
-//! use finchers::endpoints::body;
+//! use finchers::prelude::*;
 //! use finchers::path;
 //!
 //! fn main() {
@@ -28,7 +27,7 @@
 //!         .map(|id: u64| format!("GET: id={}", id));
 //!
 //!     let create_post = path!(@post /)
-//!         .and(body::text())
+//!         .and(endpoints::body::text())
 //!         .map(|data: String| format!("POST: body={}", data));
 //!
 //!     let post_api = path!(/ "posts")
@@ -97,3 +96,12 @@ pub mod output;
 
 #[doc(inline)]
 pub use crate::launcher::launch;
+
+/// A prelude for crates using the `finchers` crate.
+pub mod prelude {
+    pub use crate::endpoint;
+    pub use crate::endpoint::wrapper::{EndpointWrapExt, Wrapper};
+    pub use crate::endpoint::{Endpoint, IntoEndpoint, IntoEndpointExt, SendEndpoint};
+    pub use crate::endpoints;
+    pub use crate::error::HttpError;
+}

@@ -20,9 +20,8 @@ use http::StatusCode;
 use serde::Deserialize;
 use std::env;
 
-use finchers::endpoint::{unit, EndpointExt};
-use finchers::endpoints::{body, query};
 use finchers::input::query::Serde;
+use finchers::prelude::*;
 use finchers::{output, path, routes};
 
 use crate::database::ConnectionPool;
@@ -31,14 +30,14 @@ fn main() -> Fallible<()> {
     dotenv::dotenv()?;
 
     let pool = ConnectionPool::init(env::var("DATABASE_URL")?)?;
-    let acquire_conn = unit().and_then(move || {
+    let acquire_conn = endpoint::unit().and_then(move || {
         let fut = pool.acquire_conn();
         async move { await!(fut).map_err(Into::into) }
     });
 
     let endpoint = path!(/"api"/"v1"/"posts").and(routes!{
         path!(@get /)
-            .and(query::optional().map(|query: Option<_>| {
+            .and(endpoints::query::optional().map(|query: Option<_>| {
                 query.map(Serde::into_inner)
             }))
             .and(acquire_conn.clone())
@@ -46,7 +45,7 @@ fn main() -> Fallible<()> {
             .map(output::Json),
 
         path!(@post /)
-            .and(body::json())
+            .and(endpoints::body::json())
             .and(acquire_conn.clone())
             .and_then(async move |new_post, conn| await!(crate::api::create_post(new_post, conn)).map_err(Into::into))
             .map(output::Json)

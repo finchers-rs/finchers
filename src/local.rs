@@ -3,16 +3,13 @@
 //! # Example
 //!
 //! ```
-//! # #![feature(rust_2018_preview)]
-//! #
-//! # use finchers::endpoints::body;
-//! # use finchers::endpoint::EndpointExt;
+//! # use finchers::prelude::*;
 //! # use finchers::local;
 //! # use finchers::path;
 //! #
 //! // impl Endpoint<Output = (u32, String)>
 //! let endpoint = path!(@post / u32 /)
-//!     .and(body::text());
+//!     .and(endpoints::body::text());
 //!
 //! const MSG: &str = "The quick brown fox jumps over the lazy dog";
 //!
@@ -27,15 +24,12 @@
 //! ```
 //!
 //! ```
-//! # #![feature(rust_2018_preview)]
-//! #
-//! # use finchers::endpoints::body;
-//! # use finchers::endpoint::EndpointExt;
+//! # use finchers::prelude::*;
 //! # use finchers::local;
 //! # use finchers::path;
 //! #
 //! let endpoint = path!(@put / "posts" / u32 /)
-//!     .and(body::text())
+//!     .and(endpoints::body::text())
 //!     .map(|id: u32, body: String| {
 //!         format!("update a post (id = {}): {}", id, body)
 //!     });

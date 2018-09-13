@@ -123,15 +123,14 @@ where
 /// # Example
 ///
 /// ```
-/// # use finchers::{path, routes};
-/// # use finchers::endpoint::EndpointExt;
-/// # use finchers::endpoints::body;
-/// #
+/// use finchers::{path, routes};
+/// use finchers::prelude::*;
+///
 /// let get_post = path!(@get / i32 /)
 ///     .map(|id| format!("get_post: {}", id));
 ///
 /// let add_post = path!(@post /)
-///     .and(body::text())
+///     .and(endpoints::body::text())
 ///     .map(|data: String| format!("add_post: {}", data));
 ///
 /// // ...
@@ -163,7 +162,7 @@ macro_rules! routes_impl {
     }};
 
     ($e1:expr, $e2:expr) => {{
-        $crate::endpoint::EndpointExt::or(
+        $crate::endpoint::IntoEndpointExt::or(
             $crate::endpoint::IntoEndpoint::into_endpoint($e1),
             $crate::endpoint::IntoEndpoint::into_endpoint($e2),
         )

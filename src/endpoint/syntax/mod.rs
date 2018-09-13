@@ -273,7 +273,7 @@ where
 macro_rules! path {
     // with method
     (@$method:ident $($t:tt)*) => (
-        $crate::endpoint::EndpointExt::and(
+        $crate::endpoint::IntoEndpointExt::and(
             $crate::endpoint::syntax::verb::$method(),
             $crate::path_impl!(@start $($t)*)
         )
@@ -289,12 +289,12 @@ macro_rules! path_impl {
     (@start / $head:tt $(/ $tail:tt)*) => {{
         let __p = $crate::path_impl!(@segment $head);
         $(
-            let __p = $crate::endpoint::EndpointExt::and(__p, $crate::path_impl!(@segment $tail));
+            let __p = $crate::endpoint::IntoEndpointExt::and(__p, $crate::path_impl!(@segment $tail));
         )*
         __p
     }};
     (@start / $head:tt $(/ $tail:tt)* /) => {
-        $crate::endpoint::EndpointExt::and(
+        $crate::endpoint::IntoEndpointExt::and(
             $crate::path_impl!(@start / $head $(/ $tail)*),
             $crate::endpoint::syntax::eos(),
         )

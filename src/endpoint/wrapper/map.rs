@@ -9,14 +9,42 @@ use crate::common::{Func, Tuple};
 use crate::endpoint::{Context, Endpoint, EndpointResult};
 use crate::error::Error;
 
+use super::Wrapper;
+
 #[allow(missing_docs)]
-#[derive(Debug, Copy, Clone)]
-pub struct Map<E, F> {
-    pub(super) endpoint: E,
-    pub(super) f: F,
+pub fn map<F>(f: F) -> Map<F> {
+    Map { f }
 }
 
-impl<'a, E, F> Endpoint<'a> for Map<E, F>
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct Map<F> {
+    f: F,
+}
+
+impl<'a, E, F> Wrapper<'a, E> for Map<F>
+where
+    E: Endpoint<'a>,
+    F: Func<E::Output> + 'a,
+{
+    type Output = (F::Out,);
+    type Endpoint = MapEndpoint<E, F>;
+
+    fn wrap(self, endpoint: E) -> Self::Endpoint {
+        MapEndpoint {
+            endpoint,
+            f: self.f,
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct MapEndpoint<E, F> {
+    endpoint: E,
+    f: F,
+}
+
+impl<'a, E, F> Endpoint<'a> for MapEndpoint<E, F>
 where
     E: Endpoint<'a>,
     F: Func<E::Output> + 'a,
