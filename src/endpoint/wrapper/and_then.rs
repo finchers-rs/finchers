@@ -10,15 +10,43 @@ use crate::endpoint::{Context, Endpoint, EndpointResult};
 use crate::error::Error;
 
 use super::try_chain::{TryChain, TryChainAction};
+use super::Wrapper;
 
 #[allow(missing_docs)]
-#[derive(Debug, Copy, Clone)]
-pub struct AndThen<E, F> {
-    pub(super) endpoint: E,
-    pub(super) f: F,
+pub fn and_then<F>(f: F) -> AndThen<F> {
+    AndThen { f }
 }
 
-impl<'a, E, F> Endpoint<'a> for AndThen<E, F>
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct AndThen<F> {
+    f: F,
+}
+
+impl<'a, E, F> Wrapper<'a, E> for AndThen<F>
+where
+    E: Endpoint<'a>,
+    F: Func<E::Output> + 'a,
+    F::Out: TryFuture<Error = Error>,
+{
+    type Output = (<F::Out as TryFuture>::Ok,);
+    type Endpoint = AndThenEndpoint<E, F>;
+
+    fn wrap(self, endpoint: E) -> Self::Endpoint {
+        AndThenEndpoint {
+            endpoint,
+            f: self.f,
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct AndThenEndpoint<E, F> {
+    endpoint: E,
+    f: F,
+}
+
+impl<'a, E, F> Endpoint<'a> for AndThenEndpoint<E, F>
 where
     E: Endpoint<'a>,
     F: Func<E::Output> + 'a,

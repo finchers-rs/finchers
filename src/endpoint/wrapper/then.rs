@@ -11,15 +11,43 @@ use crate::endpoint::{Context, Endpoint, EndpointResult};
 use crate::error::Error;
 
 use super::try_chain::{TryChain, TryChainAction};
+use super::Wrapper;
 
 #[allow(missing_docs)]
+pub fn then<F>(f: F) -> Then<F> {
+    Then { f }
+}
+
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct Then<F> {
+    f: F,
+}
+
+impl<'a, E, F> Wrapper<'a, E> for Then<F>
+where
+    E: Endpoint<'a>,
+    F: Func<E::Output> + 'a,
+    F::Out: Future + 'a,
+{
+    type Output = (<F::Out as Future>::Output,);
+    type Endpoint = ThenEndpoint<E, F>;
+
+    fn wrap(self, endpoint: E) -> Self::Endpoint {
+        ThenEndpoint {
+            endpoint,
+            f: self.f,
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone)]
-pub struct Then<E, F> {
+pub struct ThenEndpoint<E, F> {
     pub(super) endpoint: E,
     pub(super) f: F,
 }
 
-impl<'a, E, F> Endpoint<'a> for Then<E, F>
+impl<'a, E, F> Endpoint<'a> for ThenEndpoint<E, F>
 where
     E: Endpoint<'a>,
     F: Func<E::Output> + 'a,

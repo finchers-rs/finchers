@@ -99,8 +99,9 @@ pub use crate::launcher::launch;
 
 /// A prelude for crates using the `finchers` crate.
 pub mod prelude {
-    pub use crate::endpoint::wrapper::Wrapper;
-    pub use crate::endpoint::{Endpoint, EndpointExt, IntoEndpoint, IntoEndpointExt, SendEndpoint};
+    pub use crate::endpoint;
+    pub use crate::endpoint::wrapper::{EndpointWrapExt, Wrapper};
+    pub use crate::endpoint::{Endpoint, IntoEndpoint, IntoEndpointExt, SendEndpoint};
     pub use crate::endpoints;
     pub use crate::error::HttpError;
 }

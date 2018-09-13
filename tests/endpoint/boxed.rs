@@ -1,6 +1,7 @@
-use finchers::endpoint::{EndpointExt, EndpointObj, LocalEndpointObj};
+use finchers::endpoint::{EndpointObj, LocalEndpointObj};
 use finchers::local;
 use finchers::path;
+use finchers::prelude::*;
 
 use matches::assert_matches;
 

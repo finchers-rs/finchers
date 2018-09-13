@@ -12,14 +12,47 @@ use crate::endpoint::{Context, Endpoint, EndpointResult};
 use crate::error::Error;
 use crate::output::{Output, OutputContext};
 
+use super::Wrapper;
+
 #[allow(missing_docs)]
-#[derive(Debug, Copy, Clone)]
-pub struct Recover<E, F> {
-    pub(super) endpoint: E,
-    pub(super) f: F,
+pub fn recover<F, R>(f: F) -> Recover<F>
+where
+    F: Fn(Error) -> R,
+    R: TryFuture<Error = Error>,
+{
+    Recover { f }
 }
 
-impl<'a, E, F, R> Endpoint<'a> for Recover<E, F>
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct Recover<F> {
+    f: F,
+}
+
+impl<'a, E, F, R> Wrapper<'a, E> for Recover<F>
+where
+    E: Endpoint<'a>,
+    F: Fn(Error) -> R + 'a,
+    R: TryFuture<Error = Error> + 'a,
+{
+    type Output = (Recovered<E::Output, R::Ok>,);
+    type Endpoint = RecoverEndpoint<E, F>;
+
+    fn wrap(self, endpoint: E) -> Self::Endpoint {
+        RecoverEndpoint {
+            endpoint,
+            f: self.f,
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct RecoverEndpoint<E, F> {
+    endpoint: E,
+    f: F,
+}
+
+impl<'a, E, F, R> Endpoint<'a> for RecoverEndpoint<E, F>
 where
     E: Endpoint<'a>,
     F: Fn(Error) -> R + 'a,

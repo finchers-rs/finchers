@@ -5,7 +5,7 @@ use std::pin::PinMut;
 
 use futures_util::future;
 
-use crate::endpoint::{Context, Endpoint, EndpointExt, EndpointResult};
+use crate::endpoint::{Context, Endpoint, EndpointResult};
 use crate::error::Error;
 use crate::input::Input;
 
@@ -22,7 +22,7 @@ where
     (Reject {
         f,
         _marker: PhantomData,
-    }).output::<()>()
+    }).with_output::<()>()
 }
 
 #[doc(hidden)]

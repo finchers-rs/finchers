@@ -24,7 +24,7 @@ use crate::input::with_get_cx;
 /// # extern crate finchers;
 /// # extern crate serde;
 /// # use finchers::endpoints::query;
-/// # use finchers::endpoint::EndpointExt;
+/// # use finchers::prelude::*;
 /// # use finchers::input::query::{from_csv, Serde};
 /// # use serde::Deserialize;
 /// #
@@ -127,7 +127,7 @@ where
 /// # extern crate finchers;
 /// # extern crate serde;
 /// # use finchers::endpoints::query;
-/// # use finchers::endpoint::EndpointExt;
+/// # use finchers::prelude::*;
 /// # use finchers::input::query::{from_csv, Serde};
 /// # use serde::Deserialize;
 /// #

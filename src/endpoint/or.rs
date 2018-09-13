@@ -123,15 +123,14 @@ where
 /// # Example
 ///
 /// ```
-/// # use finchers::{path, routes};
-/// # use finchers::endpoint::{EndpointExt, IntoEndpointExt};
-/// # use finchers::endpoints::body;
-/// #
+/// use finchers::{path, routes};
+/// use finchers::prelude::*;
+///
 /// let get_post = path!(@get / i32 /)
 ///     .map(|id| format!("get_post: {}", id));
 ///
 /// let add_post = path!(@post /)
-///     .and(body::text())
+///     .and(endpoints::body::text())
 ///     .map(|data: String| format!("add_post: {}", data));
 ///
 /// // ...

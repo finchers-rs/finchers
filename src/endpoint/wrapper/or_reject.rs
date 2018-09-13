@@ -8,13 +8,35 @@ use pin_utils::unsafe_unpinned;
 use crate::endpoint::{Context, Endpoint, EndpointError, EndpointResult};
 use crate::error::Error;
 
-#[allow(missing_docs)]
-#[derive(Debug, Copy, Clone)]
-pub struct OrReject<E> {
-    pub(super) endpoint: E,
+use super::Wrapper;
+
+/// Creates a `Wrapper` for creating an endpoint which returns the error value
+/// returned from `Endpoint::apply()` as the return value from the associated `Future`.
+pub fn or_reject() -> OrReject {
+    OrReject { _priv: () }
 }
 
-impl<'a, E: Endpoint<'a>> Endpoint<'a> for OrReject<E> {
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct OrReject {
+    _priv: (),
+}
+
+impl<'a, E: Endpoint<'a>> Wrapper<'a, E> for OrReject {
+    type Output = E::Output;
+    type Endpoint = OrRejectEndpoint<E>;
+
+    fn wrap(self, endpoint: E) -> Self::Endpoint {
+        OrRejectEndpoint { endpoint }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct OrRejectEndpoint<E> {
+    endpoint: E,
+}
+
+impl<'a, E: Endpoint<'a>> Endpoint<'a> for OrRejectEndpoint<E> {
     type Output = E::Output;
     type Future = OrRejectFuture<E::Future>;
 
@@ -56,14 +78,47 @@ where
 
 // ==== OrRejectWith ====
 
-#[allow(missing_docs)]
-#[derive(Debug, Copy, Clone)]
-pub struct OrRejectWith<E, F> {
-    pub(super) endpoint: E,
-    pub(super) f: F,
+/// Creates a `Wrapper` for creating an endpoint which converts the error value
+/// returned from `Endpoint::apply()` to the specified type and returns it as
+/// the return value from the associated `Future`.
+pub fn or_reject_with<F, R>(f: F) -> OrRejectWith<F>
+where
+    F: Fn(EndpointError, &mut Context<'_>) -> R,
+    R: Into<Error>,
+{
+    OrRejectWith { f }
 }
 
-impl<'a, E, F, R> Endpoint<'a> for OrRejectWith<E, F>
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct OrRejectWith<F> {
+    f: F,
+}
+
+impl<'a, E, F, R> Wrapper<'a, E> for OrRejectWith<F>
+where
+    E: Endpoint<'a>,
+    F: Fn(EndpointError, &mut Context<'_>) -> R + 'a,
+    R: Into<Error> + 'a,
+{
+    type Output = E::Output;
+    type Endpoint = OrRejectWithEndpoint<E, F>;
+
+    fn wrap(self, endpoint: E) -> Self::Endpoint {
+        OrRejectWithEndpoint {
+            endpoint,
+            f: self.f,
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct OrRejectWithEndpoint<E, F> {
+    endpoint: E,
+    f: F,
+}
+
+impl<'a, E, F, R> Endpoint<'a> for OrRejectWithEndpoint<E, F>
 where
     E: Endpoint<'a>,
     F: Fn(EndpointError, &mut Context<'_>) -> R + 'a,

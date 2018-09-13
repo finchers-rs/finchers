@@ -1,6 +1,7 @@
 use finchers::endpoint::syntax;
-use finchers::endpoint::{Endpoint, EndpointError, EndpointExt, IntoEndpointExt};
+use finchers::endpoint::EndpointError;
 use finchers::local;
+use finchers::prelude::*;
 use futures_util::future::ready;
 use http::Response;
 
@@ -13,16 +14,18 @@ fn test_recover() {
         .map(|id: u32| format!("param={}", id))
         .with_output::<(String,)>();
 
-    let recovered = endpoint.or_reject().recover(|err| {
-        if err.is::<EndpointError>() {
-            ready(Ok(Response::builder()
-                .status(err.status_code())
-                .body(err.status_code().to_string())
-                .unwrap()))
-        } else {
-            ready(Err(err))
-        }
-    });
+    let recovered = endpoint
+        .wrap(endpoint::wrapper::or_reject())
+        .wrap(endpoint::wrapper::recover(|err| {
+            if err.is::<EndpointError>() {
+                ready(Ok(Response::builder()
+                    .status(err.status_code())
+                    .body(err.status_code().to_string())
+                    .unwrap()))
+            } else {
+                ready(Err(err))
+            }
+        }));
 
     assert!(local::get("/posts/42").apply(&recovered).is_ok());
     assert!(local::get("/posts/").apply(&recovered).is_ok());
