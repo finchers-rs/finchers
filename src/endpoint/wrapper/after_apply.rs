@@ -1,8 +1,12 @@
 use super::Wrapper;
 use crate::endpoint::{Context, Endpoint, EndpointResult};
 
-#[allow(missing_docs)]
-pub fn after_apply<F>(f: F) -> AfterApply<F> {
+/// Creates a wrapper for creating an endpoint which runs the provided function
+/// after calling `Endpoint::apply()`.
+pub fn after_apply<F>(f: F) -> AfterApply<F>
+where
+    F: Fn(&mut Context<'_>) -> EndpointResult<()>,
+{
     AfterApply { f }
 }
 

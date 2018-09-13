@@ -40,7 +40,7 @@ pub trait Wrapper<'a, E: Endpoint<'a>> {
 /// A set of extension methods for using built-in `Wrapper`s.
 pub trait EndpointWrapExt<'a>: Endpoint<'a> + Sized {
     #[allow(missing_docs)]
-    fn map<F>(self, f: F) -> <Map<F> as Wrapper<'a, Self>>::Endpoint
+    fn map<F>(self, f: F) -> <Map<Self::Output, F> as Wrapper<'a, Self>>::Endpoint
     where
         F: Func<Self::Output> + 'a,
     {
@@ -48,7 +48,7 @@ pub trait EndpointWrapExt<'a>: Endpoint<'a> + Sized {
     }
 
     #[allow(missing_docs)]
-    fn then<F>(self, f: F) -> <Then<F> as Wrapper<'a, Self>>::Endpoint
+    fn then<F>(self, f: F) -> <Then<Self::Output, F> as Wrapper<'a, Self>>::Endpoint
     where
         F: Func<Self::Output> + 'a,
         F::Out: Future + 'a,
@@ -57,7 +57,7 @@ pub trait EndpointWrapExt<'a>: Endpoint<'a> + Sized {
     }
 
     #[allow(missing_docs)]
-    fn and_then<F>(self, f: F) -> <AndThen<F> as Wrapper<'a, Self>>::Endpoint
+    fn and_then<F>(self, f: F) -> <AndThen<Self::Output, F> as Wrapper<'a, Self>>::Endpoint
     where
         F: Func<Self::Output> + 'a,
         F::Out: TryFuture<Error = Error> + 'a,

@@ -21,7 +21,8 @@ use crate::input::{with_get_cx, Input};
 use crate::output::payload::Payload;
 use crate::output::{Output, OutputContext};
 
-#[allow(missing_docs)]
+/// Create a wrapper for creating an endpoint which dumps log
+/// after resolving the future.
 pub fn logging() -> Logging<impl Fn(Info<'_>) + Copy + Clone> {
     logging_fn(|info: Info<'_>| {
         info!(
@@ -34,8 +35,12 @@ pub fn logging() -> Logging<impl Fn(Info<'_>) + Copy + Clone> {
     })
 }
 
-#[allow(missing_docs)]
-pub fn logging_fn<F>(f: F) -> Logging<F> {
+/// Create a wrapper for creating an endpoint which dumps a log
+/// using the specified function.
+pub fn logging_fn<F>(f: F) -> Logging<F>
+where
+    F: Fn(Info<'_>),
+{
     Logging { f }
 }
 

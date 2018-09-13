@@ -1,3 +1,4 @@
+use std::marker::PhantomData;
 use std::pin::PinMut;
 
 use futures_core::future::{Future, TryFuture};
@@ -12,18 +13,28 @@ use crate::error::Error;
 use super::try_chain::{TryChain, TryChainAction};
 use super::Wrapper;
 
-#[allow(missing_docs)]
-pub fn and_then<F>(f: F) -> AndThen<F> {
-    AndThen { f }
+/// Create a wrapper for creating an endpoint which executes another future
+/// created by the specified function after the precedent future resolves.
+pub fn and_then<T, F>(f: F) -> AndThen<T, F>
+where
+    T: Tuple,
+    F: Func<T>,
+    F::Out: TryFuture<Error = Error>,
+{
+    AndThen {
+        f,
+        _marker: PhantomData,
+    }
 }
 
 #[allow(missing_docs)]
 #[derive(Debug)]
-pub struct AndThen<F> {
+pub struct AndThen<T, F> {
     f: F,
+    _marker: PhantomData<fn(T)>,
 }
 
-impl<'a, E, F> Wrapper<'a, E> for AndThen<F>
+impl<'a, E, F> Wrapper<'a, E> for AndThen<E::Output, F>
 where
     E: Endpoint<'a>,
     F: Func<E::Output> + 'a,

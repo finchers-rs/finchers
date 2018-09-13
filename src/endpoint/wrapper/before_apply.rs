@@ -1,8 +1,12 @@
 use super::Wrapper;
 use crate::endpoint::{Context, Endpoint, EndpointResult};
 
-#[allow(missing_docs)]
-pub fn before_apply<F>(f: F) -> BeforeApply<F> {
+/// Creates a wrapper for creating an endpoint which runs the provided function
+/// before calling `Endpoint::apply()`.
+pub fn before_apply<F>(f: F) -> BeforeApply<F>
+where
+    F: Fn(&mut Context<'_>) -> EndpointResult<()>,
+{
     BeforeApply { f }
 }
 
