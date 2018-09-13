@@ -6,9 +6,9 @@ mod before_apply;
 mod map;
 mod or_reject;
 mod recover;
-mod spawner;
 mod then;
 mod try_chain;
+mod with_spawner;
 
 pub use self::after_apply::{after_apply, AfterApply};
 pub use self::and_then::{and_then, AndThen};
@@ -16,8 +16,8 @@ pub use self::before_apply::{before_apply, BeforeApply};
 pub use self::map::{map, Map};
 pub use self::or_reject::{or_reject, or_reject_with, OrReject, OrRejectWith};
 pub use self::recover::{recover, Recover};
-pub use self::spawner::{spawner, Spawner};
 pub use self::then::{then, Then};
+pub use self::with_spawner::{with_spawner, WithSpawner};
 
 use futures_core::future::{Future, TryFuture};
 
