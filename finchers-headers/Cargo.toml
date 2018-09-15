@@ -1,0 +1,23 @@
+[package]
+name = "finchers-headers"
+version = "0.1.0-alpha.1-dev"
+description = """
+A collection of endpoints for parsing HTTP headers.
+"""
+authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
+license = "MIT OR Apache-2.0"
+homepage = "https://finchers-rs.github.io"
+repository = "https://github.com/finchers-rs/finchers.git"
+documentation = "https://docs.rs/finchers-headers"
+readme = "README.md"
+publish = false
+
+[dependencies]
+finchers = { version = "0.12.0-alpha.5", path = ".." }
+failure = "0.1.2"
+futures-preview = "0.3.0-alpha.6"
+http = "0.1"
+hyperx = "0.13.1"
+
+[features]
+strict = []

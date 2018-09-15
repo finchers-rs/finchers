@@ -62,10 +62,16 @@ impl FromHeaderValue for Url {
     }
 }
 
-#[allow(missing_docs)]
+#[doc(hidden)]
+#[deprecated(
+    since = "0.12.0-alpha.6",
+    note = "use the external crate `finchers-header` instead."
+)]
+#[allow(deprecated)]
 #[derive(Debug)]
 pub struct TypedHeader<T>(pub T);
 
+#[allow(deprecated)]
 impl<T> TypedHeader<T> {
     #[allow(missing_docs)]
     pub fn into_inner(self) -> T {
@@ -73,6 +79,7 @@ impl<T> TypedHeader<T> {
     }
 }
 
+#[allow(deprecated)]
 impl<T: Header> FromHeaderValue for TypedHeader<T> {
     type Error = hyperx::Error;
 
