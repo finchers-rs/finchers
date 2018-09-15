@@ -9,7 +9,6 @@ use futures_core::task;
 use futures_core::task::Poll;
 use futures_util::future;
 
-use failure::format_err;
 use http::header::{HeaderName, HeaderValue};
 use http::HttpTryFrom;
 
@@ -79,10 +78,10 @@ where
         if cx.input().headers().contains_key(&self.name) {
             Ok(ParseFuture { endpoint: self })
         } else {
-            Err(EndpointError::custom(format_err!(
+            Err(EndpointError::custom(error::bad_request(format!(
                 "missing header: `{}'",
                 self.name.as_str()
-            )))
+            ))))
         }
     }
 }
