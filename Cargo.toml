@@ -30,6 +30,8 @@ maintenance = { status = "actively-developed" }
 
 [workspace]
 members = [
+  "finchers-headers",
+
   "examples/custom-logging",
   "examples/diesel",
   "examples/todos",

@@ -33,6 +33,7 @@ matrix:
       script:
         - cargo update
         - cargo test --features strict
+        - cargo test --manifest-path finchers-headers/Cargo.toml --features strict
         # lints
         - cargo fmt -- --check
         - cargo clippy
@@ -63,7 +64,7 @@ matrix:
       script:
         - cargo clean
         - cargo update
-        - cargo doc
+        - cargo doc --all
         - ./mdbook build ./guide/
         - rm -f target/doc/.lock
       deploy:
