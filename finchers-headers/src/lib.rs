@@ -23,7 +23,6 @@ extern crate futures;
 extern crate http;
 extern crate hyperx;
 
-use failure::err_msg;
 use finchers::endpoint::{Context, Endpoint, EndpointError, EndpointResult};
 use finchers::error::Error;
 use futures::future::{ready, Ready};
@@ -70,8 +69,8 @@ impl<'a, T: TypedHeader + 'a> Endpoint<'a> for Header<T> {
         match cx.input().headers().get(T::NAME) {
             Some(h) => T::parse_header(h)
                 .map(|parsed| ready(Ok((parsed,))))
-                .map_err(EndpointError::custom),
-            None => Err(EndpointError::custom(err_msg(
+                .map_err(|err| EndpointError::custom(finchers::error::bad_request(err.into()))),
+            None => Err(EndpointError::custom(finchers::error::bad_request(
                 "missing authorization header",
             ))),
         }
@@ -270,7 +269,7 @@ pub mod authorization {
             match cx.input().headers().get("authorization") {
                 Some(h) => header::Authorization::<S>::parse_header(&h.as_bytes().into())
                     .map(|header::Authorization(scheme)| ready(Ok((scheme,))))
-                    .map_err(EndpointError::custom),
+                    .map_err(|err| EndpointError::custom(finchers::error::bad_request(err))),
                 None => Err(EndpointError::custom(err_msg(
                     "missing authorization header",
                 ))),
@@ -313,7 +312,7 @@ pub mod authorization {
             match cx.input().headers().get("proxy-authorization") {
                 Some(h) => header::Authorization::<S>::parse_header(&h.as_bytes().into())
                     .map(|header::Authorization(scheme)| ready(Ok((scheme,))))
-                    .map_err(EndpointError::custom),
+                    .map_err(|err| EndpointError::custom(finchers::error::bad_request(err))),
                 None => Err(EndpointError::custom(err_msg(
                     "missing authorization header",
                 ))),

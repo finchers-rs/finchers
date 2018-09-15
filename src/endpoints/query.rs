@@ -1,6 +1,5 @@
 //! Endpoints for parsing query strings.
 
-use failure::format_err;
 use std::future::Future;
 use std::marker::PhantomData;
 use std::pin::PinMut;
@@ -8,6 +7,7 @@ use std::task::Poll;
 use std::{fmt, task};
 
 use crate::endpoint::{Context, Endpoint, EndpointError, EndpointResult};
+use crate::error;
 use crate::error::{bad_request, Error};
 use crate::input::query::{FromQuery, QueryItems};
 use crate::input::with_get_cx;
@@ -85,7 +85,7 @@ where
                 _marker: PhantomData,
             })
         } else {
-            Err(EndpointError::custom(format_err!("missing query")))
+            Err(EndpointError::custom(error::bad_request("missing query")))
         }
     }
 }
