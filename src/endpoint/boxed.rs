@@ -5,7 +5,7 @@ use futures_core::future::{FutureObj, LocalFutureObj};
 use futures_util::try_future::TryFutureExt;
 
 use crate::common::Tuple;
-use crate::endpoint::{Context, Endpoint, EndpointResult, SendEndpoint};
+use crate::endpoint::{Context, Endpoint, EndpointResult, IsSendEndpoint};
 use crate::error::Error;
 
 trait FutureObjEndpoint<'a>: 'a {
@@ -17,7 +17,7 @@ trait FutureObjEndpoint<'a>: 'a {
     ) -> EndpointResult<FutureObj<'a, Result<Self::Output, Error>>>;
 }
 
-impl<'e, E: SendEndpoint<'e>> FutureObjEndpoint<'e> for E {
+impl<'e, E: IsSendEndpoint<'e>> FutureObjEndpoint<'e> for E {
     type Output = E::Output;
 
     #[inline(always)]
@@ -39,7 +39,7 @@ impl<T: Tuple + 'static> EndpointObj<T> {
     #[allow(missing_docs)]
     pub fn new<E>(endpoint: E) -> EndpointObj<T>
     where
-        for<'a> E: SendEndpoint<'a, Output = T> + Send + Sync + 'static,
+        for<'a> E: IsSendEndpoint<'a, Output = T> + Send + Sync + 'static,
     {
         EndpointObj {
             inner: Box::new(endpoint),

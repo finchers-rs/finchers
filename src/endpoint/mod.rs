@@ -3,7 +3,6 @@
 mod boxed;
 mod context;
 pub mod error;
-mod into_local;
 pub mod syntax;
 pub mod wrapper;
 
@@ -21,7 +20,6 @@ mod value;
 pub use self::boxed::{EndpointObj, LocalEndpointObj};
 pub use self::context::Context;
 pub use self::error::{EndpointError, EndpointResult};
-pub use self::into_local::IntoLocal;
 pub use self::wrapper::{EndpointWrapExt, Wrapper};
 
 pub use self::and::And;
@@ -111,27 +109,29 @@ impl<'a, E: Endpoint<'a>> Endpoint<'a> for Arc<E> {
 
 /// A trait representing an endpoint with a constraint that the returned "Future"
 /// to be transferred across thread boundaries.
-pub trait SendEndpoint<'a>: 'a {
-    #[allow(missing_docs)]
+pub trait IsSendEndpoint<'a>: 'a + sealed_is_send_endpoint::Sealed {
+    #[doc(hidden)]
     type Output: Tuple;
-
-    #[allow(missing_docs)]
+    #[doc(hidden)]
     type Future: TryFuture<Ok = Self::Output, Error = Error> + Send + 'a;
-
-    #[allow(missing_docs)]
+    #[doc(hidden)]
     fn apply(&'a self, cx: &mut Context<'_>) -> EndpointResult<Self::Future>;
+}
 
-    /// Convert itself into an representation as an `Endpoint`.
-    #[inline]
-    fn into_local(self) -> IntoLocal<Self>
+mod sealed_is_send_endpoint {
+    use super::*;
+
+    pub trait Sealed {}
+
+    impl<'a, E> Sealed for E
     where
-        Self: Sized,
+        E: Endpoint<'a>,
+        E::Future: Send,
     {
-        (IntoLocal { endpoint: self }).with_output::<Self::Output>()
     }
 }
 
-impl<'a, E> SendEndpoint<'a> for E
+impl<'a, E> IsSendEndpoint<'a> for E
 where
     E: Endpoint<'a>,
     E::Future: Send,
@@ -142,6 +142,32 @@ where
     #[inline(always)]
     fn apply(&'a self, cx: &mut Context<'_>) -> EndpointResult<Self::Future> {
         self.apply(cx)
+    }
+}
+
+/// A wrapper struct which wraps a value whose type implements `IsSendEndpoint`
+/// and provides the implementations of `Endpoint<'a>`.
+#[derive(Debug, Copy, Clone)]
+pub struct SendEndpoint<E> {
+    endpoint: E,
+}
+
+impl<E> From<E> for SendEndpoint<E>
+where
+    for<'a> E: IsSendEndpoint<'a>,
+{
+    fn from(endpoint: E) -> Self {
+        SendEndpoint { endpoint }
+    }
+}
+
+impl<'a, E: IsSendEndpoint<'a>> Endpoint<'a> for SendEndpoint<E> {
+    type Output = E::Output;
+    type Future = E::Future;
+
+    #[inline(always)]
+    fn apply(&'a self, cx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+        self.endpoint.apply(cx)
     }
 }
 
@@ -221,65 +247,39 @@ pub trait IntoEndpointExt<'a>: IntoEndpoint<'a> + Sized {
 
 impl<'a, E: IntoEndpoint<'a>> IntoEndpointExt<'a> for E {}
 
-#[allow(deprecated)]
-mod shared {
-    use futures_core::future::TryFuture;
-
-    use super::{Context, Endpoint, EndpointResult};
-    use crate::common::Tuple;
-    use crate::error::Error;
-
-    #[doc(hidden)]
-    #[deprecated(
-        since = "0.12.0-alpha.4",
-        note = "use `SendEndpoint` instead"
-    )]
-    pub trait SharedEndpoint<T: Tuple>: for<'a> Sealed<'a, Output = T> {
-        fn into_endpoint(self) -> IntoEndpoint<Self>
-        where
-            Self: Sized,
-        {
-            IntoEndpoint(self)
-        }
-    }
-
-    impl<E, T: Tuple> SharedEndpoint<T> for E where for<'a> E: Sealed<'a, Output = T> {}
-
-    pub trait Sealed<'a>: Send + Sync + 'static {
-        type Output: Tuple;
-        type Future: TryFuture<Ok = Self::Output, Error = Error> + Send + 'a;
-
-        fn apply_shared(&'a self, cx: &mut Context<'_>) -> EndpointResult<Self::Future>;
-    }
-
-    impl<'a, E> Sealed<'a> for E
-    where
-        E: Endpoint<'a> + Send + Sync + 'static,
-        E::Future: Send,
-    {
-        type Output = E::Output;
-        type Future = E::Future;
-
-        #[inline(always)]
-        fn apply_shared(&'a self, cx: &mut Context<'_>) -> EndpointResult<Self::Future> {
-            self.apply(cx)
-        }
-    }
-
-    #[derive(Debug, Copy, Clone)]
-    pub struct IntoEndpoint<E>(E);
-
-    impl<'a, E: Sealed<'a>> Endpoint<'a> for IntoEndpoint<E> {
-        type Output = E::Output;
-        type Future = E::Future;
-
-        #[inline(always)]
-        fn apply(&'a self, cx: &mut Context<'_>) -> EndpointResult<Self::Future> {
-            self.apply_shared(cx)
-        }
-    }
+#[macro_export]
+macro_rules! impl_endpoint {
+    () => {
+        $crate::endpoint::SendEndpoint<
+            impl for<'a> $crate::endpoint::IsSendEndpoint<'a>
+        >
+    };
+    (Output = $Output:ty) => {
+        $crate::endpoint::SendEndpoint<
+            impl for<'a> $crate::endpoint::IsSendEndpoint<'a, Output = $Output>
+        >
+    };
 }
 
-#[doc(hidden)]
-#[allow(deprecated)]
-pub use self::shared::SharedEndpoint;
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn return_unit() -> impl_endpoint!() {
+        value(42).into()
+    }
+
+    fn return_value() -> impl_endpoint![Output = (u32,)] {
+        value(42).into()
+    }
+
+    #[test]
+    fn test_impl() {
+        fn assert_impl(endpoint: impl for<'a> Endpoint<'a>) {
+            drop(endpoint)
+        }
+
+        assert_impl(return_unit());
+        assert_impl(return_value());
+    }
+}
