@@ -1,15 +1,16 @@
+use finchers::impl_endpoint;
 use finchers::local;
 use finchers::prelude::*;
 
 use matches::assert_matches;
 
-fn foo() -> impl for<'a> SendEndpoint<'a, Output = (u32,)> {
-    endpoint::unit().map(|| 42)
+fn foo() -> impl_endpoint!(Output = (u32,)) {
+    endpoint::unit().map(|| 42).into()
 }
 
 #[test]
 fn test_send_endpoint() {
-    let endpoint = foo().into_local().with_output::<(u32,)>();
+    let endpoint = foo().with_output::<(u32,)>();
 
     assert_matches!(local::get("/").apply(&endpoint), Ok((42,)));
 }
@@ -17,7 +18,6 @@ fn test_send_endpoint() {
 #[test]
 fn smoke_test() {
     let endpoint = foo()
-        .into_local()
         .with_output::<(u32,)>()
         .map(|id: u32| format!("{}", id));
 
