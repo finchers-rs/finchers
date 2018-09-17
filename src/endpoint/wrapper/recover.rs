@@ -108,7 +108,7 @@ where
     F2: TryFuture<Error = Error>,
     F: FnOnce(Error) -> F2,
 {
-    #[cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
+    #[allow(clippy::type_complexity)]
     type Output = Result<(Recovered<F1::Ok, F2::Ok>,), Error>;
 
     fn poll(mut self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
@@ -145,7 +145,7 @@ where
         TryChain::First(f1, Some(data))
     }
 
-    #[cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
+    #[allow(clippy::type_complexity)]
     pub(super) fn poll<F>(
         self: PinMut<'_, Self>,
         cx: &mut task::Context<'_>,

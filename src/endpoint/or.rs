@@ -106,7 +106,7 @@ where
     L: TryFuture<Error = Error>,
     R: TryFuture<Error = Error>,
 {
-    #[cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
+    #[allow(clippy::type_complexity)]
     type Output = Result<(Wrapped<L::Ok, R::Ok>,), Error>;
 
     #[inline(always)]

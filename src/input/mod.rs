@@ -33,7 +33,7 @@ use self::cookie::Cookies;
 #[derive(Debug)]
 pub struct Input {
     request: Request<ReqBody>,
-    #[cfg_attr(feature = "cargo-clippy", allow(option_option))]
+    #[allow(clippy::option_option)]
     media_type: Option<Option<Mime>>,
     cookie_jar: Option<CookieJar>,
     _marker: PhantomData<(UnsafeCell<()>, Pinned)>,
@@ -65,7 +65,7 @@ impl Input {
     ///
     /// The result of this method is cached and it will return the reference to the cached value
     /// on subsequent calls.
-    #[cfg_attr(feature = "cargo-clippy", allow(needless_lifetimes))]
+    #[allow(clippy::needless_lifetimes)]
     pub fn content_type<'a>(self: PinMut<'a, Self>) -> Result<Option<&'a Mime>, Error> {
         let this = unsafe { PinMut::get_mut_unchecked(self) };
 
@@ -86,7 +86,7 @@ impl Input {
     }
 
     /// Returns a `Cookies<'_>` or initialize the internal Cookie jar.
-    #[cfg_attr(feature = "cargo-clippy", allow(needless_lifetimes))]
+    #[allow(clippy::needless_lifetimes)]
     pub fn cookies<'a>(self: PinMut<'a, Self>) -> Result<Cookies<'a>, Error> {
         let this = unsafe { PinMut::get_mut_unchecked(self) };
 

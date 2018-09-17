@@ -5,6 +5,7 @@
     futures_api,
     transpose_result
 )]
+#![feature(tool_lints)] // for clippy
 
 //! A combinator library for building asynchronous HTTP services.
 //!
