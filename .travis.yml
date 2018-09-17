@@ -33,6 +33,7 @@ matrix:
       script:
         - cargo update
         - cargo test --features strict
+        - (cd finchers-cors; cargo test --features strict)
         - (cd finchers-headers; cargo test --features strict)
         - if [[ "${TRAVIS_PULL_REQUEST_BRANCH:-}" = release-* ]]; then cargo package; fi
         # examples
@@ -44,7 +45,7 @@ matrix:
       after_success:
         - cargo kcov --print-install-kcov-sh | sh
         - cargo kcov -v --coveralls
-    
+
     - rust: nightly-2018-09-11
       env: LINT
       before_script:
@@ -54,6 +55,7 @@ matrix:
       script:
         - cargo fmt -- --check
         - cargo clippy --features strict
+        - (cd finchers-cors; cargo clippy --features strict)
         - (cd finchers-headers; cargo clippy --features strict)
 
     - rust: nightly
