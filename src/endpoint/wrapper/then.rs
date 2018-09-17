@@ -87,7 +87,7 @@ where
     F: Func<F1::Ok, Out = F2> + 'a,
     F1::Ok: Tuple,
 {
-    #[cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
+    #[allow(clippy::type_complexity)]
     try_chain: TryChain<F1, Map<F2, fn(F2::Output) -> Result<F2::Output, Error>>, &'a F>,
 }
 

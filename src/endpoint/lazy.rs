@@ -30,7 +30,7 @@ where
     R: TryFuture<Error = Error> + 'a,
 {
     type Output = (R::Ok,);
-    #[cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
+    #[allow(clippy::type_complexity)]
     type Future = MapOk<R, fn(R::Ok) -> Self::Output>;
 
     fn apply(&'a self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {

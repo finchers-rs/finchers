@@ -1,3 +1,5 @@
+#![allow(clippy::type_complexity)]
+
 use std::fmt;
 use std::pin::PinMut;
 use std::task;
@@ -110,7 +112,6 @@ where
     E2::Output: Combine<E3::Output>,
     E1::Output: Combine<<E2::Output as Combine<E3::Output>>::Out>,
 {
-    #[cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
     type Output = <E1::Output as Combine<<E2::Output as Combine<E3::Output>>::Out>>::Out;
     type Endpoint = And<E1::Endpoint, And<E2::Endpoint, E3::Endpoint>>;
 
@@ -135,11 +136,9 @@ where
     E2::Output: Combine<<E3::Output as Combine<E4::Output>>::Out>,
     E1::Output: Combine<<E2::Output as Combine<<E3::Output as Combine<E4::Output>>::Out>>::Out>,
 {
-    #[cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
     type Output = <E1::Output as Combine<
         <E2::Output as Combine<<E3::Output as Combine<E4::Output>>::Out>>::Out,
     >>::Out;
-    #[cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
     type Endpoint = And<E1::Endpoint, And<E2::Endpoint, And<E3::Endpoint, E4::Endpoint>>>;
 
     fn into_endpoint(self) -> Self::Endpoint {
@@ -174,13 +173,11 @@ where
         >>::Out,
     >,
 {
-    #[cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
     type Output = <E1::Output as Combine<
         <E2::Output as Combine<
             <E3::Output as Combine<<E4::Output as Combine<E5::Output>>::Out>>::Out,
         >>::Out,
     >>::Out;
-    #[cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
     type Endpoint =
         And<E1::Endpoint, And<E2::Endpoint, And<E3::Endpoint, And<E4::Endpoint, E5::Endpoint>>>>;
 

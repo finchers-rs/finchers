@@ -13,6 +13,8 @@ branches:
 matrix:
   allow_failures:
     - rust: nightly
+    - env: LINT
+
   include:
     - rust: nightly-2018-09-11
       sudo: required
@@ -24,8 +26,6 @@ matrix:
             - libdw-dev
             - binutils-dev
       before_script:
-        - rustup component add rustfmt-preview
-        - rustup component add clippy-preview
         - cargo install cargo-update || true
         - cargo install cargo-kcov || true
         - cargo install-update -a
@@ -33,11 +33,8 @@ matrix:
       script:
         - cargo update
         - cargo test --features strict
-        - cargo test --manifest-path finchers-headers/Cargo.toml --features strict
-        # lints
-        - cargo fmt -- --check
-        - cargo clippy
-        - if [[ "${TRAVIS_PULL_REQUEST_BRANCH:-}" = release-* ]]; then cargo publish --dry-run; fi
+        - (cd finchers-headers; cargo test --features strict)
+        - if [[ "${TRAVIS_PULL_REQUEST_BRANCH:-}" = release-* ]]; then cargo package; fi
         # examples
         - cargo test -p example-custom-logging
         - cargo test -p example-diesel
@@ -47,6 +44,17 @@ matrix:
       after_success:
         - cargo kcov --print-install-kcov-sh | sh
         - cargo kcov -v --coveralls
+    
+    - rust: nightly-2018-09-11
+      env: LINT
+      before_script:
+        - rustup component add rustfmt-preview
+        - rustup component add clippy-preview
+        - export CARGO_INCREMENTAL=0
+      script:
+        - cargo fmt -- --check
+        - cargo clippy --features strict
+        - (cd finchers-headers; cargo clippy --features strict)
 
     - rust: nightly
       env: LATEST_NIGHTLY
