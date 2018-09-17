@@ -1,4 +1,5 @@
 #![feature(rust_2018_preview)]
+#![feature(tool_lints)] // for clippy
 
 //! A collection of endpoints for parsing HTTP headers.
 
@@ -138,6 +139,7 @@ pub mod header {
     /// A trait representing a pair of header field and value.
     pub trait TypedHeader {
         /// The name of header field associated with this type.
+        #[allow(clippy::declare_interior_mutable_const)]
         const NAME: HeaderName;
 
         /// The value type of header field which will be returned from `parse_header`.
