@@ -43,7 +43,6 @@ impl<'e, E: Endpoint<'e>> App<'e, E> {
     }
 }
 
-#[allow(type_alias_bounds)]
 pub type ResBody<T: Output> = Either<Once<String>, T::Body>;
 
 #[allow(missing_docs)]
