@@ -60,6 +60,7 @@
 extern crate bitflags;
 extern crate bytes;
 extern crate cookie;
+extern crate either;
 extern crate failure;
 extern crate futures;      // 0.1
 extern crate futures_core; // 0.3
