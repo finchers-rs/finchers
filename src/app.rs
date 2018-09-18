@@ -43,7 +43,7 @@ impl<'e, E: Endpoint<'e>> App<'e, E> {
     }
 }
 
-pub type ResBody<T: Output> = Either<Once<String>, T::Body>;
+pub type ResBody<T> = Either<Once<String>, <T as Output>::Body>;
 
 #[allow(missing_docs)]
 #[derive(Debug)]
