@@ -51,6 +51,7 @@ pub struct CorsFilter {
     methods: Option<HashSet<Method>>,
     headers: Option<HashSet<HeaderName>>,
     max_age: Option<Duration>,
+    allow_credentials: bool,
 }
 
 impl CorsFilter {
@@ -105,6 +106,14 @@ impl CorsFilter {
             .get_or_insert_with(Default::default)
             .extend(headers);
         self
+    }
+
+    #[allow(missing_docs)]
+    pub fn allow_credentials(self, enabled: bool) -> CorsFilter {
+        CorsFilter {
+            allow_credentials: enabled,
+            ..self
+        }
     }
 
     #[allow(missing_docs)]
@@ -169,6 +178,7 @@ impl<'a, E: Endpoint<'a>> Wrapper<'a, E> for CorsFilter {
             headers: self.headers,
             headers_value,
             max_age: self.max_age,
+            allow_credentials: self.allow_credentials,
         }
     }
 }
@@ -185,6 +195,7 @@ pub struct CorsEndpoint<E> {
     headers: Option<HashSet<HeaderName>>,
     headers_value: Option<HeaderValue>,
     max_age: Option<Duration>,
+    allow_credentials: bool,
 }
 
 impl<E> CorsEndpoint<E> {
@@ -337,8 +348,13 @@ where
                     Ok(output) => Ok((CorsResponse(CorsResponseKind::Normal(NormalResponse {
                         output,
                         origin,
+                        allow_credentials: endpoint.allow_credentials,
                     })),)),
-                    Err(cause) => Err(CorsError::Other { cause, origin }.into()),
+                    Err(cause) => Err(CorsError::Other {
+                        cause,
+                        origin,
+                        allow_credentials: endpoint.allow_credentials,
+                    }.into()),
                 })
             }
         }
@@ -405,6 +421,7 @@ impl PreflightResponse {
 struct NormalResponse<T> {
     output: T,
     origin: AllowedOrigin,
+    allow_credentials: bool,
 }
 
 impl<T: Output> Output for NormalResponse<T> {
@@ -419,11 +436,19 @@ impl<T: Output> Output for NormalResponse<T> {
                     .entry(header::ACCESS_CONTROL_ALLOW_ORIGIN)
                     .unwrap()
                     .or_insert(self.origin.into());
+                if self.allow_credentials {
+                    response
+                        .headers_mut()
+                        .entry(header::ACCESS_CONTROL_ALLOW_CREDENTIALS)
+                        .unwrap()
+                        .or_insert_with(|| HeaderValue::from_static("true"));
+                }
                 Ok(response.map(Into::into))
             }
             Err(cause) => Err(CorsError::Other {
                 cause: cause.into(),
                 origin: self.origin,
+                allow_credentials: self.allow_credentials,
             }.into()),
         }
     }
@@ -476,7 +501,11 @@ enum CorsError {
     DisallowedRequestHeaders,
 
     #[fail(display = "{}", cause)]
-    Other { cause: Error, origin: AllowedOrigin },
+    Other {
+        cause: Error,
+        origin: AllowedOrigin,
+        allow_credentials: bool,
+    },
 }
 
 impl HttpError for CorsError {
@@ -488,11 +517,23 @@ impl HttpError for CorsError {
     }
 
     fn headers(&self, headers: &mut HeaderMap) {
-        if let CorsError::Other { ref origin, .. } = self {
+        if let CorsError::Other {
+            ref origin,
+            allow_credentials,
+            ..
+        } = *self
+        {
             headers
                 .entry(header::ACCESS_CONTROL_ALLOW_ORIGIN)
                 .unwrap()
                 .or_insert_with(|| origin.clone().into());
+
+            if allow_credentials {
+                headers
+                    .entry(header::ACCESS_CONTROL_ALLOW_CREDENTIALS)
+                    .unwrap()
+                    .or_insert_with(|| HeaderValue::from_static("true"));
+            }
         }
     }
 }
