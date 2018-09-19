@@ -40,26 +40,73 @@ use finchers::output::{Output, OutputContext};
 use either::Either;
 use failure::Fail;
 use http::header;
-use http::header::{HeaderMap, HeaderValue};
+use http::header::{HeaderMap, HeaderName, HeaderValue};
 use http::{Method, Response, StatusCode};
 
 /// A `Wrapper` for building an endpoint with CORS.
 #[derive(Debug)]
 pub struct CorsFilter {
-    hosts: Option<HashSet<String>>,
+    origins: Option<HashSet<String>>,
+    methods: Option<HashSet<Method>>,
+    headers: Option<HashSet<HeaderName>>,
 }
 
 impl CorsFilter {
-    /// Creates a `CorsFilter` which allows all origins to access the resource.
-    pub fn allow_any() -> CorsFilter {
-        CorsFilter { hosts: None }
+    /// Creates a `CorsFilter` with the default configuration.
+    pub fn new() -> CorsFilter {
+        CorsFilter {
+            origins: None,
+            methods: None,
+            headers: None,
+        }
     }
 
-    /// Creates a `CorsFilter` which allows the specified origins to access the resource.
-    pub fn from_whiltelist<T: Into<String>>(hosts: impl IntoIterator<Item = T>) -> CorsFilter {
-        CorsFilter {
-            hosts: Some(hosts.into_iter().map(Into::into).collect()),
-        }
+    #[allow(missing_docs)]
+    pub fn allow_method(mut self, method: Method) -> CorsFilter {
+        self.methods
+            .get_or_insert_with(Default::default)
+            .insert(method);
+        self
+    }
+
+    #[allow(missing_docs)]
+    pub fn allow_methods(mut self, methods: impl IntoIterator<Item = Method>) -> CorsFilter {
+        self.methods
+            .get_or_insert_with(Default::default)
+            .extend(methods);
+        self
+    }
+
+    #[allow(missing_docs)]
+    pub fn allow_origin(mut self, origin: impl Into<String>) -> CorsFilter {
+        self.origins
+            .get_or_insert_with(Default::default)
+            .insert(origin.into());
+        self
+    }
+
+    #[allow(missing_docs)]
+    pub fn allow_origins(mut self, origins: impl IntoIterator<Item = String>) -> CorsFilter {
+        self.origins
+            .get_or_insert_with(Default::default)
+            .extend(origins);
+        self
+    }
+
+    #[allow(missing_docs)]
+    pub fn allow_header(mut self, header: HeaderName) -> CorsFilter {
+        self.headers
+            .get_or_insert_with(Default::default)
+            .insert(header);
+        self
+    }
+
+    #[allow(missing_docs)]
+    pub fn allow_headers(mut self, headers: impl IntoIterator<Item = HeaderName>) -> CorsFilter {
+        self.headers
+            .get_or_insert_with(Default::default)
+            .extend(headers);
+        self
     }
 }
 
@@ -68,9 +115,53 @@ impl<'a, E: Endpoint<'a>> Wrapper<'a, E> for CorsFilter {
     type Endpoint = CorsEndpoint<E>;
 
     fn wrap(self, endpoint: E) -> Self::Endpoint {
+        let methods = self.methods.unwrap_or_else(|| {
+            vec![
+                Method::GET,
+                Method::POST,
+                Method::PUT,
+                Method::HEAD,
+                Method::DELETE,
+                Method::PATCH,
+                Method::OPTIONS,
+            ].into_iter()
+            .collect()
+        });
+
+        let methods_value = HeaderValue::from_shared(
+            methods
+                .iter()
+                .enumerate()
+                .fold(String::new(), |mut acc, (i, m)| {
+                    if i > 0 {
+                        acc += ",";
+                    }
+                    acc += m.as_str();
+                    acc
+                }).into(),
+        ).expect("should be a valid header value");
+
+        let headers_value = self.headers.as_ref().map(|hdrs| {
+            HeaderValue::from_shared(
+                hdrs.iter()
+                    .enumerate()
+                    .fold(String::new(), |mut acc, (i, hdr)| {
+                        if i > 0 {
+                            acc += ",";
+                        }
+                        acc += hdr.as_str();
+                        acc
+                    }).into(),
+            ).expect("should be a valid header value")
+        });
+
         CorsEndpoint {
             endpoint,
-            hosts: self.hosts,
+            origins: self.origins,
+            methods,
+            methods_value,
+            headers: self.headers,
+            headers_value,
         }
     }
 }
@@ -81,10 +172,12 @@ impl<'a, E: Endpoint<'a>> Wrapper<'a, E> for CorsFilter {
 #[derive(Debug)]
 pub struct CorsEndpoint<E> {
     endpoint: E,
-    hosts: Option<HashSet<String>>,
+    origins: Option<HashSet<String>>,
+    methods: HashSet<Method>,
+    methods_value: HeaderValue,
+    headers: Option<HashSet<HeaderName>>,
+    headers_value: Option<HeaderValue>,
 }
-
-// FIXME: validate the value of `Access-Control-Request-Method` and `Access-Control-Request-Headers`.
 
 impl<E> CorsEndpoint<E> {
     fn validate_origin_header<'a>(&'a self, input: &Input) -> Result<AllowedOrigin, CorsError>
@@ -96,15 +189,71 @@ impl<E> CorsEndpoint<E> {
             .get(header::ORIGIN)
             .ok_or_else(|| CorsError::MissingOrigin)?;
 
-        match self.hosts {
-            Some(ref hosts) => {
+        match self.origins {
+            Some(ref origins) => {
                 let origin_str = origin.to_str().map_err(|_| CorsError::InvalidOrigin)?;
-                if !hosts.contains(origin_str) {
+                if !origins.contains(origin_str) {
                     return Err(CorsError::DisallowedOrigin);
                 }
                 Ok(AllowedOrigin::Some(origin.clone()))
             }
             None => Ok(AllowedOrigin::Any),
+        }
+    }
+
+    fn validate_request_method<'a>(
+        &'a self,
+        input: &Input,
+    ) -> Result<Option<HeaderValue>, CorsError>
+    where
+        E: Endpoint<'a>,
+    {
+        match input.headers().get(header::ACCESS_CONTROL_REQUEST_METHOD) {
+            Some(h) => {
+                let method: Method = h
+                    .to_str()
+                    .map_err(|_| CorsError::InvalidRequestMethod)?
+                    .parse()
+                    .map_err(|_| CorsError::InvalidRequestMethod)?;
+                if self.methods.contains(&method) {
+                    Ok(Some(self.methods_value.clone()))
+                } else {
+                    Err(CorsError::DisallowedRequestMethod)
+                }
+            }
+            None => Ok(None),
+        }
+    }
+
+    fn validate_request_headers<'a>(
+        &'a self,
+        input: &Input,
+    ) -> Result<Option<HeaderValue>, CorsError>
+    where
+        E: Endpoint<'a>,
+    {
+        match input.headers().get(header::ACCESS_CONTROL_REQUEST_HEADERS) {
+            Some(hdrs) => match self.headers {
+                Some(ref headers) => {
+                    let mut request_headers = HashSet::new();
+                    let hdrs_str = hdrs
+                        .to_str()
+                        .map_err(|_| CorsError::InvalidRequestHeaders)?;
+                    for hdr in hdrs_str.split(',').map(|s| s.trim()) {
+                        let hdr: HeaderName =
+                            hdr.parse().map_err(|_| CorsError::InvalidRequestHeaders)?;
+                        request_headers.insert(hdr);
+                    }
+
+                    if !headers.is_superset(&request_headers) {
+                        return Err(CorsError::DisallowedRequestHeaders);
+                    }
+
+                    Ok(self.headers_value.clone())
+                }
+                None => Ok(Some(hdrs.clone())),
+            },
+            None => Ok(None),
         }
     }
 
@@ -117,16 +266,9 @@ impl<E> CorsEndpoint<E> {
     {
         let origin = self.validate_origin_header(input)?;
         match *input.method() {
-            Method::OPTIONS => match input
-                .headers()
-                .get(header::ACCESS_CONTROL_REQUEST_METHOD)
-                .cloned()
-            {
+            Method::OPTIONS => match self.validate_request_method(input)? {
                 Some(allow_method) => {
-                    let allow_headers = input
-                        .headers()
-                        .get(header::ACCESS_CONTROL_REQUEST_HEADERS)
-                        .cloned();
+                    let allow_headers = self.validate_request_headers(input)?;
                     Ok(Either::Left(PreflightResponse {
                         origin,
                         allow_method,
@@ -277,6 +419,26 @@ enum CorsError {
 
     #[fail(display = "Invalid CORS request: the provided Origin is not allowed.")]
     DisallowedOrigin,
+
+    #[fail(
+        display = "Invalid CORS request: the provided Access-Control-Request-Method is not a valid value."
+    )]
+    InvalidRequestMethod,
+
+    #[fail(
+        display = "Invalid CORS request: the provided Access-Control-Request-Method is not allowed."
+    )]
+    DisallowedRequestMethod,
+
+    #[fail(
+        display = "Invalid CORS request: the provided Access-Control-Request-Headers is not a valid value."
+    )]
+    InvalidRequestHeaders,
+
+    #[fail(
+        display = "Invalid CORS request: the provided Access-Control-Request-Headers is not allowed."
+    )]
+    DisallowedRequestHeaders,
 
     #[fail(display = "{}", cause)]
     Other { cause: Error, origin: AllowedOrigin },
