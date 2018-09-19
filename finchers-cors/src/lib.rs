@@ -45,7 +45,7 @@ use http::header::{HeaderMap, HeaderName, HeaderValue};
 use http::{Method, Response, StatusCode};
 
 /// A `Wrapper` for building an endpoint with CORS.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct CorsFilter {
     origins: Option<HashSet<String>>,
     methods: Option<HashSet<Method>>,
@@ -56,12 +56,7 @@ pub struct CorsFilter {
 impl CorsFilter {
     /// Creates a `CorsFilter` with the default configuration.
     pub fn new() -> CorsFilter {
-        CorsFilter {
-            origins: None,
-            methods: None,
-            headers: None,
-            max_age: None,
-        }
+        Default::default()
     }
 
     #[allow(missing_docs)]
@@ -339,7 +334,10 @@ where
             Either::Right(origin) => {
                 let future = unsafe { PinMut::new_unchecked(&mut this.future) };
                 future.try_poll(cx).map(|result| match result {
-                    Ok(output) => Ok((CorsResponse(CorsResponseKind::Normal { output, origin }),)),
+                    Ok(output) => Ok((CorsResponse(CorsResponseKind::Normal(NormalResponse {
+                        output,
+                        origin,
+                    })),)),
                     Err(cause) => Err(CorsError::Other { cause, origin }.into()),
                 })
             }
@@ -354,7 +352,19 @@ pub struct CorsResponse<T>(CorsResponseKind<T>);
 #[derive(Debug)]
 enum CorsResponseKind<T> {
     Preflight(PreflightResponse),
-    Normal { output: T, origin: AllowedOrigin },
+    Normal(NormalResponse<T>),
+}
+
+impl<T: Output> Output for CorsResponse<T> {
+    type Body = Optional<T::Body>;
+    type Error = Error;
+
+    fn respond(self, cx: &mut OutputContext<'_>) -> Result<Response<Self::Body>, Self::Error> {
+        match self.0 {
+            CorsResponseKind::Preflight(preflight) => Ok(preflight.into_response()),
+            CorsResponseKind::Normal(normal) => normal.respond(cx),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -365,55 +375,56 @@ struct PreflightResponse {
     max_age: Option<Duration>,
 }
 
-impl<T: Output> Output for CorsResponse<T> {
+impl PreflightResponse {
+    fn into_response<T>(self) -> Response<Optional<T>> {
+        let mut response = Response::new(Optional::empty());
+        response
+            .headers_mut()
+            .insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, self.origin.into());
+        response
+            .headers_mut()
+            .insert(header::ACCESS_CONTROL_REQUEST_METHOD, self.allow_method);
+
+        if let Some(allow_headers) = self.allow_headers {
+            response
+                .headers_mut()
+                .insert(header::ACCESS_CONTROL_REQUEST_HEADERS, allow_headers);
+        }
+
+        if let Some(max_age) = self.max_age {
+            response
+                .headers_mut()
+                .insert(header::ACCESS_CONTROL_MAX_AGE, max_age.as_secs().into());
+        }
+
+        response
+    }
+}
+
+#[derive(Debug)]
+struct NormalResponse<T> {
+    output: T,
+    origin: AllowedOrigin,
+}
+
+impl<T: Output> Output for NormalResponse<T> {
     type Body = Optional<T::Body>;
     type Error = Error;
 
     fn respond(self, cx: &mut OutputContext<'_>) -> Result<Response<Self::Body>, Self::Error> {
-        match self.0 {
-            CorsResponseKind::Preflight(PreflightResponse {
-                origin,
-                allow_method,
-                allow_headers,
-                max_age,
-            }) => {
-                let mut response = Response::new(Optional::empty());
+        match self.output.respond(cx) {
+            Ok(mut response) => {
                 response
                     .headers_mut()
-                    .insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, origin.into());
-                response
-                    .headers_mut()
-                    .insert(header::ACCESS_CONTROL_REQUEST_METHOD, allow_method);
-
-                if let Some(allow_headers) = allow_headers {
-                    response
-                        .headers_mut()
-                        .insert(header::ACCESS_CONTROL_REQUEST_HEADERS, allow_headers);
-                }
-
-                if let Some(max_age) = max_age {
-                    response
-                        .headers_mut()
-                        .insert(header::ACCESS_CONTROL_MAX_AGE, max_age.as_secs().into());
-                }
-
-                Ok(response)
+                    .entry(header::ACCESS_CONTROL_ALLOW_ORIGIN)
+                    .unwrap()
+                    .or_insert(self.origin.into());
+                Ok(response.map(Into::into))
             }
-
-            CorsResponseKind::Normal { output, origin } => match output.respond(cx) {
-                Ok(mut response) => {
-                    response
-                        .headers_mut()
-                        .entry(header::ACCESS_CONTROL_ALLOW_ORIGIN)
-                        .unwrap()
-                        .or_insert(origin.into());
-                    Ok(response.map(Into::into))
-                }
-                Err(cause) => Err(CorsError::Other {
-                    cause: cause.into(),
-                    origin,
-                }.into()),
-            },
+            Err(cause) => Err(CorsError::Other {
+                cause: cause.into(),
+                origin: self.origin,
+            }.into()),
         }
     }
 }
