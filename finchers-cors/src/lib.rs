@@ -25,6 +25,7 @@ extern crate http;
 
 use std::collections::HashSet;
 use std::pin::PinMut;
+use std::time::Duration;
 
 use futures::future::{Future, TryFuture};
 use futures::task;
@@ -49,6 +50,7 @@ pub struct CorsFilter {
     origins: Option<HashSet<String>>,
     methods: Option<HashSet<Method>>,
     headers: Option<HashSet<HeaderName>>,
+    max_age: Option<Duration>,
 }
 
 impl CorsFilter {
@@ -58,6 +60,7 @@ impl CorsFilter {
             origins: None,
             methods: None,
             headers: None,
+            max_age: None,
         }
     }
 
@@ -107,6 +110,14 @@ impl CorsFilter {
             .get_or_insert_with(Default::default)
             .extend(headers);
         self
+    }
+
+    #[allow(missing_docs)]
+    pub fn max_age(self, max_age: Duration) -> CorsFilter {
+        CorsFilter {
+            max_age: Some(max_age),
+            ..self
+        }
     }
 }
 
@@ -162,6 +173,7 @@ impl<'a, E: Endpoint<'a>> Wrapper<'a, E> for CorsFilter {
             methods_value,
             headers: self.headers,
             headers_value,
+            max_age: self.max_age,
         }
     }
 }
@@ -177,6 +189,7 @@ pub struct CorsEndpoint<E> {
     methods_value: HeaderValue,
     headers: Option<HashSet<HeaderName>>,
     headers_value: Option<HeaderValue>,
+    max_age: Option<Duration>,
 }
 
 impl<E> CorsEndpoint<E> {
@@ -273,6 +286,7 @@ impl<E> CorsEndpoint<E> {
                         origin,
                         allow_method,
                         allow_headers,
+                        max_age: self.max_age,
                     }))
                 }
                 None => Ok(Either::Right(origin)),
@@ -348,6 +362,7 @@ struct PreflightResponse {
     origin: AllowedOrigin,
     allow_method: HeaderValue,
     allow_headers: Option<HeaderValue>,
+    max_age: Option<Duration>,
 }
 
 impl<T: Output> Output for CorsResponse<T> {
@@ -360,19 +375,28 @@ impl<T: Output> Output for CorsResponse<T> {
                 origin,
                 allow_method,
                 allow_headers,
+                max_age,
             }) => {
                 let mut response = Response::new(Optional::empty());
                 response
                     .headers_mut()
+                    .insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, origin.into());
+                response
+                    .headers_mut()
                     .insert(header::ACCESS_CONTROL_REQUEST_METHOD, allow_method);
+
                 if let Some(allow_headers) = allow_headers {
                     response
                         .headers_mut()
                         .insert(header::ACCESS_CONTROL_REQUEST_HEADERS, allow_headers);
                 }
-                response
-                    .headers_mut()
-                    .insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, origin.into());
+
+                if let Some(max_age) = max_age {
+                    response
+                        .headers_mut()
+                        .insert(header::ACCESS_CONTROL_MAX_AGE, max_age.as_secs().into());
+                }
+
                 Ok(response)
             }
 
