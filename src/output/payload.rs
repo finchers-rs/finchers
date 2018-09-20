@@ -92,8 +92,14 @@ impl<T: Payload> Payload for Optional<T> {
             Either::Left(ref mut payload) => payload
                 .poll_data()
                 .map(|data_async| data_async.map(|data_opt| data_opt.map(Either::Left))),
-            Either::Right(false) => Ok(Some(Either::Right(io::Cursor::new([]))).into()),
-            Either::Right(true) => Ok(None.into()),
+            Either::Right(ref mut is_end_stream) => {
+                if *is_end_stream {
+                    Ok(None.into())
+                } else {
+                    *is_end_stream = true;
+                    Ok(Some(Either::Right(io::Cursor::new([]))).into())
+                }
+            }
         }
     }
 
