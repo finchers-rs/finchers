@@ -271,7 +271,7 @@ impl<E> CorsEndpoint<E> {
         let origin = self.validate_origin_header(input)?;
         match *input.method() {
             Method::OPTIONS => match self.validate_request_method(input)? {
-                Some(allow_method) => {
+                Some(allow_methods) => {
                     let allow_headers = self.validate_request_headers(input)?;
 
                     let mut response = Response::new(());
@@ -280,12 +280,12 @@ impl<E> CorsEndpoint<E> {
                         .insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, origin.into());
                     response
                         .headers_mut()
-                        .insert(header::ACCESS_CONTROL_REQUEST_METHOD, allow_method);
+                        .insert(header::ACCESS_CONTROL_ALLOW_METHODS, allow_methods);
 
                     if let Some(allow_headers) = allow_headers {
                         response
                             .headers_mut()
-                            .insert(header::ACCESS_CONTROL_REQUEST_HEADERS, allow_headers);
+                            .insert(header::ACCESS_CONTROL_ALLOW_HEADERS, allow_headers);
                     }
 
                     if let Some(max_age) = self.max_age {
@@ -298,7 +298,12 @@ impl<E> CorsEndpoint<E> {
                 }
                 None => Ok(Either::Right(origin)),
             },
-            _ => Ok(Either::Right(origin)),
+            ref method => {
+                if !self.methods.contains(method) {
+                    return Err(CorsError::DisallowedRequestMethod);
+                }
+                Ok(Either::Right(origin))
+            }
         }
     }
 }

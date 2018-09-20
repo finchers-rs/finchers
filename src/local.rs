@@ -117,6 +117,9 @@ impl_constructors! {
 
     /// Create a dummy `PATCH` request with given URI.
     PATCH => patch,
+
+    /// Create a dummy `OPTIONS` request with given URI.
+    OPTIONS => options,
 }
 
 /// A builder of dummy HTTP request.
@@ -266,6 +269,10 @@ impl ResBody {
 
     pub fn trailers(&self) -> Option<&HeaderMap> {
         self.trailers.as_ref()
+    }
+
+    pub fn content_length(&self) -> Option<u64> {
+        self.content_length
     }
 
     pub fn to_bytes(&self) -> Cow<'_, [u8]> {
