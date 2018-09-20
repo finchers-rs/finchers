@@ -199,34 +199,28 @@ pub struct CorsEndpoint<E> {
 }
 
 impl<E> CorsEndpoint<E> {
-    fn validate_origin_header<'a>(&'a self, input: &Input) -> Result<AllowedOrigin, CorsError>
-    where
-        E: Endpoint<'a>,
-    {
+    fn validate_origin_header(&self, input: &Input) -> Result<AllowedOrigin, CorsError> {
         let origin = input
             .headers()
             .get(header::ORIGIN)
             .ok_or_else(|| CorsError::MissingOrigin)?;
 
-        match self.origins {
-            Some(ref origins) => {
-                let origin_str = origin.to_str().map_err(|_| CorsError::InvalidOrigin)?;
-                if !origins.contains(origin_str) {
-                    return Err(CorsError::DisallowedOrigin);
-                }
-                Ok(AllowedOrigin::Some(origin.clone()))
+        if let Some(ref origins) = self.origins {
+            let origin_str = origin.to_str().map_err(|_| CorsError::InvalidOrigin)?;
+            if !origins.contains(origin_str) {
+                return Err(CorsError::DisallowedOrigin);
             }
-            None => Ok(AllowedOrigin::Any),
+            return Ok(AllowedOrigin::Some(origin.clone()));
+        }
+
+        if self.allow_credentials {
+            Ok(AllowedOrigin::Some(origin.clone()))
+        } else {
+            Ok(AllowedOrigin::Any)
         }
     }
 
-    fn validate_request_method<'a>(
-        &'a self,
-        input: &Input,
-    ) -> Result<Option<HeaderValue>, CorsError>
-    where
-        E: Endpoint<'a>,
-    {
+    fn validate_request_method(&self, input: &Input) -> Result<Option<HeaderValue>, CorsError> {
         match input.headers().get(header::ACCESS_CONTROL_REQUEST_METHOD) {
             Some(h) => {
                 let method: Method = h
@@ -244,13 +238,7 @@ impl<E> CorsEndpoint<E> {
         }
     }
 
-    fn validate_request_headers<'a>(
-        &'a self,
-        input: &Input,
-    ) -> Result<Option<HeaderValue>, CorsError>
-    where
-        E: Endpoint<'a>,
-    {
+    fn validate_request_headers(&self, input: &Input) -> Result<Option<HeaderValue>, CorsError> {
         match input.headers().get(header::ACCESS_CONTROL_REQUEST_HEADERS) {
             Some(hdrs) => match self.headers {
                 Some(ref headers) => {
@@ -276,24 +264,37 @@ impl<E> CorsEndpoint<E> {
         }
     }
 
-    fn handle_preflight_request<'a>(
-        &'a self,
+    fn handle_preflight_request(
+        &self,
         input: &Input,
-    ) -> Result<Either<PreflightResponse, AllowedOrigin>, CorsError>
-    where
-        E: Endpoint<'a>,
-    {
+    ) -> Result<Either<Response<()>, AllowedOrigin>, CorsError> {
         let origin = self.validate_origin_header(input)?;
         match *input.method() {
             Method::OPTIONS => match self.validate_request_method(input)? {
                 Some(allow_method) => {
                     let allow_headers = self.validate_request_headers(input)?;
-                    Ok(Either::Left(PreflightResponse {
-                        origin,
-                        allow_method,
-                        allow_headers,
-                        max_age: self.max_age,
-                    }))
+
+                    let mut response = Response::new(());
+                    response
+                        .headers_mut()
+                        .insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, origin.into());
+                    response
+                        .headers_mut()
+                        .insert(header::ACCESS_CONTROL_REQUEST_METHOD, allow_method);
+
+                    if let Some(allow_headers) = allow_headers {
+                        response
+                            .headers_mut()
+                            .insert(header::ACCESS_CONTROL_REQUEST_HEADERS, allow_headers);
+                    }
+
+                    if let Some(max_age) = self.max_age {
+                        response
+                            .headers_mut()
+                            .insert(header::ACCESS_CONTROL_MAX_AGE, max_age.as_secs().into());
+                    }
+
+                    Ok(Either::Left(response))
                 }
                 None => Ok(Either::Right(origin)),
             },
@@ -367,7 +368,7 @@ pub struct CorsResponse<T>(CorsResponseKind<T>);
 
 #[derive(Debug)]
 enum CorsResponseKind<T> {
-    Preflight(PreflightResponse),
+    Preflight(Response<()>),
     Normal(NormalResponse<T>),
 }
 
@@ -377,43 +378,9 @@ impl<T: Output> Output for CorsResponse<T> {
 
     fn respond(self, cx: &mut OutputContext<'_>) -> Result<Response<Self::Body>, Self::Error> {
         match self.0 {
-            CorsResponseKind::Preflight(preflight) => Ok(preflight.into_response()),
+            CorsResponseKind::Preflight(response) => Ok(response.map(|_| Optional::empty())),
             CorsResponseKind::Normal(normal) => normal.respond(cx),
         }
-    }
-}
-
-#[derive(Debug)]
-struct PreflightResponse {
-    origin: AllowedOrigin,
-    allow_method: HeaderValue,
-    allow_headers: Option<HeaderValue>,
-    max_age: Option<Duration>,
-}
-
-impl PreflightResponse {
-    fn into_response<T>(self) -> Response<Optional<T>> {
-        let mut response = Response::new(Optional::empty());
-        response
-            .headers_mut()
-            .insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, self.origin.into());
-        response
-            .headers_mut()
-            .insert(header::ACCESS_CONTROL_REQUEST_METHOD, self.allow_method);
-
-        if let Some(allow_headers) = self.allow_headers {
-            response
-                .headers_mut()
-                .insert(header::ACCESS_CONTROL_REQUEST_HEADERS, allow_headers);
-        }
-
-        if let Some(max_age) = self.max_age {
-            response
-                .headers_mut()
-                .insert(header::ACCESS_CONTROL_MAX_AGE, max_age.as_secs().into());
-        }
-
-        response
     }
 }
 
