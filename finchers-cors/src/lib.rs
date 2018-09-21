@@ -42,12 +42,12 @@ use either::Either;
 use failure::Fail;
 use http::header;
 use http::header::{HeaderMap, HeaderName, HeaderValue};
-use http::{Method, Response, StatusCode};
+use http::{Method, Response, StatusCode, Uri};
 
 /// A `Wrapper` for building an endpoint with CORS.
 #[derive(Debug, Default)]
 pub struct CorsFilter {
-    origins: Option<HashSet<String>>,
+    origins: Option<HashSet<Uri>>,
     methods: Option<HashSet<Method>>,
     headers: Option<HashSet<HeaderName>>,
     max_age: Option<Duration>,
@@ -58,6 +58,22 @@ impl CorsFilter {
     /// Creates a `CorsFilter` with the default configuration.
     pub fn new() -> CorsFilter {
         Default::default()
+    }
+
+    #[allow(missing_docs)]
+    pub fn allow_origin(mut self, origin: impl Into<Uri>) -> CorsFilter {
+        self.origins
+            .get_or_insert_with(Default::default)
+            .insert(origin.into());
+        self
+    }
+
+    #[allow(missing_docs)]
+    pub fn allow_origins(mut self, origins: impl IntoIterator<Item = Uri>) -> CorsFilter {
+        self.origins
+            .get_or_insert_with(Default::default)
+            .extend(origins);
+        self
     }
 
     #[allow(missing_docs)]
@@ -73,22 +89,6 @@ impl CorsFilter {
         self.methods
             .get_or_insert_with(Default::default)
             .extend(methods);
-        self
-    }
-
-    #[allow(missing_docs)]
-    pub fn allow_origin(mut self, origin: impl Into<String>) -> CorsFilter {
-        self.origins
-            .get_or_insert_with(Default::default)
-            .insert(origin.into());
-        self
-    }
-
-    #[allow(missing_docs)]
-    pub fn allow_origins(mut self, origins: impl IntoIterator<Item = String>) -> CorsFilter {
-        self.origins
-            .get_or_insert_with(Default::default)
-            .extend(origins);
         self
     }
 
@@ -189,7 +189,7 @@ impl<'a, E: Endpoint<'a>> Wrapper<'a, E> for CorsFilter {
 #[derive(Debug)]
 pub struct CorsEndpoint<E> {
     endpoint: E,
-    origins: Option<HashSet<String>>,
+    origins: Option<HashSet<Uri>>,
     methods: HashSet<Method>,
     methods_value: HeaderValue,
     headers: Option<HashSet<HeaderName>>,
@@ -198,16 +198,31 @@ pub struct CorsEndpoint<E> {
     allow_credentials: bool,
 }
 
+fn parse_origin(h: &HeaderValue) -> Result<Uri, CorsError> {
+    let h_str = h.to_str().map_err(|_| CorsError::InvalidOrigin)?;
+    let origin_uri: Uri = h_str.parse().map_err(|_| CorsError::InvalidOrigin)?;
+
+    if origin_uri.scheme_part().is_none() {
+        return Err(CorsError::InvalidOrigin);
+    }
+
+    if origin_uri.host().is_none() {
+        return Err(CorsError::InvalidOrigin);
+    }
+
+    Ok(origin_uri)
+}
+
 impl<E> CorsEndpoint<E> {
     fn validate_origin_header(&self, input: &Input) -> Result<AllowedOrigin, CorsError> {
         let origin = input
             .headers()
             .get(header::ORIGIN)
             .ok_or_else(|| CorsError::MissingOrigin)?;
+        let parsed_origin = parse_origin(origin)?;
 
         if let Some(ref origins) = self.origins {
-            let origin_str = origin.to_str().map_err(|_| CorsError::InvalidOrigin)?;
-            if !origins.contains(origin_str) {
+            if !origins.contains(&parsed_origin) {
                 return Err(CorsError::DisallowedOrigin);
             }
             return Ok(AllowedOrigin::Some(origin.clone()));

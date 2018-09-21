@@ -6,10 +6,25 @@ extern crate http;
 extern crate matches;
 
 use finchers::impl_endpoint;
+use finchers::local;
 use finchers::prelude::*;
+
+use http::header;
 
 fn hello_world() -> impl_endpoint!(Output = (&'static str,)) {
     endpoint::value("Hello, world!").into()
+}
+
+#[test]
+fn without_cors() {
+    let endpoint = hello_world();
+
+    let response = local::get("/hello")
+        .header(header::HOST, "localhost")
+        .respond(&endpoint);
+
+    assert_eq!(response.status().as_u16(), 200);
+    assert_eq!(response.body().to_utf8(), "Hello, world!");
 }
 
 mod simple {
@@ -18,7 +33,7 @@ mod simple {
     use finchers_cors::CorsFilter;
 
     use http::header;
-    use http::Method;
+    use http::{Method, Uri};
     use matches::assert_matches;
 
     use super::hello_world;
@@ -60,23 +75,11 @@ mod simple {
     }
 
     #[test]
-    fn without_cors() {
-        let endpoint = hello_world();
-
-        let response = local::get("/hello")
-            .header(header::HOST, "localhost")
-            .respond(&endpoint);
-
-        assert_eq!(response.status().as_u16(), 200);
-        assert_eq!(response.body().to_utf8(), "Hello, world!");
-    }
-
-    #[test]
     fn default() {
         let endpoint = hello_world().wrap(CorsFilter::new());
 
         let response = cors_request!({
-            origin: "example.com",
+            origin: "http://example.com",
         }).respond(&endpoint);
 
         assert_eq!(response.status().as_u16(), 200);
@@ -94,21 +97,21 @@ mod simple {
 
     #[test]
     fn with_allow_origin() {
-        let cors = CorsFilter::new().allow_origin("example.com");
+        let cors = CorsFilter::new().allow_origin(Uri::from_static("http://example.com"));
         let endpoint = hello_world().wrap(cors);
 
         let response = cors_request!({
-            origin: "example.com",
+            origin: "http://example.com",
         }).respond(&endpoint);
         assert_eq!(response.status().as_u16(), 200);
         assert_eq!(response.body().to_utf8(), "Hello, world!");
         assert_cors!(response, {
-            origin: "example.com",
+            origin: "http://example.com",
         });
 
         // disallowed Origin
         let response = cors_request!({
-            origin: "example.org",
+            origin: "http://example.org",
         }).respond(&endpoint);
         assert_eq!(response.status().as_u16(), 400);
     }
@@ -119,7 +122,7 @@ mod simple {
         let endpoint = hello_world().wrap(cors);
 
         let response = cors_request!({
-            origin: "example.com",
+            origin: "http://example.com",
         }).respond(&endpoint);
 
         assert_eq!(response.status().as_u16(), 200);
@@ -131,7 +134,7 @@ mod simple {
         // disallowed Method
         let response = cors_request!({
             method: Method::DELETE,
-            origin: "example.com",
+            origin: "http://example.com",
         }).respond(&endpoint);
         assert_eq!(response.status().as_u16(), 400);
     }
@@ -142,14 +145,14 @@ mod simple {
         let endpoint = hello_world().wrap(cors);
 
         let response = cors_request!({
-            origin: "example.com",
+            origin: "http://example.com",
         }).header(header::COOKIE, "session=xxxx")
         .respond(&endpoint);
 
         assert_eq!(response.status().as_u16(), 200);
         assert_eq!(response.body().to_utf8(), "Hello, world!");
         assert_cors!(response, {
-            origin: "example.com",
+            origin: "http://example.com",
             allow_credentials: true,
         });
     }
@@ -163,7 +166,7 @@ mod preflight {
 
     use http::header;
     use http::header::{HeaderName, HeaderValue};
-    use http::Method;
+    use http::{Method, Uri};
     use matches::assert_matches;
     use std::collections::HashSet;
     use std::time::Duration;
@@ -179,7 +182,7 @@ mod preflight {
             local::options("/hello")
                 .header(header::HOST, "localhost:3000")
                 .header(header::ORIGIN, $origin)
-                .header(header::ACCESS_CONTROL_REQUEST_METHOD, $method)
+                .header(header::ACCESS_CONTROL_REQUEST_METHOD, ($method as Method).as_str())
                 $(
                     .header(header::ACCESS_CONTROL_REQUEST_HEADERS, HeaderValue::from_shared({
                         vec![$($header),*]
@@ -256,8 +259,8 @@ mod preflight {
         let endpoint = hello_world().wrap(CorsFilter::new());
 
         let response = preflight_request!({
-            origin: "example.com",
-            method: "GET",
+            origin: "http://example.com",
+            method: Method::GET,
         }).respond(&endpoint);
 
         assert_preflight!(response, {
@@ -271,20 +274,20 @@ mod preflight {
 
     #[test]
     fn with_allow_origins() {
-        let cors = CorsFilter::new().allow_origin("example.com");
+        let cors = CorsFilter::new().allow_origin(Uri::from_static("http://example.com"));
         let endpoint = hello_world().wrap(cors);
 
         let response = preflight_request!({
-            origin: "example.com",
-            method: "GET",
+            origin: "http://example.com",
+            method: Method::GET,
         }).respond(&endpoint);
         assert_preflight!(response, {
-            origin: "example.com",
+            origin: "http://example.com",
         });
 
         let response = preflight_request!({
-            origin: "google.com",
-            method: "GET",
+            origin: "http://example.org",
+            method: Method::GET,
         }).respond(&endpoint);
         assert_eq!(response.status().as_u16(), 400);
     }
@@ -295,8 +298,8 @@ mod preflight {
         let endpoint = hello_world().wrap(cors);
 
         let response = preflight_request!({
-            origin: "example.com",
-            method: "GET",
+            origin: "http://example.com",
+            method: Method::GET,
         }).respond(&endpoint);
         assert_preflight!(response, {
             origin: "*",
@@ -307,8 +310,8 @@ mod preflight {
 
         // disallowed method
         let response = preflight_request!({
-            origin: "example.com",
-            method: "POST",
+            origin: "http://example.com",
+            method: Method::POST,
         }).respond(&endpoint);
         assert_eq!(response.status().as_u16(), 400);
     }
@@ -321,8 +324,8 @@ mod preflight {
         let endpoint = hello_world().wrap(cors);
 
         let response = preflight_request!({
-            origin: "example.com",
-            method: "GET",
+            origin: "http://example.com",
+            method: Method::GET,
             headers: [
                 x_api_key.clone(),
             ],
@@ -336,8 +339,8 @@ mod preflight {
 
         // disallowed header
         let response = preflight_request!({
-            origin: "example.com",
-            method: "GET",
+            origin: "http://example.com",
+            method: Method::GET,
             headers: [
                 header::AUTHORIZATION,
             ],
@@ -353,8 +356,8 @@ mod preflight {
         let endpoint = hello_world().wrap(cors);
 
         let response = preflight_request!({
-            origin: "example.com",
-            method: "GET",
+            origin: "http://example.com",
+            method: Method::GET,
         }).respond(&endpoint);
         assert_preflight!(response, {
             origin: "*",
