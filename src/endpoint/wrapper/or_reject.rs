@@ -1,9 +1,4 @@
-use std::pin::PinMut;
-
-use futures_core::future::{Future, TryFuture};
-use futures_core::task;
-use futures_core::task::Poll;
-use pin_utils::unsafe_unpinned;
+use futures::{Future, Poll};
 
 use crate::endpoint::{Context, Endpoint, EndpointError, EndpointResult};
 use crate::error::Error;
@@ -58,20 +53,17 @@ pub struct OrRejectFuture<F> {
     inner: Result<F, Option<Error>>,
 }
 
-impl<F> OrRejectFuture<F> {
-    unsafe_unpinned!(inner: Result<F, Option<Error>>);
-}
-
 impl<F> Future for OrRejectFuture<F>
 where
-    F: TryFuture<Error = Error>,
+    F: Future<Error = Error>,
 {
-    type Output = Result<F::Ok, Error>;
+    type Item = F::Item;
+    type Error = Error;
 
-    fn poll(mut self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
-        match self.inner() {
-            Ok(ref mut f) => unsafe { PinMut::new_unchecked(f).try_poll(cx) },
-            Err(ref mut err) => Poll::Ready(Err(err.take().unwrap())),
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        match self.inner {
+            Ok(ref mut f) => f.poll(),
+            Err(ref mut err) => Err(err.take().unwrap()),
         }
     }
 }

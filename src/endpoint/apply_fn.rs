@@ -1,4 +1,4 @@
-use futures_core::future::TryFuture;
+use futures::future::IntoFuture;
 
 use crate::common::Tuple;
 use crate::endpoint::{Context, Endpoint, EndpointResult};
@@ -8,10 +8,10 @@ use crate::error::Error;
 pub fn apply_fn<F, R>(f: F) -> ApplyFn<F>
 where
     F: Fn(&mut Context<'_>) -> EndpointResult<R>,
-    R: TryFuture<Error = Error>,
-    R::Ok: Tuple,
+    R: IntoFuture<Error = Error>,
+    R::Item: Tuple,
 {
-    (ApplyFn { f }).with_output::<R::Ok>()
+    (ApplyFn { f }).with_output::<R::Item>()
 }
 
 #[allow(missing_docs)]
@@ -23,14 +23,14 @@ pub struct ApplyFn<F> {
 impl<'a, F, R> Endpoint<'a> for ApplyFn<F>
 where
     F: Fn(&mut Context<'_>) -> EndpointResult<R> + 'a,
-    R: TryFuture<Error = Error> + 'a,
-    R::Ok: Tuple,
+    R: IntoFuture<Error = Error> + 'a,
+    R::Item: Tuple,
 {
-    type Output = R::Ok;
-    type Future = R;
+    type Output = R::Item;
+    type Future = R::Future;
 
     #[inline]
     fn apply(&'a self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
-        (self.f)(ecx)
+        (self.f)(ecx).map(IntoFuture::into_future)
     }
 }

@@ -1,5 +1,3 @@
-#![feature(async_await, await_macro, futures_api)]
-
 use finchers::prelude::*;
 use finchers::{output, path, routes};
 
@@ -12,32 +10,38 @@ fn main() {
 
     let find_todo = path!(@get / u64 /)
         .and(conn.clone())
-        .and_then(async move |id, conn| {
-            await!(crate::api::find_todo(id, conn))?.ok_or_else(crate::util::not_found)
+        .and_then(|id, conn| {
+            crate::api::find_todo(id, conn)
+                .map_err(Into::into)
+                .and_then(|todo_opt| todo_opt.ok_or_else(crate::util::not_found))
         }).map(output::Json);
 
     let list_todos = path!(@get /)
         .and(conn.clone())
-        .and_then(async move |conn| Ok(await!(crate::api::list_todos(conn))?))
+        .and_then(|conn| crate::api::list_todos(conn).map_err(Into::into))
         .map(output::Json);
 
     let add_todo = path!(@post /)
         .and(endpoints::body::json())
         .and(conn.clone())
-        .and_then(async move |new_todo, conn| Ok(await!(crate::api::create_todo(new_todo, conn))?))
+        .and_then(|new_todo, conn| crate::api::create_todo(new_todo, conn).map_err(Into::into))
         .map(output::Json);
 
     let patch_todo = path!(@patch / u64 /)
         .and(endpoints::body::json())
         .and(conn.clone())
-        .and_then(async move |id, patch, conn| {
-            await!(crate::api::patch_todo(id, patch, conn))?.ok_or_else(crate::util::not_found)
+        .and_then(|id, patch, conn| {
+            crate::api::patch_todo(id, patch, conn)
+                .map_err(Into::into)
+                .and_then(|todo_opt| todo_opt.ok_or_else(crate::util::not_found))
         }).map(output::Json);
 
     let delete_todo = path!(@delete / u64 /)
         .and(conn.clone())
-        .and_then(async move |id, conn| {
-            await!(crate::api::delete_todo(id, conn))?.ok_or_else(crate::util::not_found)
+        .and_then(|id, conn| {
+            crate::api::delete_todo(id, conn)
+                .map_err(Into::into)
+                .and_then(|todo_opt| todo_opt.ok_or_else(crate::util::not_found))
         });
 
     let endpoint = path!(/ "api" / "v1" / "todos").and(routes![
@@ -57,18 +61,18 @@ mod api {
     use crate::db::Conn;
     use crate::model::{NewTodo, PatchTodo, Todo};
 
-    pub async fn find_todo(id: u64, conn: Conn) -> Fallible<Option<Todo>> {
+    pub fn find_todo(id: u64, conn: Conn) -> Fallible<Option<Todo>> {
         let db = conn.read()?;
         let found = db.todos.iter().find(|todo| todo.id == id).cloned();
         Ok(found)
     }
 
-    pub async fn list_todos(conn: Conn) -> Fallible<Vec<Todo>> {
+    pub fn list_todos(conn: Conn) -> Fallible<Vec<Todo>> {
         let db = conn.read()?;
         Ok(db.todos.clone())
     }
 
-    pub async fn create_todo(new_todo: NewTodo, mut conn: Conn) -> Fallible<Todo> {
+    pub fn create_todo(new_todo: NewTodo, mut conn: Conn) -> Fallible<Todo> {
         let mut db = conn.write()?;
 
         let new_todo = Todo {
@@ -87,7 +91,7 @@ mod api {
         Ok(new_todo)
     }
 
-    pub async fn patch_todo(id: u64, patch: PatchTodo, mut conn: Conn) -> Fallible<Option<Todo>> {
+    pub fn patch_todo(id: u64, patch: PatchTodo, mut conn: Conn) -> Fallible<Option<Todo>> {
         let mut db = conn.write()?;
 
         Ok(db.todos.iter_mut().find(|todo| todo.id == id).map(|todo| {
@@ -102,7 +106,7 @@ mod api {
         }))
     }
 
-    pub async fn delete_todo(id: u64, mut conn: Conn) -> Fallible<Option<()>> {
+    pub fn delete_todo(id: u64, mut conn: Conn) -> Fallible<Option<()>> {
         let mut db = conn.write()?;
 
         if let Some(pos) = db.todos.iter().position(|todo| todo.id == id) {

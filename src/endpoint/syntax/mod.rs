@@ -6,11 +6,6 @@ pub mod verb;
 use std::borrow::Cow;
 use std::fmt;
 use std::marker::PhantomData;
-use std::pin::PinMut;
-
-use futures_core::future::Future;
-use futures_core::task;
-use futures_core::task::Poll;
 
 use percent_encoding::{define_encode_set, percent_encode, DEFAULT_ENCODE_SET};
 
@@ -26,12 +21,13 @@ pub struct Matched {
     _priv: (),
 }
 
-impl Future for Matched {
-    type Output = Result<(), Error>;
+impl ::futures::Future for Matched {
+    type Item = ();
+    type Error = Error;
 
     #[inline]
-    fn poll(self: PinMut<'_, Self>, _: &mut task::Context<'_>) -> Poll<Self::Output> {
-        Poll::Ready(Ok(()))
+    fn poll(&mut self) -> ::futures::Poll<Self::Item, Self::Error> {
+        Ok(().into())
     }
 }
 
@@ -40,16 +36,14 @@ impl Future for Matched {
 #[must_use = "futures does not anything unless polled."]
 pub struct Extracted<T>(Option<T>);
 
-impl<T> Future for Extracted<T> {
-    type Output = Result<(T,), Error>;
+impl<T> ::futures::Future for Extracted<T> {
+    type Item = (T,);
+    type Error = Error;
 
     #[inline]
-    fn poll(self: PinMut<'_, Self>, _: &mut task::Context<'_>) -> Poll<Self::Output> {
-        let x = unsafe { PinMut::get_mut_unchecked(self) }
-            .0
-            .take()
-            .expect("This future has already polled");
-        Poll::Ready(Ok((x,)))
+    fn poll(&mut self) -> ::futures::Poll<Self::Item, Self::Error> {
+        let x = self.0.take().expect("This future has already polled");
+        Ok((x,).into())
     }
 }
 

@@ -56,16 +56,11 @@
 
 use std::borrow::Cow;
 use std::mem;
-use std::pin::{PinBox, PinMut};
 
 use futures::future as future01;
 use futures::stream as stream01;
 use futures::Async;
 use futures::Stream as _Stream01;
-
-use futures_util::compat::TokioDefaultSpawner;
-use futures_util::future::poll_fn;
-use futures_util::try_future::TryFutureExt;
 
 use bytes::{Buf, Bytes};
 use http::header::{HeaderMap, HeaderName, HeaderValue};
@@ -75,7 +70,7 @@ use tokio::runtime::current_thread::Runtime;
 
 use crate::app::App;
 use crate::endpoint::Endpoint;
-use crate::error::{Error, Never};
+use crate::error::Error;
 use crate::input::body::ReqBody;
 use crate::output::payload::Payload;
 use crate::output::Output;
@@ -190,13 +185,10 @@ impl LocalRequest {
         let app = App::new(endpoint);
 
         let mut future = app.dispatch_request(request);
-        let future = poll_fn(move |cx| {
-            let future = unsafe { PinMut::new_unchecked(&mut future) };
-            future.poll_output(cx)
-        });
+        let future = ::futures::future::poll_fn(move || future.poll_output());
 
         let mut rt = Runtime::new().expect("rt");
-        rt.block_on(PinBox::new(future).compat(TokioDefaultSpawner))
+        rt.block_on(future)
     }
 
     #[allow(missing_docs)]
@@ -211,15 +203,12 @@ impl LocalRequest {
         let app = App::new(endpoint);
 
         let mut future = app.dispatch_request(request);
-        let future = poll_fn(move |cx| {
-            let future = unsafe { PinMut::new_unchecked(&mut future) };
-            future.poll_response(cx).map(Ok::<_, Never>)
-        });
+        let future = ::futures::future::poll_fn(move || future.poll_response());
 
         let mut rt = Runtime::new().expect("rt");
 
         let response = rt
-            .block_on(PinBox::new(future).compat(TokioDefaultSpawner))
+            .block_on(future)
             .expect("AppFuture::poll_response() never fail");
         let (parts, mut body) = response.into_parts();
 

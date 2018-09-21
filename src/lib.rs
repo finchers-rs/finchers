@@ -1,10 +1,4 @@
-#![feature(
-    rust_2018_preview,
-    pin,
-    arbitrary_self_types,
-    futures_api,
-    transpose_result
-)]
+#![feature(rust_2018_preview)]
 #![feature(tool_lints)] // for clippy
 
 //! A combinator library for building asynchronous HTTP services.
@@ -62,9 +56,7 @@ extern crate bytes;
 extern crate cookie;
 extern crate either;
 extern crate failure;
-extern crate futures;      // 0.1
-extern crate futures_core; // 0.3
-extern crate futures_util; // 0.3
+extern crate futures; // 0.1
 extern crate http;
 extern crate hyper;
 extern crate hyperx;
@@ -72,7 +64,6 @@ extern crate log;
 extern crate mime;
 extern crate mime_guess;
 extern crate percent_encoding;
-extern crate pin_utils;
 extern crate serde;
 extern crate serde_json;
 extern crate serde_qs;

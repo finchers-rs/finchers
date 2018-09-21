@@ -4,7 +4,6 @@ use std::fmt;
 use std::marker::PhantomData;
 
 use failure::Fail;
-use futures_util::future;
 use http::StatusCode;
 use percent_encoding::{define_encode_set, percent_encode, DEFAULT_ENCODE_SET};
 
@@ -36,12 +35,12 @@ pub struct MatchPath {
 
 impl<'a> Endpoint<'a> for MatchPath {
     type Output = ();
-    type Future = future::Ready<Result<Self::Output, Error>>;
+    type Future = ::futures::future::FutureResult<Self::Output, Error>;
 
     fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
         let s = ecx.next_segment().ok_or_else(EndpointError::not_matched)?;
         if s == self.encoded {
-            Ok(future::ready(Ok(())))
+            Ok(::futures::future::result(Ok(())))
         } else {
             Err(EndpointError::not_matched())
         }
@@ -64,11 +63,11 @@ pub struct EndPath {
 
 impl<'a> Endpoint<'a> for EndPath {
     type Output = ();
-    type Future = future::Ready<Result<Self::Output, Error>>;
+    type Future = ::futures::future::FutureResult<Self::Output, Error>;
 
     fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
         match ecx.next_segment() {
-            None => Ok(future::ready(Ok(()))),
+            None => Ok(::futures::future::result(Ok(()))),
             Some(..) => Err(EndpointError::not_matched()),
         }
     }
@@ -111,14 +110,14 @@ where
     T: FromEncodedStr,
 {
     type Output = (T,);
-    type Future = future::Ready<Result<Self::Output, Error>>;
+    type Future = ::futures::future::FutureResult<Self::Output, Error>;
 
     fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
         let s = ecx.next_segment().ok_or_else(EndpointError::not_matched)?;
         let result = T::from_encoded_str(s)
             .map(|x| (x,))
             .map_err(|cause| ParamError { cause }.into());
-        Ok(future::ready(result))
+        Ok(::futures::future::result(result))
     }
 }
 
@@ -177,13 +176,13 @@ where
     T: FromEncodedStr,
 {
     type Output = (T,);
-    type Future = future::Ready<Result<Self::Output, Error>>;
+    type Future = ::futures::future::FutureResult<Self::Output, Error>;
 
     fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
         let result = T::from_encoded_str(ecx.remaining_path())
             .map(|x| (x,))
             .map_err(|cause| ParamError { cause }.into());
         while let Some(..) = ecx.next_segment() {}
-        Ok(future::ready(result))
+        Ok(::futures::future::result(result))
     }
 }

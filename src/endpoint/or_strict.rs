@@ -1,10 +1,3 @@
-use std::pin::PinMut;
-
-use futures_core::future::{Future, TryFuture};
-use futures_core::task;
-use futures_core::task::Poll;
-use pin_utils::unsafe_pinned;
-
 use crate::common::Either;
 use crate::endpoint::{Context, Endpoint, EndpointResult};
 use crate::error::Error;
@@ -61,22 +54,21 @@ impl<L, R> OrStrictFuture<L, R> {
             inner: Either::Right(r),
         }
     }
-
-    unsafe_pinned!(inner: Either<L, R>);
 }
 
-impl<L, R> Future for OrStrictFuture<L, R>
+impl<L, R> ::futures::Future for OrStrictFuture<L, R>
 where
-    L: TryFuture<Error = Error>,
-    R: TryFuture<Ok = L::Ok, Error = Error>,
+    L: ::futures::Future<Error = Error>,
+    R: ::futures::Future<Item = L::Item, Error = Error>,
 {
-    type Output = Result<L::Ok, Error>;
+    type Item = L::Item;
+    type Error = Error;
 
     #[inline(always)]
-    fn poll(mut self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
-        match self.inner().as_pin_mut() {
-            Either::Left(t) => t.try_poll(cx),
-            Either::Right(t) => t.try_poll(cx),
+    fn poll(&mut self) -> ::futures::Poll<Self::Item, Self::Error> {
+        match self.inner {
+            Either::Left(ref mut t) => t.poll(),
+            Either::Right(ref mut t) => t.poll(),
         }
     }
 }

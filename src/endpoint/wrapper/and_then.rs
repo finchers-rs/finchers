@@ -1,10 +1,6 @@
 use std::marker::PhantomData;
-use std::pin::PinMut;
 
-use futures_core::future::{Future, TryFuture};
-use futures_core::task;
-use futures_core::task::Poll;
-use pin_utils::unsafe_pinned;
+use futures::{Future, IntoFuture, Poll};
 
 use crate::common::{Func, Tuple};
 use crate::endpoint::{Context, Endpoint, EndpointResult};
@@ -19,7 +15,7 @@ pub fn and_then<T, F>(f: F) -> AndThen<T, F>
 where
     T: Tuple,
     F: Func<T>,
-    F::Out: TryFuture<Error = Error>,
+    F::Out: IntoFuture<Error = Error>,
 {
     AndThen {
         f,
@@ -38,9 +34,9 @@ impl<'a, E, F> Wrapper<'a, E> for AndThen<E::Output, F>
 where
     E: Endpoint<'a>,
     F: Func<E::Output> + 'a,
-    F::Out: TryFuture<Error = Error>,
+    F::Out: IntoFuture<Error = Error>,
 {
-    type Output = (<F::Out as TryFuture>::Ok,);
+    type Output = (<F::Out as IntoFuture>::Item,);
     type Endpoint = AndThenEndpoint<E, F>;
 
     fn wrap(self, endpoint: E) -> Self::Endpoint {
@@ -61,9 +57,9 @@ impl<'a, E, F> Endpoint<'a> for AndThenEndpoint<E, F>
 where
     E: Endpoint<'a>,
     F: Func<E::Output> + 'a,
-    F::Out: TryFuture<Error = Error>,
+    F::Out: IntoFuture<Error = Error>,
 {
-    type Output = (<F::Out as TryFuture>::Ok,);
+    type Output = (<F::Out as IntoFuture>::Item,);
     type Future = AndThenFuture<'a, E::Future, F::Out, F>;
 
     fn apply(&'a self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
@@ -78,38 +74,29 @@ where
 #[derive(Debug)]
 pub struct AndThenFuture<'a, F1, F2, F>
 where
-    F1: TryFuture<Error = Error>,
-    F2: TryFuture<Error = Error>,
-    F: Func<F1::Ok, Out = F2> + 'a,
-    F1::Ok: Tuple,
+    F1: Future<Error = Error>,
+    F2: IntoFuture<Error = Error>,
+    F: Func<F1::Item, Out = F2> + 'a,
+    F1::Item: Tuple,
 {
-    try_chain: TryChain<F1, F2, &'a F>,
-}
-
-impl<'a, F1, F2, F> AndThenFuture<'a, F1, F2, F>
-where
-    F1: TryFuture<Error = Error>,
-    F2: TryFuture<Error = Error>,
-    F: Func<F1::Ok, Out = F2> + 'a,
-    F1::Ok: Tuple,
-{
-    unsafe_pinned!(try_chain: TryChain<F1, F2, &'a F>);
+    try_chain: TryChain<F1, F2::Future, &'a F>,
 }
 
 impl<'a, F1, F2, F> Future for AndThenFuture<'a, F1, F2, F>
 where
-    F1: TryFuture<Error = Error>,
-    F2: TryFuture<Error = Error>,
-    F: Func<F1::Ok, Out = F2> + 'a,
-    F1::Ok: Tuple,
+    F1: Future<Error = Error>,
+    F2: IntoFuture<Error = Error>,
+    F: Func<F1::Item, Out = F2> + 'a,
+    F1::Item: Tuple,
 {
-    type Output = Result<(F2::Ok,), Error>;
+    type Item = (F2::Item,);
+    type Error = Error;
 
-    fn poll(mut self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
-        self.try_chain()
-            .poll(cx, |result, f| match result {
-                Ok(ok) => TryChainAction::Future(f.call(ok)),
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        self.try_chain
+            .poll(|result, f| match result {
+                Ok(ok) => TryChainAction::Future(f.call(ok).into_future()),
                 Err(err) => TryChainAction::Output(Err(err)),
-            }).map_ok(|ok| (ok,))
+            }).map(|x| x.map(|ok| (ok,)))
     }
 }

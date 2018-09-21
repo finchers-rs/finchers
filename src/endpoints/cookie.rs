@@ -3,8 +3,6 @@
 use std::borrow::Cow;
 use std::fmt;
 
-use futures_util::future::{ready, Ready};
-
 use crate::endpoint::{Context, Endpoint, EndpointResult};
 use crate::error::{bad_request, Error};
 use crate::input::cookie::Cookie;
@@ -98,7 +96,7 @@ impl Required {
 
 impl<'a> Endpoint<'a> for Required {
     type Output = (Cookie<'static>,);
-    type Future = Ready<Result<Self::Output, Error>>;
+    type Future = ::futures::future::FutureResult<Self::Output, Error>;
 
     fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
         let cookie = self
@@ -107,7 +105,7 @@ impl<'a> Endpoint<'a> for Required {
             .and_then(|cookie| {
                 cookie.ok_or_else(|| bad_request(format!("missing Cookie item: {}", self.name)))
             });
-        Ok(ready(cookie.map(|x| (x,))))
+        Ok(::futures::future::result(cookie.map(|x| (x,))))
     }
 }
 
@@ -167,10 +165,10 @@ impl Optional {
 
 impl<'a> Endpoint<'a> for Optional {
     type Output = (Option<Cookie<'static>>,);
-    type Future = Ready<Result<Self::Output, Error>>;
+    type Future = ::futures::future::FutureResult<Self::Output, Error>;
 
     fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
-        Ok(ready(
+        Ok(::futures::future::result(
             self.mode
                 .extract_cookie(ecx.input(), &self.name)
                 .map(|x| (x,)),

@@ -13,7 +13,6 @@ use http::{Response, StatusCode};
 use hyper::body::Payload;
 use std::fmt;
 use std::marker::PhantomData;
-use std::pin::PinMut;
 use std::rc::Rc;
 
 use crate::common::Either;
@@ -172,28 +171,6 @@ where
                 .map(|res| res.map(Either::Right))
                 .map_err(Into::into),
         }
-    }
-}
-
-#[doc(hidden)]
-#[deprecated(
-    since = "0.12.0-alpha.2",
-    note = "scheduled to remove until releasing 0.12.0. Use `Output` instead."
-)]
-pub trait Responder {
-    type Body: Payload;
-    type Error: Into<Error>;
-    fn respond(self, input: PinMut<'_, Input>) -> Result<Response<Self::Body>, Self::Error>;
-}
-
-#[allow(deprecated)]
-impl<T: Responder> Output for T {
-    type Body = T::Body;
-    type Error = T::Error;
-
-    #[inline(always)]
-    fn respond(self, cx: &mut OutputContext<'_>) -> Result<Response<Self::Body>, Self::Error> {
-        Responder::respond(self, PinMut::new(cx.input()))
     }
 }
 

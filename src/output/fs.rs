@@ -5,17 +5,12 @@ use std::fs::Metadata;
 use std::io;
 use std::mem;
 use std::path::PathBuf;
-use std::pin::PinMut;
-use std::task;
-use std::task::Poll;
 
-use futures_core::future::Future;
-
-use futures::try_ready as try_ready_01;
-use futures::Future as Future01;
+use futures::try_ready;
+use futures::{Async, Future, Poll};
+use tokio::io::AsyncRead;
 
 use tokio::fs::file::{File, MetadataFuture, OpenFuture};
-use tokio::prelude::{Async, AsyncRead};
 
 use bytes::{BufMut, Bytes, BytesMut};
 use http::{header, Response};
@@ -57,8 +52,11 @@ enum State {
     Done,
 }
 
-impl OpenNamedFile {
-    fn poll_01(&mut self) -> io::Result<Async<NamedFile>> {
+impl Future for OpenNamedFile {
+    type Item = NamedFile;
+    type Error = io::Error;
+
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         enum Polled {
             Opening(File),
             Metadata((File, Metadata)),
@@ -66,8 +64,8 @@ impl OpenNamedFile {
 
         loop {
             let polled = match self.state {
-                State::Opening(ref mut f) => Polled::Opening(try_ready_01!(f.poll())),
-                State::Metadata(ref mut f) => Polled::Metadata(try_ready_01!(f.poll())),
+                State::Opening(ref mut f) => Polled::Opening(try_ready!(f.poll())),
+                State::Metadata(ref mut f) => Polled::Metadata(try_ready!(f.poll())),
                 State::Done => panic!("The future cannot poll twice."),
             };
 
@@ -85,18 +83,6 @@ impl OpenNamedFile {
                 }
                 _ => unreachable!("unexpected condition"),
             }
-        }
-    }
-}
-
-impl Future for OpenNamedFile {
-    type Output = io::Result<NamedFile>;
-
-    fn poll(self: PinMut<'_, Self>, _: &mut task::Context<'_>) -> Poll<Self::Output> {
-        match unsafe { PinMut::get_mut_unchecked(self).poll_01() } {
-            Ok(Async::Ready(f)) => Poll::Ready(Ok(f)),
-            Ok(Async::NotReady) => Poll::Pending,
-            Err(e) => Poll::Ready(Err(e)),
         }
     }
 }
@@ -155,7 +141,7 @@ impl Payload for FileStream {
             self.buf.reserve(self.buf_size);
         }
 
-        let n = match try_ready_01!(self.file.read_buf(&mut self.buf)) {
+        let n = match try_ready!(self.file.read_buf(&mut self.buf)) {
             0 => return Ok(Async::Ready(None)),
             n => n as u64,
         };

@@ -1,9 +1,3 @@
-use std::pin::PinMut;
-
-use futures_core::future::Future;
-use futures_core::task;
-use futures_core::task::Poll;
-
 use crate::endpoint::{Context, Endpoint, EndpointResult};
 use crate::error::Error;
 
@@ -34,11 +28,12 @@ pub struct UnitFuture {
     _priv: (),
 }
 
-impl Future for UnitFuture {
-    type Output = Result<(), Error>;
+impl ::futures::Future for UnitFuture {
+    type Item = ();
+    type Error = Error;
 
     #[inline]
-    fn poll(self: PinMut<'_, Self>, _: &mut task::Context<'_>) -> Poll<Self::Output> {
-        Poll::Ready(Ok(()))
+    fn poll(&mut self) -> ::futures::Poll<Self::Item, Self::Error> {
+        Ok(().into())
     }
 }

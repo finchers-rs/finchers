@@ -1,10 +1,3 @@
-#![feature(
-    pin,
-    arbitrary_self_types,
-    async_await,
-    await_macro,
-    futures_api
-)]
 #![allow(proc_macro_derive_resolution_fallback)]
 
 #[macro_use]
@@ -16,6 +9,7 @@ mod model;
 mod schema;
 
 use failure::Fallible;
+use futures::prelude::*;
 use http::StatusCode;
 use serde::Deserialize;
 use std::env;
@@ -30,10 +24,7 @@ fn main() -> Fallible<()> {
     dotenv::dotenv()?;
 
     let pool = ConnectionPool::init(env::var("DATABASE_URL")?)?;
-    let acquire_conn = endpoint::unit().and_then(move || {
-        let fut = pool.acquire_conn();
-        async move { await!(fut).map_err(Into::into) }
-    });
+    let acquire_conn = endpoint::unit().and_then(move || pool.acquire_conn().map_err(Into::into));
 
     let endpoint = path!(/"api"/"v1"/"posts").and(routes!{
         path!(@get /)
@@ -41,21 +32,23 @@ fn main() -> Fallible<()> {
                 query.map(Serde::into_inner)
             }))
             .and(acquire_conn.clone())
-            .and_then(async move |query, conn| await!(crate::api::get_posts(query, conn)).map_err(Into::into))
+            .and_then(|query, conn| crate::api::get_posts(query, conn).from_err())
             .map(output::Json),
 
         path!(@post /)
             .and(endpoints::body::json())
             .and(acquire_conn.clone())
-            .and_then(async move |new_post, conn| await!(crate::api::create_post(new_post, conn)).map_err(Into::into))
+            .and_then(|new_post, conn| crate::api::create_post(new_post, conn).from_err())
             .map(output::Json)
             .map(output::status::Created),
 
         path!(@get / i32 /)
             .and(acquire_conn.clone())
-            .and_then(async move |id, conn| {
-                await!(crate::api::find_post(id, conn))?
-                    .ok_or_else(|| finchers::error::err_msg(StatusCode::NOT_FOUND, "not found"))
+            .and_then(|id, conn| {
+                crate::api::find_post(id, conn)
+                    .from_err()
+                    .and_then(|conn_opt| conn_opt.ok_or_else(|| finchers::error::err_msg(StatusCode::NOT_FOUND, "not found"))
+                    )
             })
             .map(output::Json),
     });

@@ -2,14 +2,9 @@
 
 use std::error::Error as StdError;
 use std::fmt;
-use std::pin::PinMut;
-
-use futures;
-use futures_core::future::Future;
-use futures_core::task;
-use futures_core::task::Poll;
 
 use bytes::Buf;
+use futures;
 use http::header::HeaderMap;
 use hyper::body::Payload;
 
@@ -33,15 +28,6 @@ impl<L, R> Either<L, R> {
         match self {
             Either::Left(ref mut t) => Either::Left(t),
             Either::Right(ref mut t) => Either::Right(t),
-        }
-    }
-
-    #[inline]
-    #[allow(clippy::needless_lifetimes, clippy::wrong_self_convention)]
-    pub fn as_pin_mut<'a>(self: PinMut<'a, Self>) -> Either<PinMut<'a, L>, PinMut<'a, R>> {
-        match unsafe { PinMut::get_mut_unchecked(self) } {
-            Either::Left(ref mut t) => Either::Left(unsafe { PinMut::new_unchecked(t) }),
-            Either::Right(ref mut t) => Either::Right(unsafe { PinMut::new_unchecked(t) }),
         }
     }
 }
@@ -146,21 +132,6 @@ where
         match self {
             Either::Left(ref t) => t.cause(),
             Either::Right(ref t) => t.cause(),
-        }
-    }
-}
-
-impl<L, R> Future for Either<L, R>
-where
-    L: Future,
-    R: Future,
-{
-    type Output = Either<L::Output, R::Output>;
-
-    fn poll(self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
-        match self.as_pin_mut() {
-            Either::Left(t) => t.poll(cx).map(Either::Left),
-            Either::Right(t) => t.poll(cx).map(Either::Right),
         }
     }
 }

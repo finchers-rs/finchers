@@ -4,7 +4,7 @@
 extern crate bytes;
 extern crate failure;
 extern crate finchers;
-extern crate futures_util;
+extern crate futures;
 extern crate http;
 extern crate matches;
 extern crate mime;
