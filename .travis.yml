@@ -33,8 +33,6 @@ matrix:
       script:
         - cargo update
         - cargo test --features strict
-        - (cd finchers-cors; cargo test --features strict)
-        - (cd finchers-headers; cargo test --features strict)
         - if [[ "${TRAVIS_PULL_REQUEST_BRANCH:-}" = release-* ]]; then cargo package; fi
         # examples
         - cargo test -p example-custom-logging
@@ -55,8 +53,6 @@ matrix:
       script:
         - cargo fmt -- --check
         - cargo clippy --features strict
-        - (cd finchers-cors; cargo clippy --features strict)
-        - (cd finchers-headers; cargo clippy --features strict)
 
     - rust: nightly
       env: LATEST_NIGHTLY
