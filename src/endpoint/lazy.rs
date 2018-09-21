@@ -34,6 +34,6 @@ where
     type Future = MapOk<R, fn(R::Ok) -> Self::Output>;
 
     fn apply(&'a self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
-        Ok((self.f)(ecx.input()).map_ok((|ok| (ok,)) as fn(_) -> _))
+        Ok((self.f)(PinMut::new(ecx.input())).map_ok((|ok| (ok,)) as fn(_) -> _))
     }
 }

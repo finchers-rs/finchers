@@ -1,5 +1,4 @@
 use std::cell::Cell;
-use std::pin::PinMut;
 use std::ptr::NonNull;
 
 use super::Input;
@@ -14,11 +13,8 @@ impl Drop for SetOnDrop {
     }
 }
 
-pub(crate) fn with_set_cx<R>(current: PinMut<'_, Input>, f: impl FnOnce() -> R) -> R {
-    CX.with(|cx| {
-        let ptr = unsafe { PinMut::get_mut_unchecked(current) };
-        cx.set(NonNull::new(ptr))
-    });
+pub(crate) fn with_set_cx<R>(current: &mut Input, f: impl FnOnce() -> R) -> R {
+    CX.with(|cx| cx.set(NonNull::new(current)));
     let _reset = SetOnDrop(None);
     f()
 }
@@ -33,11 +29,11 @@ pub(crate) fn with_set_cx<R>(current: PinMut<'_, Input>, f: impl FnOnce() -> R) 
 ///
 /// A panic will occur if you call this function inside the provided closure `f`, since the
 /// reference to `Input` on the task context is invalidated while executing `f`.
-pub fn with_get_cx<R>(f: impl FnOnce(PinMut<'_, Input>) -> R) -> R {
+pub fn with_get_cx<R>(f: impl FnOnce(&mut Input) -> R) -> R {
     let prev = CX.with(|cx| cx.replace(None));
     let _reset = SetOnDrop(prev);
     match prev {
-        Some(mut ptr) => unsafe { f(PinMut::new_unchecked(ptr.as_mut())) },
+        Some(mut ptr) => unsafe { f(ptr.as_mut()) },
         None => panic!("reference to Input is not set at the task context."),
     }
 }

@@ -69,12 +69,11 @@ where
         cx: &mut task::Context<'_>,
     ) -> Poll<Result<E::Output, Error>> {
         let this = unsafe { PinMut::get_mut_unchecked(self) };
-        let mut input = unsafe { PinMut::new_unchecked(&mut this.input) };
 
         loop {
             match this.state {
                 State::Uninitialized => {
-                    let mut ecx = Context::new(input.reborrow());
+                    let mut ecx = Context::new(&mut this.input);
                     match this.endpoint.apply(&mut ecx) {
                         Ok(future) => this.state = State::InFlight(future),
                         Err(err) => {
@@ -85,7 +84,7 @@ where
                 }
                 State::InFlight(ref mut f) => {
                     let f = unsafe { PinMut::new_unchecked(f) };
-                    break with_set_cx(input.reborrow(), || f.try_poll(cx));
+                    break with_set_cx(&mut this.input, || f.try_poll(cx));
                 }
                 State::Gone => panic!("cannot poll AppServiceFuture twice"),
             }
@@ -102,10 +101,9 @@ where
         let output = ready!(self.reborrow().poll_output(cx));
 
         let this = unsafe { PinMut::get_mut_unchecked(self) };
-        let mut input = unsafe { PinMut::new_unchecked(&mut this.input) };
         let mut response = output
             .and_then({
-                let mut cx = OutputContext::new(input.reborrow());
+                let mut cx = OutputContext::new(&mut this.input);
                 move |out| {
                     out.respond(&mut cx)
                         .map(|res| res.map(Either::Right))
@@ -113,7 +111,7 @@ where
                 }
             }).unwrap_or_else(|err| err.to_response().map(|body| Either::Left(Once::new(body))));
 
-        if let Some(jar) = input.cookie_jar() {
+        if let Some(jar) = this.input.cookie_jar() {
             for cookie in jar.delta() {
                 let val = HeaderValue::from_str(&cookie.encoded().to_string()).unwrap();
                 response.headers_mut().insert(header::SET_COOKIE, val);

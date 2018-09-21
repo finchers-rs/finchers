@@ -1,5 +1,4 @@
 use std::marker::PhantomData;
-use std::pin::PinMut;
 use std::rc::Rc;
 
 use crate::input::{EncodedStr, Input};
@@ -19,7 +18,7 @@ impl Cursor {
 /// An iterator over the remaining path segments.
 #[derive(Debug)]
 pub struct Context<'a> {
-    input: PinMut<'a, Input>,
+    input: &'a mut Input,
     cursor: Cursor,
     _marker: PhantomData<Rc<()>>,
 }
@@ -27,7 +26,7 @@ pub struct Context<'a> {
 impl<'a> Context<'a> {
     #[doc(hidden)]
     #[inline]
-    pub fn new(input: PinMut<'a, Input>) -> Context<'a> {
+    pub fn new(input: &'a mut Input) -> Context<'a> {
         Context {
             input,
             cursor: Cursor { pos: 1, popped: 0 },
@@ -37,8 +36,8 @@ impl<'a> Context<'a> {
 
     /// Returns the pinned reference to the value of `Input`.
     #[inline]
-    pub fn input(&mut self) -> PinMut<'_, Input> {
-        self.input.reborrow()
+    pub fn input(&mut self) -> &mut Input {
+        &mut *self.input
     }
 
     /// Returns the remaining path in this segments
@@ -75,7 +74,7 @@ impl<'a> Context<'a> {
         'a: 'b,
     {
         Context {
-            input: self.input.reborrow(),
+            input: &mut *self.input,
             cursor: self.cursor.clone(),
             _marker: PhantomData,
         }
@@ -97,16 +96,14 @@ mod tests {
     use super::*;
     use crate::input::body::ReqBody;
     use http::Request;
-    use pin_utils::pin_mut;
 
     #[test]
     fn test_segments() {
         let request = Request::get("/foo/bar.txt")
             .body(ReqBody::from_hyp(Default::default()))
             .unwrap();
-        let input = Input::new(request);
-        pin_mut!(input);
-        let mut ecx = Context::new(input);
+        let mut input = Input::new(request);
+        let mut ecx = Context::new(&mut input);
 
         assert_eq!(ecx.remaining_path(), "foo/bar.txt");
         assert_eq!(ecx.next_segment().map(|s| s.as_bytes()), Some(&b"foo"[..]));
@@ -126,9 +123,8 @@ mod tests {
         let request = Request::get("/")
             .body(ReqBody::from_hyp(Default::default()))
             .unwrap();
-        let input = Input::new(request);
-        pin_mut!(input);
-        let mut ecx = Context::new(input);
+        let mut input = Input::new(request);
+        let mut ecx = Context::new(&mut input);
 
         assert_eq!(ecx.remaining_path(), "");
         assert!(ecx.next_segment().is_none());
