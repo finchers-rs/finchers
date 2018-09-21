@@ -19,10 +19,8 @@ use cookie::CookieJar;
 use http;
 use http::Request;
 use mime::Mime;
-use std::cell::UnsafeCell;
-use std::marker::{PhantomData, Pinned};
+use std::marker::PhantomData;
 use std::ops::Deref;
-use std::pin::PinMut;
 
 use crate::error::{bad_request, Error};
 
@@ -36,7 +34,6 @@ pub struct Input {
     #[allow(clippy::option_option)]
     media_type: Option<Option<Mime>>,
     cookie_jar: Option<CookieJar>,
-    _marker: PhantomData<(UnsafeCell<()>, Pinned)>,
 }
 
 impl Input {
@@ -45,7 +42,6 @@ impl Input {
             request,
             media_type: None,
             cookie_jar: None,
-            _marker: PhantomData,
         }
     }
 
@@ -56,23 +52,19 @@ impl Input {
 
     /// Takes the instance of `RequestBody` from this value.
     #[inline]
-    pub fn payload(self: PinMut<'_, Self>) -> Option<Payload> {
-        let this = unsafe { PinMut::get_mut_unchecked(self) };
-        this.request.body_mut().payload()
+    pub fn payload(&mut self) -> Option<Payload> {
+        self.request.body_mut().payload()
     }
 
     /// Attempts to get the entry of `Content-type` and parse its value.
     ///
     /// The result of this method is cached and it will return the reference to the cached value
     /// on subsequent calls.
-    #[allow(clippy::needless_lifetimes)]
-    pub fn content_type<'a>(self: PinMut<'a, Self>) -> Result<Option<&'a Mime>, Error> {
-        let this = unsafe { PinMut::get_mut_unchecked(self) };
-
-        match this.media_type {
+    pub fn content_type(&mut self) -> Result<Option<&Mime>, Error> {
+        match self.media_type {
             Some(ref m) => Ok(m.as_ref()),
             None => {
-                let mime = match this.request.headers().get(http::header::CONTENT_TYPE) {
+                let mime = match self.request.headers().get(http::header::CONTENT_TYPE) {
                     Some(raw) => {
                         let raw_str = raw.to_str().map_err(bad_request)?;
                         let mime = raw_str.parse().map_err(bad_request)?;
@@ -80,25 +72,22 @@ impl Input {
                     }
                     None => None,
                 };
-                Ok(this.media_type.get_or_insert(mime).as_ref())
+                Ok(self.media_type.get_or_insert(mime).as_ref())
             }
         }
     }
 
     /// Returns a `Cookies<'_>` or initialize the internal Cookie jar.
-    #[allow(clippy::needless_lifetimes)]
-    pub fn cookies<'a>(self: PinMut<'a, Self>) -> Result<Cookies<'a>, Error> {
-        let this = unsafe { PinMut::get_mut_unchecked(self) };
-
-        match this.cookie_jar {
+    pub fn cookies(&mut self) -> Result<Cookies<'_>, Error> {
+        match self.cookie_jar {
             Some(ref mut jar) => Ok(Cookies {
                 jar,
                 _marker: PhantomData,
             }),
             None => {
                 let cookie_jar =
-                    self::cookie::parse_cookies(this.request.headers()).map_err(bad_request)?;
-                let jar = this.cookie_jar.get_or_insert(cookie_jar);
+                    self::cookie::parse_cookies(self.request.headers()).map_err(bad_request)?;
+                let jar = self.cookie_jar.get_or_insert(cookie_jar);
                 Ok(Cookies {
                     jar,
                     _marker: PhantomData,

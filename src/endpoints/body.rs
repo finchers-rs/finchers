@@ -256,7 +256,7 @@ mod deprecated_parse {
         fn poll(mut self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
             let (data,) = try_ready!(self.receive_all().poll(cx));
             Poll::Ready(
-                with_get_cx(|input| T::from_body(data, input))
+                with_get_cx(|input| T::from_body(data, PinMut::new(input)))
                     .map(|x| (x,))
                     .map_err(bad_request),
             )

@@ -125,11 +125,11 @@ where
             Err(err) => return Poll::Ready(Err(err.into())),
         };
 
-        with_get_cx(|mut input| {
+        with_get_cx(|input| {
             (self.f)(Info {
                 status: response.status(),
                 start: self.start,
-                input: input.reborrow(),
+                input,
                 _priv: (),
             });
         });
@@ -157,6 +157,6 @@ impl<Bd: Payload> Output for LoggedResponse<Bd> {
 pub struct Info<'a> {
     pub status: StatusCode,
     pub start: Instant,
-    pub input: PinMut<'a, Input>,
+    pub input: &'a mut Input,
     _priv: (),
 }

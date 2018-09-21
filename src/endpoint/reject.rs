@@ -57,6 +57,8 @@ where
 
     fn apply(&'a self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
         while let Some(..) = ecx.next_segment() {}
-        Ok(future::ready(Err((self.f)(ecx.input()).into())))
+        Ok(future::ready(
+            Err((self.f)(PinMut::new(ecx.input())).into()),
+        ))
     }
 }

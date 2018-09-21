@@ -2,7 +2,6 @@
 
 use std::borrow::Cow;
 use std::fmt;
-use std::pin::PinMut;
 
 use futures_util::future::{ready, Ready};
 
@@ -31,7 +30,7 @@ impl fmt::Debug for Mode {
 impl Mode {
     fn extract_cookie(
         &self,
-        input: PinMut<'_, Input>,
+        input: &mut Input,
         name: &str,
     ) -> Result<Option<Cookie<'static>>, Error> {
         let cookies = input.cookies()?;

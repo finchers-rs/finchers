@@ -31,13 +31,13 @@ pub use self::text::Text;
 /// Contextual information at applying `Output::respond`.
 #[derive(Debug)]
 pub struct OutputContext<'a> {
-    input: PinMut<'a, Input>,
+    input: &'a mut Input,
     pretty: bool,
     _marker: PhantomData<Rc<()>>,
 }
 
 impl<'a> OutputContext<'a> {
-    pub(crate) fn new(input: PinMut<'a, Input>) -> OutputContext<'a> {
+    pub(crate) fn new(input: &'a mut Input) -> OutputContext<'a> {
         OutputContext {
             input,
             pretty: false,
@@ -46,14 +46,14 @@ impl<'a> OutputContext<'a> {
     }
 
     /// Returns a pinned reference to `Input` stored on the task context.
-    pub fn input(&mut self) -> PinMut<'_, Input> {
-        self.input.reborrow()
+    pub fn input(&mut self) -> &mut Input {
+        &mut *self.input
     }
 
     /// Creates a clone of `OutputContext` with setting the mode to "pretty".
     pub fn pretty(&mut self) -> OutputContext<'_> {
         OutputContext {
-            input: self.input.reborrow(),
+            input: self.input(),
             pretty: true,
             _marker: PhantomData,
         }
@@ -193,7 +193,7 @@ impl<T: Responder> Output for T {
 
     #[inline(always)]
     fn respond(self, cx: &mut OutputContext<'_>) -> Result<Response<Self::Body>, Self::Error> {
-        Responder::respond(self, cx.input.reborrow())
+        Responder::respond(self, PinMut::new(cx.input()))
     }
 }
 
