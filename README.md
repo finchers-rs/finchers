@@ -8,28 +8,42 @@
 
 The concept and design was highly inspired by [`finch`](https://github.com/finagle/finch).
 
-## Features
+# Features
 
 * Asynchronous handling powerd by futures and Tokio
 * Building an HTTP service by *combining* the primitive components
 * Type-safe routing without (unstable) procedural macros
 
-## Documentation
+# Usage
+
+Add this item to `Cargo.toml` in your project:
+
+```toml
+[dependencies]
+finchers = "0.12.0-alpha.6"
+```
+
+# Documentation
 
 * [API documentation (released, 0.11)][released-api]
 * [API documentation (master, 0.12)][master-api]
 * [Examples][examples]
 * [User Guide (WIP)][user-guide]
 
-## Status
+# Status
 
 | Travis CI | Appveyor | Coveralls |
 |:---------:|:--------:|:---------:|
 | [![Travis CI][travis-badge]][travis] | [![Appveyor][appveyor-badge]][appveyor] | [![Coveralls][coveralls-badge]][coveralls] |
 
 
-## License
-Dual licensed under the MIT and Apache 2.0.
+# License
+This project is licensed under either of
+
+* MIT license, ([LICENSE-MIT](./LICENSE-MIT) or http://opensource.org/licenses/MIT)
+* Apache License, Version 2.0 ([LICENSE-APACHE](./LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
+
+at your option.
 
 <!-- links -->
 
