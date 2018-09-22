@@ -1,4 +1,4 @@
-#![allow(clippy::type_complexity)]
+#![cfg_attr(feature = "lint", allow(clippy::type_complexity))]
 
 use std::fmt;
 

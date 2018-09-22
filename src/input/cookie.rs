@@ -1,12 +1,12 @@
 //! Components for managing Cookie values.
 
 // re-exports
+pub(super) use cookie::CookieJar;
 pub use cookie::{Cookie, CookieBuilder, EncodedCookie, SameSite};
 #[cfg(feature = "secure")]
 pub use cookie::{Key, PrivateJar, SignedJar};
 pub use time::{Duration, Tm};
 
-use cookie::CookieJar;
 use failure::Error;
 use http::header::HeaderMap;
 use std::marker::PhantomData;

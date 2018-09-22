@@ -1,5 +1,4 @@
-#![feature(rust_2018_preview)]
-#![feature(tool_lints)] // for clippy
+#![cfg_attr(feature = "lint", feature(tool_lints))]
 
 //! A combinator library for building asynchronous HTTP services.
 //!
@@ -35,10 +34,7 @@
 //! }
 //! ```
 
-#![doc(
-    html_root_url = "https://docs.rs/finchers/0.12.0-alpha.5",
-    test(attr(feature(rust_2018_preview))),
-)]
+#![doc(html_root_url = "https://docs.rs/finchers/0.12.0-alpha.5")]
 #![warn(
     missing_docs,
     missing_debug_implementations,
@@ -50,29 +46,6 @@
 #![allow(keyword_idents)] // serde-rs/serde#1385
 #![cfg_attr(feature = "strict", deny(warnings))]
 #![cfg_attr(feature = "strict", doc(test(attr(deny(warnings)))))]
-
-extern crate bitflags;
-extern crate bytes;
-extern crate cookie;
-extern crate either;
-extern crate failure;
-extern crate futures; // 0.1
-extern crate http;
-extern crate hyper;
-extern crate hyperx;
-extern crate log;
-extern crate mime;
-extern crate mime_guess;
-extern crate percent_encoding;
-extern crate serde;
-extern crate serde_json;
-extern crate serde_qs;
-extern crate time;
-extern crate tokio;
-extern crate url;
-
-#[cfg(test)]
-extern crate matches;
 
 #[macro_use]
 mod macros;

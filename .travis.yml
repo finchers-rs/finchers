@@ -13,10 +13,9 @@ branches:
 matrix:
   allow_failures:
     - rust: nightly
-    - env: LINT
 
   include:
-    - rust: nightly-2018-09-11
+    - rust: beta
       sudo: required
       addons:
         apt:
@@ -26,11 +25,13 @@ matrix:
             - libdw-dev
             - binutils-dev
       before_script:
+        - rustup component add rustfmt-preview
         - cargo install cargo-update || true
         - cargo install cargo-kcov || true
         - cargo install-update -a
         - export CARGO_INCREMENTAL=0
       script:
+        - cargo fmt -- --check
         - cargo update
         - cargo test --features strict
         - if [[ "${TRAVIS_PULL_REQUEST_BRANCH:-}" = release-* ]]; then cargo package; fi
@@ -44,15 +45,13 @@ matrix:
         - cargo kcov --print-install-kcov-sh | sh
         - cargo kcov -v --coveralls
 
-    - rust: nightly-2018-09-11
+    - rust: nightly
       env: LINT
       before_script:
-        - rustup component add rustfmt-preview
         - rustup component add clippy-preview
         - export CARGO_INCREMENTAL=0
       script:
-        - cargo fmt -- --check
-        - cargo clippy --features strict
+        - cargo clippy --features "lint strict"
 
     - rust: nightly
       env: LATEST_NIGHTLY
@@ -62,7 +61,7 @@ matrix:
         - cargo update
         - cargo test --all
 
-    - rust: nightly-2018-09-11
+    - rust: beta
       env: DEPLOY_DOCS
       before_script:
         - curl -sSLf https://github.com/rust-lang-nursery/mdBook/releases/download/v0.2.1/mdbook-v0.2.1-x86_64-unknown-linux-gnu.tar.gz | tar xzf -

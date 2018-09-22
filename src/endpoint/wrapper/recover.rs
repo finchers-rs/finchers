@@ -130,7 +130,7 @@ where
         TryChain::First(f1, Some(data))
     }
 
-    #[allow(clippy::type_complexity)]
+    #[cfg_attr(feature = "lint", allow(clippy::type_complexity))]
     pub(super) fn poll<F>(&mut self, f: F) -> Poll<Either<F1::Item, F2::Item>, Error>
     where
         F: FnOnce(Result<F1::Item, F1::Error>, T) -> TryChainAction<F1, F2>,
