@@ -7,20 +7,6 @@ use std::fmt;
 use crate::endpoint::syntax::verb::Verbs;
 use crate::error::{Error, HttpError};
 
-#[doc(hidden)]
-#[deprecated(
-    since = "0.12.0-alpha.4",
-    note = "renamed to `endpoint::syntax::verb::Verbs`."
-)]
-pub use crate::endpoint::syntax::verb::Verbs as AllowedMethods;
-
-#[doc(hidden)]
-#[deprecated(
-    since = "0.12.0-alpha.4",
-    note = "renamed to `endpoint::syntax::verb::VerbsIter`."
-)]
-pub use crate::endpoint::syntax::verb::VerbsIter as AllowedMethodsIter;
-
 /// A type alias of `Result<T, E>` with the error type fixed at `EndpointError`.
 pub type EndpointResult<T> = Result<T, EndpointError>;
 
