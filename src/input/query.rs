@@ -41,16 +41,6 @@ impl<'a> QueryItems<'a> {
     pub fn remains(&self) -> &EncodedStr {
         unsafe { EncodedStr::new_unchecked(self.input) }
     }
-
-    #[doc(hidden)]
-    #[deprecated(
-        since = "0.12.0-alpha.2",
-        note = "use `QueryItems::remains()` instead."
-    )]
-    #[inline(always)]
-    pub fn as_bytes(&self) -> Option<&[u8]> {
-        Some(self.input)
-    }
 }
 
 // FIXME: return an error if the input is invalid query sequence.

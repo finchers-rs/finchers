@@ -47,8 +47,6 @@
 #![cfg_attr(feature = "strict", deny(warnings))]
 #![cfg_attr(feature = "strict", doc(test(attr(deny(warnings)))))]
 
-#[macro_use]
-mod macros;
 mod app;
 mod common;
 

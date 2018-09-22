@@ -40,11 +40,11 @@ members = [
 bitflags = "1.0.4"
 bytes = { version = "0.4.9", features = ["either"] }
 cookie = { version = "0.11.0", features = ["percent-encode"] }
+either = "1.5.0"
 failure = "0.1.2"
 futures = "0.1.23"
 http = "0.1.10"
 hyper = "0.12.7"
-hyperx = "0.13.1"
 log = "0.4.3"
 mime = "0.3.8"
 mime_guess = "2.0.0-alpha.6"
@@ -55,11 +55,10 @@ serde_qs = "0.4.1"
 time = "0.1.40"
 tokio = "0.1.8"
 url = "1.7.1"
-either = "1.5.0"
 
 [features]
 strict = []
-lint = []
+lint = ["strict"]
 secure = ["cookie/secure"]
 
 [dev-dependencies]
