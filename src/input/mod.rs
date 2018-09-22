@@ -15,7 +15,6 @@ pub(crate) use self::global::with_set_cx;
 
 // ====
 
-use cookie::CookieJar;
 use http;
 use http::Request;
 use mime::Mime;
@@ -25,13 +24,13 @@ use std::ops::Deref;
 use crate::error::{bad_request, Error};
 
 use self::body::{Payload, ReqBody};
-use self::cookie::Cookies;
+use self::cookie::{CookieJar, Cookies};
 
 /// The contextual information with an incoming HTTP request.
 #[derive(Debug)]
 pub struct Input {
     request: Request<ReqBody>,
-    #[allow(clippy::option_option)]
+    #[cfg_attr(feature = "lint", allow(clippy::option_option))]
     media_type: Option<Option<Mime>>,
     cookie_jar: Option<CookieJar>,
 }

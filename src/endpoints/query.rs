@@ -1,10 +1,7 @@
 //! Endpoints for parsing query strings.
 
-use std::future::Future;
+use std::fmt;
 use std::marker::PhantomData;
-use std::pin::PinMut;
-use std::task::Poll;
-use std::{fmt, task};
 
 use crate::endpoint::{Context, Endpoint, EndpointError, EndpointResult};
 use crate::error;
@@ -96,22 +93,24 @@ pub struct RequiredFuture<T> {
     _marker: PhantomData<fn() -> T>,
 }
 
-impl<T> Future for RequiredFuture<T>
+impl<T> ::futures::Future for RequiredFuture<T>
 where
     T: FromQuery,
 {
-    type Output = Result<(T,), Error>;
+    type Item = (T,);
+    type Error = Error;
 
-    fn poll(self: PinMut<'_, Self>, _: &mut task::Context<'_>) -> Poll<Self::Output> {
-        Poll::Ready(with_get_cx(|input| {
+    fn poll(&mut self) -> ::futures::Poll<Self::Item, Self::Error> {
+        with_get_cx(|input| {
             let query = input
                 .request()
                 .uri()
                 .query()
                 .expect("The query string should be available inside of this future.");
             let items = unsafe { QueryItems::new_unchecked(query) };
-            T::from_query(items).map(|x| (x,)).map_err(bad_request)
-        }))
+            T::from_query(items)
+        }).map(|x| (x,).into())
+        .map_err(bad_request)
     }
 }
 
@@ -195,22 +194,23 @@ pub struct OptionalFuture<T> {
     _marker: PhantomData<fn() -> T>,
 }
 
-impl<T> Future for OptionalFuture<T>
+impl<T> ::futures::Future for OptionalFuture<T>
 where
     T: FromQuery,
 {
-    type Output = Result<(Option<T>,), Error>;
+    type Item = (Option<T>,);
+    type Error = Error;
 
-    fn poll(self: PinMut<'_, Self>, _: &mut task::Context<'_>) -> Poll<Self::Output> {
-        Poll::Ready(with_get_cx(|input| match input.request().uri().query() {
+    fn poll(&mut self) -> ::futures::Poll<Self::Item, Self::Error> {
+        with_get_cx(|input| match input.request().uri().query() {
             Some(query) => {
                 let items = unsafe { QueryItems::new_unchecked(query) };
                 T::from_query(items)
-                    .map(|x| (Some(x),))
+                    .map(|x| (Some(x),).into())
                     .map_err(bad_request)
             }
-            None => Ok((None,)),
-        }))
+            None => Ok((None,).into()),
+        })
     }
 }
 
@@ -240,11 +240,12 @@ pub struct RawFuture {
     _priv: (),
 }
 
-impl Future for RawFuture {
-    type Output = Result<(Option<String>,), Error>;
+impl ::futures::Future for RawFuture {
+    type Item = (Option<String>,);
+    type Error = Error;
 
-    fn poll(self: PinMut<'_, Self>, _: &mut task::Context<'_>) -> Poll<Self::Output> {
+    fn poll(&mut self) -> ::futures::Poll<Self::Item, Self::Error> {
         let raw = with_get_cx(|input| input.request().uri().query().map(ToOwned::to_owned));
-        Poll::Ready(Ok((raw,)))
+        Ok((raw,).into())
     }
 }

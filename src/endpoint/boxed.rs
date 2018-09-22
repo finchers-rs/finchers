@@ -1,8 +1,5 @@
+use futures::Future;
 use std::fmt;
-use std::pin::PinBox;
-
-use futures_core::future::{FutureObj, LocalFutureObj};
-use futures_util::try_future::TryFutureExt;
 
 use crate::common::Tuple;
 use crate::endpoint::{Context, Endpoint, EndpointResult, IsSendEndpoint};
@@ -14,7 +11,7 @@ trait FutureObjEndpoint<'a>: 'a {
     fn apply_obj(
         &'a self,
         ecx: &mut Context<'_>,
-    ) -> EndpointResult<FutureObj<'a, Result<Self::Output, Error>>>;
+    ) -> EndpointResult<Box<dyn Future<Item = Self::Output, Error = Error> + Send + 'a>>;
 }
 
 impl<'e, E: IsSendEndpoint<'e>> FutureObjEndpoint<'e> for E {
@@ -24,9 +21,9 @@ impl<'e, E: IsSendEndpoint<'e>> FutureObjEndpoint<'e> for E {
     fn apply_obj(
         &'e self,
         ecx: &mut Context<'_>,
-    ) -> EndpointResult<FutureObj<'e, Result<Self::Output, Error>>> {
-        let future = self.apply(ecx)?.into_future();
-        Ok(FutureObj::new(PinBox::new(future)))
+    ) -> EndpointResult<Box<dyn Future<Item = Self::Output, Error = Error> + Send + 'e>> {
+        let future = self.apply(ecx)?;
+        Ok(Box::new(future))
     }
 }
 
@@ -55,7 +52,7 @@ impl<T: Tuple + 'static> fmt::Debug for EndpointObj<T> {
 
 impl<'e, T: Tuple + 'static> Endpoint<'e> for EndpointObj<T> {
     type Output = T;
-    type Future = FutureObj<'e, Result<T, Error>>;
+    type Future = Box<dyn Future<Item = Self::Output, Error = Error> + Send + 'e>;
 
     #[inline(always)]
     fn apply(&'e self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
@@ -71,7 +68,7 @@ trait LocalFutureObjEndpoint<'a>: 'a {
     fn apply_local_obj(
         &'a self,
         ecx: &mut Context<'_>,
-    ) -> EndpointResult<LocalFutureObj<'a, Result<Self::Output, Error>>>;
+    ) -> EndpointResult<Box<dyn Future<Item = Self::Output, Error = Error> + 'a>>;
 }
 
 impl<'e, E: Endpoint<'e>> LocalFutureObjEndpoint<'e> for E {
@@ -81,9 +78,9 @@ impl<'e, E: Endpoint<'e>> LocalFutureObjEndpoint<'e> for E {
     fn apply_local_obj(
         &'e self,
         ecx: &mut Context<'_>,
-    ) -> EndpointResult<LocalFutureObj<'e, Result<Self::Output, Error>>> {
-        let future = self.apply(ecx)?.into_future();
-        Ok(LocalFutureObj::new(PinBox::new(future)))
+    ) -> EndpointResult<Box<dyn Future<Item = Self::Output, Error = Error> + 'e>> {
+        let future = self.apply(ecx)?;
+        Ok(Box::new(future))
     }
 }
 
@@ -112,7 +109,7 @@ impl<T: Tuple + 'static> fmt::Debug for LocalEndpointObj<T> {
 
 impl<'e, T: Tuple + 'static> Endpoint<'e> for LocalEndpointObj<T> {
     type Output = T;
-    type Future = LocalFutureObj<'e, Result<T, Error>>;
+    type Future = Box<dyn Future<Item = Self::Output, Error = Error> + 'e>;
 
     #[inline(always)]
     fn apply(&'e self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {

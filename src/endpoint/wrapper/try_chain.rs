@@ -1,10 +1,6 @@
 // The original implementation is futures-util-preview/try_future/try_chain.rs.
 
-use std::pin::PinMut;
-
-use futures_core::future::TryFuture;
-use futures_core::task;
-use futures_core::task::Poll;
+use futures::{Async, Future, Poll};
 
 #[derive(Debug)]
 pub(super) enum TryChain<F1, F2, T> {
@@ -15,55 +11,46 @@ pub(super) enum TryChain<F1, F2, T> {
 
 pub(super) enum TryChainAction<F2>
 where
-    F2: TryFuture,
+    F2: Future,
 {
     Future(F2),
-    Output(Result<F2::Ok, F2::Error>),
+    Output(Result<F2::Item, F2::Error>),
 }
 
 impl<F1, F2, T> TryChain<F1, F2, T>
 where
-    F1: TryFuture,
-    F2: TryFuture,
+    F1: Future,
+    F2: Future,
 {
     pub(super) fn new(f1: F1, data: T) -> TryChain<F1, F2, T> {
         TryChain::First(f1, Some(data))
     }
 
-    pub(super) fn poll<F>(
-        self: PinMut<'_, Self>,
-        cx: &mut task::Context<'_>,
-        f: F,
-    ) -> Poll<Result<F2::Ok, F2::Error>>
+    pub(super) fn poll<F>(&mut self, f: F) -> Poll<F2::Item, F2::Error>
     where
-        F: FnOnce(Result<F1::Ok, F1::Error>, T) -> TryChainAction<F2>,
+        F: FnOnce(Result<F1::Item, F1::Error>, T) -> TryChainAction<F2>,
     {
         let mut f = Some(f);
-
-        // Safety: the futures does not move in this method.
-        let this = unsafe { PinMut::get_mut_unchecked(self) };
-
         loop {
-            let (out, data) = match this {
-                TryChain::First(f1, data) => {
-                    match unsafe { PinMut::new_unchecked(f1) }.try_poll(cx) {
-                        Poll::Pending => return Poll::Pending,
-                        Poll::Ready(out) => (out, data.take().unwrap()),
-                    }
-                }
-                TryChain::Second(f2) => return unsafe { PinMut::new_unchecked(f2) }.try_poll(cx),
+            let (out, data) = match self {
+                TryChain::First(ref mut f1, ref mut data) => match f1.poll() {
+                    Ok(Async::NotReady) => return Ok(Async::NotReady),
+                    Ok(Async::Ready(ok)) => (Ok(ok), data.take().unwrap()),
+                    Err(err) => (Err(err), data.take().unwrap()),
+                },
+                TryChain::Second(ref mut f2) => return f2.poll(),
                 TryChain::Empty => panic!("This future has already polled."),
             };
 
             let f = f.take().unwrap();
             match f(out, data) {
                 TryChainAction::Future(f2) => {
-                    *this = TryChain::Second(f2);
+                    *self = TryChain::Second(f2);
                     continue;
                 }
                 TryChainAction::Output(out) => {
-                    *this = TryChain::Empty;
-                    return Poll::Ready(out);
+                    *self = TryChain::Empty;
+                    return out.map(Async::Ready);
                 }
             }
         }

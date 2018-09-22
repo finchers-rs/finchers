@@ -1,15 +1,8 @@
 //! The components to construct an asynchronous HTTP service from the `Endpoint`.
 
-#![allow(missing_docs)]
-
-use std::future::Future;
+use futures::{Async, Future, Poll};
 use std::io;
-use std::pin::PinMut;
-use std::task;
-use std::task::Poll;
 
-use futures_core::future::TryFuture;
-use futures_util::ready;
 use http::header::HeaderValue;
 use http::{header, Request, Response};
 
@@ -64,46 +57,40 @@ impl<'e, E> AppFuture<'e, E>
 where
     E: Endpoint<'e>,
 {
-    pub fn poll_output(
-        self: PinMut<'_, Self>,
-        cx: &mut task::Context<'_>,
-    ) -> Poll<Result<E::Output, Error>> {
-        let this = unsafe { PinMut::get_mut_unchecked(self) };
-
+    pub fn poll_output(&mut self) -> Poll<E::Output, Error> {
         loop {
-            match this.state {
+            match self.state {
                 State::Uninitialized => {
-                    let mut ecx = Context::new(&mut this.input);
-                    match this.endpoint.apply(&mut ecx) {
-                        Ok(future) => this.state = State::InFlight(future),
+                    let mut ecx = Context::new(&mut self.input);
+                    match self.endpoint.apply(&mut ecx) {
+                        Ok(future) => self.state = State::InFlight(future),
                         Err(err) => {
-                            this.state = State::Gone;
-                            return Poll::Ready(Err(err.into()));
+                            self.state = State::Gone;
+                            return Err(err.into());
                         }
                     }
                 }
                 State::InFlight(ref mut f) => {
-                    let f = unsafe { PinMut::new_unchecked(f) };
-                    break with_set_cx(&mut this.input, || f.try_poll(cx));
+                    break with_set_cx(&mut self.input, || f.poll());
                 }
                 State::Gone => panic!("cannot poll AppServiceFuture twice"),
             }
         }
     }
 
-    pub fn poll_response(
-        mut self: PinMut<'_, Self>,
-        cx: &mut task::Context<'_>,
-    ) -> Poll<Response<ResBody<E::Output>>>
+    pub fn poll_response(&mut self) -> Poll<Response<ResBody<E::Output>>, io::Error>
     where
         E::Output: Output,
     {
-        let output = ready!(self.reborrow().poll_output(cx));
+        let output = match self.poll_output() {
+            Ok(Async::Ready(item)) => Ok(item),
+            Ok(Async::NotReady) => return Ok(Async::NotReady),
+            Err(err) => Err(err),
+        };
 
-        let this = unsafe { PinMut::get_mut_unchecked(self) };
         let mut response = output
             .and_then({
-                let mut cx = OutputContext::new(&mut this.input);
+                let mut cx = OutputContext::new(&mut self.input);
                 move |out| {
                     out.respond(&mut cx)
                         .map(|res| res.map(Either::Right))
@@ -111,7 +98,7 @@ where
                 }
             }).unwrap_or_else(|err| err.to_response().map(|body| Either::Left(Once::new(body))));
 
-        if let Some(jar) = this.input.cookie_jar() {
+        if let Some(jar) = self.input.cookie_jar() {
             for cookie in jar.delta() {
                 let val = HeaderValue::from_str(&cookie.encoded().to_string()).unwrap();
                 response.headers_mut().insert(header::SET_COOKIE, val);
@@ -127,7 +114,7 @@ where
                 env!("CARGO_PKG_VERSION")
             )));
 
-        Poll::Ready(response)
+        Ok(Async::Ready(response))
     }
 }
 
@@ -136,10 +123,11 @@ where
     E: Endpoint<'e>,
     E::Output: Output,
 {
-    type Output = io::Result<Response<ResBody<E::Output>>>;
+    type Item = Response<ResBody<E::Output>>;
+    type Error = io::Error;
 
-    fn poll(self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
-        self.poll_response(cx).map(Ok)
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        self.poll_response()
     }
 }
 
@@ -147,11 +135,8 @@ mod service {
     use super::{App, AppFuture, ResBody};
 
     use std::io;
-    use std::pin::PinBox;
 
     use futures as futures01;
-    use futures_util::compat::{Compat, TokioDefaultSpawner};
-    use futures_util::try_future::TryFutureExt;
     use http::Request;
     use hyper::body::Body;
     use hyper::service::{NewService, Service};
@@ -185,11 +170,10 @@ mod service {
         type ReqBody = Body;
         type ResBody = ResBody<E::Output>;
         type Error = io::Error;
-        type Future = Compat<PinBox<AppFuture<'e, E>>, TokioDefaultSpawner>;
+        type Future = AppFuture<'e, E>;
 
         fn call(&mut self, request: Request<Self::ReqBody>) -> Self::Future {
-            let future = self.dispatch_request(request.map(ReqBody::from_hyp));
-            PinBox::new(future).compat(TokioDefaultSpawner)
+            self.dispatch_request(request.map(ReqBody::from_hyp))
         }
     }
 }

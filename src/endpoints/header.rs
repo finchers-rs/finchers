@@ -1,16 +1,9 @@
 //! Components for parsing the HTTP headers.
 
-use std::fmt;
-use std::marker::PhantomData;
-use std::pin::PinMut;
-
-use futures_core::future::Future;
-use futures_core::task;
-use futures_core::task::Poll;
-use futures_util::future;
-
 use http::header::{HeaderName, HeaderValue};
 use http::HttpTryFrom;
+use std::fmt;
+use std::marker::PhantomData;
 
 use crate::endpoint::{Context, Endpoint, EndpointError, EndpointResult};
 use crate::error;
@@ -92,23 +85,24 @@ pub struct ParseFuture<'e, T: 'e> {
     endpoint: &'e Parse<T>,
 }
 
-impl<'e, T> Future for ParseFuture<'e, T>
+impl<'e, T> ::futures::Future for ParseFuture<'e, T>
 where
     T: FromHeaderValue,
 {
-    type Output = Result<(T,), Error>;
+    type Item = (T,);
+    type Error = Error;
 
-    fn poll(self: PinMut<'_, Self>, _: &mut task::Context<'_>) -> Poll<Self::Output> {
-        Poll::Ready(with_get_cx(|input| {
+    fn poll(&mut self) -> ::futures::Poll<Self::Item, Self::Error> {
+        with_get_cx(|input| {
             let h = input
                 .request()
                 .headers()
                 .get(&self.endpoint.name)
                 .expect("The header value should be always available inside of this Future.");
             T::from_header_value(h)
+                .map(|parsed| (parsed,).into())
                 .map_err(error::bad_request)
-                .map(|parsed| (parsed,))
-        }))
+        })
     }
 }
 
@@ -169,21 +163,22 @@ pub struct OptionalFuture<'e, T: 'e> {
     endpoint: &'e Optional<T>,
 }
 
-impl<'e, T> Future for OptionalFuture<'e, T>
+impl<'e, T> ::futures::Future for OptionalFuture<'e, T>
 where
     T: FromHeaderValue,
 {
-    type Output = Result<(Option<T>,), Error>;
+    type Item = (Option<T>,);
+    type Error = Error;
 
-    fn poll(self: PinMut<'_, Self>, _: &mut task::Context<'_>) -> Poll<Self::Output> {
-        Poll::Ready(with_get_cx(|input| {
-            match input.request().headers().get(&self.endpoint.name) {
+    fn poll(&mut self) -> ::futures::Poll<Self::Item, Self::Error> {
+        with_get_cx(
+            |input| match input.request().headers().get(&self.endpoint.name) {
                 Some(h) => T::from_header_value(h)
-                    .map(|parsed| (Some(parsed),))
+                    .map(|parsed| (Some(parsed),).into())
                     .map_err(error::bad_request),
-                None => Ok((None,)),
-            }
-        }))
+                None => Ok((None,).into()),
+            },
+        )
     }
 }
 
@@ -237,11 +232,11 @@ where
     V: PartialEq<HeaderValue> + 'e,
 {
     type Output = ();
-    type Future = future::Ready<Result<Self::Output, Error>>;
+    type Future = ::futures::future::FutureResult<Self::Output, Error>;
 
     fn apply(&'e self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
         match ecx.input().headers().get(&self.name) {
-            Some(value) if self.value == *value => Ok(future::ready(Ok(()))),
+            Some(value) if self.value == *value => Ok(::futures::future::result(Ok(()))),
             _ => Err(EndpointError::not_matched()),
         }
     }
@@ -269,10 +264,10 @@ pub struct Raw {
 
 impl<'a> Endpoint<'a> for Raw {
     type Output = (Option<HeaderValue>,);
-    type Future = future::Ready<Result<Self::Output, Error>>;
+    type Future = ::futures::future::FutureResult<Self::Output, Error>;
 
     fn apply(&'a self, cx: &mut Context<'_>) -> EndpointResult<Self::Future> {
         let header = cx.input().headers().get(&self.name).cloned();
-        Ok(future::ready(Ok((header,))))
+        Ok(::futures::future::result(Ok((header,))))
     }
 }

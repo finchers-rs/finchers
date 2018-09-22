@@ -1,12 +1,7 @@
 //! Endpoints for serving static contents on the file system.
 
+use futures::{Future, Poll};
 use std::path::PathBuf;
-use std::pin::PinMut;
-
-use futures_core::future::Future;
-use futures_core::task;
-use futures_core::task::Poll;
-use pin_utils::unsafe_unpinned;
 
 use crate::endpoint::{Context, Endpoint, EndpointResult};
 use crate::error::{bad_request, Error};
@@ -93,20 +88,14 @@ enum State {
     Opening(OpenNamedFile),
 }
 
-impl FileFuture {
-    unsafe_unpinned!(state: State);
-}
-
 impl Future for FileFuture {
-    type Output = Result<(NamedFile,), Error>;
+    type Item = (NamedFile,);
+    type Error = Error;
 
-    fn poll(mut self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
-        match self.state() {
-            State::Err(ref mut err) => Poll::Ready(Err(err.take().unwrap())),
-            State::Opening(ref mut f) => {
-                let f = unsafe { PinMut::new_unchecked(f) };
-                f.poll(cx).map_ok(|x| (x,)).map_err(Into::into)
-            }
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        match self.state {
+            State::Err(ref mut err) => Err(err.take().unwrap()),
+            State::Opening(ref mut f) => f.poll().map(|x| x.map(|x| (x,))).map_err(Into::into),
         }
     }
 }

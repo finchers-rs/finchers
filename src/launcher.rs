@@ -26,7 +26,7 @@ where
 {}
 
 mod sealed {
-    use futures_core::future::TryFuture;
+    use futures::Future;
 
     use crate::common::Tuple;
     use crate::endpoint::{Context, Endpoint, EndpointResult};
@@ -35,7 +35,7 @@ mod sealed {
 
     pub trait Sealed<'a>: Send + Sync + 'static {
         type Output: Tuple + Output;
-        type Future: TryFuture<Ok = Self::Output, Error = Error> + Send + 'a;
+        type Future: Future<Item = Self::Output, Error = Error> + Send + 'a;
 
         fn apply(&'a self, cx: &mut Context<'_>) -> EndpointResult<Self::Future>;
 

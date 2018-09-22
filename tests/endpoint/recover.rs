@@ -2,7 +2,7 @@ use finchers::endpoint::syntax;
 use finchers::endpoint::EndpointError;
 use finchers::local;
 use finchers::prelude::*;
-use futures_util::future::ready;
+use futures::future;
 use http::Response;
 
 #[test]
@@ -18,12 +18,14 @@ fn test_recover() {
         .wrap(endpoint::wrapper::or_reject())
         .wrap(endpoint::wrapper::recover(|err| {
             if err.is::<EndpointError>() {
-                ready(Ok(Response::builder()
-                    .status(err.status_code())
-                    .body(err.status_code().to_string())
-                    .unwrap()))
+                future::ok(
+                    Response::builder()
+                        .status(err.status_code())
+                        .body(err.status_code().to_string())
+                        .unwrap(),
+                )
             } else {
-                ready(Err(err))
+                future::err(err)
             }
         }));
 

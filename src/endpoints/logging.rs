@@ -1,13 +1,5 @@
 //! Wrapper for logging.
 
-use futures_core::future::{Future, TryFuture};
-use futures_core::task;
-use futures_core::task::Poll;
-use futures_util::try_ready;
-
-use pin_utils::unsafe_pinned;
-use std::pin::PinMut;
-
 use http::Response;
 use http::StatusCode;
 use log::info;
@@ -102,27 +94,24 @@ pub struct WithLoggingFuture<'a, Fut, F: 'a> {
     start: Instant,
 }
 
-impl<'a, Fut, F> WithLoggingFuture<'a, Fut, F> {
-    unsafe_pinned!(future: Fut);
-}
-
-impl<'a, Fut, F> Future for WithLoggingFuture<'a, Fut, F>
+impl<'a, Fut, F> ::futures::Future for WithLoggingFuture<'a, Fut, F>
 where
-    Fut: TryFuture<Error = Error>,
-    Fut::Ok: Output,
+    Fut: ::futures::Future<Error = Error>,
+    Fut::Item: Output,
     F: Fn(Info<'_>) + 'a,
 {
-    type Output = Result<(LoggedResponse<<Fut::Ok as Output>::Body>,), Error>;
+    type Item = (LoggedResponse<<Fut::Item as Output>::Body>,);
+    type Error = Error;
 
-    fn poll(mut self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
-        let x = try_ready!(self.future().try_poll(cx));
+    fn poll(&mut self) -> ::futures::Poll<Self::Item, Self::Error> {
+        let x = ::futures::try_ready!(self.future.poll());
 
         let response = match with_get_cx(|input| {
             let mut ocx = OutputContext::new(input);
             x.respond(&mut ocx)
         }) {
             Ok(response) => response,
-            Err(err) => return Poll::Ready(Err(err.into())),
+            Err(err) => return Err(err.into()),
         };
 
         with_get_cx(|input| {
@@ -134,7 +123,7 @@ where
             });
         });
 
-        Poll::Ready(Ok((LoggedResponse(response),)))
+        Ok((LoggedResponse(response),).into())
     }
 }
 

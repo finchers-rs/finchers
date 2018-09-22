@@ -1,10 +1,3 @@
-use std::pin::PinMut;
-
-use futures_core::future::{Future, TryFuture};
-use futures_core::task;
-use futures_core::task::Poll;
-use pin_utils::unsafe_pinned;
-
 use http::Response;
 
 use crate::common::Either;
@@ -97,23 +90,21 @@ impl<L, R> OrFuture<L, R> {
             inner: Either::Right(r),
         }
     }
-
-    unsafe_pinned!(inner: Either<L, R>);
 }
 
-impl<L, R> Future for OrFuture<L, R>
+impl<L, R> ::futures::Future for OrFuture<L, R>
 where
-    L: TryFuture<Error = Error>,
-    R: TryFuture<Error = Error>,
+    L: ::futures::Future<Error = Error>,
+    R: ::futures::Future<Error = Error>,
 {
-    #[allow(clippy::type_complexity)]
-    type Output = Result<(Wrapped<L::Ok, R::Ok>,), Error>;
+    type Item = (Wrapped<L::Item, R::Item>,);
+    type Error = Error;
 
     #[inline(always)]
-    fn poll(mut self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
-        match self.inner().as_pin_mut() {
-            Left(t) => t.try_poll(cx).map_ok(|t| (Wrapped(Left(t)),)),
-            Right(t) => t.try_poll(cx).map_ok(|t| (Wrapped(Right(t)),)),
+    fn poll(&mut self) -> ::futures::Poll<Self::Item, Self::Error> {
+        match self.inner {
+            Left(ref mut t) => t.poll().map(|t| t.map(|t| (Wrapped(Left(t)),))),
+            Right(ref mut t) => t.poll().map(|t| t.map(|t| (Wrapped(Right(t)),))),
         }
     }
 }

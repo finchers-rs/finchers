@@ -1,5 +1,6 @@
 use diesel::prelude::*;
-use failure::Fallible;
+use failure::Error;
+use futures::prelude::*;
 use serde::Deserialize;
 
 use crate::database::Connection;
@@ -17,31 +18,31 @@ impl Default for Query {
     }
 }
 
-pub async fn get_posts(query: Option<Query>, conn: Connection) -> Fallible<Vec<Post>> {
+pub fn get_posts(
+    query: Option<Query>,
+    conn: Connection,
+) -> impl Future<Item = Vec<Post>, Error = Error> {
     let query = query.unwrap_or_default();
-    let posts = await!(conn.execute(move |conn| {
+    conn.execute(move |conn| {
         use crate::schema::posts::dsl::*;
         posts.limit(query.count).load::<Post>(conn.get())
-    }))?;
-    Ok(posts)
+    })
 }
 
-pub async fn create_post(new_post: NewPost, conn: Connection) -> Fallible<Post> {
-    let post = await!(conn.execute(move |conn| {
+pub fn create_post(new_post: NewPost, conn: Connection) -> impl Future<Item = Post, Error = Error> {
+    conn.execute(move |conn| {
         diesel::insert_into(posts::table)
             .values(&new_post)
             .get_result::<Post>(conn.get())
-    }))?;
-    Ok(post)
+    })
 }
 
-pub async fn find_post(i: i32, conn: Connection) -> Fallible<Option<Post>> {
-    let post_opt = await!(conn.execute(move |conn| {
+pub fn find_post(i: i32, conn: Connection) -> impl Future<Item = Option<Post>, Error = Error> {
+    conn.execute(move |conn| {
         use crate::schema::posts::dsl::{id, posts};
         posts
             .filter(id.eq(i))
             .get_result::<Post>(conn.get())
             .optional()
-    }))?;
-    Ok(post_opt)
+    })
 }

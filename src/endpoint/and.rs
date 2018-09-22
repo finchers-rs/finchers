@@ -1,13 +1,9 @@
-#![allow(clippy::type_complexity)]
+#![cfg_attr(feature = "lint", allow(clippy::type_complexity))]
 
 use std::fmt;
-use std::pin::PinMut;
-use std::task;
-use std::task::Poll;
 
-use futures_core::future::{Future, TryFuture};
-use futures_util::try_future::{TryFutureExt, TryJoin};
-use pin_utils::unsafe_pinned;
+use futures::future;
+use futures::{Future, Poll};
 
 use crate::common::{Combine, Tuple};
 use crate::endpoint::{Context, Endpoint, EndpointResult, IntoEndpoint};
@@ -32,26 +28,24 @@ where
     fn apply(&'a self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
         let f1 = self.e1.apply(ecx)?;
         let f2 = self.e2.apply(ecx)?;
-        Ok(AndFuture {
-            inner: f1.try_join(f2),
-        })
+        Ok(AndFuture { inner: f1.join(f2) })
     }
 }
 
 pub struct AndFuture<F1, F2>
 where
-    F1: TryFuture<Error = Error>,
-    F2: TryFuture<Error = Error>,
+    F1: Future<Error = Error>,
+    F2: Future<Error = Error>,
 {
-    inner: TryJoin<F1, F2>,
+    inner: future::Join<F1, F2>,
 }
 
 impl<F1, F2> fmt::Debug for AndFuture<F1, F2>
 where
-    F1: TryFuture<Error = Error> + fmt::Debug,
-    F2: TryFuture<Error = Error> + fmt::Debug,
-    F1::Ok: fmt::Debug,
-    F2::Ok: fmt::Debug,
+    F1: Future<Error = Error> + fmt::Debug,
+    F2: Future<Error = Error> + fmt::Debug,
+    F1::Item: fmt::Debug,
+    F2::Item: fmt::Debug,
 {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
@@ -61,27 +55,20 @@ where
     }
 }
 
-impl<F1, F2> AndFuture<F1, F2>
-where
-    F1: TryFuture<Error = Error>,
-    F2: TryFuture<Error = Error>,
-{
-    unsafe_pinned!(inner: TryJoin<F1, F2>);
-}
-
 impl<F1, F2> Future for AndFuture<F1, F2>
 where
-    F1: TryFuture<Error = Error>,
-    F2: TryFuture<Error = Error>,
-    F1::Ok: Tuple + Combine<F2::Ok>,
-    F2::Ok: Tuple,
+    F1: Future<Error = Error>,
+    F2: Future<Error = Error>,
+    F1::Item: Tuple + Combine<F2::Item>,
+    F2::Item: Tuple,
 {
-    type Output = Result<<F1::Ok as Combine<F2::Ok>>::Out, Error>;
+    type Item = <F1::Item as Combine<F2::Item>>::Out;
+    type Error = Error;
 
-    fn poll(mut self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
-        self.inner()
-            .poll(cx)
-            .map_ok(|(v1, v2)| Combine::combine(v1, v2))
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        self.inner
+            .poll()
+            .map(|x| x.map(|(v1, v2)| Combine::combine(v1, v2)))
     }
 }
 

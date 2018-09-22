@@ -1,5 +1,3 @@
-#![feature(async_await, futures_api)]
-
 use finchers::error::{fail, Error};
 use finchers::output::payload::Once;
 use finchers::prelude::*;

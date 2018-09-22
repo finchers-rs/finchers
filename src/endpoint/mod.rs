@@ -8,11 +8,8 @@ pub mod wrapper;
 
 mod and;
 mod apply_fn;
-mod fixed;
-mod lazy;
 mod or;
 mod or_strict;
-mod reject;
 mod unit;
 mod value;
 
@@ -23,19 +20,10 @@ pub use self::error::{EndpointError, EndpointResult};
 pub use self::wrapper::{EndpointWrapExt, Wrapper};
 
 pub use self::and::And;
-#[allow(deprecated)]
-#[doc(hidden)]
-pub use self::fixed::Fixed;
 pub use self::or::Or;
 pub use self::or_strict::OrStrict;
 
 pub use self::apply_fn::{apply_fn, ApplyFn};
-#[allow(deprecated)]
-#[doc(hidden)]
-pub use self::lazy::{lazy, Lazy};
-#[allow(deprecated)]
-#[doc(hidden)]
-pub use self::reject::{reject, Reject};
 pub use self::unit::{unit, Unit};
 pub use self::value::{value, Value};
 
@@ -44,7 +32,7 @@ pub use self::value::{value, Value};
 use std::rc::Rc;
 use std::sync::Arc;
 
-use futures_core::future::TryFuture;
+use futures::Future;
 
 use crate::common::{Combine, Tuple};
 use crate::error::Error;
@@ -55,7 +43,7 @@ pub trait Endpoint<'a>: 'a {
     type Output: Tuple;
 
     /// The type of value which will be returned from `apply`.
-    type Future: TryFuture<Ok = Self::Output, Error = Error> + 'a;
+    type Future: Future<Item = Self::Output, Error = Error> + 'a;
 
     /// Perform checking the incoming HTTP request and returns
     /// an instance of the associated Future if matched.
@@ -113,7 +101,7 @@ pub trait IsSendEndpoint<'a>: 'a + sealed_is_send_endpoint::Sealed {
     #[doc(hidden)]
     type Output: Tuple;
     #[doc(hidden)]
-    type Future: TryFuture<Ok = Self::Output, Error = Error> + Send + 'a;
+    type Future: Future<Item = Self::Output, Error = Error> + Send + 'a;
     #[doc(hidden)]
     fn apply(&'a self, cx: &mut Context<'_>) -> EndpointResult<Self::Future>;
 }

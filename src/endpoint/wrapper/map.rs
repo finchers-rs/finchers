@@ -1,10 +1,7 @@
 use std::marker::PhantomData;
-use std::pin::PinMut;
 
-use futures_core::future::{Future, TryFuture};
-use futures_core::task;
-use futures_core::task::Poll;
-use pin_utils::{unsafe_pinned, unsafe_unpinned};
+use futures::try_ready;
+use futures::{Future, Poll};
 
 use crate::common::{Func, Tuple};
 use crate::endpoint::{Context, Endpoint, EndpointResult};
@@ -77,26 +74,18 @@ pub struct MapFuture<'a, T, F: 'a> {
     f: Option<&'a F>,
 }
 
-impl<'a, T, F> MapFuture<'a, T, F> {
-    unsafe_pinned!(future: T);
-    unsafe_unpinned!(f: Option<&'a F>);
-}
-
 impl<'a, T, F> Future for MapFuture<'a, T, F>
 where
-    T: TryFuture<Error = Error>,
-    T::Ok: Tuple,
-    F: Func<T::Ok> + 'a,
+    T: Future<Error = Error>,
+    T::Item: Tuple,
+    F: Func<T::Item> + 'a,
 {
-    type Output = Result<(F::Out,), Error>;
+    type Item = (F::Out,);
+    type Error = Error;
 
-    fn poll(mut self: PinMut<'_, Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
-        match self.future().try_poll(cx) {
-            Poll::Pending => Poll::Pending,
-            Poll::Ready(result) => {
-                let f = self.f().take().expect("this future has already polled.");
-                Poll::Ready(result.map(|item| (f.call(item),)))
-            }
-        }
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        let item = try_ready!(self.future.poll());
+        let f = self.f.take().expect("this future has already polled.");
+        Ok((f.call(item),).into())
     }
 }
