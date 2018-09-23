@@ -105,6 +105,10 @@ where
             }
         }
 
+        if let Some(headers) = self.input.take_response_headers() {
+            response.headers_mut().extend(headers);
+        }
+
         response
             .headers_mut()
             .entry(header::SERVER)
