@@ -50,7 +50,7 @@ at your option.
 [crates-io]: https://crates.io/crates/finchers
 [released-api]: https://docs.rs/finchers/0.11/finchers
 [master-api]: https://finchers-rs.github.io/finchers/finchers/index.html
-[examples]: https://github.com/finchers-rs/finchers/tree/master/examples/
+[examples]: https://github.com/finchers-rs/examples
 [user-guide]: https://finchers-rs.github.io/finchers/guide/index.html
 [gitter]: https://gitter.im/finchers-rs/finchers?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge
 [travis]: https://travis-ci.org/finchers-rs/finchers

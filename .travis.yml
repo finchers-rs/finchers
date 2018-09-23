@@ -35,12 +35,6 @@ matrix:
         - cargo update
         - cargo test --features strict
         - if [[ "${TRAVIS_PULL_REQUEST_BRANCH:-}" = release-* ]]; then cargo package; fi
-        # examples
-        - cargo test -p example-custom-logging
-        - cargo test -p example-diesel
-        - cargo test -p example-staticfiles
-        - cargo test -p example-template-tera
-        - cargo test -p example-todos
       after_success:
         - cargo kcov --print-install-kcov-sh | sh
         - cargo kcov -v --coveralls

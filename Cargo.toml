@@ -27,15 +27,6 @@ travis-ci = { repository = "finchers-rs/finchers" }
 coveralls = { repository = "finchers-rs/finchers" }
 maintenance = { status = "actively-developed" }
 
-[workspace]
-members = [
-  "examples/custom-logging",
-  "examples/diesel",
-  "examples/todos",
-  "examples/template-tera",
-  "examples/staticfiles",
-]
-
 [dependencies]
 bitflags = "1.0.4"
 bytes = { version = "0.4.9", features = ["either"] }
