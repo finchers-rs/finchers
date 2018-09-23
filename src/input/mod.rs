@@ -16,6 +16,7 @@ pub(crate) use self::global::with_set_cx;
 // ====
 
 use http;
+use http::header::HeaderMap;
 use http::Request;
 use mime::Mime;
 use std::marker::PhantomData;
@@ -33,6 +34,7 @@ pub struct Input {
     #[cfg_attr(feature = "lint", allow(clippy::option_option))]
     media_type: Option<Option<Mime>>,
     cookie_jar: Option<CookieJar>,
+    response_headers: Option<HeaderMap>,
 }
 
 impl Input {
@@ -41,6 +43,7 @@ impl Input {
             request,
             media_type: None,
             cookie_jar: None,
+            response_headers: None,
         }
     }
 
@@ -97,6 +100,17 @@ impl Input {
 
     pub(crate) fn cookie_jar(&self) -> Option<&CookieJar> {
         self.cookie_jar.as_ref()
+    }
+
+    /// Returns a mutable reference to a `HeaderMap` which contains the entries of response headers.
+    ///
+    /// The values inserted in this header map are automatically added to the actual response.
+    pub fn response_headers(&mut self) -> &mut HeaderMap {
+        self.response_headers.get_or_insert_with(Default::default)
+    }
+
+    pub(crate) fn take_response_headers(&mut self) -> Option<HeaderMap> {
+        self.response_headers.take()
     }
 }
 
