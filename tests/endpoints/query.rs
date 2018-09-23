@@ -4,9 +4,6 @@ use finchers::endpoints::query;
 use finchers::input::query::Serde;
 use finchers::local;
 
-use matches::assert_matches;
-use serde::Deserialize;
-
 #[test]
 fn test_query_raw() {
     let endpoint = query::raw().with_output::<(Option<String>,)>();

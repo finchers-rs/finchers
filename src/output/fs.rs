@@ -6,7 +6,6 @@ use std::io;
 use std::mem;
 use std::path::PathBuf;
 
-use futures::try_ready;
 use futures::{Async, Future, Poll};
 use tokio::io::AsyncRead;
 
@@ -18,7 +17,7 @@ use mime_guess::guess_mime_type;
 
 use super::payload::Payload;
 use super::{Output, OutputContext};
-use crate::error::Never;
+use error::Never;
 
 /// An instance of `Responder` representing a file on the file system.
 #[derive(Debug)]

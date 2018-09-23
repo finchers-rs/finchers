@@ -7,12 +7,12 @@ use std::borrow::Cow;
 use std::fmt;
 use std::marker::PhantomData;
 
-use percent_encoding::{define_encode_set, percent_encode, DEFAULT_ENCODE_SET};
+use percent_encoding::{percent_encode, DEFAULT_ENCODE_SET};
 
-use crate::endpoint::{Context, Endpoint, EndpointError, EndpointResult, IntoEndpoint};
-use crate::error;
-use crate::error::Error;
-use crate::input::FromEncodedStr;
+use endpoint::{Context, Endpoint, EndpointError, EndpointResult, IntoEndpoint};
+use error;
+use error::Error;
+use input::FromEncodedStr;
 
 #[doc(hidden)]
 #[derive(Debug)]
@@ -264,33 +264,33 @@ where
 ///     .and(syntax::param::<i32>())
 /// )
 /// ```
-#[macro_export]
+#[macro_export(local_inner_macros)]
 macro_rules! path {
     // with method
     (@$method:ident $($t:tt)*) => (
         $crate::endpoint::IntoEndpointExt::and(
             $crate::endpoint::syntax::verb::$method(),
-            $crate::path_impl!(@start $($t)*)
+            path_impl!(@start $($t)*)
         )
     );
 
     // without method
-    (/ $($t:tt)*) => ( $crate::path_impl!(@start / $($t)*) );
+    (/ $($t:tt)*) => ( path_impl!(@start / $($t)*) );
 }
 
 #[doc(hidden)]
 #[macro_export]
 macro_rules! path_impl {
     (@start / $head:tt $(/ $tail:tt)*) => {{
-        let __p = $crate::path_impl!(@segment $head);
+        let __p = path_impl!(@segment $head);
         $(
-            let __p = $crate::endpoint::IntoEndpointExt::and(__p, $crate::path_impl!(@segment $tail));
+            let __p = $crate::endpoint::IntoEndpointExt::and(__p, path_impl!(@segment $tail));
         )*
         __p
     }};
     (@start / $head:tt $(/ $tail:tt)* /) => {
         $crate::endpoint::IntoEndpointExt::and(
-            $crate::path_impl!(@start / $head $(/ $tail)*),
+            path_impl!(@start / $head $(/ $tail)*),
             $crate::endpoint::syntax::eos(),
         )
     };

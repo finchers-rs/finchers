@@ -3,7 +3,7 @@ mod either;
 mod func;
 mod hlist;
 
-pub use self::combine::Combine;
-pub use self::either::Either;
-pub use self::func::Func;
-pub use self::hlist::Tuple;
+pub(crate) use self::combine::Combine;
+pub(crate) use self::either::Either;
+pub(crate) use self::func::Func;
+pub(crate) use self::hlist::Tuple;

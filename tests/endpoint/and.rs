@@ -1,8 +1,6 @@
 use finchers::endpoint::{unit, value, IntoEndpointExt};
 use finchers::local;
 
-use matches::assert_matches;
-
 #[test]
 fn test_and_all_ok() {
     let endpoint = value("Hello").and(value("world"));

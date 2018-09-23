@@ -6,28 +6,28 @@ use std::io;
 use http::header::HeaderValue;
 use http::{header, Request, Response};
 
-use crate::common::Either;
-use crate::endpoint::{Context, Endpoint};
-use crate::error::Error;
-use crate::input::body::ReqBody;
-use crate::input::{with_set_cx, Input};
-use crate::output::payload::Once;
-use crate::output::{Output, OutputContext};
+use common::Either;
+use endpoint::{Context, Endpoint};
+use error::Error;
+use input::body::ReqBody;
+use input::{with_set_cx, Input};
+use output::payload::Once;
+use output::{Output, OutputContext};
 
 /// A factory of HTTP service which wraps an `Endpoint`.
 #[derive(Debug)]
-pub struct App<'e, E: Endpoint<'e>> {
+pub(crate) struct App<'e, E: Endpoint<'e>> {
     endpoint: &'e E,
 }
 
 impl<'e, E: Endpoint<'e>> App<'e, E> {
     /// Create a new `App` from the provided components.
-    pub fn new(endpoint: &'e E) -> App<'e, E> {
+    pub(crate) fn new(endpoint: &'e E) -> App<'e, E> {
         App { endpoint }
     }
 
     #[allow(missing_docs)]
-    pub fn dispatch_request(&self, request: Request<ReqBody>) -> AppFuture<'e, E> {
+    pub(crate) fn dispatch_request(&self, request: Request<ReqBody>) -> AppFuture<'e, E> {
         AppFuture {
             state: State::Uninitialized,
             input: Input::new(request),
@@ -36,11 +36,11 @@ impl<'e, E: Endpoint<'e>> App<'e, E> {
     }
 }
 
-pub type ResBody<T> = Either<Once<String>, <T as Output>::Body>;
+pub(crate) type ResBody<T> = Either<Once<String>, <T as Output>::Body>;
 
 #[allow(missing_docs)]
 #[derive(Debug)]
-pub struct AppFuture<'e, E: Endpoint<'e>> {
+pub(crate) struct AppFuture<'e, E: Endpoint<'e>> {
     state: State<E::Future>,
     input: Input,
     endpoint: &'e E,
@@ -57,7 +57,7 @@ impl<'e, E> AppFuture<'e, E>
 where
     E: Endpoint<'e>,
 {
-    pub fn poll_output(&mut self) -> Poll<E::Output, Error> {
+    pub(crate) fn poll_output(&mut self) -> Poll<E::Output, Error> {
         loop {
             match self.state {
                 State::Uninitialized => {
@@ -78,7 +78,7 @@ where
         }
     }
 
-    pub fn poll_response(&mut self) -> Poll<Response<ResBody<E::Output>>, io::Error>
+    pub(crate) fn poll_response(&mut self) -> Poll<Response<ResBody<E::Output>>, io::Error>
     where
         E::Output: Output,
     {
@@ -141,9 +141,9 @@ mod service {
     use hyper::body::Body;
     use hyper::service::{NewService, Service};
 
-    use crate::endpoint::Endpoint;
-    use crate::input::body::ReqBody;
-    use crate::output::Output;
+    use endpoint::Endpoint;
+    use input::body::ReqBody;
+    use output::Output;
 
     impl<'e, E: Endpoint<'e>> NewService for App<'e, E>
     where

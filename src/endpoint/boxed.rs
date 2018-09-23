@@ -1,9 +1,9 @@
 use futures::Future;
 use std::fmt;
 
-use crate::common::Tuple;
-use crate::endpoint::{Context, Endpoint, EndpointResult, IsSendEndpoint};
-use crate::error::Error;
+use common::Tuple;
+use endpoint::{Context, Endpoint, EndpointResult, IsSendEndpoint};
+use error::Error;
 
 trait FutureObjEndpoint<'a>: 'a {
     type Output: Tuple;

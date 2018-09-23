@@ -21,7 +21,7 @@ use mime::Mime;
 use std::marker::PhantomData;
 use std::ops::Deref;
 
-use crate::error::{bad_request, Error};
+use error::{bad_request, Error};
 
 use self::body::{Payload, ReqBody};
 use self::cookie::{CookieJar, Cookies};

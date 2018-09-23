@@ -3,12 +3,12 @@
 use std::borrow::Cow;
 use std::fmt;
 
-use crate::endpoint::{Context, Endpoint, EndpointResult};
-use crate::error::{bad_request, Error};
-use crate::input::cookie::Cookie;
+use endpoint::{Context, Endpoint, EndpointResult};
+use error::{bad_request, Error};
+use input::cookie::Cookie;
 #[cfg(feature = "secure")]
-use crate::input::cookie::Key;
-use crate::input::Input;
+use input::cookie::Key;
+use input::Input;
 
 #[derive(Clone)]
 enum Mode {
@@ -49,10 +49,12 @@ impl Mode {
 /// # Example
 ///
 /// ```
+/// # #[macro_use]
+/// # extern crate finchers;
 /// # use finchers::endpoints::cookie;
 /// # use finchers::prelude::*;
-/// # use finchers::{path, routes};
 /// #
+/// # fn main() {
 /// let home = path!(@get / "home")
 ///     .and(routes![
 ///         cookie::required("session")
@@ -60,6 +62,7 @@ impl Mode {
 ///         endpoint::unit().map(|| "unauthorized"),
 ///     ]);
 /// # drop(home);
+/// # }
 /// ```
 #[inline]
 pub fn required(name: impl Into<Cow<'static, str>>) -> Required {
@@ -116,11 +119,13 @@ impl<'a> Endpoint<'a> for Required {
 /// # Example
 ///
 /// ```
+/// # #[macro_use]
+/// # extern crate finchers;
 /// # use finchers::endpoints::cookie;
 /// # use finchers::prelude::*;
 /// # use finchers::input::cookie::Cookie;
-/// # use finchers::path;
 /// #
+/// # fn main() {
 /// let home = path!(@get / "home")
 ///     .and(cookie::optional("session"))
 ///     .map(|c: Option<Cookie>| {
@@ -129,6 +134,7 @@ impl<'a> Endpoint<'a> for Required {
 /// #       ()
 ///     });
 /// # drop(home);
+/// # }
 /// ```
 #[inline]
 pub fn optional(name: impl Into<Cow<'static, str>>) -> Optional {

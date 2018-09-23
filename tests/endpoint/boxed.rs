@@ -1,9 +1,7 @@
+use finchers;
 use finchers::endpoint::{EndpointObj, LocalEndpointObj};
 use finchers::local;
-use finchers::path;
 use finchers::prelude::*;
-
-use matches::assert_matches;
 
 #[test]
 fn test_boxed() {

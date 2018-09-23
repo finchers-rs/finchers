@@ -15,7 +15,7 @@ matrix:
     - rust: nightly
 
   include:
-    - rust: beta
+    - rust: stable
       sudo: required
       addons:
         apt:
@@ -39,6 +39,20 @@ matrix:
         - cargo kcov --print-install-kcov-sh | sh
         - cargo kcov -v --coveralls
 
+    - rust: beta
+      before_script:
+        - export CARGO_INCREMENTAL=0
+      script:
+        - cargo update
+        - cargo test --all
+
+    - rust: nightly
+      before_script:
+        - export CARGO_INCREMENTAL=0
+      script:
+        - cargo update
+        - cargo test --all
+
     - rust: nightly
       env: LINT
       before_script:
@@ -47,15 +61,7 @@ matrix:
       script:
         - cargo clippy --features lint
 
-    - rust: nightly
-      env: LATEST_NIGHTLY
-      before_script:
-        - export CARGO_INCREMENTAL=0
-      script:
-        - cargo update
-        - cargo test --all
-
-    - rust: beta
+    - rust: stable
       env: DEPLOY_DOCS
       before_script:
         - curl -sSLf https://github.com/rust-lang-nursery/mdBook/releases/download/v0.2.1/mdbook-v0.2.1-x86_64-unknown-linux-gnu.tar.gz | tar xzf -

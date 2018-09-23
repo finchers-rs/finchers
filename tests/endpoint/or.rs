@@ -1,9 +1,7 @@
-use failure::format_err;
 use finchers::endpoint::syntax;
 use finchers::error::bad_request;
 use finchers::local;
 use finchers::prelude::*;
-use matches::assert_matches;
 
 #[test]
 fn test_or_1() {

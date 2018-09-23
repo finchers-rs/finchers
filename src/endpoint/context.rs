@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 use std::rc::Rc;
 
-use crate::input::{EncodedStr, Input};
+use input::{EncodedStr, Input};
 
 #[derive(Debug)]
 pub(crate) struct Cursor {
@@ -94,8 +94,8 @@ impl<'a> Context<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::input::body::ReqBody;
     use http::Request;
+    use input::body::ReqBody;
 
     #[test]
     fn test_segments() {

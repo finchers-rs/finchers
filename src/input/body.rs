@@ -4,7 +4,7 @@ use futures::Poll;
 use http::header::HeaderMap;
 use hyper::body::{Body, Chunk, Payload as _Payload};
 
-use crate::error::{fail, Error};
+use error::{fail, Error};
 
 #[derive(Debug)]
 pub struct Payload {

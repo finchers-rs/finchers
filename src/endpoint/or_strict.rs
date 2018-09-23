@@ -1,6 +1,6 @@
-use crate::common::Either;
-use crate::endpoint::{Context, Endpoint, EndpointResult};
-use crate::error::Error;
+use common::Either;
+use endpoint::{Context, Endpoint, EndpointResult};
+use error::Error;
 
 #[allow(missing_docs)]
 #[derive(Debug, Copy, Clone)]

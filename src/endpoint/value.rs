@@ -1,14 +1,15 @@
-use crate::endpoint::{Context, Endpoint, EndpointResult};
-use crate::error::Error;
+use endpoint::{Context, Endpoint, EndpointResult};
+use error::Error;
 
 /// Create an endpoint which simply clones the specified value.
 ///
 /// # Examples
 ///
 /// ```
+/// # #[macro_use]
+/// # extern crate finchers;
 /// # use finchers::prelude::*;
 /// # use finchers::endpoint::value;
-/// # use finchers::path;
 /// #
 /// #[derive(Clone)]
 /// struct Conn {
@@ -16,6 +17,7 @@ use crate::error::Error;
 /// #   _p: (),
 /// }
 ///
+/// # fn main() {
 /// let conn = {
 ///     // do some stuff...
 /// #   Conn { _p: () }
@@ -29,6 +31,7 @@ use crate::error::Error;
 /// #       Ok(conn)
 ///     });
 /// # drop(endpoint);
+/// # }
 /// ```
 #[inline]
 pub fn value<T: Clone>(x: T) -> Value<T> {

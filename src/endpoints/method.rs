@@ -2,8 +2,8 @@
 
 use http::Method;
 
-use crate::endpoint::syntax::verb::Verbs;
-use crate::endpoint::{Context, Endpoint, EndpointError, EndpointResult, IntoEndpoint};
+use endpoint::syntax::verb::Verbs;
+use endpoint::{Context, Endpoint, EndpointError, EndpointResult, IntoEndpoint};
 
 #[allow(missing_docs)]
 #[derive(Debug, Clone)]

@@ -12,9 +12,11 @@
 //!
 //! # Example
 //!
-//! ```
+//! ```no_run
+//! #[macro_use]
+//! extern crate finchers;
+//!
 //! use finchers::prelude::*;
-//! use finchers::path;
 //!
 //! fn main() {
 //!     let get_post = path!(@get / u64 /)
@@ -27,10 +29,8 @@
 //!     let post_api = path!(/ "posts")
 //!         .and(get_post.or(create_post));
 //!
-//! # std::mem::drop(move || {
 //!     finchers::launch(post_api)
-//!         .start("127.0.0.1:4000")
-//! # });
+//!         .start("127.0.0.1:4000");
 //! }
 //! ```
 
@@ -38,14 +38,43 @@
 #![warn(
     missing_docs,
     missing_debug_implementations,
-    future_incompatible,
     nonstandard_style,
     rust_2018_idioms,
     unused,
 )]
-#![allow(keyword_idents)] // serde-rs/serde#1385
+// FIXME: re-enable the following lint after shipping rust-1.31 out
+// #![warn(rust_2018_compatibility)]
 #![cfg_attr(feature = "strict", deny(warnings))]
 #![cfg_attr(feature = "strict", doc(test(attr(deny(warnings)))))]
+
+#[macro_use]
+extern crate bitflags;
+extern crate bytes;
+extern crate cookie;
+extern crate either;
+#[macro_use]
+extern crate failure;
+#[macro_use]
+extern crate futures;
+extern crate http;
+extern crate hyper;
+#[macro_use]
+extern crate log;
+extern crate mime;
+extern crate mime_guess;
+#[macro_use]
+extern crate percent_encoding;
+#[cfg_attr(test, macro_use)]
+extern crate serde;
+extern crate serde_json;
+extern crate serde_qs;
+extern crate time;
+extern crate tokio;
+extern crate url;
+
+#[cfg(test)]
+#[macro_use]
+extern crate matches;
 
 mod app;
 mod common;
@@ -59,13 +88,13 @@ pub mod local;
 pub mod output;
 
 #[doc(inline)]
-pub use crate::launcher::launch;
+pub use launcher::launch;
 
 /// A prelude for crates using the `finchers` crate.
 pub mod prelude {
-    pub use crate::endpoint;
-    pub use crate::endpoint::wrapper::{EndpointWrapExt, Wrapper};
-    pub use crate::endpoint::{Endpoint, IntoEndpoint, IntoEndpointExt, SendEndpoint};
-    pub use crate::endpoints;
-    pub use crate::error::HttpError;
+    pub use endpoint;
+    pub use endpoint::wrapper::{EndpointWrapExt, Wrapper};
+    pub use endpoint::{Endpoint, IntoEndpoint, IntoEndpointExt, SendEndpoint};
+    pub use endpoints;
+    pub use error::HttpError;
 }

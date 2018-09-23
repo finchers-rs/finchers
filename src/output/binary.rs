@@ -5,7 +5,7 @@ use std::borrow::Cow;
 
 use super::payload::Once;
 use super::{Output, OutputContext};
-use crate::error::Never;
+use error::Never;
 
 /// An instance of `Responder` representing binary responses.
 #[derive(Debug)]

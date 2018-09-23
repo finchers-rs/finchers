@@ -190,7 +190,6 @@ mod tests {
 
     #[test]
     fn test_from_query() {
-        use serde::Deserialize;
         #[derive(Debug, Deserialize, PartialEq)]
         struct Query {
             param: String,

@@ -1,10 +1,10 @@
 use futures::{Async, Future, Poll};
 use http::Response;
 
-use crate::common::Either;
-use crate::endpoint::{Context, Endpoint, EndpointResult};
-use crate::error::Error;
-use crate::output::{Output, OutputContext};
+use common::Either;
+use endpoint::{Context, Endpoint, EndpointResult};
+use error::Error;
+use output::{Output, OutputContext};
 
 use super::Wrapper;
 

@@ -5,9 +5,9 @@ use std::fmt;
 use futures::future;
 use futures::{Future, Poll};
 
-use crate::common::{Combine, Tuple};
-use crate::endpoint::{Context, Endpoint, EndpointResult, IntoEndpoint};
-use crate::error::Error;
+use common::{Combine, Tuple};
+use endpoint::{Context, Endpoint, EndpointResult, IntoEndpoint};
+use error::Error;
 
 #[allow(missing_docs)]
 #[derive(Copy, Clone, Debug)]

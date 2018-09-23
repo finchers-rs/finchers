@@ -1,7 +1,7 @@
 use futures::{Future, Poll};
 
-use crate::endpoint::{Context, Endpoint, EndpointError, EndpointResult};
-use crate::error::Error;
+use endpoint::{Context, Endpoint, EndpointError, EndpointResult};
+use error::Error;
 
 use super::Wrapper;
 

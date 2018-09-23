@@ -1,9 +1,6 @@
 use finchers::endpoints::body;
 use finchers::local;
 
-use matches::assert_matches;
-use serde::Deserialize;
-
 #[test]
 fn test_body_text() {
     let message = "The quick brown fox jumps over the lazy dog";

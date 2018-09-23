@@ -3,10 +3,12 @@
 //! # Example
 //!
 //! ```
+//! # #[macro_use]
+//! # extern crate finchers;
 //! # use finchers::prelude::*;
 //! # use finchers::local;
-//! # use finchers::path;
 //! #
+//! # fn main() {
 //! // impl Endpoint<Output = (u32, String)>
 //! let endpoint = path!(@post / u32 /)
 //!     .and(endpoints::body::text());
@@ -21,13 +23,16 @@
 //!     }
 //!     Err(..) => panic!("assertion failed"),
 //! }
+//! # }
 //! ```
 //!
 //! ```
+//! # #[macro_use]
+//! # extern crate finchers;
 //! # use finchers::prelude::*;
 //! # use finchers::local;
-//! # use finchers::path;
 //! #
+//! # fn main() {
 //! let endpoint = path!(@put / "posts" / u32 /)
 //!     .and(endpoints::body::text())
 //!     .map(|id: u32, body: String| {
@@ -52,6 +57,7 @@
 //!     response.body().to_utf8(),
 //!     "update a post (id = 42): Yee."
 //! );
+//! # }
 //! ```
 
 use std::borrow::Cow;
@@ -68,12 +74,12 @@ use http::{HttpTryFrom, Method, Request, Response, Uri};
 use hyper::body::Body;
 use tokio::runtime::current_thread::Runtime;
 
-use crate::app::App;
-use crate::endpoint::Endpoint;
-use crate::error::Error;
-use crate::input::body::ReqBody;
-use crate::output::payload::Payload;
-use crate::output::Output;
+use app::App;
+use endpoint::Endpoint;
+use error::Error;
+use input::body::ReqBody;
+use output::payload::Payload;
+use output::Output;
 
 macro_rules! impl_constructors {
     ($(

@@ -3,10 +3,10 @@
 use futures::{Future, Poll};
 use std::path::PathBuf;
 
-use crate::endpoint::{Context, Endpoint, EndpointResult};
-use crate::error::{bad_request, Error};
-use crate::output::fs::OpenNamedFile;
-use crate::output::NamedFile;
+use endpoint::{Context, Endpoint, EndpointResult};
+use error::{bad_request, Error};
+use output::fs::OpenNamedFile;
+use output::NamedFile;
 
 /// Create an endpoint which serves a specified file on the file system.
 #[inline]

@@ -2,16 +2,15 @@
 
 use http::Response;
 use http::StatusCode;
-use log::info;
 use std::time::Instant;
 
-use crate::endpoint::wrapper::Wrapper;
-use crate::endpoint::{Context, Endpoint, EndpointResult};
-use crate::error::Error;
-use crate::error::Never;
-use crate::input::{with_get_cx, Input};
-use crate::output::payload::Payload;
-use crate::output::{Output, OutputContext};
+use endpoint::wrapper::Wrapper;
+use endpoint::{Context, Endpoint, EndpointResult};
+use error::Error;
+use error::Never;
+use input::{with_get_cx, Input};
+use output::payload::Payload;
+use output::{Output, OutputContext};
 
 /// Create a wrapper for creating an endpoint which dumps log
 /// after resolving the future.
@@ -104,7 +103,7 @@ where
     type Error = Error;
 
     fn poll(&mut self) -> ::futures::Poll<Self::Item, Self::Error> {
-        let x = ::futures::try_ready!(self.future.poll());
+        let x = try_ready!(self.future.poll());
 
         let response = match with_get_cx(|input| {
             let mut ocx = OutputContext::new(input);

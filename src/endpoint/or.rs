@@ -1,10 +1,10 @@
 use http::Response;
 
-use crate::common::Either;
-use crate::common::Either::*;
-use crate::endpoint::{Context, Endpoint, EndpointResult};
-use crate::error::Error;
-use crate::output::{Output, OutputContext};
+use common::Either;
+use common::Either::*;
+use endpoint::{Context, Endpoint, EndpointResult};
+use error::Error;
+use output::{Output, OutputContext};
 
 #[allow(missing_docs)]
 #[derive(Debug, Copy, Clone)]
@@ -114,9 +114,12 @@ where
 /// # Example
 ///
 /// ```
-/// use finchers::{path, routes};
+/// #[macro_use]
+/// extern crate finchers;
+///
 /// use finchers::prelude::*;
 ///
+/// # fn main() {
 /// let get_post = path!(@get / i32 /)
 ///     .map(|id| format!("get_post: {}", id));
 ///
@@ -133,23 +136,24 @@ where
 ///         // ...
 ///     ]);
 /// # drop(endpoint);
+/// # }
 /// ```
-#[macro_export]
+#[macro_export(local_inner_macros)]
 macro_rules! routes {
-    () => { $crate::routes_impl!(@error); };
-    ($h:expr) => {  $crate::routes_impl!(@error); };
-    ($h:expr,) => {  $crate::routes_impl!(@error); };
-    ($e1:expr, $e2:expr) => { $crate::routes_impl!($e1, $e2); };
-    ($e1:expr, $e2:expr,) => { $crate::routes_impl!($e1, $e2); };
-    ($e1:expr, $e2:expr, $($t:expr),*) => { $crate::routes_impl!($e1, $e2, $($t),*); };
-    ($e1:expr, $e2:expr, $($t:expr,)+) => { $crate::routes_impl!($e1, $e2, $($t),+); };
+    () => { routes_impl!(@error); };
+    ($h:expr) => { routes_impl!(@error); };
+    ($h:expr,) => { routes_impl!(@error); };
+    ($e1:expr, $e2:expr) => { routes_impl!($e1, $e2); };
+    ($e1:expr, $e2:expr,) => { routes_impl!($e1, $e2); };
+    ($e1:expr, $e2:expr, $($t:expr),*) => { routes_impl!($e1, $e2, $($t),*); };
+    ($e1:expr, $e2:expr, $($t:expr,)+) => { routes_impl!($e1, $e2, $($t),+); };
 }
 
 #[doc(hidden)]
 #[macro_export]
 macro_rules! routes_impl {
     ($e1:expr, $e2:expr, $($t:expr),*) => {{
-        $crate::routes_impl!($e1, $crate::routes_impl!($e2, $($t),*))
+        routes_impl!($e1, routes_impl!($e2, $($t),*))
     }};
 
     ($e1:expr, $e2:expr) => {{

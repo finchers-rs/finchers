@@ -34,8 +34,8 @@ use std::sync::Arc;
 
 use futures::Future;
 
-use crate::common::{Combine, Tuple};
-use crate::error::Error;
+use common::{Combine, Tuple};
+use error::Error;
 
 /// Trait representing an endpoint.
 pub trait Endpoint<'a>: 'a {

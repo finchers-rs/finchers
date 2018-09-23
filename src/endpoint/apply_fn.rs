@@ -1,8 +1,8 @@
 use futures::future::IntoFuture;
 
-use crate::common::Tuple;
-use crate::endpoint::{Context, Endpoint, EndpointResult};
-use crate::error::Error;
+use common::Tuple;
+use endpoint::{Context, Endpoint, EndpointResult};
+use error::Error;
 
 /// Create an endpoint from a function.
 pub fn apply_fn<F, R>(f: F) -> ApplyFn<F>
