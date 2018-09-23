@@ -3,11 +3,11 @@
 use std::fmt;
 use std::marker::PhantomData;
 
-use crate::endpoint::{Context, Endpoint, EndpointError, EndpointResult};
-use crate::error;
-use crate::error::{bad_request, Error};
-use crate::input::query::{FromQuery, QueryItems};
-use crate::input::with_get_cx;
+use endpoint::{Context, Endpoint, EndpointError, EndpointResult};
+use error;
+use error::{bad_request, Error};
+use input::query::{FromQuery, QueryItems};
+use input::with_get_cx;
 
 // ==== Required ====
 
@@ -19,11 +19,11 @@ use crate::input::with_get_cx;
 ///
 /// ```
 /// # extern crate finchers;
+/// # #[macro_use]
 /// # extern crate serde;
 /// # use finchers::endpoints::query;
 /// # use finchers::prelude::*;
 /// # use finchers::input::query::{from_csv, Serde};
-/// # use serde::Deserialize;
 /// #
 /// #[derive(Debug, Deserialize)]
 /// pub struct Param {
@@ -33,11 +33,13 @@ use crate::input::with_get_cx;
 ///     tags: Vec<String>,
 /// }
 ///
+/// # fn main() {
 /// let endpoint = query::required()
 ///     .map(|param: Serde<Param>| {
 ///         format!("Received: {:?}", param)
 ///     });
 /// # drop(endpoint);
+/// # }
 /// ```
 #[inline]
 pub fn required<T>() -> Required<T>
@@ -124,11 +126,11 @@ where
 ///
 /// ```
 /// # extern crate finchers;
+/// # #[macro_use]
 /// # extern crate serde;
 /// # use finchers::endpoints::query;
 /// # use finchers::prelude::*;
 /// # use finchers::input::query::{from_csv, Serde};
-/// # use serde::Deserialize;
 /// #
 /// #[derive(Debug, Deserialize)]
 /// pub struct Param {
@@ -138,11 +140,13 @@ where
 ///     tags: Vec<String>,
 /// }
 ///
+/// # fn main() {
 /// let endpoint = query::optional()
 ///     .map(|param: Option<Serde<Param>>| {
 ///         format!("Received: {:?}", param)
 ///     });
 /// # drop(endpoint);
+/// # }
 /// ```
 #[inline]
 pub fn optional<T>() -> Optional<T>

@@ -4,7 +4,7 @@ use std::fmt;
 use super::payload::Once;
 use super::text::Text;
 use super::{Output, OutputContext};
-use crate::error::Never;
+use error::Never;
 
 /// An instance of `Responder` representing text responses with debug output.
 ///

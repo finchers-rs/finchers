@@ -3,7 +3,7 @@ use finchers::local;
 use finchers::prelude::*;
 
 use http::header::CONTENT_TYPE;
-use matches::assert_matches;
+use mime;
 use mime::Mime;
 
 #[test]

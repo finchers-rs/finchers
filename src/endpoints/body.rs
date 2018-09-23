@@ -10,11 +10,11 @@ use bytes::BytesMut;
 use http::StatusCode;
 use serde::de::DeserializeOwned;
 
-use crate::endpoint::{Context, Endpoint, EndpointResult};
-use crate::error::{err_msg, Error};
-use crate::input::body::Payload;
-use crate::input::query::FromQuery;
-use crate::input::with_get_cx;
+use endpoint::{Context, Endpoint, EndpointResult};
+use error::{err_msg, Error};
+use input::body::Payload;
+use input::query::FromQuery;
+use input::with_get_cx;
 
 /// Creates an endpoint which takes the instance of [`Payload`](input::body::Payload)
 /// from the context.
@@ -118,7 +118,7 @@ impl ::futures::Future for ReceiveAllFuture {
             match self.state {
                 State::Start => {}
                 State::Receiving(ref mut body, ref mut buf) => {
-                    while let Some(data) = ::futures::try_ready!(body.poll_data()) {
+                    while let Some(data) = try_ready!(body.poll_data()) {
                         buf.extend_from_slice(&*data);
                     }
                 }
@@ -244,17 +244,19 @@ where
 mod parse {
     use std::fmt;
     use std::marker::PhantomData;
+    use std::str;
 
     use bytes::Bytes;
+    use mime;
     use mime::Mime;
     use serde::de::DeserializeOwned;
     use serde_json;
 
-    use futures::{try_ready, Future, Poll};
+    use futures::{Future, Poll};
 
-    use crate::error::{bad_request, Error};
-    use crate::input::query::{FromQuery, QueryItems};
-    use crate::input::with_get_cx;
+    use error::{bad_request, Error};
+    use input::query::{FromQuery, QueryItems};
+    use input::with_get_cx;
 
     use super::ReceiveAllFuture;
 
@@ -349,7 +351,7 @@ mod parse {
         }
 
         fn parse(body: Bytes) -> Result<Self, Error> {
-            let s = std::str::from_utf8(&*body).map_err(bad_request)?;
+            let s = str::from_utf8(&*body).map_err(bad_request)?;
             let items = unsafe { QueryItems::new_unchecked(s) };
             FromQuery::from_query(items)
                 .map(UrlEncoded)

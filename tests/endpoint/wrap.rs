@@ -1,8 +1,7 @@
+use finchers;
 use finchers::endpoint::{Context, Endpoint, EndpointResult, Wrapper};
 use finchers::local;
-use finchers::path;
 
-use matches::assert_matches;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 

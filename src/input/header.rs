@@ -2,11 +2,12 @@
 
 use std::fmt;
 
+use failure;
 use http::header::{HeaderValue, ToStrError};
 use mime::Mime;
 use url::Url;
 
-use crate::error::Never;
+use error::Never;
 
 /// Trait representing the conversion from a header value.
 pub trait FromHeaderValue: Sized + 'static {

@@ -1,10 +1,9 @@
 use std::ops::{BitOr, BitOrAssign};
 
-use bitflags::bitflags;
 use http::Method;
 
 use super::Matched;
-use crate::endpoint::{Context, Endpoint, EndpointError, EndpointResult};
+use endpoint::{Context, Endpoint, EndpointError, EndpointResult};
 
 /// Create an endpoint which checks if the verb of current request
 /// is equal to the specified value.

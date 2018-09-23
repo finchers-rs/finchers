@@ -8,6 +8,7 @@ pub use cookie::{Key, PrivateJar, SignedJar};
 pub use time::{Duration, Tm};
 
 use failure::Error;
+use http;
 use http::header::HeaderMap;
 use std::marker::PhantomData;
 use std::rc::Rc;

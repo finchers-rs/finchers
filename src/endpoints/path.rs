@@ -5,11 +5,11 @@ use std::marker::PhantomData;
 
 use failure::Fail;
 use http::StatusCode;
-use percent_encoding::{define_encode_set, percent_encode, DEFAULT_ENCODE_SET};
+use percent_encoding::{percent_encode, DEFAULT_ENCODE_SET};
 
-use crate::endpoint::{Context, Endpoint, EndpointError, EndpointResult};
-use crate::error::{Error, HttpError};
-use crate::input::FromEncodedStr;
+use endpoint::{Context, Endpoint, EndpointError, EndpointResult};
+use error::{Error, HttpError};
+use input::FromEncodedStr;
 
 define_encode_set! {
     /// The encode set for MatchPath

@@ -3,7 +3,6 @@ use finchers::local;
 use finchers::prelude::*;
 
 use futures::future;
-use matches::assert_matches;
 
 #[test]
 fn test_and_then_1() {

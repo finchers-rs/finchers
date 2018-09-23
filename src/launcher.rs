@@ -4,14 +4,13 @@ use failure::{err_msg, Fallible};
 use futures::Future;
 use hyper::server::conn::Http;
 use hyper::server::Builder;
-use log::error;
 use std::net::ToSocketAddrs;
 use tokio::net::TcpListener;
 use tokio::runtime::Runtime;
 
-use crate::app::App;
-use crate::endpoint::Endpoint;
-use crate::output::Output;
+use app::App;
+use endpoint::Endpoint;
+use output::Output;
 
 // ==== LaunchEndpoint ====
 
@@ -28,10 +27,10 @@ where
 mod sealed {
     use futures::Future;
 
-    use crate::common::Tuple;
-    use crate::endpoint::{Context, Endpoint, EndpointResult};
-    use crate::error::Error;
-    use crate::output::Output;
+    use common::Tuple;
+    use endpoint::{Context, Endpoint, EndpointResult};
+    use error::Error;
+    use output::Output;
 
     pub trait Sealed<'a>: Send + Sync + 'static {
         type Output: Tuple + Output;

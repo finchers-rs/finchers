@@ -15,9 +15,9 @@ use std::fmt;
 use std::marker::PhantomData;
 use std::rc::Rc;
 
-use crate::common::Either;
-use crate::error::{Error, HttpError, Never};
-use crate::input::Input;
+use common::Either;
+use error::{Error, HttpError, Never};
+use input::Input;
 
 use self::payload::Empty;
 

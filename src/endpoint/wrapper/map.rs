@@ -1,11 +1,10 @@
 use std::marker::PhantomData;
 
-use futures::try_ready;
 use futures::{Future, Poll};
 
-use crate::common::{Func, Tuple};
-use crate::endpoint::{Context, Endpoint, EndpointResult};
-use crate::error::Error;
+use common::{Func, Tuple};
+use endpoint::{Context, Endpoint, EndpointResult};
+use error::Error;
 
 use super::Wrapper;
 

@@ -1,6 +1,5 @@
 use finchers::endpoint::syntax;
 use finchers::endpoint::Endpoint;
-use finchers::{path, routes};
 
 #[test]
 fn compile_test_path() {

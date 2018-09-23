@@ -6,7 +6,7 @@ use serde_json::Value;
 
 use super::payload::Once;
 use super::{Output, OutputContext};
-use crate::error::{fail, Error, Never};
+use error::{fail, Error, Never};
 
 /// An instance of `Responder` representing statically typed JSON responses.
 #[derive(Debug)]

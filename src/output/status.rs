@@ -4,7 +4,7 @@ use http::{Response, StatusCode};
 
 use super::payload::Empty;
 use super::{Output, OutputContext};
-use crate::error::Never;
+use error::Never;
 
 #[derive(Debug)]
 pub struct Created<T>(pub T);

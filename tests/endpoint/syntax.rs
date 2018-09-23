@@ -1,11 +1,9 @@
 use finchers::endpoint::syntax;
 use finchers::endpoint::EndpointError;
 use finchers::local;
-use finchers::path;
 use finchers::prelude::*;
 
 use http::StatusCode;
-use matches::assert_matches;
 
 #[test]
 fn test_match_single_segment() {

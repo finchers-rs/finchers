@@ -4,8 +4,8 @@ use failure::Fail;
 use http::StatusCode;
 use std::fmt;
 
-use crate::endpoint::syntax::verb::Verbs;
-use crate::error::{Error, HttpError};
+use endpoint::syntax::verb::Verbs;
+use error::{Error, HttpError};
 
 /// A type alias of `Result<T, E>` with the error type fixed at `EndpointError`.
 pub type EndpointResult<T> = Result<T, EndpointError>;
@@ -107,7 +107,6 @@ impl HttpError for EndpointError {
 mod tests {
     use super::*;
     use http::Method;
-    use matches::assert_matches;
 
     #[test]
     fn test_merge_1() {

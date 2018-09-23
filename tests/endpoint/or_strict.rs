@@ -4,9 +4,6 @@ use finchers::endpoints::{body, query};
 use finchers::input::query::{from_csv, Serde};
 use finchers::local;
 
-use matches::assert_matches;
-use serde::Deserialize;
-
 #[derive(Debug, Deserialize, PartialEq)]
 struct Param {
     query: String,

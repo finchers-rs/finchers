@@ -1,10 +1,14 @@
 extern crate bytes;
+#[macro_use]
 extern crate failure;
+#[macro_use]
 extern crate finchers;
 extern crate futures;
 extern crate http;
+#[macro_use]
 extern crate matches;
 extern crate mime;
+#[macro_use]
 extern crate serde;
 
 //mod codegen;
@@ -16,7 +20,6 @@ fn smoketest() {
     use finchers::local;
     use finchers::output::status::Created;
     use finchers::output::Json;
-    use finchers::path;
     use finchers::prelude::*;
 
     let endpoint = path!(@get / "api" / "v1" / "posts" / u32).map(|id: u32| Created(Json(id)));

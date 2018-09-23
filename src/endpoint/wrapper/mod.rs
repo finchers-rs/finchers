@@ -15,9 +15,9 @@ pub use self::map::{map, Map};
 pub use self::or_reject::{or_reject, or_reject_with, OrReject, OrRejectWith};
 pub use self::recover::{recover, Recover};
 
-use crate::common::{Func, Tuple};
-use crate::endpoint::Endpoint;
-use crate::error::Error;
+use common::{Func, Tuple};
+use endpoint::Endpoint;
+use error::Error;
 
 use futures::IntoFuture;
 

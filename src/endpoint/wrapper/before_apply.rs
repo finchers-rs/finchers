@@ -1,5 +1,5 @@
 use super::Wrapper;
-use crate::endpoint::{Context, Endpoint, EndpointResult};
+use endpoint::{Context, Endpoint, EndpointResult};
 
 /// Creates a wrapper for creating an endpoint which runs the provided function
 /// before calling `Endpoint::apply()`.

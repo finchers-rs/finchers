@@ -1,5 +1,5 @@
-use crate::endpoint::{Context, Endpoint, EndpointResult};
-use crate::error::Error;
+use endpoint::{Context, Endpoint, EndpointResult};
+use error::Error;
 
 /// Create an endpoint which simply returns an unit (`()`).
 #[inline]

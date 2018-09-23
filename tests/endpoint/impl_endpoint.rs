@@ -1,8 +1,6 @@
-use finchers::impl_endpoint;
+use finchers;
 use finchers::local;
 use finchers::prelude::*;
-
-use matches::assert_matches;
 
 fn foo() -> impl_endpoint!(Output = (u32,)) {
     endpoint::unit().map(|| 42).into()
