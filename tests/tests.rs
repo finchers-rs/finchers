@@ -11,7 +11,6 @@ extern crate mime;
 #[macro_use]
 extern crate serde;
 
-//mod codegen;
 mod endpoint;
 mod endpoints;
 
