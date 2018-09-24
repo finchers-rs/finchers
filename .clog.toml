@@ -1,4 +1,4 @@
 [clog]
 repository = "https://github.com/finchers-rs/finchers"
-changelog = "CHANGELOG.md"
+changelog = "changelog/unreleased.md"
 from-latest-tag = true
