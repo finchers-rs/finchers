@@ -9,17 +9,17 @@ mod debug;
 mod json;
 mod text;
 
+use either::Either;
 use http::{Response, StatusCode};
 use hyper::body::Payload;
 use std::fmt;
 use std::marker::PhantomData;
 use std::rc::Rc;
 
-use common::Either;
 use error::{Error, HttpError, Never};
 use input::Input;
 
-use self::payload::Empty;
+use self::payload::{EitherPayload, Empty};
 
 pub use self::binary::Binary;
 pub use self::debug::Debug;
@@ -157,18 +157,18 @@ where
     L: Output,
     R: Output,
 {
-    type Body = Either<L::Body, R::Body>;
+    type Body = EitherPayload<L::Body, R::Body>;
     type Error = Error;
 
     fn respond(self, cx: &mut OutputContext<'_>) -> Result<Response<Self::Body>, Self::Error> {
         match self {
             Either::Left(l) => l
                 .respond(cx)
-                .map(|res| res.map(Either::Left))
+                .map(|res| res.map(EitherPayload::left))
                 .map_err(Into::into),
             Either::Right(r) => r
                 .respond(cx)
-                .map(|res| res.map(Either::Right))
+                .map(|res| res.map(EitherPayload::right))
                 .map_err(Into::into),
         }
     }

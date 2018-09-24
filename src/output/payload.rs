@@ -1,8 +1,9 @@
 //! Implementors of `Payload`.
 
 use either::Either;
-use futures::{self, Async};
+use futures::{Async, Poll};
 use http::header::HeaderMap;
+use std::error;
 use std::io;
 
 pub use hyper::body::{Body, Payload};
@@ -15,7 +16,7 @@ impl Payload for Empty {
     type Data = io::Cursor<[u8; 0]>;
     type Error = io::Error;
 
-    fn poll_data(&mut self) -> futures::Poll<Option<Self::Data>, Self::Error> {
+    fn poll_data(&mut self) -> Poll<Option<Self::Data>, Self::Error> {
         Ok(Async::Ready(Some(io::Cursor::new([]))))
     }
 
@@ -35,11 +36,14 @@ impl<T> Once<T> {
     }
 }
 
-impl<T: AsRef<[u8]> + Send + 'static> Payload for Once<T> {
+impl<T> Payload for Once<T>
+where
+    T: AsRef<[u8]> + Send + 'static,
+{
     type Data = io::Cursor<T>;
     type Error = io::Error;
 
-    fn poll_data(&mut self) -> futures::Poll<Option<Self::Data>, Self::Error> {
+    fn poll_data(&mut self) -> Poll<Option<Self::Data>, Self::Error> {
         Ok(Async::Ready(self.0.take().map(io::Cursor::new)))
     }
 
@@ -87,7 +91,7 @@ impl<T: Payload> Payload for Optional<T> {
     type Data = Either<T::Data, io::Cursor<[u8; 0]>>;
     type Error = T::Error;
 
-    fn poll_data(&mut self) -> futures::Poll<Option<Self::Data>, Self::Error> {
+    fn poll_data(&mut self) -> Poll<Option<Self::Data>, Self::Error> {
         match self.0 {
             Either::Left(ref mut payload) => payload
                 .poll_data()
@@ -103,7 +107,7 @@ impl<T: Payload> Payload for Optional<T> {
         }
     }
 
-    fn poll_trailers(&mut self) -> futures::Poll<Option<HeaderMap>, Self::Error> {
+    fn poll_trailers(&mut self) -> Poll<Option<HeaderMap>, Self::Error> {
         match self.0 {
             Either::Left(ref mut payload) => payload.poll_trailers(),
             Either::Right(..) => Ok(None.into()),
@@ -122,5 +126,84 @@ impl<T: Payload> Payload for Optional<T> {
             Either::Left(ref payload) => payload.content_length(),
             Either::Right(..) => Some(0),
         }
+    }
+}
+
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct EitherPayload<L, R>(Either<L, R>);
+
+impl<L, R> From<Either<L, R>> for EitherPayload<L, R> {
+    fn from(either: Either<L, R>) -> Self {
+        EitherPayload(either)
+    }
+}
+
+impl<L, R> EitherPayload<L, R> {
+    #[allow(missing_docs)]
+    pub fn left(left: L) -> EitherPayload<L, R> {
+        EitherPayload(Either::Left(left))
+    }
+
+    #[allow(missing_docs)]
+    pub fn right(right: R) -> EitherPayload<L, R> {
+        EitherPayload(Either::Right(right))
+    }
+}
+
+impl<L, R> Payload for EitherPayload<L, R>
+where
+    L: Payload,
+    R: Payload,
+{
+    type Data = Either<L::Data, R::Data>;
+    type Error = Box<dyn error::Error + Send + Sync + 'static>;
+
+    #[inline]
+    fn poll_data(&mut self) -> Poll<Option<Self::Data>, Self::Error> {
+        match self.0 {
+            Either::Left(ref mut left) => left
+                .poll_data()
+                .map_ok_async_some(Either::Left)
+                .map_err(Into::into),
+            Either::Right(ref mut right) => right
+                .poll_data()
+                .map_ok_async_some(Either::Right)
+                .map_err(Into::into),
+        }
+    }
+
+    #[inline]
+    fn poll_trailers(&mut self) -> Poll<Option<HeaderMap>, Self::Error> {
+        match self.0 {
+            Either::Left(ref mut left) => left.poll_trailers().map_err(Into::into),
+            Either::Right(ref mut right) => right.poll_trailers().map_err(Into::into),
+        }
+    }
+
+    #[inline]
+    fn is_end_stream(&self) -> bool {
+        match self.0 {
+            Either::Left(ref left) => left.is_end_stream(),
+            Either::Right(ref right) => right.is_end_stream(),
+        }
+    }
+
+    #[inline]
+    fn content_length(&self) -> Option<u64> {
+        match self.0 {
+            Either::Left(ref left) => left.content_length(),
+            Either::Right(ref right) => right.content_length(),
+        }
+    }
+}
+
+trait PollExt<T, E> {
+    fn map_ok_async_some<U>(self, f: impl FnOnce(T) -> U) -> Poll<Option<U>, E>;
+}
+
+impl<T, E> PollExt<T, E> for Poll<Option<T>, E> {
+    fn map_ok_async_some<U>(self, f: impl FnOnce(T) -> U) -> Poll<Option<U>, E> {
+        self.map(|x_async| x_async.map(|x_opt| x_opt.map(f)))
     }
 }

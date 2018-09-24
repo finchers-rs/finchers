@@ -6,6 +6,18 @@ use super::payload::Empty;
 use super::{Output, OutputContext};
 use error::Never;
 
+impl Output for StatusCode {
+    type Body = Empty;
+    type Error = Never;
+
+    #[inline]
+    fn respond(self, _: &mut OutputContext<'_>) -> Result<Response<Self::Body>, Self::Error> {
+        let mut response = Response::new(Empty);
+        *response.status_mut() = self;
+        Ok(response)
+    }
+}
+
 #[derive(Debug)]
 pub struct Created<T>(pub T);
 

@@ -8,8 +8,8 @@ use std::marker::PhantomData;
 use endpoint::{Context, Endpoint, EndpointError, EndpointResult};
 use error;
 use error::Error;
-use input::header::FromHeaderValue;
 use input::with_get_cx;
+use input::FromHeaderValue;
 
 // ==== Parse ====
 

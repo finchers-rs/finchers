@@ -2,13 +2,14 @@
 
 pub mod body;
 pub mod cookie;
-pub mod header;
 pub mod query;
 
 mod encoded;
 mod global;
+mod header;
 
 pub use self::encoded::{EncodedStr, FromEncodedStr};
+pub use self::header::FromHeaderValue;
 
 pub use self::global::with_get_cx;
 pub(crate) use self::global::with_set_cx;
