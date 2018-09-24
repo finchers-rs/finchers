@@ -34,7 +34,11 @@
 //! }
 //! ```
 
-#![doc(html_root_url = "https://docs.rs/finchers/0.12.0-alpha.6")]
+#![doc(
+  html_root_url = "https://finchers-rs.github.io/finchers/", // master
+  // html_root_url = "https://finchers-rs.github.io/docs/finchers/v0.12.0-alpha.6", // released
+)]
+
 #![warn(
     missing_docs,
     missing_debug_implementations,

@@ -25,10 +25,9 @@ finchers = "0.12.0-alpha.6"
 
 # Documentation
 
-* [API documentation (released, 0.11)][released-api]
-* [API documentation (master, 0.12)][master-api]
+* [API documentation (released)][released-apis]
+* [API documentation (master)][master-api]
 * [Examples][examples]
-* [User Guide (WIP)][user-guide]
 
 # Status
 
@@ -48,8 +47,8 @@ at your option.
 <!-- links -->
 
 [crates-io]: https://crates.io/crates/finchers
-[released-api]: https://docs.rs/finchers/0.11/finchers
-[master-api]: https://finchers-rs.github.io/finchers/finchers/index.html
+[released-apis]: https://finchers-rs.github.io/docs
+[master-api]: https://finchers-rs.github.io/finchers
 [examples]: https://github.com/finchers-rs/examples
 [user-guide]: https://finchers-rs.github.io/finchers/guide/index.html
 [gitter]: https://gitter.im/finchers-rs/finchers?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge

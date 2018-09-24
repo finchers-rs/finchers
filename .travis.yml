@@ -69,9 +69,9 @@ matrix:
       script:
         - cargo clean
         - cargo update
-        - cargo doc --all
-        - ./mdbook build ./guide/
+        - cargo doc --all --no-deps
         - rm -f target/doc/.lock
+        - echo '<meta http-equiv="refresh" content="0;URL=finchers/index.html">' > target/doc/index.html
       deploy:
         provider: pages
         skip_cleanup: true
