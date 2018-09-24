@@ -1,20 +1,183 @@
-//! Implementors of `Payload`.
+//! The definition of `ResBody` and implementors of `Payload`.
 
+use bytes::{Buf, Bytes};
 use either::Either;
 use futures::{Async, Poll};
 use http::header::HeaderMap;
+use hyper;
+use hyper::body::{Body, Chunk};
+use std::borrow::Cow;
 use std::error;
 use std::io;
 
-pub use hyper::body::{Body, Payload};
+use error::Never;
 
-#[allow(missing_docs)]
-#[derive(Debug)]
-pub struct Empty;
+/// The trait representing the message body in an HTTP response.
+pub trait ResBody {
+    /// A buffer of bytes representing a single chunk of a message body.
+    type Data: Buf + Send;
 
-impl Payload for Empty {
+    /// The error type of `Self::Payload`.
+    type Error: Into<Box<dyn error::Error + Send + Sync + 'static>>;
+
+    /// The type of `Payload` to be convert from itself.
+    type Payload: hyper::body::Payload<Data = Self::Data, Error = Self::Error>;
+
+    /// Converts itself into a `Payload`.
+    fn into_payload(self) -> Self::Payload;
+}
+
+impl ResBody for Body {
+    type Data = Chunk;
+    type Error = hyper::Error;
+    type Payload = Body;
+
+    #[inline]
+    fn into_payload(self) -> Self::Payload {
+        self
+    }
+}
+
+impl ResBody for () {
     type Data = io::Cursor<[u8; 0]>;
-    type Error = io::Error;
+    type Error = Never;
+    type Payload = Empty;
+
+    fn into_payload(self) -> Self::Payload {
+        Empty { _priv: () }
+    }
+}
+
+impl ResBody for &'static str {
+    type Data = io::Cursor<&'static str>;
+    type Error = Never;
+    type Payload = Once<&'static str>;
+
+    fn into_payload(self) -> Self::Payload {
+        Once::new(self)
+    }
+}
+
+impl ResBody for String {
+    type Data = io::Cursor<String>;
+    type Error = Never;
+    type Payload = Once<String>;
+
+    fn into_payload(self) -> Self::Payload {
+        Once::new(self)
+    }
+}
+
+impl ResBody for Cow<'static, str> {
+    type Data = io::Cursor<Cow<'static, [u8]>>;
+    type Error = Never;
+    type Payload = Once<Cow<'static, [u8]>>;
+
+    fn into_payload(self) -> Self::Payload {
+        Once::new(match self {
+            Cow::Borrowed(s) => Cow::Borrowed(s.as_bytes()),
+            Cow::Owned(s) => Cow::Owned(s.into()),
+        })
+    }
+}
+
+impl ResBody for &'static [u8] {
+    type Data = io::Cursor<&'static [u8]>;
+    type Error = Never;
+    type Payload = Once<&'static [u8]>;
+
+    fn into_payload(self) -> Self::Payload {
+        Once::new(self)
+    }
+}
+
+impl ResBody for Vec<u8> {
+    type Data = io::Cursor<Vec<u8>>;
+    type Error = Never;
+    type Payload = Once<Vec<u8>>;
+
+    fn into_payload(self) -> Self::Payload {
+        Once::new(self)
+    }
+}
+
+impl ResBody for Cow<'static, [u8]> {
+    type Data = io::Cursor<Cow<'static, [u8]>>;
+    type Error = Never;
+    type Payload = Once<Cow<'static, [u8]>>;
+
+    fn into_payload(self) -> Self::Payload {
+        Once::new(self)
+    }
+}
+
+impl ResBody for Bytes {
+    type Data = io::Cursor<Bytes>;
+    type Error = Never;
+    type Payload = Once<Bytes>;
+
+    fn into_payload(self) -> Self::Payload {
+        Once::new(self)
+    }
+}
+
+impl<T: ResBody> ResBody for Option<T> {
+    type Data = Either<T::Data, io::Cursor<[u8; 0]>>;
+    type Error = T::Error;
+    type Payload = Optional<T::Payload>;
+
+    fn into_payload(self) -> Self::Payload {
+        Optional::from(self.map(ResBody::into_payload))
+    }
+}
+
+impl<L, R> ResBody for Either<L, R>
+where
+    L: ResBody,
+    R: ResBody,
+{
+    type Data = Either<L::Data, R::Data>;
+    type Error = Box<dyn error::Error + Send + Sync + 'static>;
+    type Payload = EitherPayload<L::Payload, R::Payload>;
+
+    #[inline]
+    fn into_payload(self) -> Self::Payload {
+        EitherPayload::from(
+            self.map_left(ResBody::into_payload)
+                .map_right(ResBody::into_payload),
+        )
+    }
+}
+
+/// A wrapper struct for providing the implementation of `ResBody` for `T: Payload`.
+#[derive(Debug)]
+pub struct Payload<T: hyper::body::Payload>(T);
+
+impl<T: hyper::body::Payload> From<T> for Payload<T> {
+    fn from(data: T) -> Self {
+        Payload(data)
+    }
+}
+
+impl<T: hyper::body::Payload> ResBody for Payload<T> {
+    type Data = T::Data;
+    type Error = T::Error;
+    type Payload = T;
+
+    fn into_payload(self) -> Self::Payload {
+        self.0
+    }
+}
+
+/// An instance of `Payload` representing a sized, empty message body.
+#[derive(Debug)]
+pub struct Empty {
+    _priv: (),
+}
+
+impl hyper::body::Payload for Empty {
+    type Data = io::Cursor<[u8; 0]>;
+    type Error = Never;
 
     fn poll_data(&mut self) -> Poll<Option<Self::Data>, Self::Error> {
         Ok(Async::Ready(Some(io::Cursor::new([]))))
@@ -36,12 +199,12 @@ impl<T> Once<T> {
     }
 }
 
-impl<T> Payload for Once<T>
+impl<T> hyper::body::Payload for Once<T>
 where
     T: AsRef<[u8]> + Send + 'static,
 {
     type Data = io::Cursor<T>;
-    type Error = io::Error;
+    type Error = Never;
 
     fn poll_data(&mut self) -> Poll<Option<Self::Data>, Self::Error> {
         Ok(Async::Ready(self.0.take().map(io::Cursor::new)))
@@ -87,15 +250,13 @@ impl<T> Optional<T> {
     }
 }
 
-impl<T: Payload> Payload for Optional<T> {
+impl<T: hyper::body::Payload> hyper::body::Payload for Optional<T> {
     type Data = Either<T::Data, io::Cursor<[u8; 0]>>;
     type Error = T::Error;
 
     fn poll_data(&mut self) -> Poll<Option<Self::Data>, Self::Error> {
         match self.0 {
-            Either::Left(ref mut payload) => payload
-                .poll_data()
-                .map(|data_async| data_async.map(|data_opt| data_opt.map(Either::Left))),
+            Either::Left(ref mut payload) => payload.poll_data().map_ok_async_some(Either::Left),
             Either::Right(ref mut is_end_stream) => {
                 if *is_end_stream {
                     Ok(None.into())
@@ -151,10 +312,10 @@ impl<L, R> EitherPayload<L, R> {
     }
 }
 
-impl<L, R> Payload for EitherPayload<L, R>
+impl<L, R> hyper::body::Payload for EitherPayload<L, R>
 where
-    L: Payload,
-    R: Payload,
+    L: hyper::body::Payload,
+    R: hyper::body::Payload,
 {
     type Data = Either<L::Data, R::Data>;
     type Error = Box<dyn error::Error + Send + Sync + 'static>;

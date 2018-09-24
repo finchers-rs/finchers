@@ -4,7 +4,6 @@ use serde::Serialize;
 use serde_json;
 use serde_json::Value;
 
-use super::payload::Once;
 use super::{Output, OutputContext};
 use error::{fail, Error, Never};
 
@@ -20,7 +19,7 @@ impl<T> From<T> for Json<T> {
 }
 
 impl<T: Serialize> Output for Json<T> {
-    type Body = Once<Vec<u8>>;
+    type Body = Vec<u8>;
     type Error = Error;
 
     fn respond(self, cx: &mut OutputContext<'_>) -> Result<Response<Self::Body>, Self::Error> {
@@ -30,7 +29,7 @@ impl<T: Serialize> Output for Json<T> {
             serde_json::to_vec(&self.0).map_err(fail)?
         };
 
-        let mut response = Response::new(Once::new(body));
+        let mut response = Response::new(body);
         response.headers_mut().insert(
             header::CONTENT_TYPE,
             HeaderValue::from_static("application/json"),
@@ -41,7 +40,7 @@ impl<T: Serialize> Output for Json<T> {
 }
 
 impl Output for Value {
-    type Body = Once<String>;
+    type Body = String;
     type Error = Never;
 
     fn respond(self, cx: &mut OutputContext<'_>) -> Result<Response<Self::Body>, Self::Error> {
@@ -51,7 +50,7 @@ impl Output for Value {
             format!("{}", self)
         };
 
-        let mut response = Response::new(Once::new(body));
+        let mut response = Response::new(body);
         response.headers_mut().insert(
             header::CONTENT_TYPE,
             HeaderValue::from_static("application/json"),

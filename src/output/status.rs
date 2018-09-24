@@ -2,17 +2,16 @@
 
 use http::{Response, StatusCode};
 
-use super::payload::Empty;
 use super::{Output, OutputContext};
 use error::Never;
 
 impl Output for StatusCode {
-    type Body = Empty;
+    type Body = ();
     type Error = Never;
 
     #[inline]
     fn respond(self, _: &mut OutputContext<'_>) -> Result<Response<Self::Body>, Self::Error> {
-        let mut response = Response::new(Empty);
+        let mut response = Response::new(());
         *response.status_mut() = self;
         Ok(response)
     }
@@ -36,11 +35,11 @@ impl<T: Output> Output for Created<T> {
 pub struct NoContent;
 
 impl Output for NoContent {
-    type Body = Empty;
+    type Body = ();
     type Error = Never;
 
     fn respond(self, _: &mut OutputContext<'_>) -> Result<Response<Self::Body>, Self::Error> {
-        let mut response = Response::new(Empty);
+        let mut response = Response::new(());
         *response.status_mut() = StatusCode::NO_CONTENT;
         Ok(response)
     }
