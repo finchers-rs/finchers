@@ -1,9 +1,10 @@
+use either::Either;
 use futures::{Async, Future, Poll};
 use http::Response;
 
-use common::Either;
 use endpoint::{Context, Endpoint, EndpointResult};
 use error::Error;
+use output::payload::EitherPayload;
 use output::{Output, OutputContext};
 
 use super::Wrapper;
@@ -67,7 +68,7 @@ where
 pub struct Recovered<L, R>(Either<L, R>);
 
 impl<L: Output, R: Output> Output for Recovered<L, R> {
-    type Body = Either<L::Body, R::Body>;
+    type Body = EitherPayload<L::Body, R::Body>;
     type Error = Error;
 
     #[inline(always)]

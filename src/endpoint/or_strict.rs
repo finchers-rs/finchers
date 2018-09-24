@@ -1,4 +1,5 @@
-use common::Either;
+use either::Either;
+
 use endpoint::{Context, Endpoint, EndpointResult};
 use error::Error;
 

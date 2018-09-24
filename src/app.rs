@@ -6,11 +6,11 @@ use std::io;
 use http::header::HeaderValue;
 use http::{header, Request, Response};
 
-use common::Either;
 use endpoint::{Context, Endpoint};
 use error::Error;
 use input::body::ReqBody;
 use input::{with_set_cx, Input};
+use output::payload::EitherPayload;
 use output::payload::Once;
 use output::{Output, OutputContext};
 
@@ -36,7 +36,7 @@ impl<'e, E: Endpoint<'e>> App<'e, E> {
     }
 }
 
-pub(crate) type ResBody<T> = Either<Once<String>, <T as Output>::Body>;
+pub(crate) type ResBody<T> = EitherPayload<Once<String>, <T as Output>::Body>;
 
 #[allow(missing_docs)]
 #[derive(Debug)]
@@ -93,10 +93,13 @@ where
                 let mut cx = OutputContext::new(&mut self.input);
                 move |out| {
                     out.respond(&mut cx)
-                        .map(|res| res.map(Either::Right))
+                        .map(|res| res.map(EitherPayload::right))
                         .map_err(Into::into)
                 }
-            }).unwrap_or_else(|err| err.to_response().map(|body| Either::Left(Once::new(body))));
+            }).unwrap_or_else(|err| {
+                err.to_response()
+                    .map(|body| EitherPayload::left(Once::new(body)))
+            });
 
         if let Some(jar) = self.input.cookie_jar() {
             for cookie in jar.delta() {
