@@ -77,7 +77,7 @@ use tokio::runtime::current_thread::Runtime;
 use app::App;
 use endpoint::Endpoint;
 use error::Error;
-use input::body::ReqBody;
+use input::ReqBody;
 use output::payload::Payload;
 use output::Output;
 

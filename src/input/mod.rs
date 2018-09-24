@@ -1,13 +1,14 @@
 //! Components for parsing the incoming HTTP request.
 
-pub mod body;
 pub mod cookie;
 pub mod query;
 
+mod body;
 mod encoded;
 mod global;
 mod header;
 
+pub use self::body::ReqBody;
 pub use self::encoded::{EncodedStr, FromEncodedStr};
 pub use self::header::FromHeaderValue;
 
@@ -19,13 +20,13 @@ pub(crate) use self::global::with_set_cx;
 use http;
 use http::header::HeaderMap;
 use http::Request;
+use hyper::body::Body;
 use mime::Mime;
 use std::marker::PhantomData;
 use std::ops::Deref;
 
 use error::{bad_request, Error};
 
-use self::body::{Payload, ReqBody};
 use self::cookie::{CookieJar, Cookies};
 
 /// The contextual information with an incoming HTTP request.
@@ -55,7 +56,7 @@ impl Input {
 
     /// Takes the instance of `RequestBody` from this value.
     #[inline]
-    pub fn payload(&mut self) -> Option<Payload> {
+    pub fn payload(&mut self) -> Option<Body> {
         self.request.body_mut().payload()
     }
 

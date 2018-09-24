@@ -8,11 +8,12 @@ use futures::Future as _Future;
 use bytes::Bytes;
 use bytes::BytesMut;
 use http::StatusCode;
+use hyper::body::{Body, Payload};
 use serde::de::DeserializeOwned;
 
 use endpoint::{Context, Endpoint, EndpointResult};
+use error;
 use error::{err_msg, Error};
-use input::body::Payload;
 use input::query::FromQuery;
 use input::with_get_cx;
 
@@ -23,7 +24,7 @@ use input::with_get_cx;
 /// return an error.
 #[inline]
 pub fn raw() -> Raw {
-    (Raw { _priv: () }).with_output::<(Payload,)>()
+    (Raw { _priv: () }).with_output::<(Body,)>()
 }
 
 #[allow(missing_docs)]
@@ -39,7 +40,7 @@ impl fmt::Debug for Raw {
 }
 
 impl<'e> Endpoint<'e> for Raw {
-    type Output = (Payload,);
+    type Output = (Body,);
     type Future = RawFuture;
 
     fn apply(&self, _: &mut Context<'_>) -> EndpointResult<Self::Future> {
@@ -54,7 +55,7 @@ pub struct RawFuture {
 }
 
 impl ::futures::Future for RawFuture {
-    type Item = (Payload,);
+    type Item = (Body,);
     type Error = Error;
 
     fn poll(&mut self) -> ::futures::Poll<Self::Item, Self::Error> {
@@ -97,7 +98,7 @@ pub struct ReceiveAllFuture {
 #[derive(Debug)]
 enum State {
     Start,
-    Receiving(Payload, BytesMut),
+    Receiving(Body, BytesMut),
     Done,
 }
 
@@ -118,7 +119,7 @@ impl ::futures::Future for ReceiveAllFuture {
             match self.state {
                 State::Start => {}
                 State::Receiving(ref mut body, ref mut buf) => {
-                    while let Some(data) = try_ready!(body.poll_data()) {
+                    while let Some(data) = try_ready!(body.poll_data().map_err(error::fail)) {
                         buf.extend_from_slice(&*data);
                     }
                 }

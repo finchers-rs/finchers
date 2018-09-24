@@ -1,35 +1,6 @@
-#![allow(missing_docs)]
+use hyper::body::Body;
 
-use futures::Poll;
-use http::header::HeaderMap;
-use hyper::body::{Body, Chunk, Payload as _Payload};
-
-use error::{fail, Error};
-
-#[derive(Debug)]
-pub struct Payload {
-    body: Body,
-}
-
-impl Payload {
-    pub fn poll_data(&mut self) -> Poll<Option<Chunk>, Error> {
-        self.body.poll_data().map_err(fail)
-    }
-
-    pub fn poll_trailers(&mut self) -> Poll<Option<HeaderMap>, Error> {
-        self.body.poll_trailers().map_err(fail)
-    }
-
-    pub fn is_end_stream(&self) -> bool {
-        self.body.is_end_stream()
-    }
-
-    pub fn content_length(&self) -> Option<u64> {
-        self.body.content_length()
-    }
-}
-
-/// An asyncrhonous stream to receive the chunks of incoming request body.
+/// A type holding the instance of request body.
 #[derive(Debug)]
 pub struct ReqBody(Option<Body>);
 
@@ -40,10 +11,11 @@ impl ReqBody {
     }
 
     #[allow(missing_docs)]
-    pub fn payload(&mut self) -> Option<Payload> {
-        self.0.take().map(|body| Payload { body })
+    pub fn payload(&mut self) -> Option<Body> {
+        self.0.take()
     }
 
+    #[allow(missing_docs)]
     pub fn is_gone(&self) -> bool {
         self.0.is_none()
     }

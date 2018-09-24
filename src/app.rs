@@ -8,7 +8,7 @@ use http::{header, Request, Response};
 
 use endpoint::{Context, Endpoint};
 use error::Error;
-use input::body::ReqBody;
+use input::ReqBody;
 use input::{with_set_cx, Input};
 use output::payload::EitherPayload;
 use output::payload::Once;
@@ -149,7 +149,7 @@ mod service {
     use hyper::service::{NewService, Service};
 
     use endpoint::Endpoint;
-    use input::body::ReqBody;
+    use input::ReqBody;
     use output::Output;
 
     impl<'e, E: Endpoint<'e>> NewService for App<'e, E>
