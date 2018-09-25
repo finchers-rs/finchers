@@ -31,7 +31,7 @@ impl Mode {
         input: &mut Input,
         name: &str,
     ) -> Result<Option<Cookie<'static>>, Error> {
-        let cookies = input.cookies()?;
+        let mut cookies = input.cookies()?;
         match self {
             Mode::Plain => Ok(cookies.get(name).cloned()),
             #[cfg(feature = "secure")]
@@ -81,6 +81,7 @@ pub struct Required {
 
 impl Required {
     #[cfg(feature = "secure")]
+    #[allow(missing_docs)]
     pub fn signed(self, key: Key) -> Required {
         Required {
             mode: Mode::Signed(key),
@@ -89,6 +90,7 @@ impl Required {
     }
 
     #[cfg(feature = "secure")]
+    #[allow(missing_docs)]
     pub fn private(self, key: Key) -> Required {
         Required {
             mode: Mode::Private(key),
@@ -153,6 +155,7 @@ pub struct Optional {
 
 impl Optional {
     #[cfg(feature = "secure")]
+    #[allow(missing_docs)]
     pub fn signed(self, key: Key) -> Optional {
         Optional {
             mode: Mode::Signed(key),
@@ -161,6 +164,7 @@ impl Optional {
     }
 
     #[cfg(feature = "secure")]
+    #[allow(missing_docs)]
     pub fn private(self, key: Key) -> Optional {
         Optional {
             mode: Mode::Private(key),

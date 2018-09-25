@@ -20,8 +20,6 @@ include = [
 
 [package.metadata.docs.rs]
 features = [
-  "secure",
-
   # FIXME: remove it as soon as the rustc version used in docs.rs is updated
   "extern-prelude",
 ]
@@ -55,6 +53,7 @@ url = "1.7.1"
 matches = "0.1.8"
 
 [features]
+default = ["secure"]
 strict = []
 lint = ["strict"]
 secure = ["cookie/secure"]
