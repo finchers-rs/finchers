@@ -1,8 +1,6 @@
 use http::Response;
 use std::fmt;
 
-use super::payload::Once;
-use super::text::Text;
 use super::{Output, OutputContext};
 use error::Never;
 
@@ -13,7 +11,7 @@ use error::Never;
 pub struct Debug<T>(pub T);
 
 impl<T: fmt::Debug> Output for Debug<T> {
-    type Body = Once<Text<String>>;
+    type Body = String;
     type Error = Never;
 
     fn respond(self, cx: &mut OutputContext<'_>) -> Result<Response<Self::Body>, Self::Error> {
@@ -22,6 +20,9 @@ impl<T: fmt::Debug> Output for Debug<T> {
         } else {
             format!("{:?}", self.0)
         };
-        Text(body).respond(cx)
+        Ok(Response::builder()
+            .header("content-type", "text/plain; charset=utf-8")
+            .body(body)
+            .unwrap())
     }
 }

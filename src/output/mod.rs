@@ -1,8 +1,17 @@
 //! Components for constructing HTTP responses.
 
+pub mod body;
 pub mod fs;
-pub mod payload;
 pub mod status;
+
+#[doc(hidden)]
+#[deprecated(
+    since = "0.12.0-alpha.7",
+    note = "use `output::body` instead."
+)]
+pub mod payload {
+    pub use super::body::*;
+}
 
 mod binary;
 mod debug;
@@ -11,7 +20,6 @@ mod text;
 
 use either::Either;
 use http::{Response, StatusCode};
-use hyper::body::Payload;
 use std::fmt;
 use std::marker::PhantomData;
 use std::rc::Rc;
@@ -19,12 +27,16 @@ use std::rc::Rc;
 use error::{Error, HttpError, Never};
 use input::Input;
 
-use self::payload::{EitherPayload, Empty};
+use self::body::ResBody;
 
+#[doc(hidden)]
+#[allow(deprecated)]
 pub use self::binary::Binary;
 pub use self::debug::Debug;
 pub use self::fs::NamedFile;
 pub use self::json::Json;
+#[doc(hidden)]
+#[allow(deprecated)]
 pub use self::text::Text;
 
 /// Contextual information at applying `Output::respond`.
@@ -67,7 +79,7 @@ impl<'a> OutputContext<'a> {
 /// A trait representing the value to be converted into an HTTP response.
 pub trait Output: Sized {
     /// The type of response body.
-    type Body: Payload;
+    type Body: ResBody;
 
     /// The error type of `respond()`.
     type Error: Into<Error>;
@@ -76,7 +88,7 @@ pub trait Output: Sized {
     fn respond(self, cx: &mut OutputContext<'_>) -> Result<Response<Self::Body>, Self::Error>;
 }
 
-impl<T: Payload> Output for Response<T> {
+impl<T: ResBody> Output for Response<T> {
     type Body = T;
     type Error = Never;
 
@@ -87,13 +99,13 @@ impl<T: Payload> Output for Response<T> {
 }
 
 impl Output for () {
-    type Body = Empty;
+    type Body = ();
     type Error = Never;
 
     fn respond(self, _: &mut OutputContext<'_>) -> Result<Response<Self::Body>, Self::Error> {
         Ok(Response::builder()
             .status(StatusCode::NO_CONTENT)
-            .body(Empty)
+            .body(())
             .unwrap())
     }
 }
@@ -157,18 +169,18 @@ where
     L: Output,
     R: Output,
 {
-    type Body = EitherPayload<L::Body, R::Body>;
+    type Body = Either<L::Body, R::Body>;
     type Error = Error;
 
     fn respond(self, cx: &mut OutputContext<'_>) -> Result<Response<Self::Body>, Self::Error> {
         match self {
             Either::Left(l) => l
                 .respond(cx)
-                .map(|res| res.map(EitherPayload::left))
+                .map(|res| res.map(Either::Left))
                 .map_err(Into::into),
             Either::Right(r) => r
                 .respond(cx)
-                .map(|res| res.map(EitherPayload::right))
+                .map(|res| res.map(Either::Right))
                 .map_err(Into::into),
         }
     }

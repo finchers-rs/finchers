@@ -9,7 +9,7 @@ use endpoint::{Context, Endpoint, EndpointResult};
 use error::Error;
 use error::Never;
 use input::{with_get_cx, Input};
-use output::payload::Payload;
+use output::body::ResBody;
 use output::{Output, OutputContext};
 
 /// Create a wrapper for creating an endpoint which dumps log
@@ -130,7 +130,7 @@ where
 #[derive(Debug)]
 pub struct LoggedResponse<Bd>(Response<Bd>);
 
-impl<Bd: Payload> Output for LoggedResponse<Bd> {
+impl<Bd: ResBody> Output for LoggedResponse<Bd> {
     type Body = Bd;
     type Error = Never;
 

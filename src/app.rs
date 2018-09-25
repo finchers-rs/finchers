@@ -3,15 +3,15 @@
 use futures::{Async, Future, Poll};
 use std::io;
 
+use either::Either;
 use http::header::HeaderValue;
 use http::{header, Request, Response};
 
 use endpoint::{Context, Endpoint};
 use error::Error;
-use input::body::ReqBody;
+use input::ReqBody;
 use input::{with_set_cx, Input};
-use output::payload::EitherPayload;
-use output::payload::Once;
+use output::body::ResBody;
 use output::{Output, OutputContext};
 
 /// A factory of HTTP service which wraps an `Endpoint`.
@@ -35,8 +35,6 @@ impl<'e, E: Endpoint<'e>> App<'e, E> {
         }
     }
 }
-
-pub(crate) type ResBody<T> = EitherPayload<Once<String>, <T as Output>::Body>;
 
 #[allow(missing_docs)]
 #[derive(Debug)]
@@ -78,9 +76,10 @@ where
         }
     }
 
-    pub(crate) fn poll_response(&mut self) -> Poll<Response<ResBody<E::Output>>, io::Error>
+    pub(crate) fn poll_response<Bd>(&mut self) -> Poll<Response<Either<String, Bd>>, io::Error>
     where
-        E::Output: Output,
+        E::Output: Output<Body = Bd>,
+        Bd: ResBody,
     {
         let output = match self.poll_output() {
             Ok(Async::Ready(item)) => Ok(item),
@@ -93,13 +92,10 @@ where
                 let mut cx = OutputContext::new(&mut self.input);
                 move |out| {
                     out.respond(&mut cx)
-                        .map(|res| res.map(EitherPayload::right))
+                        .map(|res| res.map(Either::Right))
                         .map_err(Into::into)
                 }
-            }).unwrap_or_else(|err| {
-                err.to_response()
-                    .map(|body| EitherPayload::left(Once::new(body)))
-            });
+            }).unwrap_or_else(|err| err.to_response().map(Either::Left));
 
         if let Some(jar) = self.input.cookie_jar() {
             for cookie in jar.delta() {
@@ -125,62 +121,69 @@ where
     }
 }
 
-impl<'e, E> Future for AppFuture<'e, E>
-where
-    E: Endpoint<'e>,
-    E::Output: Output,
-{
-    type Item = Response<ResBody<E::Output>>;
-    type Error = io::Error;
-
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        self.poll_response()
-    }
-}
-
 mod service {
-    use super::{App, AppFuture, ResBody};
+    use super::{App, AppFuture};
 
     use std::io;
 
-    use futures as futures01;
-    use http::Request;
+    use either::Either;
+    use futures::future;
+    use futures::{Future, Poll};
+    use http::{Request, Response};
     use hyper::body::Body;
     use hyper::service::{NewService, Service};
 
     use endpoint::Endpoint;
-    use input::body::ReqBody;
+    use input::ReqBody;
+    use output::body::ResBody;
     use output::Output;
 
-    impl<'e, E: Endpoint<'e>> NewService for App<'e, E>
+    impl<'e, E: Endpoint<'e>, Bd> NewService for App<'e, E>
     where
-        E::Output: Output,
+        E::Output: Output<Body = Bd>,
+        Bd: ResBody,
     {
         type ReqBody = Body;
-        type ResBody = ResBody<E::Output>;
+        type ResBody = <Either<String, Bd> as ResBody>::Payload;
         type Error = io::Error;
         type Service = Self;
         type InitError = io::Error;
-        type Future = futures01::future::FutureResult<Self::Service, Self::InitError>;
+        type Future = future::FutureResult<Self::Service, Self::InitError>;
 
         fn new_service(&self) -> Self::Future {
-            futures01::future::ok(App {
+            future::ok(App {
                 endpoint: self.endpoint,
             })
         }
     }
 
-    impl<'e, E: Endpoint<'e>> Service for App<'e, E>
+    impl<'e, E: Endpoint<'e>, Bd> Service for App<'e, E>
     where
-        E::Output: Output,
+        E::Output: Output<Body = Bd>,
+        Bd: ResBody,
     {
         type ReqBody = Body;
-        type ResBody = ResBody<E::Output>;
+        type ResBody = <Either<String, Bd> as ResBody>::Payload;
         type Error = io::Error;
         type Future = AppFuture<'e, E>;
 
         fn call(&mut self, request: Request<Self::ReqBody>) -> Self::Future {
             self.dispatch_request(request.map(ReqBody::from_hyp))
+        }
+    }
+
+    impl<'e, E, Bd> Future for AppFuture<'e, E>
+    where
+        E: Endpoint<'e>,
+        E::Output: Output<Body = Bd>,
+        Bd: ResBody,
+    {
+        type Item = Response<<Either<String, Bd> as ResBody>::Payload>;
+        type Error = io::Error;
+
+        fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+            self.poll_response()
+                .map(|x| x.map(|res| res.map(|bd| bd.into_payload())))
         }
     }
 }

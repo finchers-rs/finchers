@@ -7,6 +7,7 @@ use std::mem;
 use std::path::PathBuf;
 
 use futures::{Async, Future, Poll};
+use hyper::body::Payload;
 use tokio::io::AsyncRead;
 
 use tokio::fs::file::{File, MetadataFuture, OpenFuture};
@@ -15,7 +16,6 @@ use bytes::{BufMut, Bytes, BytesMut};
 use http::{header, Response};
 use mime_guess::guess_mime_type;
 
-use super::payload::Payload;
 use super::{Output, OutputContext};
 use error::Never;
 
@@ -87,7 +87,7 @@ impl Future for OpenNamedFile {
 }
 
 impl Output for NamedFile {
-    type Body = FileStream;
+    type Body = super::body::Payload<FileStream>;
     type Error = Never;
 
     fn respond(self, _: &mut OutputContext<'_>) -> Result<Response<Self::Body>, Self::Error> {
@@ -100,7 +100,7 @@ impl Output for NamedFile {
         Ok(Response::builder()
             .header(header::CONTENT_LENGTH, meta.len())
             .header(header::CONTENT_TYPE, content_type.as_ref())
-            .body(body)
+            .body(body.into())
             .unwrap())
     }
 }

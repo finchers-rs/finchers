@@ -71,14 +71,14 @@ use futures::Stream as _Stream01;
 use bytes::{Buf, Bytes};
 use http::header::{HeaderMap, HeaderName, HeaderValue};
 use http::{HttpTryFrom, Method, Request, Response, Uri};
-use hyper::body::Body;
+use hyper::body::{Body, Payload};
 use tokio::runtime::current_thread::Runtime;
 
 use app::App;
 use endpoint::Endpoint;
 use error::Error;
-use input::body::ReqBody;
-use output::payload::Payload;
+use input::ReqBody;
+use output::body::ResBody as _ResBody;
 use output::Output;
 
 macro_rules! impl_constructors {
@@ -216,7 +216,8 @@ impl LocalRequest {
         let response = rt
             .block_on(future)
             .expect("AppFuture::poll_response() never fail");
-        let (parts, mut body) = response.into_parts();
+        let (parts, body) = response.into_parts();
+        let mut body = body.into_payload();
 
         // construct ResBody
         let content_length = body.content_length();

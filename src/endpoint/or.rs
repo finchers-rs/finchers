@@ -4,7 +4,6 @@ use http::Response;
 
 use endpoint::{Context, Endpoint, EndpointResult};
 use error::Error;
-use output::payload::EitherPayload;
 use output::{Output, OutputContext};
 
 #[allow(missing_docs)]
@@ -64,7 +63,7 @@ where
 pub struct Wrapped<L, R>(Either<L, R>);
 
 impl<L: Output, R: Output> Output for Wrapped<L, R> {
-    type Body = EitherPayload<L::Body, R::Body>;
+    type Body = Either<L::Body, R::Body>;
     type Error = Error;
 
     #[inline(always)]

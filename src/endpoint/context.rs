@@ -95,7 +95,7 @@ impl<'a> Context<'a> {
 mod tests {
     use super::*;
     use http::Request;
-    use input::body::ReqBody;
+    use input::ReqBody;
 
     #[test]
     fn test_segments() {
