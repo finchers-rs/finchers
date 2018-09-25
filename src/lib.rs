@@ -35,9 +35,9 @@
 //! ```
 
 // master
-//#![doc(html_root_url = "https://finchers-rs.github.io/finchers/")]
+#![doc(html_root_url = "https://finchers-rs.github.io/finchers/")]
 // released
-#![doc(html_root_url = "https://finchers-rs.github.io/docs/finchers/v0.12.0-alpha.7")]
+//#![doc(html_root_url = "https://finchers-rs.github.io/docs/finchers/v0.12.0-alpha.7")]
 #![warn(
     missing_docs,
     missing_debug_implementations,
