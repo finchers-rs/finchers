@@ -1,6 +1,5 @@
 //! Components for parsing the incoming HTTP request.
 
-pub mod cookie;
 pub mod query;
 
 mod body;
@@ -17,17 +16,15 @@ pub(crate) use self::global::with_set_cx;
 
 // ====
 
+use cookie::{Cookie, CookieJar};
 use http;
 use http::header::HeaderMap;
 use http::Request;
 use hyper::body::Body;
 use mime::Mime;
-use std::marker::PhantomData;
 use std::ops::Deref;
 
 use error::{bad_request, Error};
-
-use self::cookie::{CookieJar, Cookies};
 
 /// The contextual information with an incoming HTTP request.
 #[derive(Debug)]
@@ -82,20 +79,21 @@ impl Input {
     }
 
     /// Returns a `Cookies<'_>` or initialize the internal Cookie jar.
-    pub fn cookies(&mut self) -> Result<Cookies<'_>, Error> {
+    pub fn cookies(&mut self) -> Result<&mut CookieJar, Error> {
         match self.cookie_jar {
-            Some(ref mut jar) => Ok(Cookies {
-                jar,
-                _marker: PhantomData,
-            }),
+            Some(ref mut jar) => Ok(jar),
             None => {
-                let cookie_jar =
-                    self::cookie::parse_cookies(self.request.headers()).map_err(bad_request)?;
-                let jar = self.cookie_jar.get_or_insert(cookie_jar);
-                Ok(Cookies {
-                    jar,
-                    _marker: PhantomData,
-                })
+                let mut cookie_jar = CookieJar::new();
+
+                for cookie in self.request.headers().get_all(http::header::COOKIE) {
+                    let cookie_str = cookie.to_str().map_err(bad_request)?;
+                    for s in cookie_str.split(';').map(|s| s.trim()) {
+                        let cookie = Cookie::parse_encoded(s).map_err(bad_request)?.into_owned();
+                        cookie_jar.add_original(cookie);
+                    }
+                }
+
+                Ok(self.cookie_jar.get_or_insert(cookie_jar))
             }
         }
     }

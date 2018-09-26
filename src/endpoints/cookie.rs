@@ -3,11 +3,12 @@
 use std::borrow::Cow;
 use std::fmt;
 
+use cookie::Cookie;
+#[cfg(feature = "secure")]
+use cookie::Key;
+
 use endpoint::{Context, Endpoint, EndpointResult};
 use error::{bad_request, Error};
-use input::cookie::Cookie;
-#[cfg(feature = "secure")]
-use input::cookie::Key;
 use input::Input;
 
 #[derive(Clone)]
@@ -31,7 +32,7 @@ impl Mode {
         input: &mut Input,
         name: &str,
     ) -> Result<Option<Cookie<'static>>, Error> {
-        let mut cookies = input.cookies()?;
+        let cookies = input.cookies()?;
         match self {
             Mode::Plain => Ok(cookies.get(name).cloned()),
             #[cfg(feature = "secure")]
@@ -123,13 +124,14 @@ impl<'a> Endpoint<'a> for Required {
 /// ```
 /// # #[macro_use]
 /// # extern crate finchers;
-/// # use finchers::endpoints::cookie;
+/// # extern crate cookie;
+/// # use finchers::endpoints::cookie::optional;
 /// # use finchers::prelude::*;
-/// # use finchers::input::cookie::Cookie;
+/// # use cookie::Cookie;
 /// #
 /// # fn main() {
 /// let home = path!(@get / "home")
-///     .and(cookie::optional("session"))
+///     .and(optional("session"))
 ///     .map(|c: Option<Cookie>| {
 ///         // ...
 /// #       drop(c);
