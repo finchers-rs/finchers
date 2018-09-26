@@ -73,7 +73,6 @@ extern crate percent_encoding;
 extern crate serde;
 extern crate serde_json;
 extern crate serde_qs;
-extern crate time;
 extern crate tokio;
 extern crate url;
 
