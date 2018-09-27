@@ -279,7 +279,7 @@ macro_rules! path {
 }
 
 #[doc(hidden)]
-#[macro_export]
+#[macro_export(local_inner_macros)]
 macro_rules! path_impl {
     (@start / $head:tt $(/ $tail:tt)*) => {{
         let __p = path_impl!(@segment $head);

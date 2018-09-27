@@ -45,6 +45,7 @@ matrix:
       script:
         - cargo update
         - cargo test --all
+        - cargo test --manifest-path testcrates/test_edition_2018/Cargo.toml
 
     - rust: nightly
       before_script:
