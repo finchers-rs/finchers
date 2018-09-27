@@ -150,7 +150,7 @@ macro_rules! routes {
 }
 
 #[doc(hidden)]
-#[macro_export]
+#[macro_export(local_inner_macros)]
 macro_rules! routes_impl {
     ($e1:expr, $e2:expr, $($t:expr),*) => {{
         routes_impl!($e1, routes_impl!($e2, $($t),*))
