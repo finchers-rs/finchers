@@ -1,6 +1,6 @@
 use either::Either;
 
-use endpoint::{ApplyContext, Endpoint, EndpointResult};
+use endpoint::{ApplyContext, ApplyResult, Endpoint};
 use error::Error;
 
 #[allow(missing_docs)]
@@ -18,7 +18,7 @@ where
     type Output = E1::Output;
     type Future = OrStrictFuture<E1::Future, E2::Future>;
 
-    fn apply(&'a self, ecx: &mut ApplyContext<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'a self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         let orig_cursor = ecx.cursor().clone();
         match self.e1.apply(ecx) {
             Ok(future1) => {

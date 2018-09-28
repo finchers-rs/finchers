@@ -3,7 +3,7 @@ use either::Either::*;
 use http::Response;
 use std::mem;
 
-use endpoint::{ApplyContext, Endpoint, EndpointResult};
+use endpoint::{ApplyContext, ApplyResult, Endpoint};
 use error::Error;
 use output::{Output, OutputContext};
 
@@ -22,7 +22,7 @@ where
     type Output = (Wrapped<E1::Output, E2::Output>,);
     type Future = OrFuture<E1::Future, E2::Future>;
 
-    fn apply(&'a self, ecx: &mut ApplyContext<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'a self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         let orig_cursor = ecx.cursor().clone();
         match self.e1.apply(ecx) {
             Ok(future1) => {

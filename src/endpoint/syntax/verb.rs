@@ -3,7 +3,7 @@ use std::ops::{BitOr, BitOrAssign};
 use http::Method;
 
 use super::Matched;
-use endpoint::{ApplyContext, Endpoint, EndpointError, EndpointResult};
+use endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint};
 
 /// Create an endpoint which checks if the verb of current request
 /// is equal to the specified value.
@@ -21,11 +21,11 @@ impl<'a> Endpoint<'a> for MatchVerbs {
     type Output = ();
     type Future = Matched;
 
-    fn apply(&'a self, ecx: &mut ApplyContext<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'a self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         if self.allowed.contains(ecx.input().method()) {
             Ok(Matched { _priv: () })
         } else {
-            Err(EndpointError::method_not_allowed(self.allowed))
+            Err(ApplyError::method_not_allowed(self.allowed))
         }
     }
 }
@@ -54,11 +54,11 @@ macro_rules! define_verbs {
             type Future = Matched;
 
             #[inline]
-            fn apply(&'e self, ecx: &mut ApplyContext<'_>) -> EndpointResult<Self::Future> {
+            fn apply(&'e self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
                 if *ecx.input().method() == Method::$METHOD {
                     Ok(Matched { _priv: () })
                 } else {
-                    Err(EndpointError::method_not_allowed(Verbs::$METHOD))
+                    Err(ApplyError::method_not_allowed(Verbs::$METHOD))
                 }
             }
         }

@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use futures::{Future, IntoFuture, Poll};
 
 use common::{Func, Tuple};
-use endpoint::{ApplyContext, Endpoint, EndpointResult};
+use endpoint::{ApplyContext, ApplyResult, Endpoint};
 use error::Error;
 
 use super::try_chain::{TryChain, TryChainAction};
@@ -62,7 +62,7 @@ where
     type Output = (<F::Out as IntoFuture>::Item,);
     type Future = AndThenFuture<'a, E::Future, F::Out, F>;
 
-    fn apply(&'a self, ecx: &mut ApplyContext<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'a self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         let f1 = self.endpoint.apply(ecx)?;
         Ok(AndThenFuture {
             try_chain: TryChain::new(f1, &self.f),

@@ -1,5 +1,5 @@
+use finchers::endpoint::ApplyError;
 use finchers::endpoint::Endpoint;
-use finchers::endpoint::EndpointError;
 use finchers::endpoints::query;
 use finchers::local;
 
@@ -35,7 +35,7 @@ fn test_query_parse() {
     assert_matches!(
         local::get("/")
             .apply(&endpoint),
-        Err(ref err) if err.is::<EndpointError>() && err.status_code().as_u16() == 400
+        Err(ref err) if err.is::<ApplyError>() && err.status_code().as_u16() == 400
     );
 }
 

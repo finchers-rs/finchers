@@ -7,7 +7,7 @@ use std::fmt;
 use std::marker::PhantomData;
 
 use endpoint::with_get_cx;
-use endpoint::{ApplyContext, Endpoint, EndpointError, EndpointResult};
+use endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint};
 use error;
 use error::{bad_request, Error};
 
@@ -77,13 +77,13 @@ where
     type Output = (T,);
     type Future = RequiredFuture<T>;
 
-    fn apply(&self, cx: &mut ApplyContext<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         if cx.input().uri().query().is_some() {
             Ok(RequiredFuture {
                 _marker: PhantomData,
             })
         } else {
-            Err(EndpointError::custom(error::bad_request("missing query")))
+            Err(ApplyError::custom(error::bad_request("missing query")))
         }
     }
 }
@@ -180,7 +180,7 @@ where
     type Output = (Option<T>,);
     type Future = OptionalFuture<T>;
 
-    fn apply(&self, _: &mut ApplyContext<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&self, _: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         Ok(OptionalFuture {
             _marker: PhantomData,
         })
@@ -225,7 +225,7 @@ impl<'a> Endpoint<'a> for Raw {
     type Output = (Option<String>,);
     type Future = RawFuture;
 
-    fn apply(&self, _: &mut ApplyContext<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&self, _: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         Ok(RawFuture { _priv: () })
     }
 }
