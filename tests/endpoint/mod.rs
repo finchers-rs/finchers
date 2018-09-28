@@ -8,4 +8,5 @@ mod or;
 mod or_strict;
 mod recover;
 mod syntax;
+mod value;
 mod wrap;

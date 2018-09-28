@@ -1,44 +1,23 @@
+#![allow(deprecated)]
+
 use endpoint::{ApplyContext, ApplyResult, Endpoint};
 use error::Error;
 
-/// Create an endpoint which simply clones the specified value.
-///
-/// # Examples
-///
-/// ```
-/// # #[macro_use]
-/// # extern crate finchers;
-/// # use finchers::prelude::*;
-/// # use finchers::endpoint::value;
-/// #
-/// #[derive(Clone)]
-/// struct Conn {
-///     // ...
-/// #   _p: (),
-/// }
-///
-/// # fn main() {
-/// let conn = {
-///     // do some stuff...
-/// #   Conn { _p: () }
-/// };
-///
-/// let endpoint = path!(@get / "posts" / u32 /)
-///     .and(value(conn))
-///     .and_then(|id: u32, conn: Conn| {
-///         // ...
-/// #       drop(id);
-/// #       Ok(conn)
-///     });
-/// # drop(endpoint);
-/// # }
-/// ```
+#[doc(hidden)]
+#[deprecated(
+    since = "0.12.0-alpha.9",
+    note = "use `endpoint::cloned(x)` instead."
+)]
 #[inline]
 pub fn value<T: Clone>(x: T) -> Value<T> {
     (Value { x }).with_output::<(T,)>()
 }
 
-#[allow(missing_docs)]
+#[doc(hidden)]
+#[deprecated(
+    since = "0.12.0-alpha.9",
+    note = "use `endpoint::cloned(x)` instead."
+)]
 #[derive(Debug, Copy, Clone)]
 pub struct Value<T> {
     x: T,

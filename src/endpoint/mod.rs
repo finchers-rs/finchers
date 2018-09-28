@@ -8,6 +8,8 @@ pub mod wrapper;
 
 mod and;
 mod apply_fn;
+mod by_ref;
+mod cloned;
 mod or;
 mod or_strict;
 mod unit;
@@ -27,7 +29,11 @@ pub use self::or::Or;
 pub use self::or_strict::OrStrict;
 
 pub use self::apply_fn::{apply_fn, ApplyFn};
+pub use self::by_ref::{by_ref, ByRef};
+pub use self::cloned::{cloned, Cloned};
 pub use self::unit::{unit, Unit};
+#[doc(hidden)]
+#[allow(deprecated)]
 pub use self::value::{value, Value};
 
 #[doc(hidden)]
@@ -264,11 +270,11 @@ mod tests {
     use super::*;
 
     fn return_unit() -> impl_endpoint!() {
-        value(42).into()
+        cloned(42).into()
     }
 
     fn return_value() -> impl_endpoint![Output = (u32,)] {
-        value(42).into()
+        cloned(42).into()
     }
 
     #[test]
