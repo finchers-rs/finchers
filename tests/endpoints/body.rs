@@ -59,8 +59,6 @@ fn test_body_json() {
 
 #[test]
 fn test_body_urlencoded() {
-    use finchers::input::query::Serde;
-
     #[derive(Debug, PartialEq, Deserialize)]
     struct AccessTokenRequest {
         grant_type: String,
@@ -68,7 +66,7 @@ fn test_body_urlencoded() {
         redirect_uri: String,
     }
 
-    let endpoint = body::urlencoded::<Serde<AccessTokenRequest>>();
+    let endpoint = body::urlencoded::<AccessTokenRequest>();
 
     let form_str = r#"grant_type=authorization_code&code=SplxlOBeZQQYbYS6WxSbIA&redirect_uri=https%3A%2F%2Fclient%2Eexample%2Ecom%2Fcb"#;
 
@@ -77,7 +75,7 @@ fn test_body_urlencoded() {
             .header("content-type", "application/x-www-form-urlencoded")
             .body(form_str)
             .apply(&endpoint),
-        Ok((Serde(ref req),)) if *req == AccessTokenRequest {
+        Ok((ref req,)) if *req == AccessTokenRequest {
             grant_type: "authorization_code".into(),
             code: "SplxlOBeZQQYbYS6WxSbIA".into(),
             redirect_uri: "https://client.example.com/cb".into(),

@@ -14,7 +14,6 @@ use serde::de::DeserializeOwned;
 use endpoint::{Context, Endpoint, EndpointResult};
 use error;
 use error::{err_msg, Error};
-use input::query::FromQuery;
 use input::with_get_cx;
 
 /// Creates an endpoint which takes the instance of [`Payload`](input::body::Payload)
@@ -213,7 +212,7 @@ where
 #[inline]
 pub fn urlencoded<T>() -> UrlEncoded<T>
 where
-    T: FromQuery,
+    T: DeserializeOwned + 'static,
 {
     (UrlEncoded {
         _marker: PhantomData,
@@ -228,7 +227,7 @@ pub struct UrlEncoded<T> {
 
 impl<'e, T> Endpoint<'e> for UrlEncoded<T>
 where
-    T: FromQuery,
+    T: DeserializeOwned + 'static,
 {
     type Output = (T,);
     #[cfg_attr(feature = "lint", allow(clippy::type_complexity))]
@@ -248,15 +247,16 @@ mod parse {
     use std::str;
 
     use bytes::Bytes;
+    use failure::SyncFailure;
     use mime;
     use mime::Mime;
     use serde::de::DeserializeOwned;
     use serde_json;
+    use serde_qs;
 
     use futures::{Future, Poll};
 
     use error::{bad_request, Error};
-    use input::query::{FromQuery, QueryItems};
     use input::with_get_cx;
 
     use super::ReceiveAllFuture;
@@ -340,7 +340,7 @@ mod parse {
     #[derive(Debug)]
     pub struct UrlEncoded<T>(pub T);
 
-    impl<T: FromQuery> FromBody for UrlEncoded<T> {
+    impl<T: DeserializeOwned> FromBody for UrlEncoded<T> {
         fn validate(content_type: Option<&Mime>) -> Result<(), Error> {
             let m = content_type.ok_or_else(|| bad_request("missing content type"))?;
             if *m != mime::APPLICATION_WWW_FORM_URLENCODED {
@@ -353,10 +353,9 @@ mod parse {
 
         fn parse(body: Bytes) -> Result<Self, Error> {
             let s = str::from_utf8(&*body).map_err(bad_request)?;
-            let items = unsafe { QueryItems::new_unchecked(s) };
-            FromQuery::from_query(items)
+            serde_qs::from_str(s)
                 .map(UrlEncoded)
-                .map_err(bad_request)
+                .map_err(|err| bad_request(SyncFailure::new(err)))
         }
     }
 }

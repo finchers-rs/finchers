@@ -1,7 +1,6 @@
 use finchers::endpoint::Endpoint;
 use finchers::endpoint::EndpointError;
 use finchers::endpoints::query;
-use finchers::input::query::Serde;
 use finchers::local;
 
 #[test]
@@ -25,7 +24,7 @@ fn test_query_parse() {
         count: Option<u32>,
     }
 
-    let endpoint = query::required::<Serde<Query>>();
+    let endpoint = query::required::<Query>();
 
     assert_matches!(
         local::get("/?count=20&param=rustlang")
@@ -48,7 +47,7 @@ fn test_query_optional() {
         count: Option<u32>,
     }
 
-    let endpoint = query::optional::<Serde<Query>>();
+    let endpoint = query::optional::<Query>();
 
     assert_matches!(
         local::get("/?count=20&param=rustlang")
