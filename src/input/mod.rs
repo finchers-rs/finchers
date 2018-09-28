@@ -1,7 +1,5 @@
 //! Components for parsing the incoming HTTP request.
 
-pub mod query;
-
 mod body;
 mod encoded;
 mod global;

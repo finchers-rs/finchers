@@ -69,7 +69,6 @@ extern crate mime;
 extern crate mime_guess;
 #[macro_use]
 extern crate percent_encoding;
-#[cfg_attr(test, macro_use)]
 extern crate serde;
 extern crate serde_json;
 extern crate serde_qs;

@@ -1,12 +1,14 @@
 //! Endpoints for parsing query strings.
 
+use failure::SyncFailure;
+use serde::de::DeserializeOwned;
+use serde_qs;
 use std::fmt;
 use std::marker::PhantomData;
 
 use endpoint::{Context, Endpoint, EndpointError, EndpointResult};
 use error;
 use error::{bad_request, Error};
-use input::query::{FromQuery, QueryItems};
 use input::with_get_cx;
 
 // ==== Required ====
@@ -23,19 +25,16 @@ use input::with_get_cx;
 /// # extern crate serde;
 /// # use finchers::endpoints::query;
 /// # use finchers::prelude::*;
-/// # use finchers::input::query::{from_csv, Serde};
 /// #
 /// #[derive(Debug, Deserialize)]
 /// pub struct Param {
 ///     query: String,
 ///     count: Option<u32>,
-///     #[serde(deserialize_with = "from_csv", default)]
-///     tags: Vec<String>,
 /// }
 ///
 /// # fn main() {
 /// let endpoint = query::required()
-///     .map(|param: Serde<Param>| {
+///     .map(|param: Param| {
 ///         format!("Received: {:?}", param)
 ///     });
 /// # drop(endpoint);
@@ -44,7 +43,7 @@ use input::with_get_cx;
 #[inline]
 pub fn required<T>() -> Required<T>
 where
-    T: FromQuery,
+    T: DeserializeOwned + 'static,
 {
     (Required {
         _marker: PhantomData,
@@ -73,7 +72,7 @@ impl<T> fmt::Debug for Required<T> {
 
 impl<'a, T> Endpoint<'a> for Required<T>
 where
-    T: FromQuery,
+    T: DeserializeOwned + 'static,
 {
     type Output = (T,);
     type Future = RequiredFuture<T>;
@@ -97,7 +96,7 @@ pub struct RequiredFuture<T> {
 
 impl<T> ::futures::Future for RequiredFuture<T>
 where
-    T: FromQuery,
+    T: DeserializeOwned + 'static,
 {
     type Item = (T,);
     type Error = Error;
@@ -109,8 +108,7 @@ where
                 .uri()
                 .query()
                 .expect("The query string should be available inside of this future.");
-            let items = unsafe { QueryItems::new_unchecked(query) };
-            T::from_query(items)
+            serde_qs::from_str(query).map_err(SyncFailure::new)
         }).map(|x| (x,).into())
         .map_err(bad_request)
     }
@@ -130,19 +128,16 @@ where
 /// # extern crate serde;
 /// # use finchers::endpoints::query;
 /// # use finchers::prelude::*;
-/// # use finchers::input::query::{from_csv, Serde};
 /// #
 /// #[derive(Debug, Deserialize)]
 /// pub struct Param {
 ///     query: String,
 ///     count: Option<u32>,
-///     #[serde(deserialize_with = "from_csv", default)]
-///     tags: Vec<String>,
 /// }
 ///
 /// # fn main() {
 /// let endpoint = query::optional()
-///     .map(|param: Option<Serde<Param>>| {
+///     .map(|param: Option<Param>| {
 ///         format!("Received: {:?}", param)
 ///     });
 /// # drop(endpoint);
@@ -151,7 +146,7 @@ where
 #[inline]
 pub fn optional<T>() -> Optional<T>
 where
-    T: FromQuery,
+    T: DeserializeOwned + 'static,
 {
     (Optional {
         _marker: PhantomData,
@@ -180,7 +175,7 @@ impl<T> fmt::Debug for Optional<T> {
 
 impl<'a, T> Endpoint<'a> for Optional<T>
 where
-    T: FromQuery,
+    T: DeserializeOwned + 'static,
 {
     type Output = (Option<T>,);
     type Future = OptionalFuture<T>;
@@ -200,19 +195,16 @@ pub struct OptionalFuture<T> {
 
 impl<T> ::futures::Future for OptionalFuture<T>
 where
-    T: FromQuery,
+    T: DeserializeOwned + 'static,
 {
     type Item = (Option<T>,);
     type Error = Error;
 
     fn poll(&mut self) -> ::futures::Poll<Self::Item, Self::Error> {
         with_get_cx(|input| match input.request().uri().query() {
-            Some(query) => {
-                let items = unsafe { QueryItems::new_unchecked(query) };
-                T::from_query(items)
-                    .map(|x| (Some(x),).into())
-                    .map_err(bad_request)
-            }
+            Some(query) => serde_qs::from_str(query)
+                .map(|x| (Some(x),).into())
+                .map_err(|err| bad_request(SyncFailure::new(err))),
             None => Ok((None,).into()),
         })
     }
