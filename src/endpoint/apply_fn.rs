@@ -1,13 +1,13 @@
 use futures::future::IntoFuture;
 
 use common::Tuple;
-use endpoint::{Context, Endpoint, EndpointResult};
+use endpoint::{ApplyContext, ApplyResult, Endpoint};
 use error::Error;
 
 /// Create an endpoint from a function.
 pub fn apply_fn<F, R>(f: F) -> ApplyFn<F>
 where
-    F: Fn(&mut Context<'_>) -> EndpointResult<R>,
+    F: Fn(&mut ApplyContext<'_>) -> ApplyResult<R>,
     R: IntoFuture<Error = Error>,
     R::Item: Tuple,
 {
@@ -22,7 +22,7 @@ pub struct ApplyFn<F> {
 
 impl<'a, F, R> Endpoint<'a> for ApplyFn<F>
 where
-    F: Fn(&mut Context<'_>) -> EndpointResult<R> + 'a,
+    F: Fn(&mut ApplyContext<'_>) -> ApplyResult<R> + 'a,
     R: IntoFuture<Error = Error> + 'a,
     R::Item: Tuple,
 {
@@ -30,7 +30,7 @@ where
     type Future = R::Future;
 
     #[inline]
-    fn apply(&'a self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'a self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         (self.f)(ecx).map(IntoFuture::into_future)
     }
 }

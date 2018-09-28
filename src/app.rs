@@ -7,10 +7,10 @@ use either::Either;
 use http::header::HeaderValue;
 use http::{header, Request, Response};
 
-use endpoint::{Context, Endpoint};
+use endpoint::{with_set_cx, ApplyContext, Cursor, Endpoint, TaskContext};
 use error::Error;
+use input::Input;
 use input::ReqBody;
-use input::{with_set_cx, Input};
 use output::body::ResBody;
 use output::{Output, OutputContext};
 
@@ -47,7 +47,7 @@ pub(crate) struct AppFuture<'e, E: Endpoint<'e>> {
 #[derive(Debug)]
 enum State<T> {
     Uninitialized,
-    InFlight(T),
+    InFlight(T, Cursor),
     Gone,
 }
 
@@ -59,17 +59,21 @@ where
         loop {
             match self.state {
                 State::Uninitialized => {
-                    let mut ecx = Context::new(&mut self.input);
-                    match self.endpoint.apply(&mut ecx) {
-                        Ok(future) => self.state = State::InFlight(future),
+                    let mut cursor = Cursor::default();
+                    match {
+                        let mut ecx = ApplyContext::new(&mut self.input, &mut cursor);
+                        self.endpoint.apply(&mut ecx)
+                    } {
+                        Ok(future) => self.state = State::InFlight(future, cursor),
                         Err(err) => {
                             self.state = State::Gone;
                             return Err(err.into());
                         }
                     }
                 }
-                State::InFlight(ref mut f) => {
-                    break with_set_cx(&mut self.input, || f.poll());
+                State::InFlight(ref mut f, ref mut cursor) => {
+                    let mut tcx = TaskContext::new(&mut self.input, cursor);
+                    break with_set_cx(&mut tcx, || f.poll());
                 }
                 State::Gone => panic!("cannot poll AppServiceFuture twice"),
             }

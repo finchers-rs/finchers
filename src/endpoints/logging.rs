@@ -5,10 +5,10 @@ use http::StatusCode;
 use std::time::Instant;
 
 use endpoint::wrapper::Wrapper;
-use endpoint::{Context, Endpoint, EndpointResult};
+use endpoint::{with_get_cx, ApplyContext, ApplyResult, Endpoint};
 use error::Error;
 use error::Never;
-use input::{with_get_cx, Input};
+use input::Input;
 use output::body::ResBody;
 use output::{Output, OutputContext};
 
@@ -74,7 +74,7 @@ where
     type Output = (LoggedResponse<<E::Output as Output>::Body>,);
     type Future = WithLoggingFuture<'a, E::Future, F>;
 
-    fn apply(&'a self, cx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'a self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         let start = Instant::now();
         let future = self.endpoint.apply(cx)?;
         Ok(WithLoggingFuture {

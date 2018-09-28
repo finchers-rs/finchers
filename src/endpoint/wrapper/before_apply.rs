@@ -1,11 +1,11 @@
 use super::Wrapper;
-use endpoint::{Context, Endpoint, EndpointResult};
+use endpoint::{ApplyContext, ApplyResult, Endpoint};
 
 /// Creates a wrapper for creating an endpoint which runs the provided function
 /// before calling `Endpoint::apply()`.
 pub fn before_apply<F>(f: F) -> BeforeApply<F>
 where
-    F: Fn(&mut Context<'_>) -> EndpointResult<()>,
+    F: Fn(&mut ApplyContext<'_>) -> ApplyResult<()>,
 {
     BeforeApply { f }
 }
@@ -19,7 +19,7 @@ pub struct BeforeApply<F> {
 impl<'a, E, F> Wrapper<'a, E> for BeforeApply<F>
 where
     E: Endpoint<'a>,
-    F: Fn(&mut Context<'_>) -> EndpointResult<()> + 'a,
+    F: Fn(&mut ApplyContext<'_>) -> ApplyResult<()> + 'a,
 {
     type Output = E::Output;
     type Endpoint = BeforeApplyEndpoint<E, F>;
@@ -42,13 +42,13 @@ pub struct BeforeApplyEndpoint<E, F> {
 impl<'a, E, F> Endpoint<'a> for BeforeApplyEndpoint<E, F>
 where
     E: Endpoint<'a>,
-    F: Fn(&mut Context<'_>) -> EndpointResult<()> + 'a,
+    F: Fn(&mut ApplyContext<'_>) -> ApplyResult<()> + 'a,
 {
     type Output = E::Output;
     type Future = E::Future;
 
     #[inline]
-    fn apply(&'a self, cx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'a self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         (self.f)(cx)?;
         self.endpoint.apply(cx)
     }

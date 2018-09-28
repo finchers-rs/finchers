@@ -11,10 +11,9 @@ use http::StatusCode;
 use hyper::body::{Body, Payload};
 use serde::de::DeserializeOwned;
 
-use endpoint::{Context, Endpoint, EndpointResult};
+use endpoint::{with_get_cx, ApplyContext, ApplyResult, Endpoint};
 use error;
 use error::{err_msg, Error};
-use input::with_get_cx;
 
 /// Creates an endpoint which takes the instance of [`Payload`](input::body::Payload)
 /// from the context.
@@ -42,7 +41,7 @@ impl<'e> Endpoint<'e> for Raw {
     type Output = (Body,);
     type Future = RawFuture;
 
-    fn apply(&self, _: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&self, _: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         Ok(RawFuture { _priv: () })
     }
 }
@@ -83,7 +82,7 @@ impl<'a> Endpoint<'a> for ReceiveAll {
     type Output = (Bytes,);
     type Future = ReceiveAllFuture;
 
-    fn apply(&'a self, _: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'a self, _: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         Ok(ReceiveAllFuture::new())
     }
 }
@@ -168,7 +167,7 @@ impl<'a> Endpoint<'a> for Text {
     type Output = (String,);
     type Future = parse::ParseFuture<String>;
 
-    fn apply(&'a self, _: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'a self, _: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         Ok(parse::ParseFuture::new())
     }
 }
@@ -201,7 +200,7 @@ where
     type Future =
         ::futures::future::Map<parse::ParseFuture<parse::Json<T>>, fn((parse::Json<T>,)) -> (T,)>;
 
-    fn apply(&self, _: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&self, _: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         Ok(parse::ParseFuture::new().map((|(parse::Json(v),)| (v,)) as fn(_) -> _))
     }
 }
@@ -236,7 +235,7 @@ where
         fn((parse::UrlEncoded<T>,)) -> (T,),
     >;
 
-    fn apply(&self, _: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&self, _: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         Ok(parse::ParseFuture::new().map((|(parse::UrlEncoded(v),)| (v,)) as fn(_) -> _))
     }
 }
@@ -256,8 +255,8 @@ mod parse {
 
     use futures::{Future, Poll};
 
+    use endpoint::with_get_cx;
     use error::{bad_request, Error};
-    use input::with_get_cx;
 
     use super::ReceiveAllFuture;
 

@@ -1,4 +1,4 @@
-//! Definition of `EndpointError` and supplemental components.
+//! Definition of `ApplyError` and supplemental components.
 
 use failure::Fail;
 use http::StatusCode;
@@ -7,47 +7,58 @@ use std::fmt;
 use endpoint::syntax::verb::Verbs;
 use error::{Error, HttpError};
 
-/// A type alias of `Result<T, E>` with the error type fixed at `EndpointError`.
-pub type EndpointResult<T> = Result<T, EndpointError>;
+#[doc(hidden)]
+#[deprecated(
+    since = "0.12.0-alpha.9",
+    note = "renamed to `ApplyResult<T>`."
+)]
+pub type EndpointResult<T> = Result<T, ApplyError>;
+
+#[doc(hidden)]
+#[deprecated(since = "0.12.0-alpha.9", note = "renamed to `ApplyError`.")]
+pub type EndpointError = ApplyError;
+
+/// A type alias of `Result<T, E>` with the error type fixed at `ApplyError`.
+pub type ApplyResult<T> = Result<T, ApplyError>;
 
 /// A type representing error values returned from `Endpoint::apply()`.
 ///
 /// This error type represents the errors around routing determined
 /// before executing the `Future` returned from the endpoint.
 #[derive(Debug)]
-pub struct EndpointError(EndpointErrorKind);
+pub struct ApplyError(ApplyErrorKind);
 
 #[derive(Debug)]
-enum EndpointErrorKind {
+enum ApplyErrorKind {
     NotMatched,
     MethodNotAllowed(Verbs),
     Custom(Error),
 }
 
-impl EndpointError {
-    /// Create a value of `EndpointError` with an annotation that
+impl ApplyError {
+    /// Create a value of `ApplyError` with an annotation that
     /// the current endpoint does not match to the provided request.
-    pub fn not_matched() -> EndpointError {
-        EndpointError(EndpointErrorKind::NotMatched)
+    pub fn not_matched() -> ApplyError {
+        ApplyError(ApplyErrorKind::NotMatched)
     }
 
-    /// Create a value of `EndpointError` with an annotation that
+    /// Create a value of `ApplyError` with an annotation that
     /// the current endpoint does not matche to the provided HTTP method.
-    pub fn method_not_allowed(allowed: Verbs) -> EndpointError {
-        EndpointError(EndpointErrorKind::MethodNotAllowed(allowed))
+    pub fn method_not_allowed(allowed: Verbs) -> ApplyError {
+        ApplyError(ApplyErrorKind::MethodNotAllowed(allowed))
     }
 
-    /// Create a value of `EndpointError` from the custom error value.
+    /// Create a value of `ApplyError` from the custom error value.
     ///
     /// The generated error has the HTTP status code `400 Bad Request`.
-    pub fn custom(err: impl Into<Error>) -> EndpointError {
-        EndpointError(EndpointErrorKind::Custom(err.into()))
+    pub fn custom(err: impl Into<Error>) -> ApplyError {
+        ApplyError(ApplyErrorKind::Custom(err.into()))
     }
 
     #[doc(hidden)]
-    pub fn merge(self, other: EndpointError) -> EndpointError {
-        use self::EndpointErrorKind::*;
-        EndpointError(match (self.0, other.0) {
+    pub fn merge(self, other: ApplyError) -> ApplyError {
+        use self::ApplyErrorKind::*;
+        ApplyError(match (self.0, other.0) {
             (Custom(reason), _) => Custom(reason),
             (_, Custom(reason)) => Custom(reason),
 
@@ -62,9 +73,9 @@ impl EndpointError {
     }
 }
 
-impl fmt::Display for EndpointError {
+impl fmt::Display for ApplyError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use self::EndpointErrorKind::*;
+        use self::ApplyErrorKind::*;
         match self.0 {
             NotMatched => formatter.write_str("not matched"),
             MethodNotAllowed(..) if !formatter.alternate() => {
@@ -85,9 +96,9 @@ impl fmt::Display for EndpointError {
     }
 }
 
-impl HttpError for EndpointError {
+impl HttpError for ApplyError {
     fn status_code(&self) -> StatusCode {
-        use self::EndpointErrorKind::*;
+        use self::ApplyErrorKind::*;
         match self.0 {
             NotMatched => StatusCode::NOT_FOUND,
             MethodNotAllowed(..) => StatusCode::METHOD_NOT_ALLOWED,
@@ -97,7 +108,7 @@ impl HttpError for EndpointError {
 
     fn cause(&self) -> Option<&dyn Fail> {
         match self.0 {
-            EndpointErrorKind::Custom(ref err) => err.cause(),
+            ApplyErrorKind::Custom(ref err) => err.cause(),
             _ => None,
         }
     }
@@ -110,29 +121,29 @@ mod tests {
 
     #[test]
     fn test_merge_1() {
-        let err1 = EndpointError::not_matched();
-        let err2 = EndpointError::not_matched();
+        let err1 = ApplyError::not_matched();
+        let err2 = ApplyError::not_matched();
         let err = err1.merge(err2);
-        assert_matches!(err.0, EndpointErrorKind::NotMatched);
+        assert_matches!(err.0, ApplyErrorKind::NotMatched);
     }
 
     #[test]
     fn test_merge_2() {
-        let err1 = EndpointError::not_matched();
-        let err2 = EndpointError::method_not_allowed(Verbs::GET);
+        let err1 = ApplyError::not_matched();
+        let err2 = ApplyError::method_not_allowed(Verbs::GET);
         assert_matches!(
             err1.merge(err2).0,
-            EndpointErrorKind::MethodNotAllowed(allowed) if allowed.contains(&Method::GET)
+            ApplyErrorKind::MethodNotAllowed(allowed) if allowed.contains(&Method::GET)
         );
     }
 
     #[test]
     fn test_merge_3() {
-        let err1 = EndpointError::method_not_allowed(Verbs::GET);
-        let err2 = EndpointError::method_not_allowed(Verbs::POST);
+        let err1 = ApplyError::method_not_allowed(Verbs::GET);
+        let err2 = ApplyError::method_not_allowed(Verbs::POST);
         assert_matches!(
             err1.merge(err2).0,
-            EndpointErrorKind::MethodNotAllowed(allowed) if allowed.contains(&Method::GET) && allowed.contains(&Method::POST)
+            ApplyErrorKind::MethodNotAllowed(allowed) if allowed.contains(&Method::GET) && allowed.contains(&Method::POST)
         );
     }
 }

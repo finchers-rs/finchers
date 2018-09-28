@@ -7,7 +7,7 @@ use cookie::Cookie;
 #[cfg(feature = "secure")]
 use cookie::Key;
 
-use endpoint::{Context, Endpoint, EndpointResult};
+use endpoint::{ApplyContext, ApplyResult, Endpoint};
 use error::{bad_request, Error};
 use input::Input;
 
@@ -104,7 +104,7 @@ impl<'a> Endpoint<'a> for Required {
     type Output = (Cookie<'static>,);
     type Future = ::futures::future::FutureResult<Self::Output, Error>;
 
-    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         let cookie = self
             .mode
             .extract_cookie(ecx.input(), &self.name)
@@ -179,7 +179,7 @@ impl<'a> Endpoint<'a> for Optional {
     type Output = (Option<Cookie<'static>>,);
     type Future = ::futures::future::FutureResult<Self::Output, Error>;
 
-    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         Ok(::futures::future::result(
             self.mode
                 .extract_cookie(ecx.input(), &self.name)

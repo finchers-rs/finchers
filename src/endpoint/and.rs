@@ -6,7 +6,7 @@ use futures::future;
 use futures::{Future, Poll};
 
 use common::{Combine, Tuple};
-use endpoint::{Context, Endpoint, EndpointResult, IntoEndpoint};
+use endpoint::{ApplyContext, ApplyResult, Endpoint, IntoEndpoint};
 use error::Error;
 
 #[allow(missing_docs)]
@@ -25,7 +25,7 @@ where
     type Output = <E1::Output as Combine<E2::Output>>::Out;
     type Future = AndFuture<E1::Future, E2::Future>;
 
-    fn apply(&'a self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'a self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         let f1 = self.e1.apply(ecx)?;
         let f2 = self.e2.apply(ecx)?;
         Ok(AndFuture { inner: f1.join(f2) })

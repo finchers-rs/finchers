@@ -3,7 +3,7 @@
 use futures::{Future, Poll};
 use std::path::PathBuf;
 
-use endpoint::{Context, Endpoint, EndpointResult};
+use endpoint::{ApplyContext, ApplyResult, Endpoint};
 use error::{bad_request, Error};
 use output::fs::OpenNamedFile;
 use output::NamedFile;
@@ -24,7 +24,7 @@ impl<'a> Endpoint<'a> for File {
     type Output = (NamedFile,);
     type Future = FileFuture;
 
-    fn apply(&self, _: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&self, _: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         Ok(FileFuture {
             state: State::Opening(NamedFile::open(self.path.clone())),
         })
@@ -47,7 +47,7 @@ impl<'a> Endpoint<'a> for Dir {
     type Output = (NamedFile,);
     type Future = FileFuture;
 
-    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         let path = {
             match ecx.remaining_path().percent_decode() {
                 Ok(path) => Ok(PathBuf::from(path.into_owned())),

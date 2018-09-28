@@ -1,5 +1,5 @@
 use finchers::endpoint::syntax;
-use finchers::endpoint::EndpointError;
+use finchers::endpoint::ApplyError;
 use finchers::local;
 use finchers::prelude::*;
 use futures::future;
@@ -17,7 +17,7 @@ fn test_recover() {
     let recovered = endpoint
         .wrap(endpoint::wrapper::or_reject())
         .wrap(endpoint::wrapper::recover(|err| {
-            if err.is::<EndpointError>() {
+            if err.is::<ApplyError>() {
                 future::ok(
                     Response::builder()
                         .status(err.status_code())

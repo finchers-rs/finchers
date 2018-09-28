@@ -3,7 +3,7 @@
 use http::Method;
 
 use endpoint::syntax::verb::Verbs;
-use endpoint::{Context, Endpoint, EndpointError, EndpointResult, IntoEndpoint};
+use endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint, IntoEndpoint};
 
 #[allow(missing_docs)]
 #[derive(Debug, Clone)]
@@ -17,11 +17,11 @@ impl<'a, E: Endpoint<'a>> Endpoint<'a> for MatchMethod<E> {
     type Output = E::Output;
     type Future = E::Future;
 
-    fn apply(&'a self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'a self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         if *ecx.input().method() == self.method {
             self.endpoint.apply(ecx)
         } else {
-            Err(EndpointError::method_not_allowed(self.allowed))
+            Err(ApplyError::method_not_allowed(self.allowed))
         }
     }
 }
@@ -65,11 +65,11 @@ macro_rules! define_method {
             type Output = E::Output;
             type Future = E::Future;
 
-            fn apply(&'e self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+            fn apply(&'e self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
                 if *ecx.input().method() == Method::$method {
                     self.endpoint.apply(ecx)
                 } else {
-                    Err(EndpointError::method_not_allowed(Verbs::$method))
+                    Err(ApplyError::method_not_allowed(Verbs::$method))
                 }
             }
         }

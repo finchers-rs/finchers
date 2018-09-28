@@ -2,7 +2,7 @@ use futures::Future;
 use std::fmt;
 
 use common::Tuple;
-use endpoint::{Context, Endpoint, EndpointResult, IsSendEndpoint};
+use endpoint::{ApplyContext, ApplyResult, Endpoint, IsSendEndpoint};
 use error::Error;
 
 trait FutureObjEndpoint<'a>: 'a {
@@ -10,8 +10,8 @@ trait FutureObjEndpoint<'a>: 'a {
 
     fn apply_obj(
         &'a self,
-        ecx: &mut Context<'_>,
-    ) -> EndpointResult<Box<dyn Future<Item = Self::Output, Error = Error> + Send + 'a>>;
+        ecx: &mut ApplyContext<'_>,
+    ) -> ApplyResult<Box<dyn Future<Item = Self::Output, Error = Error> + Send + 'a>>;
 }
 
 impl<'e, E: IsSendEndpoint<'e>> FutureObjEndpoint<'e> for E {
@@ -20,8 +20,8 @@ impl<'e, E: IsSendEndpoint<'e>> FutureObjEndpoint<'e> for E {
     #[inline(always)]
     fn apply_obj(
         &'e self,
-        ecx: &mut Context<'_>,
-    ) -> EndpointResult<Box<dyn Future<Item = Self::Output, Error = Error> + Send + 'e>> {
+        ecx: &mut ApplyContext<'_>,
+    ) -> ApplyResult<Box<dyn Future<Item = Self::Output, Error = Error> + Send + 'e>> {
         let future = self.apply(ecx)?;
         Ok(Box::new(future))
     }
@@ -55,7 +55,7 @@ impl<'e, T: Tuple + 'static> Endpoint<'e> for EndpointObj<T> {
     type Future = Box<dyn Future<Item = Self::Output, Error = Error> + Send + 'e>;
 
     #[inline(always)]
-    fn apply(&'e self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'e self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         self.inner.apply_obj(ecx)
     }
 }
@@ -67,8 +67,8 @@ trait LocalFutureObjEndpoint<'a>: 'a {
 
     fn apply_local_obj(
         &'a self,
-        ecx: &mut Context<'_>,
-    ) -> EndpointResult<Box<dyn Future<Item = Self::Output, Error = Error> + 'a>>;
+        ecx: &mut ApplyContext<'_>,
+    ) -> ApplyResult<Box<dyn Future<Item = Self::Output, Error = Error> + 'a>>;
 }
 
 impl<'e, E: Endpoint<'e>> LocalFutureObjEndpoint<'e> for E {
@@ -77,8 +77,8 @@ impl<'e, E: Endpoint<'e>> LocalFutureObjEndpoint<'e> for E {
     #[inline(always)]
     fn apply_local_obj(
         &'e self,
-        ecx: &mut Context<'_>,
-    ) -> EndpointResult<Box<dyn Future<Item = Self::Output, Error = Error> + 'e>> {
+        ecx: &mut ApplyContext<'_>,
+    ) -> ApplyResult<Box<dyn Future<Item = Self::Output, Error = Error> + 'e>> {
         let future = self.apply(ecx)?;
         Ok(Box::new(future))
     }
@@ -112,7 +112,7 @@ impl<'e, T: Tuple + 'static> Endpoint<'e> for LocalEndpointObj<T> {
     type Future = Box<dyn Future<Item = Self::Output, Error = Error> + 'e>;
 
     #[inline(always)]
-    fn apply(&'e self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'e self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         self.inner.apply_local_obj(ecx)
     }
 }

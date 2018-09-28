@@ -1,4 +1,4 @@
-use endpoint::{Context, Endpoint, EndpointResult};
+use endpoint::{ApplyContext, ApplyResult, Endpoint};
 use error::Error;
 
 /// Create an endpoint which simply clones the specified value.
@@ -48,7 +48,7 @@ impl<'a, T: Clone + 'a> Endpoint<'a> for Value<T> {
     type Output = (T,);
     type Future = ValueFuture<'a, T>;
 
-    fn apply(&'a self, _: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'a self, _: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         Ok(ValueFuture { x: &self.x })
     }
 }
