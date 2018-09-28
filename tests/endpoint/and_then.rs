@@ -6,7 +6,7 @@ use futures::future;
 
 #[test]
 fn test_and_then_1() {
-    let endpoint = endpoint::value("Foo").and_then(|_| future::ok("Bar"));
+    let endpoint = endpoint::cloned("Foo").and_then(|_| future::ok("Bar"));
 
     assert_matches!(
         local::get("/")
@@ -17,7 +17,7 @@ fn test_and_then_1() {
 
 #[test]
 fn test_and_then_2() {
-    let endpoint = endpoint::value("Foo").and_then(|_| future::err::<(), _>(bad_request("Bar")));
+    let endpoint = endpoint::cloned("Foo").and_then(|_| future::err::<(), _>(bad_request("Bar")));
 
     assert_matches!(
         local::get("/")

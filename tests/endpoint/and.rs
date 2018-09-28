@@ -1,18 +1,18 @@
-use finchers::endpoint::{unit, value, IntoEndpointExt};
+use finchers::endpoint::{cloned, unit, IntoEndpointExt};
 use finchers::local;
 
 #[test]
 fn test_and_all_ok() {
-    let endpoint = value("Hello").and(value("world"));
+    let endpoint = cloned("Hello").and(cloned("world"));
 
     assert_matches!(local::get("/").apply(&endpoint), Ok(("Hello", "world")));
 }
 
 #[test]
 fn test_and_flatten() {
-    let endpoint = value("Hello")
+    let endpoint = cloned("Hello")
         .and(unit())
-        .and(value("world").and(value(":)")));
+        .and(cloned("world").and(cloned(":)")));
 
     assert_matches!(
         local::get("/").apply(&endpoint),

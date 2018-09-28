@@ -3,7 +3,7 @@ use finchers::prelude::*;
 
 #[test]
 fn test_map() {
-    let endpoint = endpoint::value("Foo").map(|_| "Bar");
+    let endpoint = endpoint::cloned("Foo").map(|_| "Bar");
 
     assert_matches!(
         local::get("/")
