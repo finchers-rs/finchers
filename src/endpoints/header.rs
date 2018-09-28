@@ -5,10 +5,10 @@ use http::HttpTryFrom;
 use std::fmt;
 use std::marker::PhantomData;
 
-use endpoint::{Context, Endpoint, EndpointError, EndpointResult};
+use endpoint::with_get_cx;
+use endpoint::{ApplyContext, Endpoint, EndpointError, EndpointResult};
 use error;
 use error::Error;
-use input::with_get_cx;
 use input::FromHeaderValue;
 
 // ==== Parse ====
@@ -67,7 +67,7 @@ where
     type Output = (T,);
     type Future = ParseFuture<'e, T>;
 
-    fn apply(&'e self, cx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'e self, cx: &mut ApplyContext<'_>) -> EndpointResult<Self::Future> {
         if cx.input().headers().contains_key(&self.name) {
             Ok(ParseFuture { endpoint: self })
         } else {
@@ -152,7 +152,7 @@ where
     type Output = (Option<T>,);
     type Future = OptionalFuture<'e, T>;
 
-    fn apply(&'e self, _: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'e self, _: &mut ApplyContext<'_>) -> EndpointResult<Self::Future> {
         Ok(OptionalFuture { endpoint: self })
     }
 }
@@ -234,7 +234,7 @@ where
     type Output = ();
     type Future = ::futures::future::FutureResult<Self::Output, Error>;
 
-    fn apply(&'e self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'e self, ecx: &mut ApplyContext<'_>) -> EndpointResult<Self::Future> {
         match ecx.input().headers().get(&self.name) {
             Some(value) if self.value == *value => Ok(::futures::future::result(Ok(()))),
             _ => Err(EndpointError::not_matched()),
@@ -266,7 +266,7 @@ impl<'a> Endpoint<'a> for Raw {
     type Output = (Option<HeaderValue>,);
     type Future = ::futures::future::FutureResult<Self::Output, Error>;
 
-    fn apply(&'a self, cx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'a self, cx: &mut ApplyContext<'_>) -> EndpointResult<Self::Future> {
         let header = cx.input().headers().get(&self.name).cloned();
         Ok(::futures::future::result(Ok((header,))))
     }

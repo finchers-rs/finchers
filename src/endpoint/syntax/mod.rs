@@ -9,7 +9,7 @@ use std::marker::PhantomData;
 
 use percent_encoding::{percent_encode, DEFAULT_ENCODE_SET};
 
-use endpoint::{Context, Endpoint, EndpointError, EndpointResult, IntoEndpoint};
+use endpoint::{ApplyContext, Endpoint, EndpointError, EndpointResult, IntoEndpoint};
 use error;
 use error::Error;
 use input::FromEncodedStr;
@@ -77,7 +77,7 @@ impl<'a> Endpoint<'a> for MatchSegment {
     type Output = ();
     type Future = Matched;
 
-    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_>) -> EndpointResult<Self::Future> {
         let s = ecx.next_segment().ok_or_else(EndpointError::not_matched)?;
         if s == self.encoded {
             Ok(Matched { _priv: () })
@@ -135,7 +135,7 @@ impl<'a> Endpoint<'a> for MatchEos {
     type Output = ();
     type Future = Matched;
 
-    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_>) -> EndpointResult<Self::Future> {
         match ecx.next_segment() {
             None => Ok(Matched { _priv: () }),
             Some(..) => Err(EndpointError::not_matched()),
@@ -186,7 +186,7 @@ where
     type Output = (T,);
     type Future = Extracted<T>;
 
-    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_>) -> EndpointResult<Self::Future> {
         let s = ecx.next_segment().ok_or_else(EndpointError::not_matched)?;
         let x =
             T::from_encoded_str(s).map_err(|err| EndpointError::custom(error::bad_request(err)))?;
@@ -236,7 +236,7 @@ where
     type Output = (T,);
     type Future = Extracted<T>;
 
-    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_>) -> EndpointResult<Self::Future> {
         let result = T::from_encoded_str(ecx.remaining_path())
             .map_err(|err| EndpointError::custom(error::bad_request(err)));
         while let Some(..) = ecx.next_segment() {}

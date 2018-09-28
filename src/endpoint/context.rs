@@ -1,43 +1,59 @@
+//! The definition of contextual information during applying endpoints.
+
+use std::cell::Cell;
 use std::marker::PhantomData;
+use std::ops::{Deref, DerefMut};
+use std::ptr::NonNull;
 use std::rc::Rc;
 
 use input::{EncodedStr, Input};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct Cursor {
-    pub(crate) pos: usize,
-    pub(crate) popped: usize,
+    pos: usize,
+    popped: usize,
 }
 
-impl Cursor {
-    fn clone(&self) -> Cursor {
-        Cursor { ..*self }
+impl Default for Cursor {
+    fn default() -> Self {
+        Cursor { pos: 1, popped: 0 }
     }
 }
 
-/// An iterator over the remaining path segments.
+impl Cursor {
+    pub(crate) fn popped(&self) -> usize {
+        self.popped
+    }
+}
+
+/// The contextual information during calling `Endpoint::apply()`.
+///
+/// This type behaves an iterator over the remaining path segments.
 #[derive(Debug)]
-pub struct Context<'a> {
+pub struct ApplyContext<'a> {
     input: &'a mut Input,
-    cursor: Cursor,
+    cursor: &'a mut Cursor,
     _marker: PhantomData<Rc<()>>,
 }
 
-impl<'a> Context<'a> {
-    #[doc(hidden)]
+impl<'a> ApplyContext<'a> {
     #[inline]
-    pub fn new(input: &'a mut Input) -> Context<'a> {
-        Context {
+    pub(crate) fn new(input: &'a mut Input, cursor: &'a mut Cursor) -> ApplyContext<'a> {
+        ApplyContext {
             input,
-            cursor: Cursor { pos: 1, popped: 0 },
+            cursor,
             _marker: PhantomData,
         }
     }
 
-    /// Returns the pinned reference to the value of `Input`.
+    /// Returns a mutable reference to the value of `Input`.
     #[inline]
     pub fn input(&mut self) -> &mut Input {
         &mut *self.input
+    }
+
+    pub(crate) fn cursor(&mut self) -> &mut Cursor {
+        &mut *self.cursor
     }
 
     /// Returns the remaining path in this segments
@@ -68,26 +84,103 @@ impl<'a> Context<'a> {
 
         Some(unsafe { EncodedStr::new_unchecked(s) })
     }
+}
 
-    pub(crate) fn clone_reborrowed<'b>(&'b mut self) -> Context<'b>
-    where
-        'a: 'b,
-    {
-        Context {
-            input: &mut *self.input,
-            cursor: self.cursor.clone(),
+impl<'a> Deref for ApplyContext<'a> {
+    type Target = Input;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &*self.input
+    }
+}
+
+impl<'a> DerefMut for ApplyContext<'a> {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.input()
+    }
+}
+
+/// The contexual information per request during polling the future returned from endpoints.
+///
+/// The value of this context can be indirectly access by calling `with_get_cx()`.
+#[derive(Debug)]
+pub struct TaskContext<'a> {
+    input: &'a mut Input,
+    cursor: &'a Cursor,
+    _marker: PhantomData<Rc<()>>,
+}
+
+impl<'a> TaskContext<'a> {
+    pub(crate) fn new(input: &'a mut Input, cursor: &'a Cursor) -> TaskContext<'a> {
+        TaskContext {
+            input,
+            cursor,
             _marker: PhantomData,
         }
     }
 
-    /// Returns the cursor position in the original path
-    #[inline]
-    pub(crate) fn current_cursor(&self) -> Cursor {
-        self.cursor.clone()
+    #[allow(missing_docs)]
+    pub fn input(&mut self) -> &mut Input {
+        &mut *self.input
     }
+}
 
-    pub(crate) fn reset_cursor(&mut self, cursor: Cursor) {
-        self.cursor = cursor;
+impl<'a> Deref for TaskContext<'a> {
+    type Target = Input;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &*self.input
+    }
+}
+
+impl<'a> DerefMut for TaskContext<'a> {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.input()
+    }
+}
+
+thread_local!(static CX: Cell<Option<NonNull<TaskContext<'static>>>> = Cell::new(None));
+
+struct SetOnDrop(Option<NonNull<TaskContext<'static>>>);
+
+impl Drop for SetOnDrop {
+    fn drop(&mut self) {
+        CX.with(|cx| cx.set(self.0));
+    }
+}
+
+pub(crate) fn with_set_cx<R>(current: &mut TaskContext<'_>, f: impl FnOnce() -> R) -> R {
+    CX.with(|cx| {
+        cx.set(Some(unsafe {
+            NonNull::new_unchecked(
+                current as *mut TaskContext<'_> as *mut () as *mut TaskContext<'static>,
+            )
+        }))
+    });
+    let _reset = SetOnDrop(None);
+    f()
+}
+
+/// Acquires a mutable reference to `TaskContext` from the current task context
+/// and executes the provided function using its value.
+///
+/// This function is usually used to access the value of `Input` within the `Future`
+/// returned by the `Endpoint`.
+///
+/// # Panics
+///
+/// A panic will occur if you call this function inside the provided closure `f`, since the
+/// reference to `TaskContext` on the task context is invalidated while executing `f`.
+pub fn with_get_cx<R>(f: impl FnOnce(&mut TaskContext<'_>) -> R) -> R {
+    let prev = CX.with(|cx| cx.replace(None));
+    let _reset = SetOnDrop(prev);
+    match prev {
+        Some(mut ptr) => unsafe { f(ptr.as_mut()) },
+        None => panic!("The reference to TaskContext is not set at the current context."),
     }
 }
 
@@ -103,7 +196,8 @@ mod tests {
             .body(ReqBody::from_hyp(Default::default()))
             .unwrap();
         let mut input = Input::new(request);
-        let mut ecx = Context::new(&mut input);
+        let mut cursor = Cursor::default();
+        let mut ecx = ApplyContext::new(&mut input, &mut cursor);
 
         assert_eq!(ecx.remaining_path(), "foo/bar.txt");
         assert_eq!(ecx.next_segment().map(|s| s.as_bytes()), Some(&b"foo"[..]));
@@ -124,7 +218,8 @@ mod tests {
             .body(ReqBody::from_hyp(Default::default()))
             .unwrap();
         let mut input = Input::new(request);
-        let mut ecx = Context::new(&mut input);
+        let mut cursor = Cursor::default();
+        let mut ecx = ApplyContext::new(&mut input, &mut cursor);
 
         assert_eq!(ecx.remaining_path(), "");
         assert!(ecx.next_segment().is_none());

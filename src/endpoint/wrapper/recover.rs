@@ -2,7 +2,7 @@ use either::Either;
 use futures::{Async, Future, Poll};
 use http::Response;
 
-use endpoint::{Context, Endpoint, EndpointResult};
+use endpoint::{ApplyContext, Endpoint, EndpointResult};
 use error::Error;
 use output::{Output, OutputContext};
 
@@ -55,7 +55,7 @@ where
     type Output = (Recovered<E::Output, R::Item>,);
     type Future = RecoverFuture<E::Future, R, &'a F>;
 
-    fn apply(&'a self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'a self, ecx: &mut ApplyContext<'_>) -> EndpointResult<Self::Future> {
         let f1 = self.endpoint.apply(ecx)?;
         Ok(RecoverFuture {
             try_chain: TryChain::new(f1, &self.f),

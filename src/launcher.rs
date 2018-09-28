@@ -28,7 +28,7 @@ mod sealed {
     use futures::Future;
 
     use common::Tuple;
-    use endpoint::{Context, Endpoint, EndpointResult};
+    use endpoint::{ApplyContext, Endpoint, EndpointResult};
     use error::Error;
     use output::Output;
 
@@ -36,7 +36,7 @@ mod sealed {
         type Output: Tuple + Output;
         type Future: Future<Item = Self::Output, Error = Error> + Send + 'a;
 
-        fn apply(&'a self, cx: &mut Context<'_>) -> EndpointResult<Self::Future>;
+        fn apply(&'a self, cx: &mut ApplyContext<'_>) -> EndpointResult<Self::Future>;
 
         fn into_endpoint(self) -> IntoEndpoint<Self>
         where
@@ -55,7 +55,7 @@ mod sealed {
         type Output = E::Output;
         type Future = E::Future;
 
-        fn apply(&'a self, cx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+        fn apply(&'a self, cx: &mut ApplyContext<'_>) -> EndpointResult<Self::Future> {
             <Self as Endpoint<'a>>::apply(self, cx)
         }
     }
@@ -67,7 +67,7 @@ mod sealed {
         type Output = E::Output;
         type Future = E::Future;
 
-        fn apply(&'e self, cx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+        fn apply(&'e self, cx: &mut ApplyContext<'_>) -> EndpointResult<Self::Future> {
             self.0.apply(cx)
         }
     }

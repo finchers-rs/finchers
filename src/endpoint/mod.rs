@@ -1,7 +1,7 @@
 //! Components for constructing `Endpoint`.
 
 mod boxed;
-mod context;
+pub mod context;
 pub mod error;
 pub mod syntax;
 pub mod wrapper;
@@ -15,7 +15,8 @@ mod value;
 
 // re-exports
 pub use self::boxed::{EndpointObj, LocalEndpointObj};
-pub use self::context::Context;
+pub use self::context::{with_get_cx, ApplyContext, TaskContext};
+pub(crate) use self::context::{with_set_cx, Cursor};
 pub use self::error::{EndpointError, EndpointResult};
 pub use self::wrapper::{EndpointWrapExt, Wrapper};
 
@@ -26,6 +27,13 @@ pub use self::or_strict::OrStrict;
 pub use self::apply_fn::{apply_fn, ApplyFn};
 pub use self::unit::{unit, Unit};
 pub use self::value::{value, Value};
+
+#[doc(hidden)]
+#[deprecated(
+    since = "0.12.0-alpha.9",
+    note = "renamed to `ApplyContext`."
+)]
+pub type Context<'a> = ApplyContext<'a>;
 
 // ====
 
@@ -47,7 +55,7 @@ pub trait Endpoint<'a>: 'a {
 
     /// Perform checking the incoming HTTP request and returns
     /// an instance of the associated Future if matched.
-    fn apply(&'a self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future>;
+    fn apply(&'a self, ecx: &mut ApplyContext<'_>) -> EndpointResult<Self::Future>;
 
     /// Add an annotation that the associated type `Output` is fixed to `T`.
     #[inline(always)]
@@ -72,7 +80,7 @@ impl<'a, E: Endpoint<'a>> Endpoint<'a> for Box<E> {
     type Output = E::Output;
     type Future = E::Future;
 
-    fn apply(&'a self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'a self, ecx: &mut ApplyContext<'_>) -> EndpointResult<Self::Future> {
         (**self).apply(ecx)
     }
 }
@@ -81,7 +89,7 @@ impl<'a, E: Endpoint<'a>> Endpoint<'a> for Rc<E> {
     type Output = E::Output;
     type Future = E::Future;
 
-    fn apply(&'a self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'a self, ecx: &mut ApplyContext<'_>) -> EndpointResult<Self::Future> {
         (**self).apply(ecx)
     }
 }
@@ -90,7 +98,7 @@ impl<'a, E: Endpoint<'a>> Endpoint<'a> for Arc<E> {
     type Output = E::Output;
     type Future = E::Future;
 
-    fn apply(&'a self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'a self, ecx: &mut ApplyContext<'_>) -> EndpointResult<Self::Future> {
         (**self).apply(ecx)
     }
 }
@@ -103,7 +111,7 @@ pub trait IsSendEndpoint<'a>: 'a + sealed_is_send_endpoint::Sealed {
     #[doc(hidden)]
     type Future: Future<Item = Self::Output, Error = Error> + Send + 'a;
     #[doc(hidden)]
-    fn apply(&'a self, cx: &mut Context<'_>) -> EndpointResult<Self::Future>;
+    fn apply(&'a self, cx: &mut ApplyContext<'_>) -> EndpointResult<Self::Future>;
 }
 
 mod sealed_is_send_endpoint {
@@ -128,7 +136,7 @@ where
     type Future = E::Future;
 
     #[inline(always)]
-    fn apply(&'a self, cx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'a self, cx: &mut ApplyContext<'_>) -> EndpointResult<Self::Future> {
         self.apply(cx)
     }
 }
@@ -154,7 +162,7 @@ impl<'a, E: IsSendEndpoint<'a>> Endpoint<'a> for SendEndpoint<E> {
     type Future = E::Future;
 
     #[inline(always)]
-    fn apply(&'a self, cx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'a self, cx: &mut ApplyContext<'_>) -> EndpointResult<Self::Future> {
         self.endpoint.apply(cx)
     }
 }

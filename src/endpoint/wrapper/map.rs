@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use futures::{Future, Poll};
 
 use common::{Func, Tuple};
-use endpoint::{Context, Endpoint, EndpointResult};
+use endpoint::{ApplyContext, Endpoint, EndpointResult};
 use error::Error;
 
 use super::Wrapper;
@@ -59,7 +59,7 @@ where
     type Future = MapFuture<'a, E::Future, F>;
 
     #[inline]
-    fn apply(&'a self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'a self, ecx: &mut ApplyContext<'_>) -> EndpointResult<Self::Future> {
         Ok(MapFuture {
             future: self.endpoint.apply(ecx)?,
             f: Some(&self.f),

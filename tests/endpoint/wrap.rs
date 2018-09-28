@@ -1,5 +1,5 @@
 use finchers;
-use finchers::endpoint::{Context, Endpoint, EndpointResult, Wrapper};
+use finchers::endpoint::{ApplyContext, Endpoint, EndpointResult, Wrapper};
 use finchers::local;
 
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -31,7 +31,7 @@ impl<'a, E: Endpoint<'a>> Endpoint<'a> for Wrapped<E> {
     type Output = E::Output;
     type Future = E::Future;
 
-    fn apply(&'a self, cx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'a self, cx: &mut ApplyContext<'_>) -> EndpointResult<Self::Future> {
         self.counter.fetch_add(1, Ordering::SeqCst);
         self.endpoint.apply(cx)
     }

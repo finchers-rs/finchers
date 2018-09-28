@@ -1,4 +1,4 @@
-use endpoint::{Context, Endpoint, EndpointResult};
+use endpoint::{ApplyContext, Endpoint, EndpointResult};
 use error::Error;
 
 /// Create an endpoint which simply returns an unit (`()`).
@@ -18,7 +18,7 @@ impl<'a> Endpoint<'a> for Unit {
     type Future = UnitFuture;
 
     #[inline]
-    fn apply(&'a self, _: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&'a self, _: &mut ApplyContext<'_>) -> EndpointResult<Self::Future> {
         Ok(UnitFuture { _priv: () })
     }
 }

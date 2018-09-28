@@ -7,7 +7,7 @@ use failure::Fail;
 use http::StatusCode;
 use percent_encoding::{percent_encode, DEFAULT_ENCODE_SET};
 
-use endpoint::{Context, Endpoint, EndpointError, EndpointResult};
+use endpoint::{ApplyContext, Endpoint, EndpointError, EndpointResult};
 use error::{Error, HttpError};
 use input::FromEncodedStr;
 
@@ -37,7 +37,7 @@ impl<'a> Endpoint<'a> for MatchPath {
     type Output = ();
     type Future = ::futures::future::FutureResult<Self::Output, Error>;
 
-    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_>) -> EndpointResult<Self::Future> {
         let s = ecx.next_segment().ok_or_else(EndpointError::not_matched)?;
         if s == self.encoded {
             Ok(::futures::future::result(Ok(())))
@@ -65,7 +65,7 @@ impl<'a> Endpoint<'a> for EndPath {
     type Output = ();
     type Future = ::futures::future::FutureResult<Self::Output, Error>;
 
-    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_>) -> EndpointResult<Self::Future> {
         match ecx.next_segment() {
             None => Ok(::futures::future::result(Ok(()))),
             Some(..) => Err(EndpointError::not_matched()),
@@ -112,7 +112,7 @@ where
     type Output = (T,);
     type Future = ::futures::future::FutureResult<Self::Output, Error>;
 
-    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_>) -> EndpointResult<Self::Future> {
         let s = ecx.next_segment().ok_or_else(EndpointError::not_matched)?;
         let result = T::from_encoded_str(s)
             .map(|x| (x,))
@@ -178,7 +178,7 @@ where
     type Output = (T,);
     type Future = ::futures::future::FutureResult<Self::Output, Error>;
 
-    fn apply(&self, ecx: &mut Context<'_>) -> EndpointResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_>) -> EndpointResult<Self::Future> {
         let result = T::from_encoded_str(ecx.remaining_path())
             .map(|x| (x,))
             .map_err(|cause| ParamError { cause }.into());
