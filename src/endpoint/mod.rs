@@ -20,6 +20,7 @@ pub use self::boxed::{EndpointObj, LocalEndpointObj};
 pub use self::context::{with_get_cx, ApplyContext, TaskContext};
 pub(crate) use self::context::{with_set_cx, Cursor};
 pub use self::error::{ApplyError, ApplyResult};
+#[doc(hidden)]
 #[allow(deprecated)]
 pub use self::error::{EndpointError, EndpointResult};
 pub use self::wrapper::{EndpointWrapExt, Wrapper};

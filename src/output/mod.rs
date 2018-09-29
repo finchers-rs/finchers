@@ -4,15 +4,6 @@ pub mod body;
 pub mod fs;
 pub mod status;
 
-#[doc(hidden)]
-#[deprecated(
-    since = "0.12.0-alpha.7",
-    note = "use `output::body` instead."
-)]
-pub mod payload {
-    pub use super::body::*;
-}
-
 mod binary;
 mod debug;
 mod json;
@@ -29,15 +20,9 @@ use input::Input;
 
 use self::body::ResBody;
 
-#[doc(hidden)]
-#[allow(deprecated)]
-pub use self::binary::Binary;
 pub use self::debug::Debug;
 pub use self::fs::NamedFile;
 pub use self::json::Json;
-#[doc(hidden)]
-#[allow(deprecated)]
-pub use self::text::Text;
 
 /// Contextual information at applying `Output::respond`.
 #[derive(Debug)]
