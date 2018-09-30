@@ -2,16 +2,11 @@
 
 mod body;
 mod encoded;
-mod global;
 mod header;
 
 pub use self::body::ReqBody;
 pub use self::encoded::{EncodedStr, FromEncodedStr};
 pub use self::header::FromHeaderValue;
-
-#[doc(hidden)]
-#[allow(deprecated)]
-pub use self::global::with_get_cx;
 
 // ====
 

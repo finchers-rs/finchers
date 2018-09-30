@@ -13,16 +13,12 @@ mod cloned;
 mod or;
 mod or_strict;
 mod unit;
-mod value;
 
 // re-exports
 pub use self::boxed::{EndpointObj, LocalEndpointObj};
 pub use self::context::{with_get_cx, ApplyContext, TaskContext};
 pub(crate) use self::context::{with_set_cx, Cursor};
 pub use self::error::{ApplyError, ApplyResult};
-#[doc(hidden)]
-#[allow(deprecated)]
-pub use self::error::{EndpointError, EndpointResult};
 pub use self::wrapper::{EndpointWrapExt, Wrapper};
 
 pub use self::and::And;
@@ -33,16 +29,6 @@ pub use self::apply_fn::{apply_fn, ApplyFn};
 pub use self::by_ref::{by_ref, ByRef};
 pub use self::cloned::{cloned, Cloned};
 pub use self::unit::{unit, Unit};
-#[doc(hidden)]
-#[allow(deprecated)]
-pub use self::value::{value, Value};
-
-#[doc(hidden)]
-#[deprecated(
-    since = "0.12.0-alpha.9",
-    note = "renamed to `ApplyContext`."
-)]
-pub type Context<'a> = ApplyContext<'a>;
 
 // ====
 

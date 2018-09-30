@@ -7,17 +7,6 @@ use std::fmt;
 use endpoint::syntax::verb::Verbs;
 use error::{Error, HttpError};
 
-#[doc(hidden)]
-#[deprecated(
-    since = "0.12.0-alpha.9",
-    note = "renamed to `ApplyResult<T>`."
-)]
-pub type EndpointResult<T> = Result<T, ApplyError>;
-
-#[doc(hidden)]
-#[deprecated(since = "0.12.0-alpha.9", note = "renamed to `ApplyError`.")]
-pub type EndpointError = ApplyError;
-
 /// A type alias of `Result<T, E>` with the error type fixed at `ApplyError`.
 pub type ApplyResult<T> = Result<T, ApplyError>;
 
