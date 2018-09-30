@@ -16,7 +16,7 @@ mod tests {
     fn test_routes_macro() {
         let _ = routes![
             endpoint::unit(),
-            endpoint::value(42),
+            endpoint::cloned(42),
         ];
     }
 }

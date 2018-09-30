@@ -54,8 +54,8 @@ matrix:
         - export CARGO_INCREMENTAL=0
       script:
         - cargo update
-        - cargo test --features strict
-        - cargo test --features strict --no-default-features
+        - cargo test
+        - cargo test --no-default-features
 
     - rust: nightly
       env: LINT
