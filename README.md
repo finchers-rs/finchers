@@ -21,7 +21,7 @@ Add this item to `Cargo.toml` in your project:
 
 ```toml
 [dependencies]
-finchers = "0.12.0-alpha.8"
+finchers = "0.12"
 ```
 
 # Resources
