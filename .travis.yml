@@ -34,6 +34,7 @@ matrix:
         - cargo fmt -- --check
         - cargo update
         - cargo test --features strict
+        - cargo test --features strict --no-default-features
         - if [[ "${TRAVIS_PULL_REQUEST_BRANCH:-}" = release-* ]]; then cargo package; fi
       after_success:
         - cargo kcov --print-install-kcov-sh | sh
@@ -44,15 +45,17 @@ matrix:
         - export CARGO_INCREMENTAL=0
       script:
         - cargo update
-        - cargo test --all
-        - cargo test --manifest-path testcrates/test_edition_2018/Cargo.toml
+        - cargo test --features strict
+        - cargo test --features strict --no-default-features
+        - (cd testcrates/test_edition_2018; cargo test)
 
     - rust: nightly
       before_script:
         - export CARGO_INCREMENTAL=0
       script:
         - cargo update
-        - cargo test --all
+        - cargo test --features strict
+        - cargo test --features strict --no-default-features
 
     - rust: nightly
       env: LINT
@@ -67,7 +70,7 @@ matrix:
       script:
         - rm -rf target/doc
         - cargo update
-        - cargo doc --all --no-deps
+        - cargo doc --no-deps
         - rm -f target/doc/.lock
         - echo '<meta http-equiv="refresh" content="0;URL=finchers/index.html">' > target/doc/index.html
       deploy:
