@@ -30,7 +30,7 @@ finchers = "0.12.0-alpha.8"
 * [Examples][examples]
 * [Gitter chat][gitter]
 
-# See Also
+# Contributed Features
 
 * [CORS support](https://github.com/finchers-rs/finchers-cors)
 * [GraphQL integration (uses `juniper`)](https://github.com/finchers-rs/finchers-juniper)
