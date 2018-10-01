@@ -153,7 +153,7 @@ impl Drop for SetOnDrop {
     }
 }
 
-#[cfg_attr(feature = "lint", allow(clippy::cast_ptr_alignment))]
+#[cfg_attr(feature = "cargo-clippy", allow(cast_ptr_alignment))]
 pub(crate) fn with_set_cx<R>(current: &mut TaskContext<'_>, f: impl FnOnce() -> R) -> R {
     CX.with(|cx| {
         cx.set(Some(unsafe {

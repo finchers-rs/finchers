@@ -57,13 +57,13 @@ matrix:
         - cargo test
         - cargo test --no-default-features
 
-    - rust: nightly
+    - rust: stable
       env: LINT
       before_script:
         - rustup component add clippy-preview
         - export CARGO_INCREMENTAL=0
       script:
-        - cargo clippy --features lint
+        - cargo clippy
 
     - rust: stable
       env: DEPLOY_API_DOC
