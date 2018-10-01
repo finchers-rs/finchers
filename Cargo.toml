@@ -50,5 +50,5 @@ url = "1.7.1"
 matches = "0.1.8"
 
 [features]
-default = ["secure"]
+default = []
 secure = ["cookie/secure"]
