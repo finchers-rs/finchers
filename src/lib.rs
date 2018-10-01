@@ -48,8 +48,8 @@
 )]
 // FIXME: re-enable the following lint after shipping rust-1.31 out
 // #![warn(rust_2018_compatibility)]
-#![cfg_attr(feature = "strict", deny(warnings))]
-#![cfg_attr(feature = "strict", doc(test(attr(deny(warnings)))))]
+#![cfg_attr(test, deny(warnings))]
+#![cfg_attr(test, doc(test(attr(deny(warnings)))))]
 
 #[macro_use]
 extern crate bitflags;

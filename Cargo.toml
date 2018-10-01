@@ -51,5 +51,4 @@ matches = "0.1.8"
 
 [features]
 default = ["secure"]
-strict = []
 secure = ["cookie/secure"]
