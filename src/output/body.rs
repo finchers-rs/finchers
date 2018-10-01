@@ -56,7 +56,7 @@ impl ResBody for &'static str {
     type Payload = Once<&'static str>;
 
     fn into_payload(self) -> Self::Payload {
-        Once::new(self)
+        Once::new2(self)
     }
 }
 
@@ -66,7 +66,7 @@ impl ResBody for String {
     type Payload = Once<String>;
 
     fn into_payload(self) -> Self::Payload {
-        Once::new(self)
+        Once::new2(self)
     }
 }
 
@@ -76,7 +76,7 @@ impl ResBody for Cow<'static, str> {
     type Payload = Once<Cow<'static, [u8]>>;
 
     fn into_payload(self) -> Self::Payload {
-        Once::new(match self {
+        Once::new2(match self {
             Cow::Borrowed(s) => Cow::Borrowed(s.as_bytes()),
             Cow::Owned(s) => Cow::Owned(s.into()),
         })
@@ -89,7 +89,7 @@ impl ResBody for &'static [u8] {
     type Payload = Once<&'static [u8]>;
 
     fn into_payload(self) -> Self::Payload {
-        Once::new(self)
+        Once::new2(self)
     }
 }
 
@@ -99,7 +99,7 @@ impl ResBody for Vec<u8> {
     type Payload = Once<Vec<u8>>;
 
     fn into_payload(self) -> Self::Payload {
-        Once::new(self)
+        Once::new2(self)
     }
 }
 
@@ -109,7 +109,7 @@ impl ResBody for Cow<'static, [u8]> {
     type Payload = Once<Cow<'static, [u8]>>;
 
     fn into_payload(self) -> Self::Payload {
-        Once::new(self)
+        Once::new2(self)
     }
 }
 
@@ -119,7 +119,7 @@ impl ResBody for Bytes {
     type Payload = Once<Bytes>;
 
     fn into_payload(self) -> Self::Payload {
-        Once::new(self)
+        Once::new2(self)
     }
 }
 
@@ -205,7 +205,17 @@ pub struct Once<T>(Option<T>);
 
 impl<T> Once<T> {
     /// Creates an `Once` from the specified data.
+    #[doc(hidden)]
+    #[deprecated(
+        since = "0.12.1",
+        note = "This method will be removed in the future version."
+    )]
     pub fn new(data: T) -> Once<T> {
+        Once(Some(data))
+    }
+
+    #[inline]
+    fn new2(data: T) -> Once<T> {
         Once(Some(data))
     }
 }
@@ -234,28 +244,46 @@ where
 #[derive(Debug)]
 pub struct Optional<T>(Either<T, bool>);
 
+#[doc(hidden)]
+#[deprecated(
+    since = "0.12.1",
+    note = "This impl will be removed in the future version."
+)]
 impl<T> From<T> for Optional<T> {
     fn from(data: T) -> Optional<T> {
-        Optional::new(data)
+        Optional(Either::Left(data))
     }
 }
 
+#[doc(hidden)]
+#[deprecated(
+    since = "0.12.1",
+    note = "This impl will be removed in the future version."
+)]
 impl<T> From<Option<T>> for Optional<T> {
     fn from(data: Option<T>) -> Optional<T> {
         match data {
-            Some(data) => Optional::new(data),
-            None => Optional::empty(),
+            Some(data) => Optional(Either::Left(data)),
+            None => Optional(Either::Right(false)),
         }
     }
 }
 
 impl<T> Optional<T> {
-    /// Create an empty `Optional<T>`.
+    #[doc(hidden)]
+    #[deprecated(
+        since = "0.12.1",
+        note = "This method will be removed in the future version."
+    )]
     pub fn empty() -> Optional<T> {
         Optional(Either::Right(false))
     }
 
-    /// Create an `Optional<T>` from a value of `T`.
+    #[doc(hidden)]
+    #[deprecated(
+        since = "0.12.1",
+        note = "This method will be removed in the future version."
+    )]
     pub fn new(data: T) -> Optional<T> {
         Optional(Either::Left(data))
     }
@@ -301,10 +329,15 @@ impl<T: hyper::body::Payload> hyper::body::Payload for Optional<T> {
     }
 }
 
-#[allow(missing_docs)]
+/// An instance of `Payload` which acts either one of the two `Payload`s.
 #[derive(Debug)]
 pub struct EitherPayload<L, R>(Either<L, R>);
 
+#[doc(hidden)]
+#[deprecated(
+    since = "0.12.1",
+    note = "This impl will be removed in the future version."
+)]
 impl<L, R> From<Either<L, R>> for EitherPayload<L, R> {
     fn from(either: Either<L, R>) -> Self {
         EitherPayload(either)
@@ -312,12 +345,20 @@ impl<L, R> From<Either<L, R>> for EitherPayload<L, R> {
 }
 
 impl<L, R> EitherPayload<L, R> {
-    #[allow(missing_docs)]
+    #[doc(hidden)]
+    #[deprecated(
+        since = "0.12.1",
+        note = "This method will be removed in the future version."
+    )]
     pub fn left(left: L) -> EitherPayload<L, R> {
         EitherPayload(Either::Left(left))
     }
 
-    #[allow(missing_docs)]
+    #[doc(hidden)]
+    #[deprecated(
+        since = "0.12.1",
+        note = "This method will be removed in the future version."
+    )]
     pub fn right(right: R) -> EitherPayload<L, R> {
         EitherPayload(Either::Right(right))
     }
@@ -422,6 +463,39 @@ mod tests {
     #[test]
     fn test_empty() {
         let payload = run_body(());
+        assert_eq!(payload.data.len(), 1);
+        assert_eq!(payload.data[0].len(), 0);
+        assert!(payload.trailers.is_none());
+        assert_eq!(payload.content_length, Some(0));
+    }
+
+    #[test]
+    fn test_optional_some() {
+        let payload = run_body(Some("Alice"));
+        assert_eq!(payload.data.len(), 1);
+        assert_eq!(payload.data[0].len(), 5);
+        assert!(payload.trailers.is_none());
+        assert_eq!(payload.content_length, Some(5));
+    }
+
+    #[test]
+    fn test_optional_none() {
+        let payload = run_body(None as Option<&str>);
+        assert_eq!(payload.data.len(), 1);
+        assert_eq!(payload.data[0].len(), 0);
+        assert!(payload.trailers.is_none());
+        assert_eq!(payload.content_length, Some(0));
+    }
+
+    #[test]
+    fn test_either() {
+        let payload = run_body(Either::Left("Alice") as Either<&str, ()>);
+        assert_eq!(payload.data.len(), 1);
+        assert_eq!(payload.data[0].len(), 5);
+        assert!(payload.trailers.is_none());
+        assert_eq!(payload.content_length, Some(5));
+
+        let payload = run_body(Either::Right(()) as Either<&str, ()>);
         assert_eq!(payload.data.len(), 1);
         assert_eq!(payload.data[0].len(), 0);
         assert!(payload.trailers.is_none());
