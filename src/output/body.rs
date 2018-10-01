@@ -44,7 +44,9 @@ impl ResBody for () {
     type Payload = Empty;
 
     fn into_payload(self) -> Self::Payload {
-        Empty { _priv: () }
+        Empty {
+            is_end_stream: false,
+        }
     }
 }
 
@@ -172,7 +174,7 @@ impl<T: hyper::body::Payload> ResBody for Payload<T> {
 /// An instance of `Payload` representing a sized, empty message body.
 #[derive(Debug)]
 pub struct Empty {
-    _priv: (),
+    is_end_stream: bool,
 }
 
 impl hyper::body::Payload for Empty {
@@ -180,7 +182,16 @@ impl hyper::body::Payload for Empty {
     type Error = Never;
 
     fn poll_data(&mut self) -> Poll<Option<Self::Data>, Self::Error> {
-        Ok(Async::Ready(Some(io::Cursor::new([]))))
+        if !self.is_end_stream {
+            self.is_end_stream = true;
+            Ok(Async::Ready(Some(io::Cursor::new([]))))
+        } else {
+            Ok(Async::Ready(None))
+        }
+    }
+
+    fn is_end_stream(&self) -> bool {
+        self.is_end_stream
     }
 
     fn content_length(&self) -> Option<u64> {
@@ -366,5 +377,54 @@ trait PollExt<T, E> {
 impl<T, E> PollExt<T, E> for Poll<Option<T>, E> {
     fn map_ok_async_some<U>(self, f: impl FnOnce(T) -> U) -> Poll<Option<U>, E> {
         self.map(|x_async| x_async.map(|x_opt| x_opt.map(f)))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use bytes::Buf;
+    use futures::future;
+    use futures::stream;
+    use futures::Stream;
+    use hyper::body::Payload as _Payload;
+    use tokio::runtime::current_thread::Runtime;
+
+    #[derive(Debug)]
+    struct PayloadData {
+        data: Vec<Bytes>,
+        trailers: Option<HeaderMap>,
+        content_length: Option<u64>,
+    }
+
+    fn run_body(body: impl ResBody) -> PayloadData {
+        let payload = &mut body.into_payload();
+
+        let content_length = payload.content_length();
+        let mut rt = Runtime::new().expect("failed to initialize the test runtime");
+        let data = rt
+            .block_on(stream::poll_fn(|| payload.poll_data()).collect())
+            .map_err(Into::into)
+            .expect("failed to collect the payload data");
+        let trailers = rt
+            .block_on(future::poll_fn(|| payload.poll_trailers()))
+            .map_err(Into::into)
+            .expect("failed to poll the trailers");
+
+        PayloadData {
+            data: data.into_iter().map(|chunk| chunk.collect()).collect(),
+            trailers,
+            content_length,
+        }
+    }
+
+    #[test]
+    fn test_empty() {
+        let payload = run_body(());
+        assert_eq!(payload.data.len(), 1);
+        assert_eq!(payload.data[0].len(), 0);
+        assert!(payload.trailers.is_none());
+        assert_eq!(payload.content_length, Some(0));
     }
 }
