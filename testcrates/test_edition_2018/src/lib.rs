@@ -1,3 +1,6 @@
+#![cfg_attr(finchers_deny_warnings, deny(warnings))]
+#![cfg_attr(finchers_deny_warnings, doc(test(attr(deny(warnings)))))]
+
 #[cfg(test)]
 mod tests {
     use finchers::path;
