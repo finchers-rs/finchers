@@ -1,12 +1,11 @@
 [package]
 name = "finchers"
-version = "0.12.0" # don't forget to update html_root_url in lib.rs
+version = "0.12.1" # don't forget to update html_root_url in lib.rs
 description = "A combinator library for builidng asynchronous HTTP services"
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 homepage = "https://finchers-rs.github.io"
-documentation = "https://finchers-rs.github.io/docs"
 repository = "https://github.com/finchers-rs/finchers.git"
 keywords = ["finchers", "web", "framework", "server"]
 categories = ["web-programming::http-server"]
@@ -16,6 +15,11 @@ include = [
   "build.rs",
   "src/**/*",
   "tests/**/*",
+  "examples/**/*",
+  "benches/**/*",
+  "LICENSE-MIT",
+  "LICENSE-APACHE",
+  "README.md"
 ]
 
 [package.metadata.docs.rs]
@@ -23,8 +27,6 @@ include = [
 rustc-args = ["--cfg", "finchers_inject_extern_prelude"]
 
 [badges]
-travis-ci = { repository = "finchers-rs/finchers" }
-coveralls = { repository = "finchers-rs/finchers" }
 maintenance = { status = "actively-developed" }
 
 [dependencies]

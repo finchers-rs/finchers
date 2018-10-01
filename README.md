@@ -1,7 +1,8 @@
 # `finchers`
 
-[![crates.io][crates-io-badge]][crates-io]
-[![API documentation][api-docs-badge]][api-docs]
+[![Crates.io][crates-io-badge]][crates-io]
+[![Crates.io (Downloads)][downloads-badge]][crates-io]
+[![Docs.rs][docs-rs-badge]][docs-rs]
 [![dependency status][dependencies-badge]][dependencies]
 [![Gitter][gitter-badge]][gitter]
 
@@ -56,6 +57,7 @@ at your option.
 <!-- links -->
 
 [crates-io]: https://crates.io/crates/finchers
+[docs-rs]: https://docs.rs/finchers
 [api-docs]: https://finchers-rs.github.io/docs
 [examples]: https://github.com/finchers-rs/examples
 [user-guide]: https://finchers-rs.github.io/finchers/guide/index.html
@@ -66,7 +68,8 @@ at your option.
 [dependencies]: https://deps.rs/repo/github/finchers-rs/finchers
 
 [crates-io-badge]: https://img.shields.io/crates/v/finchers.svg
-[api-docs-badge]: https://img.shields.io/badge/api-docs-blue.svg
+[downloads-badge]: https://img.shields.io/crates/d/finchers.svg
+[docs-rs-badge]: https://docs.rs/finchers/badge.svg
 [gitter-badge]: https://badges.gitter.im/finchers-rs/finchers.svg
 [travis-badge]: https://travis-ci.org/finchers-rs/finchers.svg?branch=master
 [appveyor-badge]: https://ci.appveyor.com/api/projects/status/76smoc919fni4n6l/branch/master?svg=true
