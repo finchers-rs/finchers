@@ -1,6 +1,5 @@
-#![cfg_attr(feature = "lint", feature(tool_lints))]
 // FIXME: remove this feature gate as soon as the rustc version used in docs.rs is updated
-#![cfg_attr(feature = "extern-prelude", feature(extern_prelude))]
+#![cfg_attr(finchers_inject_extern_prelude, feature(extern_prelude))]
 
 //! A combinator library for building asynchronous HTTP services.
 //!
@@ -49,8 +48,8 @@
 )]
 // FIXME: re-enable the following lint after shipping rust-1.31 out
 // #![warn(rust_2018_compatibility)]
-#![cfg_attr(feature = "strict", deny(warnings))]
-#![cfg_attr(feature = "strict", doc(test(attr(deny(warnings)))))]
+#![cfg_attr(finchers_deny_warnings, deny(warnings))]
+#![cfg_attr(finchers_deny_warnings, doc(test(attr(deny(warnings)))))]
 
 #[macro_use]
 extern crate bitflags;

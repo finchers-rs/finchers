@@ -196,7 +196,7 @@ where
     T: DeserializeOwned + 'static,
 {
     type Output = (T,);
-    #[cfg_attr(feature = "lint", allow(clippy::type_complexity))]
+    #[cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
     type Future =
         ::futures::future::Map<parse::ParseFuture<parse::Json<T>>, fn((parse::Json<T>,)) -> (T,)>;
 
@@ -229,7 +229,7 @@ where
     T: DeserializeOwned + 'static,
 {
     type Output = (T,);
-    #[cfg_attr(feature = "lint", allow(clippy::type_complexity))]
+    #[cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
     type Future = ::futures::future::Map<
         parse::ParseFuture<parse::UrlEncoded<T>>,
         fn((parse::UrlEncoded<T>,)) -> (T,),

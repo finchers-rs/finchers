@@ -29,4 +29,6 @@ build: false
 
 test_script:
   - cargo clean
-  - cargo test --features strict
+  - cargo test
+  - cargo test --all-features
+  - cargo test --no-default-features

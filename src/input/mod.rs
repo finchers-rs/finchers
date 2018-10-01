@@ -24,7 +24,7 @@ use error::{bad_request, Error};
 #[derive(Debug)]
 pub struct Input {
     request: Request<ReqBody>,
-    #[cfg_attr(feature = "lint", allow(clippy::option_option))]
+    #[cfg_attr(feature = "cargo-clippy", allow(option_option))]
     media_type: Option<Option<Mime>>,
     cookie_jar: Option<CookieJar>,
     response_headers: Option<HeaderMap>,

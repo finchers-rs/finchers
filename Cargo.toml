@@ -19,10 +19,8 @@ include = [
 ]
 
 [package.metadata.docs.rs]
-features = [
-  # FIXME: remove it as soon as the rustc version used in docs.rs is updated
-  "extern-prelude",
-]
+# FIXME: remove it as soon as the rustc version used in docs.rs is updated
+rustc-args = ["--cfg", "finchers_inject_extern_prelude"]
 
 [badges]
 travis-ci = { repository = "finchers-rs/finchers" }
@@ -53,9 +51,4 @@ matches = "0.1.8"
 
 [features]
 default = ["secure"]
-strict = []
-lint = ["strict"]
 secure = ["cookie/secure"]
-
-# FIXME: remove it as soon as the rustc version used in docs.rs is updated
-extern-prelude = []
