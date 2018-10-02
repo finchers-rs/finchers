@@ -65,7 +65,7 @@ at your option.
 [travis]: https://travis-ci.org/finchers-rs/finchers
 [appveyor]: https://ci.appveyor.com/project/ubnt-intrepid/finchers/branch/master
 [coveralls]: https://coveralls.io/github/finchers-rs/finchers
-[dependencies]: https://deps.rs/repo/github/finchers-rs/finchers
+[dependencies]: https://deps.rs/crate/finchers/0.12.2
 
 [crates-io-badge]: https://img.shields.io/crates/v/finchers.svg
 [downloads-badge]: https://img.shields.io/crates/d/finchers.svg
@@ -74,4 +74,4 @@ at your option.
 [travis-badge]: https://travis-ci.org/finchers-rs/finchers.svg?branch=master
 [appveyor-badge]: https://ci.appveyor.com/api/projects/status/76smoc919fni4n6l/branch/master?svg=true
 [coveralls-badge]: https://coveralls.io/repos/github/finchers-rs/finchers/badge.svg
-[dependencies-badge]: https://deps.rs/repo/github/finchers-rs/finchers/status.svg
+[dependencies-badge]: https://deps.rs/crate/finchers/0.12.2/status.svg

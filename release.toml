@@ -1,0 +1,13 @@
+tag-prefix = "v"
+dev-version-ext = "dev"
+pre-release-commit-message = "(cargo-release) bump version to {{version}}"
+
+[[pre-release-replacements]]
+file = "README.md"
+search = "https://deps.rs/crate/finchers/[a-z0-9\\.-]+"
+replace = "https://deps.rs/crate/finchers/{{version}}"
+
+[[pre-release-replacements]]
+file = "src/lib.rs"
+search = "https://docs.rs/finchers/[a-z0-9\\.-]+"
+replace = "https://docs.rs/finchers/{{version}}"
