@@ -24,7 +24,7 @@ include = [
 
 [package.metadata.docs.rs]
 # FIXME: remove it as soon as the rustc version used in docs.rs is updated
-rustc-args = ["--cfg", "finchers_inject_extern_prelude"]
+rustdoc-args = ["--cfg", "finchers_inject_extern_prelude"]
 
 [badges]
 maintenance = { status = "actively-developed" }
