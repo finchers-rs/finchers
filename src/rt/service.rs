@@ -6,8 +6,6 @@ use http::{Request, Response};
 use hyper::body::Payload;
 use hyper::service as hyper_service;
 use tower_service;
-#[cfg(feature = "tower-web")]
-use tower_web;
 
 #[derive(Debug)]
 pub struct NewHttpService<S>(S);
@@ -69,27 +67,6 @@ pub trait Middleware<S: tower_service::Service> {
     >;
 
     fn wrap(&self, input: S) -> Self::Service;
-}
-
-#[cfg(feature = "tower-web")]
-#[derive(Debug)]
-pub struct TowerWebMiddleware<M>(pub M);
-
-#[cfg(feature = "tower-web")]
-impl<M, S> Middleware<S> for TowerWebMiddleware<M>
-where
-    M: tower_web::middleware::Middleware<S>,
-    S: tower_service::Service,
-{
-    type Request = M::Request;
-    type Response = M::Response;
-    type Error = M::Error;
-    type Service = M::Service;
-
-    #[inline]
-    fn wrap(&self, inner: S) -> Self::Service {
-        self.0.wrap(inner)
-    }
 }
 
 impl<M, S: tower_service::Service> Middleware<S> for Arc<M>
@@ -165,5 +142,41 @@ where
         self.future
             .poll()
             .map(|x| x.map(|service| self.middleware.wrap(service)))
+    }
+}
+
+#[cfg(feature = "tower-web")]
+pub use self::imp_tower_web_integration::TowerWebMiddleware;
+
+#[cfg(feature = "tower-web")]
+mod imp_tower_web_integration {
+    use super::Middleware;
+    use tower_service;
+    use tower_web;
+
+    #[derive(Debug, Copy, Clone)]
+    pub struct TowerWebMiddleware<M>(M);
+
+    impl<M> TowerWebMiddleware<M> {
+        pub fn new(middleware: M) -> TowerWebMiddleware<M> {
+            TowerWebMiddleware(middleware)
+        }
+    }
+
+    #[cfg(feature = "tower-web")]
+    impl<M, S> Middleware<S> for TowerWebMiddleware<M>
+    where
+        M: tower_web::middleware::Middleware<S>,
+        S: tower_service::Service,
+    {
+        type Request = M::Request;
+        type Response = M::Response;
+        type Error = M::Error;
+        type Service = M::Service;
+
+        #[inline]
+        fn wrap(&self, inner: S) -> Self::Service {
+            self.0.wrap(inner)
+        }
     }
 }

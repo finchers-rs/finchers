@@ -16,6 +16,8 @@ pub mod testing;
 pub use self::app::{App, IsAppEndpoint};
 pub use self::server::ServerBuilder;
 pub use self::service::Middleware;
+#[cfg(feature = "tower-web")]
+pub use self::service::TowerWebMiddleware;
 
 #[doc(no_inline)]
 pub use tokio_threadpool::blocking;

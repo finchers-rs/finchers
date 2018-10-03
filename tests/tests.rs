@@ -10,6 +10,8 @@ extern crate matches;
 extern crate mime;
 #[macro_use]
 extern crate serde;
+#[cfg(all(feature = "rt", feature = "tower-web"))]
+extern crate tower_web;
 
 mod endpoint;
 mod endpoints;
@@ -37,4 +39,19 @@ fn smoketest() {
 fn smoketest_new_runtime() {
     use finchers::prelude::*;
     drop(|| finchers::rt::launch(endpoint::cloned("Hello")).serve("127.0.0.1:4000"))
+}
+
+#[cfg(all(feature = "rt", feature = "tower-web"))]
+#[test]
+fn smoketest_tower_web_middlewares() {
+    use finchers::prelude::*;
+    use finchers::rt::TowerWebMiddleware;
+    use std::sync::Arc;
+    use tower_web::middleware::log::LogMiddleware;
+
+    drop(|| {
+        finchers::rt::launch(endpoint::cloned("Hello"))
+            .with(Arc::new(TowerWebMiddleware::new(LogMiddleware::new(""))))
+            .serve("127.0.0.1:4000")
+    });
 }
