@@ -11,9 +11,10 @@ pub use self::header::FromHeaderValue;
 // ====
 
 use cookie::{Cookie, CookieJar};
+use either::Either;
 use http;
-use http::header::HeaderMap;
-use http::Request;
+use http::header::{HeaderMap, HeaderValue};
+use http::{Request, Response};
 use hyper::body::Body;
 use mime::Mime;
 use std::ops::Deref;
@@ -92,10 +93,6 @@ impl Input {
         }
     }
 
-    pub(crate) fn cookie_jar(&self) -> Option<&CookieJar> {
-        self.cookie_jar.as_ref()
-    }
-
     /// Returns a mutable reference to a `HeaderMap` which contains the entries of response headers.
     ///
     /// The values inserted in this header map are automatically added to the actual response.
@@ -103,8 +100,35 @@ impl Input {
         self.response_headers.get_or_insert_with(Default::default)
     }
 
-    pub(crate) fn take_response_headers(&mut self) -> Option<HeaderMap> {
-        self.response_headers.take()
+    pub(crate) fn finalize_response<T>(
+        &mut self,
+        output: Result<Response<T>, Error>,
+    ) -> Response<Either<String, T>> {
+        let mut response = output
+            .map(|response| response.map(Either::Right))
+            .unwrap_or_else(|err| err.to_response().map(Either::Left));
+
+        if let Some(ref jar) = self.cookie_jar {
+            for cookie in jar.delta() {
+                let val = HeaderValue::from_str(&cookie.encoded().to_string()).unwrap();
+                response.headers_mut().insert(http::header::SET_COOKIE, val);
+            }
+        }
+
+        if let Some(headers) = self.response_headers.take() {
+            response.headers_mut().extend(headers);
+        }
+
+        response
+            .headers_mut()
+            .entry(http::header::SERVER)
+            .unwrap()
+            .or_insert(HeaderValue::from_static(concat!(
+                "finchers/",
+                env!("CARGO_PKG_VERSION")
+            )));
+
+        response
     }
 }
 
