@@ -71,6 +71,13 @@ extern crate serde_qs;
 extern crate tokio;
 extern crate url;
 
+#[cfg(feature = "rt")]
+extern crate tokio_threadpool;
+#[cfg(feature = "rt")]
+extern crate tower_service;
+#[cfg(all(feature = "rt", feature = "tower-web"))]
+extern crate tower_web;
+
 #[cfg(test)]
 #[macro_use]
 extern crate matches;
@@ -85,6 +92,8 @@ pub mod input;
 pub mod launcher;
 pub mod local;
 pub mod output;
+#[cfg(feature = "rt")]
+pub mod rt;
 
 #[doc(inline)]
 pub use launcher::launch;

@@ -70,6 +70,7 @@ matrix:
       script:
         - rm -rf target/doc
         - cargo update
+        - cargo doc --no-deps --all-features -p failure
         - cargo doc --no-deps --all-features
         - rm -f target/doc/.lock
         - echo '<meta http-equiv="refresh" content="0;URL=finchers/index.html">' > target/doc/index.html

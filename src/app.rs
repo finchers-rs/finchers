@@ -4,8 +4,7 @@ use futures::{Async, Future, Poll};
 use std::io;
 
 use either::Either;
-use http::header::HeaderValue;
-use http::{header, Request, Response};
+use http::{Request, Response};
 
 use endpoint::{with_set_cx, ApplyContext, Cursor, Endpoint, TaskContext};
 use error::Error;
@@ -86,42 +85,14 @@ where
         Bd: ResBody,
     {
         let output = match self.poll_output() {
-            Ok(Async::Ready(item)) => Ok(item),
+            Ok(Async::Ready(out)) => {
+                let mut cx = OutputContext::new(&mut self.input);
+                out.respond(&mut cx).map_err(Into::into)
+            }
             Ok(Async::NotReady) => return Ok(Async::NotReady),
             Err(err) => Err(err),
         };
-
-        let mut response = output
-            .and_then({
-                let mut cx = OutputContext::new(&mut self.input);
-                move |out| {
-                    out.respond(&mut cx)
-                        .map(|res| res.map(Either::Right))
-                        .map_err(Into::into)
-                }
-            }).unwrap_or_else(|err| err.to_response().map(Either::Left));
-
-        if let Some(jar) = self.input.cookie_jar() {
-            for cookie in jar.delta() {
-                let val = HeaderValue::from_str(&cookie.encoded().to_string()).unwrap();
-                response.headers_mut().insert(header::SET_COOKIE, val);
-            }
-        }
-
-        if let Some(headers) = self.input.take_response_headers() {
-            response.headers_mut().extend(headers);
-        }
-
-        response
-            .headers_mut()
-            .entry(header::SERVER)
-            .unwrap()
-            .or_insert(HeaderValue::from_static(concat!(
-                "finchers-runtime/",
-                env!("CARGO_PKG_VERSION")
-            )));
-
-        Ok(Async::Ready(response))
+        Ok(Async::Ready(self.input.finalize_response(output)))
     }
 }
 
