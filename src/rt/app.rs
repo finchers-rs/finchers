@@ -320,3 +320,39 @@ impl Payload for AppPayload {
         }
     }
 }
+
+#[cfg(feature = "tower-web")]
+mod imp_buf_stream_for_app_payload {
+    use super::AppPayload;
+
+    use bytes::Buf;
+    use either::Either;
+    use futures::Poll;
+    use hyper::body::Payload;
+    use std::error;
+    use std::io;
+    use tower_web::util::buf_stream::size_hint;
+    use tower_web::util::BufStream;
+
+    impl BufStream for AppPayload {
+        type Item = Either<io::Cursor<String>, Box<dyn Buf + Send + 'static>>;
+        type Error = Box<dyn error::Error + Send + Sync + 'static>;
+
+        fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+            self.poll_data()
+        }
+
+        fn size_hint(&self) -> size_hint::SizeHint {
+            let mut builder = size_hint::Builder::new();
+            if let Some(length) = self.content_length() {
+                if length < usize::max_value() as u64 {
+                    let length = length as usize;
+                    builder.lower(length).upper(length);
+                } else {
+                    builder.lower(usize::max_value());
+                }
+            }
+            builder.build()
+        }
+    }
+}
