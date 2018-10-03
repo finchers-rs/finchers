@@ -10,7 +10,7 @@ use futures::{future, Async, Future, Poll};
 use http::header::HeaderMap;
 use http::{Request, Response};
 use hyper::body::{Body, Payload};
-use hyper::service::{NewService, Service};
+use tower_service::{NewService, Service};
 
 use common::Tuple;
 use endpoint::{with_set_cx, ApplyContext, ApplyResult, Cursor, Endpoint, TaskContext};
@@ -87,8 +87,8 @@ impl<E> NewService for App<E>
 where
     E: IsAppEndpoint,
 {
-    type ReqBody = Body;
-    type ResBody = AppPayload;
+    type Request = Request<Body>;
+    type Response = Response<AppPayload>;
     type Error = io::Error;
     type Service = AppService<'static, Lift<E>>;
     type InitError = io::Error;
@@ -127,12 +127,16 @@ where
     E: Endpoint<'e>,
     E::Output: Output,
 {
-    type ReqBody = Body;
-    type ResBody = AppPayload;
+    type Request = Request<Body>;
+    type Response = Response<AppPayload>;
     type Error = io::Error;
     type Future = AppFuture<'e, E>;
 
-    fn call(&mut self, request: Request<Self::ReqBody>) -> Self::Future {
+    fn poll_ready(&mut self) -> Poll<(), Self::Error> {
+        Ok(Async::Ready(()))
+    }
+
+    fn call(&mut self, request: Self::Request) -> Self::Future {
         self.dispatch(request.map(ReqBody::from_hyp))
     }
 }

@@ -31,3 +31,10 @@ fn smoketest() {
     );
     assert_eq!(response.body().to_utf8(), "42");
 }
+
+#[cfg(feature = "rt")]
+#[test]
+fn smoketest_new_runtime() {
+    use finchers::prelude::*;
+    drop(|| finchers::rt::launch(endpoint::cloned("Hello")).serve("127.0.0.1:4000"))
+}
