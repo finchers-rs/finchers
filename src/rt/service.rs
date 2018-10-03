@@ -56,7 +56,7 @@ where
     }
 }
 
-pub trait Middleware<S: tower_service::Service> {
+pub trait Middleware<S> {
     type Request;
     type Response;
     type Error;
@@ -69,7 +69,7 @@ pub trait Middleware<S: tower_service::Service> {
     fn wrap(&self, input: S) -> Self::Service;
 }
 
-impl<M, S: tower_service::Service> Middleware<S> for Arc<M>
+impl<M, S> Middleware<S> for Arc<M>
 where
     M: Middleware<S>,
 {
