@@ -108,8 +108,12 @@ where
 }
 
 pub(crate) mod app_service {
-    use either::Either;
+    use std::fmt;
+    use std::mem;
+
     use futures::{Async, Future, Poll};
+    use http::header;
+    use http::header::HeaderValue;
     use http::{Request, Response};
     use hyper::body::Body;
     use tower_service::Service;
@@ -138,8 +142,7 @@ pub(crate) mod app_service {
         pub(crate) fn dispatch(&self, request: Request<ReqBody>) -> AppFuture<'e, E> {
             AppFuture {
                 endpoint: self.endpoint,
-                input: Input::new(request),
-                state: State::Uninitialized,
+                state: State::Start(request),
             }
         }
     }
@@ -165,16 +168,32 @@ pub(crate) mod app_service {
 
     #[derive(Debug)]
     pub struct AppFuture<'e, E: Endpoint<'e>> {
-        state: State<E::Future>,
-        input: Input,
         endpoint: &'e E,
+        state: State<'e, E>,
     }
 
-    #[derive(Debug)]
-    enum State<T> {
-        Uninitialized,
-        InFlight(T, Cursor),
+    enum State<'a, E: Endpoint<'a>> {
+        Start(Request<ReqBody>),
+        InFlight(Input, E::Future, Cursor),
+        Done(Input),
         Gone,
+    }
+
+    impl<'a, E: Endpoint<'a>> fmt::Debug for State<'a, E> {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            match self {
+                State::Start(ref request) => {
+                    f.debug_struct("Start").field("request", request).finish()
+                }
+                State::InFlight(ref input, _, ref cursor) => f
+                    .debug_struct("InFlight")
+                    .field("input", input)
+                    .field("cursor", cursor)
+                    .finish(),
+                State::Done(ref input) => f.debug_struct("Done").field("input", input).finish(),
+                State::Gone => f.debug_struct("Gone").finish(),
+            }
+        }
     }
 
     impl<'e, E> AppFuture<'e, E>
@@ -183,25 +202,39 @@ pub(crate) mod app_service {
     {
         pub(crate) fn poll_endpoint(&mut self) -> Poll<E::Output, Error> {
             loop {
-                match self.state {
-                    State::Uninitialized => {
+                let result = match self.state {
+                    State::Start(..) => None,
+                    State::InFlight(ref mut input, ref mut f, ref mut cursor) => {
+                        let mut tcx = TaskContext::new(input, cursor);
+                        match with_set_cx(&mut tcx, || f.poll()) {
+                            Ok(Async::NotReady) => return Ok(Async::NotReady),
+                            Ok(Async::Ready(ok)) => Some(Ok(ok)),
+                            Err(err) => Some(Err(err)),
+                        }
+                    }
+                    State::Done(..) | State::Gone => panic!("cannot poll AppServiceFuture twice"),
+                };
+
+                match (mem::replace(&mut self.state, State::Gone), result) {
+                    (State::Start(request), None) => {
+                        let mut input = Input::new(request);
                         let mut cursor = Cursor::default();
                         match {
-                            let mut ecx = ApplyContext::new(&mut self.input, &mut cursor);
+                            let mut ecx = ApplyContext::new(&mut input, &mut cursor);
                             self.endpoint.apply(&mut ecx)
                         } {
-                            Ok(future) => self.state = State::InFlight(future, cursor),
+                            Ok(future) => self.state = State::InFlight(input, future, cursor),
                             Err(err) => {
-                                self.state = State::Gone;
+                                self.state = State::Done(input);
                                 return Err(err.into());
                             }
                         }
                     }
-                    State::InFlight(ref mut f, ref mut cursor) => {
-                        let mut tcx = TaskContext::new(&mut self.input, cursor);
-                        break with_set_cx(&mut tcx, || f.poll());
+                    (State::InFlight(input, ..), Some(result)) => {
+                        self.state = State::Done(input);
+                        return result.map(Async::Ready);
                     }
-                    State::Gone => panic!("cannot poll AppServiceFuture twice"),
+                    _ => unreachable!("unexpected state"),
                 }
             }
         }
@@ -211,11 +244,16 @@ pub(crate) mod app_service {
             E::Output: Output,
         {
             let output = try_ready!(self.poll_endpoint());
-            let mut cx = OutputContext::new(&mut self.input);
-            output
-                .respond(&mut cx)
-                .map(|res| Async::Ready(res))
-                .map_err(Into::into)
+            match self.state {
+                State::Done(ref mut input) => {
+                    let mut cx = OutputContext::new(input);
+                    output
+                        .respond(&mut cx)
+                        .map(|res| Async::Ready(res))
+                        .map_err(Into::into)
+                }
+                _ => unreachable!("unexpected condition"),
+            }
         }
     }
 
@@ -234,12 +272,21 @@ pub(crate) mod app_service {
                 Err(err) => Err(err),
             };
 
-            Ok(Async::Ready(self.input.finalize_response(output).map(
-                |bd| match bd {
-                    Either::Left(msg) => AppPayload::err(msg),
-                    Either::Right(bd) => AppPayload::ok(bd),
-                },
-            )))
+            match mem::replace(&mut self.state, State::Gone) {
+                State::Done(input) => {
+                    let mut response = input.finalize(output).map(AppPayload::new);
+                    response
+                        .headers_mut()
+                        .entry(header::SERVER)
+                        .unwrap()
+                        .or_insert(HeaderValue::from_static(concat!(
+                            "finchers/",
+                            env!("CARGO_PKG_VERSION")
+                        )));
+                    Ok(Async::Ready(response))
+                }
+                _ => unreachable!("unexpected condition"),
+            }
         }
     }
 }
@@ -277,13 +324,23 @@ mod app_payload {
     }
 
     impl AppPayload {
-        pub(super) fn err(message: String) -> Self {
+        pub(super) fn new<T>(body: Either<String, T>) -> Self
+        where
+            T: ResBody,
+        {
+            match body {
+                Either::Left(message) => Self::err(message),
+                Either::Right(body) => Self::ok(body),
+            }
+        }
+
+        fn err(message: String) -> Self {
             AppPayload {
                 inner: Either::Left(Some(message)),
             }
         }
 
-        pub(super) fn ok<T: ResBody>(body: T) -> Self {
+        fn ok<T: ResBody>(body: T) -> Self {
             struct Inner<T: Payload>(T);
 
             impl<T: Payload> Payload for Inner<T> {

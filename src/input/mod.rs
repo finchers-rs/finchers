@@ -100,8 +100,8 @@ impl Input {
         self.response_headers.get_or_insert_with(Default::default)
     }
 
-    pub(crate) fn finalize_response<T>(
-        &mut self,
+    pub(crate) fn finalize<T>(
+        self,
         output: Result<Response<T>, Error>,
     ) -> Response<Either<String, T>> {
         let mut response = output
@@ -111,22 +111,13 @@ impl Input {
         if let Some(ref jar) = self.cookie_jar {
             for cookie in jar.delta() {
                 let val = HeaderValue::from_str(&cookie.encoded().to_string()).unwrap();
-                response.headers_mut().insert(http::header::SET_COOKIE, val);
+                response.headers_mut().append(http::header::SET_COOKIE, val);
             }
         }
 
-        if let Some(headers) = self.response_headers.take() {
+        if let Some(headers) = self.response_headers {
             response.headers_mut().extend(headers);
         }
-
-        response
-            .headers_mut()
-            .entry(http::header::SERVER)
-            .unwrap()
-            .or_insert(HeaderValue::from_static(concat!(
-                "finchers/",
-                env!("CARGO_PKG_VERSION")
-            )));
 
         response
     }

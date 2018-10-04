@@ -4,6 +4,8 @@ use futures::{Async, Future, Poll};
 use std::io;
 
 use either::Either;
+use http::header;
+use http::header::HeaderValue;
 use http::{Request, Response};
 
 use endpoint::{with_set_cx, ApplyContext, Cursor, Endpoint, TaskContext};
@@ -29,7 +31,7 @@ impl<'e, E: Endpoint<'e>> App<'e, E> {
     pub(crate) fn dispatch_request(&self, request: Request<ReqBody>) -> AppFuture<'e, E> {
         AppFuture {
             state: State::Uninitialized,
-            input: Input::new(request),
+            input: Some(Input::new(request)),
             endpoint: self.endpoint,
         }
     }
@@ -39,7 +41,7 @@ impl<'e, E: Endpoint<'e>> App<'e, E> {
 #[derive(Debug)]
 pub(crate) struct AppFuture<'e, E: Endpoint<'e>> {
     state: State<E::Future>,
-    input: Input,
+    input: Option<Input>,
     endpoint: &'e E,
 }
 
@@ -60,7 +62,7 @@ where
                 State::Uninitialized => {
                     let mut cursor = Cursor::default();
                     match {
-                        let mut ecx = ApplyContext::new(&mut self.input, &mut cursor);
+                        let mut ecx = ApplyContext::new(self.input.as_mut().unwrap(), &mut cursor);
                         self.endpoint.apply(&mut ecx)
                     } {
                         Ok(future) => self.state = State::InFlight(future, cursor),
@@ -71,7 +73,7 @@ where
                     }
                 }
                 State::InFlight(ref mut f, ref mut cursor) => {
-                    let mut tcx = TaskContext::new(&mut self.input, cursor);
+                    let mut tcx = TaskContext::new(self.input.as_mut().unwrap(), cursor);
                     break with_set_cx(&mut tcx, || f.poll());
                 }
                 State::Gone => panic!("cannot poll AppServiceFuture twice"),
@@ -86,13 +88,24 @@ where
     {
         let output = match self.poll_output() {
             Ok(Async::Ready(out)) => {
-                let mut cx = OutputContext::new(&mut self.input);
+                let mut cx = OutputContext::new(self.input.as_mut().unwrap());
                 out.respond(&mut cx).map_err(Into::into)
             }
             Ok(Async::NotReady) => return Ok(Async::NotReady),
             Err(err) => Err(err),
         };
-        Ok(Async::Ready(self.input.finalize_response(output)))
+
+        let mut response = self.input.take().unwrap().finalize(output);
+        response
+            .headers_mut()
+            .entry(header::SERVER)
+            .unwrap()
+            .or_insert(HeaderValue::from_static(concat!(
+                "finchers-runtime/",
+                env!("CARGO_PKG_VERSION")
+            )));
+
+        Ok(Async::Ready(response))
     }
 }
 
