@@ -5,8 +5,16 @@ use hyper::body::Body;
 pub struct ReqBody(Option<Body>);
 
 impl ReqBody {
-    /// Create an instance of `RequestBody` from `hyper::Body`.
+    #[doc(hidden)]
+    #[deprecated(
+        since = "0.12.3",
+        note = "This method will be removed in the future version."
+    )]
     pub fn from_hyp(body: Body) -> ReqBody {
+        ReqBody(Some(body))
+    }
+
+    pub(crate) fn new(body: Body) -> ReqBody {
         ReqBody(Some(body))
     }
 

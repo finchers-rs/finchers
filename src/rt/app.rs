@@ -159,7 +159,7 @@ pub(crate) mod app_service {
         }
 
         fn call(&mut self, request: Self::Request) -> Self::Future {
-            self.dispatch(request.map(ReqBody::from_hyp))
+            self.dispatch(request.map(ReqBody::new))
         }
     }
 

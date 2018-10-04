@@ -194,7 +194,7 @@ mod tests {
     #[test]
     fn test_segments() {
         let request = Request::get("/foo/bar.txt")
-            .body(ReqBody::from_hyp(Default::default()))
+            .body(ReqBody::new(Default::default()))
             .unwrap();
         let mut input = Input::new(request);
         let mut cursor = Cursor::default();
@@ -216,7 +216,7 @@ mod tests {
     #[test]
     fn test_segments_from_root_path() {
         let request = Request::get("/")
-            .body(ReqBody::from_hyp(Default::default()))
+            .body(ReqBody::new(Default::default()))
             .unwrap();
         let mut input = Input::new(request);
         let mut cursor = Cursor::default();

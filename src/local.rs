@@ -105,7 +105,7 @@ macro_rules! impl_constructors {
             Uri: HttpTryFrom<U>,
         {
             (LocalRequest {
-                request: Some(Request::new(ReqBody::from_hyp(Default::default()))),
+                request: Some(Request::new(ReqBody::new(Default::default()))),
             })
             .method(Method::$METHOD)
             .uri(uri)
@@ -191,7 +191,7 @@ impl LocalRequest {
     /// Overwrite the message body of this dummy request with given instance.
     pub fn body(mut self, body: impl Into<Body>) -> Self {
         if let Some(ref mut request) = self.request {
-            mem::replace(request.body_mut(), ReqBody::from_hyp(body.into()));
+            mem::replace(request.body_mut(), ReqBody::new(body.into()));
         }
         self
     }

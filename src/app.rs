@@ -143,7 +143,7 @@ mod service {
         type Future = AppFuture<'e, E>;
 
         fn call(&mut self, request: Request<Self::ReqBody>) -> Self::Future {
-            self.dispatch_request(request.map(ReqBody::from_hyp))
+            self.dispatch_request(request.map(ReqBody::new))
         }
     }
 
