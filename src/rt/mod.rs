@@ -7,7 +7,7 @@
 
 #![allow(missing_docs)]
 
-mod app;
+pub mod app;
 pub mod middleware;
 pub mod server;
 pub mod testing;

@@ -6,7 +6,7 @@ use std::io;
 
 use bytes::Buf;
 use either::Either;
-use futures::{future, Async, Future, Poll};
+use futures::{future, Async, Future, Poll, Stream};
 use http::header::HeaderMap;
 use http::{Request, Response};
 use hyper::body::{Body, Payload};
@@ -21,10 +21,19 @@ use output::{Output, OutputContext};
 
 /// A trait which compose the trait bounds representing that
 /// the implementor is able to use as an HTTP service.
-pub trait IsAppEndpoint: for<'a> AppEndpoint<'a> {}
+pub trait IsAppEndpoint: for<'a> AppEndpoint<'a> {
+    /// Lift this instance into an implementor of `Endpoint`.
+    fn lift(self) -> Lift<Self>
+    where
+        Self: Sized,
+    {
+        Lift(self)
+    }
+}
 
 impl<E> IsAppEndpoint for E where for<'a> E: AppEndpoint<'a> {}
 
+#[doc(hidden)]
 pub trait AppEndpoint<'a>: Send + Sync + 'static {
     type Output: Tuple + Output;
     type Future: Future<Item = Self::Output, Error = Error> + Send + 'a;
@@ -40,8 +49,9 @@ where
     type Output = E::Output;
     type Future = E::Future;
 
+    #[inline]
     fn apply_app(&'a self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
-        <Self as Endpoint<'a>>::apply(self, cx)
+        self.apply(cx)
     }
 }
 
@@ -62,6 +72,13 @@ where
 }
 
 /// A wrapper struct for lifting the instance of `Endpoint` to an HTTP service.
+///
+/// # Safety
+///
+/// The implementation of `NewService` for this type internally uses unsafe block
+/// with an assumption that `self` always outlives the returned future.
+/// Ensure that the all of spawned tasks are terminated and their instance
+/// are destroyed before `Self::drop`.
 #[derive(Debug)]
 pub struct App<E: IsAppEndpoint> {
     endpoint: Lift<E>,
@@ -71,18 +88,14 @@ impl<E> App<E>
 where
     E: IsAppEndpoint,
 {
-    pub(crate) fn new(endpoint: E) -> App<E> {
+    /// Create a new `App` from the specified endpoint.
+    pub fn new(endpoint: E) -> App<E> {
         App {
-            endpoint: Lift(endpoint),
+            endpoint: endpoint.lift(),
         }
     }
 }
 
-/// # Safety
-/// This implementation internally uses some unsafe block with an assumption that
-/// `self` always outlives the returned future.
-/// Ensure that the all of spawned tasks are terminated and their instance
-/// are destroyed before `Self::drop`.
 impl<E> NewService for App<E>
 where
     E: IsAppEndpoint,
@@ -95,11 +108,14 @@ where
     type Future = future::FutureResult<Self::Service, Self::InitError>;
 
     fn new_service(&self) -> Self::Future {
+        // This unsafe code assumes that the lifetime of `&self` is always
+        // longer than the generated future.
         let endpoint = unsafe { &*(&self.endpoint as *const _) };
         future::ok(AppService { endpoint })
     }
 }
 
+#[doc(hidden)]
 #[derive(Debug)]
 pub struct AppService<'e, E: Endpoint<'e>> {
     endpoint: &'e E,
@@ -141,6 +157,7 @@ where
     }
 }
 
+#[doc(hidden)]
 #[derive(Debug)]
 pub struct AppFuture<'e, E: Endpoint<'e>> {
     state: State<E::Future>,
@@ -221,30 +238,32 @@ where
     }
 }
 
-pub enum AppPayload {
-    Err(Option<String>),
-    Ok(
+pub struct AppPayload {
+    inner: Either<
+        Option<String>,
         Box<
             dyn Payload<
                 Data = Box<dyn Buf + Send + 'static>,
                 Error = Box<dyn error::Error + Send + Sync + 'static>,
             >,
         >,
-    ),
+    >,
 }
 
 impl fmt::Debug for AppPayload {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            AppPayload::Err(ref err) => f.debug_tuple("Err").field(err).finish(),
-            AppPayload::Ok(..) => f.debug_tuple("Ok").finish(),
+        match self.inner {
+            Either::Left(ref err) => f.debug_tuple("Err").field(err).finish(),
+            Either::Right(..) => f.debug_tuple("Ok").finish(),
         }
     }
 }
 
 impl AppPayload {
     fn err(message: String) -> Self {
-        AppPayload::Err(Some(message))
+        AppPayload {
+            inner: Either::Left(Some(message)),
+        }
     }
 
     fn ok<T: ResBody>(body: T) -> Self {
@@ -278,64 +297,74 @@ impl AppPayload {
             }
         }
 
-        AppPayload::Ok(Box::new(Inner(body.into_payload())))
+        AppPayload {
+            inner: Either::Right(Box::new(Inner(body.into_payload()))),
+        }
     }
 }
 
+type AppPayloadData = Either<io::Cursor<String>, Box<dyn Buf + Send + 'static>>;
+
 impl Payload for AppPayload {
-    type Data = Either<io::Cursor<String>, Box<dyn Buf + Send + 'static>>;
+    type Data = AppPayloadData;
     type Error = Box<dyn error::Error + Send + Sync + 'static>;
 
     #[inline]
     fn poll_data(&mut self) -> Poll<Option<Self::Data>, Self::Error> {
-        match self {
-            AppPayload::Err(ref mut message) => message
+        match self.inner {
+            Either::Left(ref mut message) => message
                 .take()
                 .map(|message| Ok(Async::Ready(Some(Either::Left(io::Cursor::new(message))))))
                 .expect("The payload has already polled"),
-            AppPayload::Ok(ref mut payload) => payload
+            Either::Right(ref mut payload) => payload
                 .poll_data()
                 .map(|x| x.map(|data_opt| data_opt.map(Either::Right))),
         }
     }
 
     fn poll_trailers(&mut self) -> Poll<Option<HeaderMap>, Self::Error> {
-        match self {
-            AppPayload::Err(..) => Ok(Async::Ready(None)),
-            AppPayload::Ok(ref mut payload) => payload.poll_trailers(),
+        match self.inner {
+            Either::Left(..) => Ok(Async::Ready(None)),
+            Either::Right(ref mut payload) => payload.poll_trailers(),
         }
     }
 
     fn is_end_stream(&self) -> bool {
-        match self {
-            AppPayload::Err(ref msg) => msg.is_none(),
-            AppPayload::Ok(ref payload) => payload.is_end_stream(),
+        match self.inner {
+            Either::Left(ref msg) => msg.is_none(),
+            Either::Right(ref payload) => payload.is_end_stream(),
         }
     }
 
     fn content_length(&self) -> Option<u64> {
-        match self {
-            AppPayload::Err(ref msg) => msg.as_ref().map(|msg| msg.len() as u64),
-            AppPayload::Ok(ref payload) => payload.content_length(),
+        match self.inner {
+            Either::Left(ref msg) => msg.as_ref().map(|msg| msg.len() as u64),
+            Either::Right(ref payload) => payload.content_length(),
         }
+    }
+}
+
+impl Stream for AppPayload {
+    type Item = AppPayloadData;
+    type Error = Box<dyn error::Error + Send + Sync + 'static>;
+
+    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+        self.poll_data()
     }
 }
 
 #[cfg(feature = "tower-web")]
 mod imp_buf_stream_for_app_payload {
-    use super::AppPayload;
+    use super::{AppPayload, AppPayloadData};
 
-    use bytes::Buf;
-    use either::Either;
     use futures::Poll;
     use hyper::body::Payload;
     use std::error;
-    use std::io;
     use tower_web::util::buf_stream::size_hint;
     use tower_web::util::BufStream;
 
     impl BufStream for AppPayload {
-        type Item = Either<io::Cursor<String>, Box<dyn Buf + Send + 'static>>;
+        type Item = AppPayloadData;
         type Error = Box<dyn error::Error + Send + Sync + 'static>;
 
         fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {

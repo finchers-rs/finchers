@@ -1,3 +1,5 @@
+//! The implementation of HTTP server based on hyper and tower-service.
+
 use std::error;
 use std::net::ToSocketAddrs;
 use std::sync::Arc;
@@ -39,6 +41,7 @@ impl<S> ServerBuilder<S> {
         }
     }
 
+    /// Wraps the inner service into the specified Tower-web middleware.
     #[cfg(feature = "tower-web")]
     pub fn with_tower_middleware<M>(
         self,
@@ -79,7 +82,7 @@ impl<S> ServerBuilder<S> {
         let addr = addrs
             .next()
             .ok_or_else(|| ::failure::err_msg("invalid listener addr"))?;
-        serve(
+        serve_with_shutdown_signal(
             Server::try_bind(&addr)?,
             Runtime::new()?,
             self.new_service,
@@ -88,7 +91,8 @@ impl<S> ServerBuilder<S> {
     }
 }
 
-pub fn serve<I, S, Bd>(
+/// Starts an HTTP server with the specified components.
+pub fn serve_with_shutdown_signal<I, S, Bd>(
     builder: Builder<I>,
     mut rt: Runtime,
     new_service: S,
@@ -109,8 +113,11 @@ where
     <S::Service as tower_service::Service>::Future: Send + 'static,
     Bd: Payload,
 {
-    // put the instance of new_service into the heap and ensure that
+    // Put the instance of new_service into the heap and ensure that
     // it lives until enter the scope.
+    //
+    // It implies that all tasks spawned by Tokio runtime must be dropped
+    // after executing `shutdown_on_idle()`.
     let new_service = Arc::new(new_service);
 
     let server = builder

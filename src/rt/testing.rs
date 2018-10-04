@@ -1,6 +1,10 @@
+//! The basic facilities for testing endpoints.
+
 #![allow(missing_docs)]
 
 use std::borrow::Cow;
+use std::io;
+use std::str;
 
 use bytes::{Buf, Bytes};
 use futures::{future, stream, Async, Future, Stream};
@@ -16,6 +20,10 @@ use output::Output;
 
 use super::app::AppService;
 
+/// A test runner for emulating the behavior of endpoints in the server.
+///
+/// It uses internally the current thread version of Tokio runtime for executing
+/// asynchronous processes.
 #[derive(Debug)]
 pub struct TestRunner<E> {
     endpoint: E,
@@ -23,20 +31,23 @@ pub struct TestRunner<E> {
 }
 
 impl<E> TestRunner<E> {
-    pub fn new(endpoint: E) -> TestRunner<E>
+    /// Create a `TestRunner` from the specified endpoint.
+    pub fn new(endpoint: E) -> io::Result<TestRunner<E>>
     where
         for<'e> E: Endpoint<'e>,
     {
-        TestRunner {
+        Ok(TestRunner {
             endpoint,
-            rt: Runtime::new().expect("failed to start the runtime"),
-        }
+            rt: Runtime::new()?,
+        })
     }
 
-    pub fn runtime(&mut self) -> &mut Runtime {
-        &mut self.rt
+    /// Create a `TestRunner` from the specified endpoint with a Tokio runtime.
+    pub fn with_runtime(endpoint: E, rt: Runtime) -> TestRunner<E> {
+        TestRunner { endpoint, rt }
     }
 
+    /// Applys the given request to the inner endpoint and retrieves the result of returned future.
     pub fn apply_endpoint<'a>(&'a mut self, request: Request<ReqBody>) -> Result<E::Output, Error>
     where
         E: Endpoint<'a>,
@@ -45,6 +56,8 @@ impl<E> TestRunner<E> {
         self.rt.block_on(future::poll_fn(|| future.poll_endpoint()))
     }
 
+    /// Retrieves the retrieves the result of future returned from `Endpoint::apply`,
+    /// and converting it into an HTTP response by calling `Output::respond`.
     pub fn apply_output<'a>(
         &'a mut self,
         request: Request<ReqBody>,
@@ -57,6 +70,7 @@ impl<E> TestRunner<E> {
         self.rt.block_on(future::poll_fn(|| future.poll_output()))
     }
 
+    /// Gets the response of specified HTTP request.
     pub fn apply_all<'a>(&'a mut self, request: Request<ReqBody>) -> Response<ResBody>
     where
         E: Endpoint<'a>,
@@ -93,6 +107,11 @@ impl<E> TestRunner<E> {
 
         Response::from_parts(parts, body)
     }
+
+    /// Returns a reference to the underlying Tokio runtime.
+    pub fn runtime(&mut self) -> &mut Runtime {
+        &mut self.rt
+    }
 }
 
 #[derive(Debug)]
@@ -102,14 +121,9 @@ pub struct ResBody {
     content_length: Option<u64>,
 }
 
-#[allow(missing_docs)]
 impl ResBody {
-    pub fn into_chunks(self) -> Vec<Bytes> {
-        self.data
-    }
-
-    pub fn is_chunked(&self) -> bool {
-        self.content_length.is_none()
+    pub fn data(&self) -> &Vec<Bytes> {
+        &self.data
     }
 
     pub fn trailers(&self) -> Option<&HeaderMap> {
@@ -118,6 +132,10 @@ impl ResBody {
 
     pub fn content_length(&self) -> Option<u64> {
         self.content_length
+    }
+
+    pub fn is_chunked(&self) -> bool {
+        self.content_length.is_none()
     }
 
     pub fn to_bytes(&self) -> Cow<'_, [u8]> {
@@ -131,7 +149,16 @@ impl ResBody {
         }
     }
 
-    pub fn to_utf8(&self) -> Cow<'_, str> {
+    pub fn to_utf8(&self) -> Result<Cow<'_, str>, str::Utf8Error> {
+        match self.to_bytes() {
+            Cow::Borrowed(bytes) => str::from_utf8(bytes).map(Cow::Borrowed),
+            Cow::Owned(bytes) => String::from_utf8(bytes)
+                .map(Cow::Owned)
+                .map_err(|e| e.utf8_error()),
+        }
+    }
+
+    pub fn to_utf8_lossy(&self) -> Cow<'_, str> {
         match self.to_bytes() {
             Cow::Borrowed(bytes) => String::from_utf8_lossy(bytes),
             Cow::Owned(bytes) => match String::from_utf8_lossy(&bytes) {
