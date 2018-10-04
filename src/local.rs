@@ -81,6 +81,19 @@ use input::ReqBody;
 use output::body::ResBody as _ResBody;
 use output::Output;
 
+#[cfg(feature = "rt")]
+use rt::blocking::{with_set_runtime_mode, RuntimeMode};
+
+#[cfg(feature = "rt")]
+fn annotate<R>(f: impl FnOnce() -> R) -> R {
+    with_set_runtime_mode(RuntimeMode::CurrentThread, f)
+}
+
+#[cfg(not(feature = "rt"))]
+fn annotate<R>(f: impl FnOnce() -> R) -> R {
+    f()
+}
+
 macro_rules! impl_constructors {
     ($(
         $(#[$doc:meta])*
@@ -191,7 +204,7 @@ impl LocalRequest {
         let app = App::new(endpoint);
 
         let mut future = app.dispatch_request(request);
-        let future = ::futures::future::poll_fn(move || future.poll_output());
+        let future = ::futures::future::poll_fn(move || annotate(|| future.poll_output()));
 
         let mut rt = Runtime::new().expect("rt");
         rt.block_on(future)
@@ -209,7 +222,7 @@ impl LocalRequest {
         let app = App::new(endpoint);
 
         let mut future = app.dispatch_request(request);
-        let future = ::futures::future::poll_fn(move || future.poll_response());
+        let future = ::futures::future::poll_fn(move || annotate(|| future.poll_response()));
 
         let mut rt = Runtime::new().expect("rt");
 
@@ -224,7 +237,7 @@ impl LocalRequest {
 
         let data = rt
             .block_on(
-                stream01::poll_fn(|| match body.poll_data() {
+                stream01::poll_fn(|| match annotate(|| body.poll_data()) {
                     Ok(Async::Ready(data)) => Ok(Async::Ready(data.map(Buf::collect))),
                     Ok(Async::NotReady) => Ok(Async::NotReady),
                     Err(err) => Err(err),
@@ -232,7 +245,7 @@ impl LocalRequest {
             ).expect("error during sending the response body.");
 
         let trailers = rt
-            .block_on(future01::poll_fn(|| body.poll_trailers()))
+            .block_on(future01::poll_fn(|| annotate(|| body.poll_trailers())))
             .expect("error during sending trailers.");
 
         let body = ResBody {

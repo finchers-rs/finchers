@@ -1,6 +1,7 @@
 //! Components for managing HTTP server.
 
 use failure::{err_msg, Fallible};
+use futures::future::poll_fn;
 use futures::Future;
 use hyper::server::conn::Http;
 use hyper::server::Builder;
@@ -11,6 +12,19 @@ use tokio::runtime::Runtime;
 use app::App;
 use endpoint::Endpoint;
 use output::Output;
+
+#[cfg(feature = "rt")]
+use rt::blocking::{with_set_runtime_mode, RuntimeMode};
+
+#[cfg(feature = "rt")]
+fn annotate<R>(f: impl FnOnce() -> R) -> R {
+    with_set_runtime_mode(RuntimeMode::ThreadPool, f)
+}
+
+#[cfg(not(feature = "rt"))]
+fn annotate<R>(f: impl FnOnce() -> R) -> R {
+    f()
+}
 
 // ==== LaunchEndpoint ====
 
@@ -131,9 +145,10 @@ where
         let new_service = App::new(endpoint);
 
         let http = http.unwrap_or_else(Http::new);
-        let server = Builder::new(incoming, http)
+        let mut server = Builder::new(incoming, http)
             .serve(new_service)
             .map_err(|err| error!("server error: {}", err));
+        let server = poll_fn(move || annotate(|| server.poll()));
 
         let mut rt = match rt {
             Some(rt) => rt,
