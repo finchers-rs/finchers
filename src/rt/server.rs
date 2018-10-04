@@ -16,6 +16,7 @@ use tower_service;
 #[cfg(feature = "tower-web")]
 use tower_web;
 
+use super::blocking::{with_set_runtime_mode, RuntimeMode};
 use super::middleware::{Chain, Middleware, TowerWebMiddleware};
 
 /// A builder of HTTP server.
@@ -120,10 +121,13 @@ where
     // after executing `shutdown_on_idle()`.
     let new_service = Arc::new(new_service);
 
-    let server = builder
+    let mut server = builder
         .serve(NewHttpService(new_service.clone()))
         .with_graceful_shutdown(signal)
         .map_err(|err| error!("server error: {}", err));
+
+    let server =
+        future::poll_fn(move || with_set_runtime_mode(RuntimeMode::ThreadPool, || server.poll()));
 
     rt.spawn(server);
     rt.shutdown_on_idle().wait().unwrap();

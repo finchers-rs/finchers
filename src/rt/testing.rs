@@ -19,6 +19,11 @@ use input::ReqBody;
 use output::Output;
 
 use super::app::AppService;
+use super::blocking::{with_set_runtime_mode, RuntimeMode};
+
+fn annotate<R>(f: impl FnOnce() -> R) -> R {
+    with_set_runtime_mode(RuntimeMode::CurrentThread, f)
+}
 
 /// A test runner for emulating the behavior of endpoints in the server.
 ///
@@ -53,7 +58,8 @@ impl<E> TestRunner<E> {
         E: Endpoint<'a>,
     {
         let mut future = AppService::new(&self.endpoint).dispatch(request);
-        self.rt.block_on(future::poll_fn(|| future.poll_endpoint()))
+        self.rt
+            .block_on(future::poll_fn(|| annotate(|| future.poll_endpoint())))
     }
 
     /// Retrieves the retrieves the result of future returned from `Endpoint::apply`,
@@ -67,7 +73,8 @@ impl<E> TestRunner<E> {
         E::Output: Output,
     {
         let mut future = AppService::new(&self.endpoint).dispatch(request);
-        self.rt.block_on(future::poll_fn(|| future.poll_output()))
+        self.rt
+            .block_on(future::poll_fn(|| annotate(|| future.poll_output())))
     }
 
     /// Gets the response of specified HTTP request.
@@ -78,7 +85,10 @@ impl<E> TestRunner<E> {
     {
         let mut future = AppService::new(&self.endpoint).dispatch(request);
 
-        let response = self.rt.block_on(future::poll_fn(|| future.poll())).unwrap();
+        let response = self
+            .rt
+            .block_on(future::poll_fn(|| annotate(|| future.poll())))
+            .unwrap();
         let (parts, mut payload) = response.into_parts();
 
         // construct ResBody
@@ -87,7 +97,7 @@ impl<E> TestRunner<E> {
         let data = self
             .rt
             .block_on(
-                stream::poll_fn(|| match payload.poll_data() {
+                stream::poll_fn(|| match annotate(|| payload.poll_data()) {
                     Ok(Async::Ready(data)) => Ok(Async::Ready(data.map(Buf::collect))),
                     Ok(Async::NotReady) => Ok(Async::NotReady),
                     Err(err) => Err(err),
@@ -96,7 +106,7 @@ impl<E> TestRunner<E> {
 
         let trailers = self
             .rt
-            .block_on(future::poll_fn(|| payload.poll_trailers()))
+            .block_on(future::poll_fn(|| annotate(|| payload.poll_trailers())))
             .expect("error during sending trailers.");
 
         let body = ResBody {

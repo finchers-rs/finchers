@@ -8,43 +8,16 @@
 #![allow(missing_docs)]
 
 pub mod app;
+pub mod blocking;
 pub mod middleware;
 pub mod server;
 pub mod testing;
 
 // re-exports
 pub use self::app::{App, IsAppEndpoint};
+pub use self::blocking::{blocking, blocking_section};
 pub use self::middleware::Middleware;
 pub use self::server::ServerBuilder;
-
-#[doc(no_inline)]
-pub use tokio_threadpool::blocking;
-
-// === impl ====
-
-use futures::future::poll_fn;
-use futures::{Async, Future};
-
-use error::fail;
-use error::Error;
-
-/// A helper function to create a future from a blocking section.
-///
-/// # Example
-///
-/// ```ignore
-/// path!(@get / u32 /)
-///     .and_then(|id: u32| blocking_section(|| {
-///         get_post_sync(id).map_err(finchers::error::fail)
-///     }))
-pub fn blocking_section<T>(
-    f: impl FnOnce() -> Result<T, Error>,
-) -> impl Future<Item = T, Error = Error> {
-    let mut f_opt = Some(f);
-    poll_fn(move || {
-        try_ready!(blocking(|| (f_opt.take().unwrap())()).map_err(fail)).map(Async::Ready)
-    })
-}
 
 /// Create an instance of `ServerBuilder` from the specified endpoint.
 pub fn launch<E>(endpoint: E) -> ServerBuilder<App<E>>
