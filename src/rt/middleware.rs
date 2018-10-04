@@ -101,14 +101,11 @@ where
 // ---- Tower Web ----
 
 #[cfg(feature = "tower-web")]
-pub use self::imp_tower_web_integration::arced;
-#[cfg(feature = "tower-web")]
 pub(crate) use self::imp_tower_web_integration::TowerWebMiddleware;
 
 #[cfg(feature = "tower-web")]
 mod imp_tower_web_integration {
     use super::Middleware;
-    use std::sync::Arc;
     use tower_service;
     use tower_web;
 
@@ -136,40 +133,13 @@ mod imp_tower_web_integration {
             self.0.wrap(inner)
         }
     }
-
-    pub fn arced<M>(middleware: M) -> Arced<M> {
-        Arced(Arc::new(middleware))
-    }
-
-    #[derive(Debug)]
-    pub struct Arced<M>(Arc<M>);
-
-    impl<M> Clone for Arced<M> {
-        fn clone(&self) -> Self {
-            Arced(self.0.clone())
-        }
-    }
-
-    impl<M, S> tower_web::middleware::Middleware<S> for Arced<M>
-    where
-        M: tower_web::middleware::Middleware<S>,
-    {
-        type Request = M::Request;
-        type Response = M::Response;
-        type Error = M::Error;
-        type Service = M::Service;
-
-        fn wrap(&self, input: S) -> Self::Service {
-            self.0.wrap(input)
-        }
-    }
 }
 
 pub fn map_response<F>(f: F) -> MapResponse<F> {
     MapResponse(f)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct MapResponse<F>(F);
 
 impl<S, ReqBody, ResBodyT, ResBodyU, F> Middleware<S> for MapResponse<F>

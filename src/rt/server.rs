@@ -43,13 +43,16 @@ impl<S> ServerBuilder<S> {
     pub fn with_tower_middleware<M>(
         self,
         middleware: M,
-    ) -> ServerBuilder<Chain<S, TowerWebMiddleware<M>>>
+    ) -> ServerBuilder<Chain<S, Arc<TowerWebMiddleware<M>>>>
     where
         S: tower_service::NewService,
-        M: tower_web::middleware::Middleware<S::Service> + Clone,
+        M: tower_web::middleware::Middleware<S::Service>,
     {
         ServerBuilder {
-            new_service: Chain::new(self.new_service, TowerWebMiddleware::new(middleware)),
+            new_service: Chain::new(
+                self.new_service,
+                Arc::new(TowerWebMiddleware::new(middleware)),
+            ),
         }
     }
 
