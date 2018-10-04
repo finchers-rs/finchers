@@ -128,11 +128,9 @@ impl<T: ResBody> ResBody for Option<T> {
     type Error = T::Error;
     type Payload = Optional<T::Payload>;
 
+    #[inline]
     fn into_payload(self) -> Self::Payload {
-        match self {
-            Some(data) => Optional(Either::Left(data.into_payload())),
-            None => Optional(Either::Right(false)),
-        }
+        optional(self.map(ResBody::into_payload))
     }
 }
 
@@ -147,7 +145,7 @@ where
 
     #[inline]
     fn into_payload(self) -> Self::Payload {
-        EitherPayload::from(
+        either(
             self.map_left(ResBody::into_payload)
                 .map_right(ResBody::into_payload),
         )
@@ -265,10 +263,7 @@ impl<T> From<T> for Optional<T> {
 )]
 impl<T> From<Option<T>> for Optional<T> {
     fn from(data: Option<T>) -> Optional<T> {
-        match data {
-            Some(data) => Optional(Either::Left(data)),
-            None => Optional(Either::Right(false)),
-        }
+        optional(data)
     }
 }
 
@@ -332,7 +327,8 @@ impl<T: hyper::body::Payload> hyper::body::Payload for Optional<T> {
     }
 }
 
-#[allow(missing_docs)]
+// currently not a public API.
+#[doc(hidden)]
 pub fn optional<T>(bd: Option<T>) -> Optional<T> {
     match bd {
         Some(bd) => Optional(Either::Left(bd)),
@@ -420,6 +416,12 @@ where
             Either::Right(ref right) => right.content_length(),
         }
     }
+}
+
+// currently not a public API.
+#[doc(hidden)]
+pub fn either<L, R>(either: Either<L, R>) -> EitherPayload<L, R> {
+    EitherPayload(either)
 }
 
 trait PollExt<T, E> {
