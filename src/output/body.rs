@@ -129,7 +129,10 @@ impl<T: ResBody> ResBody for Option<T> {
     type Payload = Optional<T::Payload>;
 
     fn into_payload(self) -> Self::Payload {
-        Optional::from(self.map(ResBody::into_payload))
+        match self {
+            Some(data) => Optional(Either::Left(data.into_payload())),
+            None => Optional(Either::Right(false)),
+        }
     }
 }
 
@@ -326,6 +329,14 @@ impl<T: hyper::body::Payload> hyper::body::Payload for Optional<T> {
             Either::Left(ref payload) => payload.content_length(),
             Either::Right(..) => Some(0),
         }
+    }
+}
+
+#[allow(missing_docs)]
+pub fn optional<T>(bd: Option<T>) -> Optional<T> {
+    match bd {
+        Some(bd) => Optional(Either::Left(bd)),
+        None => Optional(Either::Right(false)),
     }
 }
 
