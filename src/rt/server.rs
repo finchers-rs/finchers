@@ -7,11 +7,14 @@ use futures::{future, Future, Stream};
 use http::{Request, Response};
 use hyper::body::{Body, Payload};
 use hyper::server::{Builder, Server};
+use hyper::service as hyper_service;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::runtime::Runtime;
 use tower_service;
+#[cfg(feature = "tower-web")]
+use tower_web;
 
-use super::service::{Chain, Middleware, NewHttpService};
+use super::middleware::{Chain, Middleware, TowerWebMiddleware};
 
 /// A builder of HTTP server.
 #[derive(Debug)]
@@ -26,13 +29,27 @@ impl<S> ServerBuilder<S> {
     }
 
     /// Wraps the inner service into the specified middleware.
-    pub fn with<M>(self, middleware: M) -> ServerBuilder<Chain<S, M>>
+    pub fn with_middleware<M>(self, middleware: M) -> ServerBuilder<Chain<S, M>>
     where
         S: tower_service::NewService,
         M: Middleware<S::Service> + Clone,
     {
         ServerBuilder {
             new_service: Chain::new(self.new_service, middleware),
+        }
+    }
+
+    #[cfg(feature = "tower-web")]
+    pub fn with_tower_middleware<M>(
+        self,
+        middleware: M,
+    ) -> ServerBuilder<Chain<S, TowerWebMiddleware<M>>>
+    where
+        S: tower_service::NewService,
+        M: tower_web::middleware::Middleware<S::Service> + Clone,
+    {
+        ServerBuilder {
+            new_service: Chain::new(self.new_service, TowerWebMiddleware::new(middleware)),
         }
     }
 
@@ -94,11 +111,56 @@ where
     let new_service = Arc::new(new_service);
 
     let server = builder
-        .serve(NewHttpService::new(new_service.clone()))
+        .serve(NewHttpService(new_service.clone()))
         .with_graceful_shutdown(signal)
         .map_err(|err| error!("server error: {}", err));
 
     rt.spawn(server);
     rt.shutdown_on_idle().wait().unwrap();
     Ok(())
+}
+
+#[derive(Debug)]
+struct NewHttpService<S>(S);
+
+impl<S, ReqBody, ResBody> hyper_service::NewService for NewHttpService<S>
+where
+    S: tower_service::NewService<Request = Request<ReqBody>, Response = Response<ResBody>>,
+    ReqBody: Payload,
+    ResBody: Payload,
+    S::Error: Into<Box<dyn error::Error + Send + Sync + 'static>>,
+    S::InitError: Into<Box<dyn error::Error + Send + Sync + 'static>>,
+{
+    type ReqBody = ReqBody;
+    type ResBody = ResBody;
+    type Error = S::Error;
+    type Service = HttpService<S::Service>;
+    type InitError = S::InitError;
+    type Future = future::Map<S::Future, fn(S::Service) -> HttpService<S::Service>>;
+
+    #[inline]
+    fn new_service(&self) -> Self::Future {
+        self.0.new_service().map(HttpService)
+    }
+}
+
+#[derive(Debug)]
+struct HttpService<S>(S);
+
+impl<S, ReqBody, ResBody> hyper_service::Service for HttpService<S>
+where
+    S: tower_service::Service<Request = Request<ReqBody>, Response = Response<ResBody>>,
+    ReqBody: Payload,
+    ResBody: Payload,
+    S::Error: Into<Box<dyn error::Error + Send + Sync + 'static>>,
+{
+    type ReqBody = ReqBody;
+    type ResBody = ResBody;
+    type Error = S::Error;
+    type Future = S::Future;
+
+    #[inline]
+    fn call(&mut self, request: Request<ReqBody>) -> Self::Future {
+        self.0.call(request)
+    }
 }

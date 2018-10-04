@@ -8,16 +8,14 @@
 #![allow(missing_docs)]
 
 mod app;
+pub mod middleware;
 pub mod server;
-pub mod service;
 pub mod testing;
 
 // re-exports
 pub use self::app::{App, IsAppEndpoint};
+pub use self::middleware::Middleware;
 pub use self::server::ServerBuilder;
-pub use self::service::Middleware;
-#[cfg(feature = "tower-web")]
-pub use self::service::TowerWebMiddleware;
 
 #[doc(no_inline)]
 pub use tokio_threadpool::blocking;

@@ -45,13 +45,12 @@ fn smoketest_new_runtime() {
 #[test]
 fn smoketest_tower_web_middlewares() {
     use finchers::prelude::*;
-    use finchers::rt::TowerWebMiddleware;
-    use std::sync::Arc;
+    use finchers::rt::middleware::arced;
     use tower_web::middleware::log::LogMiddleware;
 
     drop(|| {
-        finchers::rt::launch(endpoint::cloned("Hello"))
-            .with(Arc::new(TowerWebMiddleware::new(LogMiddleware::new(""))))
+        finchers::rt::launch(endpoint::unit())
+            .with_tower_middleware(arced(LogMiddleware::new("")))
             .serve("127.0.0.1:4000")
     });
 }
