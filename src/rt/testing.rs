@@ -18,7 +18,7 @@ use error::Error;
 use input::ReqBody;
 use output::Output;
 
-use super::app::AppService;
+use super::app::app_service::AppService;
 use super::blocking::{with_set_runtime_mode, RuntimeMode};
 
 fn annotate<R>(f: impl FnOnce() -> R) -> R {

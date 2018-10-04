@@ -1,4 +1,4 @@
-//! Components for managing blocking codes.
+//! Components for executing blocking codes.
 
 use std::cell::Cell;
 
@@ -72,6 +72,7 @@ where
     BlockingSection { op: Some(f) }
 }
 
+#[allow(missing_docs)]
 #[derive(Debug)]
 pub struct BlockingSection<F> {
     op: Option<F>,
@@ -94,11 +95,4 @@ where
         );
         result.map(Async::Ready).map_err(Into::into)
     }
-}
-
-pub fn blocking_section_ok<F, R>(f: F) -> BlockingSection<impl FnOnce() -> Result<R, Error>>
-where
-    F: FnOnce() -> R,
-{
-    blocking_section(move || Ok(f()))
 }
