@@ -1,4 +1,4 @@
-use hyper::body::{Body, Payload};
+use hyper::body::Body;
 
 /// A type holding the instance of request body.
 #[derive(Debug)]
@@ -28,7 +28,9 @@ impl ReqBody {
         self.0.is_none()
     }
 
+    #[cfg(feature = "rt")]
     pub(crate) fn content_length(&self) -> Option<u64> {
+        use hyper::body::Payload;
         self.0.as_ref()?.content_length()
     }
 }
