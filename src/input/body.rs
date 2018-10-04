@@ -1,4 +1,4 @@
-use hyper::body::Body;
+use hyper::body::{Body, Payload};
 
 /// A type holding the instance of request body.
 #[derive(Debug)]
@@ -26,5 +26,9 @@ impl ReqBody {
     #[allow(missing_docs)]
     pub fn is_gone(&self) -> bool {
         self.0.is_none()
+    }
+
+    pub(crate) fn content_length(&self) -> Option<u64> {
+        self.0.as_ref()?.content_length()
     }
 }
