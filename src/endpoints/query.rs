@@ -104,7 +104,6 @@ where
     fn poll(&mut self) -> ::futures::Poll<Self::Item, Self::Error> {
         with_get_cx(|input| {
             let query = input
-                .request()
                 .uri()
                 .query()
                 .expect("The query string should be available inside of this future.");
@@ -201,7 +200,7 @@ where
     type Error = Error;
 
     fn poll(&mut self) -> ::futures::Poll<Self::Item, Self::Error> {
-        with_get_cx(|input| match input.request().uri().query() {
+        with_get_cx(|input| match input.uri().query() {
             Some(query) => serde_qs::from_str(query)
                 .map(|x| (Some(x),).into())
                 .map_err(|err| bad_request(SyncFailure::new(err))),
@@ -241,7 +240,7 @@ impl ::futures::Future for RawFuture {
     type Error = Error;
 
     fn poll(&mut self) -> ::futures::Poll<Self::Item, Self::Error> {
-        let raw = with_get_cx(|input| input.request().uri().query().map(ToOwned::to_owned));
+        let raw = with_get_cx(|input| input.uri().query().map(ToOwned::to_owned));
         Ok((raw,).into())
     }
 }

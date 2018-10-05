@@ -57,7 +57,7 @@ impl ::futures::Future for RawFuture {
     type Error = Error;
 
     fn poll(&mut self) -> ::futures::Poll<Self::Item, Self::Error> {
-        with_get_cx(|input| input.payload())
+        with_get_cx(|input| input.body_mut().payload())
             .map(|x| (x,).into())
             .ok_or_else(stolen_payload)
     }
@@ -126,7 +126,7 @@ impl ::futures::Future for ReceiveAllFuture {
 
             match mem::replace(&mut self.state, State::Done) {
                 State::Start => {
-                    let payload = match with_get_cx(|input| input.payload()) {
+                    let payload = match with_get_cx(|input| input.body_mut().payload()) {
                         Some(payload) => payload,
                         None => return Err(stolen_payload()),
                     };

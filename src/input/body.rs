@@ -5,13 +5,14 @@ use hyper::body::Body;
 pub struct ReqBody(Option<Body>);
 
 impl ReqBody {
-    #[doc(hidden)]
+    /// Create an instance of `RequestBody` from `hyper::Body`.
     #[deprecated(
         since = "0.12.3",
         note = "This method will be removed in the future version."
     )]
+    #[inline]
     pub fn from_hyp(body: Body) -> ReqBody {
-        ReqBody(Some(body))
+        ReqBody::new(body)
     }
 
     pub(crate) fn new(body: Body) -> ReqBody {

@@ -95,7 +95,6 @@ where
     fn poll(&mut self) -> ::futures::Poll<Self::Item, Self::Error> {
         with_get_cx(|input| {
             let h = input
-                .request()
                 .headers()
                 .get(&self.endpoint.name)
                 .expect("The header value should be always available inside of this Future.");
@@ -171,14 +170,12 @@ where
     type Error = Error;
 
     fn poll(&mut self) -> ::futures::Poll<Self::Item, Self::Error> {
-        with_get_cx(
-            |input| match input.request().headers().get(&self.endpoint.name) {
-                Some(h) => T::from_header_value(h)
-                    .map(|parsed| (Some(parsed),).into())
-                    .map_err(error::bad_request),
-                None => Ok((None,).into()),
-            },
-        )
+        with_get_cx(|input| match input.headers().get(&self.endpoint.name) {
+            Some(h) => T::from_header_value(h)
+                .map(|parsed| (Some(parsed),).into())
+                .map_err(error::bad_request),
+            None => Ok((None,).into()),
+        })
     }
 }
 

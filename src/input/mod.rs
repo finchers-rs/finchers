@@ -42,11 +42,55 @@ impl Input {
     }
 
     /// Return a shared reference to the value of raw HTTP request without the message body.
+    #[deprecated(
+        since = "0.12.3",
+        note = "The method will be removed in the future version."
+    )]
     pub fn request(&self) -> &Request<ReqBody> {
         &self.request
     }
 
+    /// Returns a reference to the HTTP method of the request.
+    pub fn method(&self) -> &http::Method {
+        self.request.method()
+    }
+
+    /// Returns a reference to the URI of the request.
+    pub fn uri(&self) -> &http::Uri {
+        self.request.uri()
+    }
+
+    /// Returns the HTTP version of the request.
+    pub fn version(&self) -> http::Version {
+        self.request.version()
+    }
+
+    /// Returns a reference to the header map in the request.
+    pub fn headers(&self) -> &http::HeaderMap {
+        self.request.headers()
+    }
+
+    /// Returns a reference to the extension map which contains
+    /// extra information about the request.
+    pub fn extensions(&self) -> &http::Extensions {
+        self.request.extensions()
+    }
+
+    /// Returns a reference to the message body in the request.
+    pub fn body(&self) -> &ReqBody {
+        self.request.body()
+    }
+
+    /// Returns a mutable reference to the message body in the request.
+    pub fn body_mut(&mut self) -> &mut ReqBody {
+        self.request.body_mut()
+    }
+
     /// Takes the instance of `RequestBody` from this value.
+    #[deprecated(
+        since = "0.12.3",
+        note = "use the method provided by `ReqBody` instead."
+    )]
     #[inline]
     pub fn payload(&mut self) -> Option<Body> {
         self.request.body_mut().payload()
@@ -123,10 +167,18 @@ impl Input {
     }
 }
 
+/// # Compatibility Notes
+///
+/// The dereference to `Request<ReqBody>` will be removed in the future version.
+#[doc(hidden)]
+#[deprecated(
+    since = "0.12.3",
+    note = "Dereference to Request<ReqBody> will be removed in the future version."
+)]
 impl Deref for Input {
     type Target = Request<ReqBody>;
 
     fn deref(&self) -> &Self::Target {
-        self.request()
+        &self.request
     }
 }
