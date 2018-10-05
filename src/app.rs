@@ -31,7 +31,7 @@ impl<'e, E: Endpoint<'e>> App<'e, E> {
     pub(crate) fn dispatch_request(&self, request: Request<ReqBody>) -> AppFuture<'e, E> {
         AppFuture {
             state: State::Uninitialized,
-            input: Some(Input::new(request)),
+            input: Input::new(request),
             endpoint: self.endpoint,
         }
     }
@@ -41,7 +41,7 @@ impl<'e, E: Endpoint<'e>> App<'e, E> {
 #[derive(Debug)]
 pub(crate) struct AppFuture<'e, E: Endpoint<'e>> {
     state: State<E::Future>,
-    input: Option<Input>,
+    input: Input,
     endpoint: &'e E,
 }
 
@@ -62,7 +62,7 @@ where
                 State::Uninitialized => {
                     let mut cursor = Cursor::default();
                     match {
-                        let mut ecx = ApplyContext::new(self.input.as_mut().unwrap(), &mut cursor);
+                        let mut ecx = ApplyContext::new(&mut self.input, &mut cursor);
                         self.endpoint.apply(&mut ecx)
                     } {
                         Ok(future) => self.state = State::InFlight(future, cursor),
@@ -73,7 +73,7 @@ where
                     }
                 }
                 State::InFlight(ref mut f, ref mut cursor) => {
-                    let mut tcx = TaskContext::new(self.input.as_mut().unwrap(), cursor);
+                    let mut tcx = TaskContext::new(&mut self.input, cursor);
                     break with_set_cx(&mut tcx, || f.poll());
                 }
                 State::Gone => panic!("cannot poll AppServiceFuture twice"),
@@ -88,14 +88,28 @@ where
     {
         let output = match self.poll_output() {
             Ok(Async::Ready(out)) => {
-                let mut cx = OutputContext::new(self.input.as_mut().unwrap());
+                let mut cx = OutputContext::new(&mut self.input);
                 out.respond(&mut cx).map_err(Into::into)
             }
             Ok(Async::NotReady) => return Ok(Async::NotReady),
             Err(err) => Err(err),
         };
 
-        let mut response = self.input.take().unwrap().finalize(output);
+        let mut response = output
+            .map(|response| response.map(Either::Right))
+            .unwrap_or_else(|err| err.to_response().map(Either::Left));
+
+        if let Some(jar) = self.input.cookie_jar() {
+            for cookie in jar.delta() {
+                let val = HeaderValue::from_str(&cookie.encoded().to_string()).unwrap();
+                response.headers_mut().insert(header::SET_COOKIE, val);
+            }
+        }
+
+        if let Some(headers) = self.input.take_response_headers() {
+            response.headers_mut().extend(headers);
+        }
+
         response
             .headers_mut()
             .entry(header::SERVER)

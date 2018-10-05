@@ -137,6 +137,10 @@ impl Input {
         }
     }
 
+    pub(crate) fn cookie_jar(&self) -> Option<&CookieJar> {
+        self.cookie_jar.as_ref()
+    }
+
     /// Returns a mutable reference to a `HeaderMap` which contains the entries of response headers.
     ///
     /// The values inserted in this header map are automatically added to the actual response.
@@ -144,13 +148,22 @@ impl Input {
         self.response_headers.get_or_insert_with(Default::default)
     }
 
+    pub(crate) fn take_response_headers(&mut self) -> Option<HeaderMap> {
+        self.response_headers.take()
+    }
+
+    #[cfg(feature = "rt")]
     pub(crate) fn finalize<T>(
         self,
         output: Result<Response<T>, Error>,
     ) -> Response<Either<String, T>> {
         let mut response = output
-            .map(|response| response.map(Either::Right))
-            .unwrap_or_else(|err| err.to_response().map(Either::Left));
+            .map(|mut response| {
+                if self.body().is_upgraded() {
+                    *response.status_mut() = http::StatusCode::SWITCHING_PROTOCOLS;
+                }
+                response.map(Either::Right)
+            }).unwrap_or_else(|err| err.to_response().map(Either::Left));
 
         if let Some(ref jar) = self.cookie_jar {
             for cookie in jar.delta() {

@@ -6,3 +6,4 @@ pub mod fs;
 pub mod header;
 pub mod logging;
 pub mod query;
+pub mod upgrade;
