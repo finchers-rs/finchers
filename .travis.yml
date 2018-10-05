@@ -13,23 +13,14 @@ branches:
 matrix:
   allow_failures:
     - rust: nightly
+    - env: COVERAGE
+  fast_finish: true
 
   include:
     - rust: stable
       env: RUSTFLAGS="--cfg finchers_deny_warnings"
-      sudo: required
-      addons:
-        apt:
-          packages:
-            - libcurl4-openssl-dev
-            - libelf-dev
-            - libdw-dev
-            - binutils-dev
       before_script:
         - rustup component add rustfmt-preview
-        - cargo install cargo-update || true
-        - cargo install cargo-kcov || true
-        - cargo install-update -a
       script:
         - cargo fmt -- --check
         - cargo update
@@ -37,10 +28,6 @@ matrix:
         - cargo test --all-features
         - cargo test --no-default-features
         - if [[ "${TRAVIS_PULL_REQUEST_BRANCH:-}" = release-* ]]; then cargo publish --dry-run; fi
-      after_success:
-        - unset RUSTFLAGS
-        - cargo kcov --print-install-kcov-sh | sh
-        - cargo kcov -v --coveralls
 
     - rust: beta
       env: RUSTFLAGS="--cfg finchers_deny_warnings"
@@ -57,6 +44,25 @@ matrix:
         - cargo test
         - cargo test --all-features
         - cargo test --no-default-features
+
+    - rust: stable
+      env: COVERAGE
+      sudo: required
+      addons:
+        apt:
+          packages:
+            - libcurl4-openssl-dev
+            - libelf-dev
+            - libdw-dev
+            - binutils-dev
+      before_script:
+        - cargo install cargo-update || true
+        - cargo install cargo-kcov || true
+        - cargo install-update -a
+        - cargo kcov --print-install-kcov-sh | sh
+      script:
+        - cargo update
+        - cargo kcov -v --features "secure rt tower-web" --coveralls
 
     - rust: stable
       env: LINT
