@@ -31,6 +31,11 @@ matrix:
         - cargo test --no-default-features
         - if [[ "${TRAVIS_PULL_REQUEST_BRANCH:-}" = release-* ]]; then cargo publish --dry-run; fi
 
+    # The minimal version
+    - rust: 1.29.1
+      script:
+        - cargo build
+
     - rust: beta
       env: RUSTFLAGS="--cfg finchers_deny_warnings"
       script:
