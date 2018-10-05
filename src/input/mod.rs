@@ -11,10 +11,9 @@ pub use self::header::FromHeaderValue;
 // ====
 
 use cookie::{Cookie, CookieJar};
-use either::Either;
 use http;
-use http::header::{HeaderMap, HeaderValue};
-use http::{Request, Response};
+use http::header::HeaderMap;
+use http::Request;
 use hyper::body::Body;
 use mime::Mime;
 use std::ops::Deref;
@@ -151,32 +150,42 @@ impl Input {
     pub(crate) fn take_response_headers(&mut self) -> Option<HeaderMap> {
         self.response_headers.take()
     }
+}
 
-    #[cfg(feature = "rt")]
-    pub(crate) fn finalize<T>(
-        self,
-        output: Result<Response<T>, Error>,
-    ) -> Response<Either<String, T>> {
-        let mut response = output
-            .map(|mut response| {
-                if self.body().is_upgraded() {
-                    *response.status_mut() = http::StatusCode::SWITCHING_PROTOCOLS;
+#[cfg(feature = "rt")]
+mod finalize {
+    use super::*;
+    use either::Either;
+    use http::header::HeaderValue;
+    use http::Response;
+
+    impl Input {
+        #[cfg(feature = "rt")]
+        pub(crate) fn finalize<T>(
+            self,
+            output: Result<Response<T>, Error>,
+        ) -> Response<Either<String, T>> {
+            let mut response = output
+                .map(|mut response| {
+                    if self.body().is_upgraded() {
+                        *response.status_mut() = http::StatusCode::SWITCHING_PROTOCOLS;
+                    }
+                    response.map(Either::Right)
+                }).unwrap_or_else(|err| err.to_response().map(Either::Left));
+
+            if let Some(ref jar) = self.cookie_jar {
+                for cookie in jar.delta() {
+                    let val = HeaderValue::from_str(&cookie.encoded().to_string()).unwrap();
+                    response.headers_mut().append(http::header::SET_COOKIE, val);
                 }
-                response.map(Either::Right)
-            }).unwrap_or_else(|err| err.to_response().map(Either::Left));
-
-        if let Some(ref jar) = self.cookie_jar {
-            for cookie in jar.delta() {
-                let val = HeaderValue::from_str(&cookie.encoded().to_string()).unwrap();
-                response.headers_mut().append(http::header::SET_COOKIE, val);
             }
-        }
 
-        if let Some(headers) = self.response_headers {
-            response.headers_mut().extend(headers);
-        }
+            if let Some(headers) = self.response_headers {
+                response.headers_mut().extend(headers);
+            }
 
-        response
+            response
+        }
     }
 }
 

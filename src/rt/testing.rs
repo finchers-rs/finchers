@@ -6,14 +6,19 @@ use std::str;
 
 use bytes::{Buf, Bytes};
 use futures::{future, stream, Async, Future, Stream};
+use http;
 use http::header;
 use http::header::HeaderMap;
 use http::{Request, Response};
 use hyper::body::{Body, Payload};
+use mime;
+use mime::Mime;
 use tokio::runtime::current_thread::Runtime;
 
 use endpoint::Endpoint;
 use error::Error;
+use input::ReqBody;
+use output;
 use output::Output;
 
 use super::app::app_service::{AppFuture, AppService};
@@ -27,6 +32,14 @@ impl<'a> AnnotatedRuntime<'a> {
             with_set_runtime_mode(RuntimeMode::CurrentThread, || future.poll())
         }))
     }
+}
+
+#[allow(missing_docs)]
+pub fn runner<E>(endpoint: E) -> TestRunner<E>
+where
+    for<'a> E: Endpoint<'a>,
+{
+    TestRunner::new(endpoint).expect("failed to start the runtime")
 }
 
 /// A test runner for emulating the behavior of endpoints in the server.
@@ -68,33 +81,41 @@ impl<E> TestRunner<E> {
         self.headers.get_or_insert_with(Default::default)
     }
 
-    fn apply_inner<'a, Bd, F, R>(&'a mut self, request: Request<Bd>, f: F) -> R
+    fn apply_inner<'a, Req, F, R>(&'a mut self, request: Req, f: F) -> R
     where
         E: Endpoint<'a>,
-        Bd: ReqBody,
+        Req: RequestData,
         F: FnOnce(AppFuture<'a, E>, &mut AnnotatedRuntime<'_>) -> R,
     {
-        let (mut parts, body) = request.into_parts();
-        if let Some(mime) = body.content_type() {
-            parts.headers.insert(
-                header::CONTENT_TYPE,
-                mime.as_ref()
-                    .parse()
-                    .expect("should be a valid header value"),
-            );
-        }
+        let (mut parts, body) = request
+            .into_request()
+            .expect("failed to construct a request")
+            .into_parts();
         if let Some(headers) = self.headers.clone() {
             parts.headers.extend(headers);
         }
-
+        if let Some(mime) = body.content_type() {
+            parts
+                .headers
+                .entry(header::CONTENT_TYPE)
+                .unwrap()
+                .or_insert(
+                    mime.as_ref()
+                        .parse()
+                        .expect("should be a valid header value"),
+                );
+        }
         let body = body.into_req_body();
         if let Some(len) = body.content_length() {
-            parts.headers.insert(
-                header::CONTENT_LENGTH,
-                len.to_string()
-                    .parse()
-                    .expect("should be a valid header value"),
-            );
+            parts
+                .headers
+                .entry(header::CONTENT_LENGTH)
+                .unwrap()
+                .or_insert(
+                    len.to_string()
+                        .parse()
+                        .expect("should be a valid header value"),
+                );
         }
 
         let request = Request::from_parts(parts, body);
@@ -104,26 +125,34 @@ impl<E> TestRunner<E> {
     }
 
     /// Applys the given request to the inner endpoint and retrieves the result of returned future.
-    pub fn apply_endpoint<'a, Bd>(&'a mut self, request: Request<Bd>) -> Result<E::Output, Error>
+    pub fn apply_raw<'a, Req>(&'a mut self, request: Req) -> Result<E::Output, Error>
     where
         E: Endpoint<'a>,
-        Bd: ReqBody,
+        Req: RequestData,
     {
         self.apply_inner(request, |mut future, rt| {
             rt.block_on(future::poll_fn(|| future.poll_endpoint()))
         })
     }
 
+    #[allow(missing_docs)]
+    #[inline]
+    pub fn apply<'a, T, Req>(&'a mut self, request: Req) -> Result<T, Error>
+    where
+        E: Endpoint<'a, Output = (T,)>,
+        Req: RequestData,
+    {
+        self.apply_raw(request).map(|(x,)| x)
+    }
+
     /// Retrieves the retrieves the result of future returned from `Endpoint::apply`,
     /// and converting it into an HTTP response by calling `Output::respond`.
-    pub fn apply_output<'a, Bd>(
-        &'a mut self,
-        request: Request<Bd>,
-    ) -> Result<Response<<E::Output as Output>::Body>, Error>
+    pub fn apply_output<'a, Req, Bd>(&'a mut self, request: Req) -> Result<Response<Bd>, Error>
     where
         E: Endpoint<'a>,
-        E::Output: Output,
-        Bd: ReqBody,
+        E::Output: Output<Body = Bd>,
+        Req: RequestData,
+        Bd: output::body::ResBody,
     {
         self.apply_inner(request, |mut future, rt| {
             rt.block_on(future::poll_fn(|| future.poll_output()))
@@ -131,11 +160,11 @@ impl<E> TestRunner<E> {
     }
 
     /// Gets the response of specified HTTP request.
-    pub fn apply_all<'a, Bd>(&'a mut self, request: Request<Bd>) -> Response<ResBody>
+    pub fn apply_all<'a, Req>(&'a mut self, request: Req) -> Response<ResBody>
     where
         E: Endpoint<'a>,
         E::Output: Output,
-        Bd: ReqBody,
+        Req: RequestData,
     {
         self.apply_inner(request, |mut future, rt| {
             let response = rt.block_on(future::poll_fn(|| future.poll())).unwrap();
@@ -173,73 +202,107 @@ impl<E> TestRunner<E> {
     }
 }
 
+/// A trait representing a request used by the test runner.
+#[allow(missing_docs)]
+pub trait RequestData {
+    type Body: RequestBody;
+
+    fn into_request(self) -> http::Result<Request<Self::Body>>;
+}
+
+impl<'a> RequestData for &'a str {
+    type Body = ();
+
+    fn into_request(self) -> http::Result<Request<Self::Body>> {
+        Request::get(self).body(())
+    }
+}
+
+impl RequestData for String {
+    type Body = ();
+
+    fn into_request(self) -> http::Result<Request<Self::Body>> {
+        Request::get(self).body(())
+    }
+}
+
+impl RequestData for http::request::Builder {
+    type Body = ();
+
+    fn into_request(mut self) -> http::Result<Request<Self::Body>> {
+        self.body(())
+    }
+}
+
+impl<'a> RequestData for &'a mut http::request::Builder {
+    type Body = ();
+
+    fn into_request(self) -> http::Result<Request<Self::Body>> {
+        self.body(())
+    }
+}
+
+impl<T: RequestBody> RequestData for Request<T> {
+    type Body = T;
+
+    fn into_request(self) -> http::Result<Request<Self::Body>> {
+        Ok(self)
+    }
+}
+
+impl<T, E> RequestData for Result<Request<T>, E>
+where
+    T: RequestBody,
+    E: Into<http::Error>,
+{
+    type Body = T;
+
+    fn into_request(self) -> http::Result<Request<Self::Body>> {
+        self.map_err(Into::into)
+    }
+}
+
 /// A trait representing a request body used by the test runner.
-pub trait ReqBody: req_body::ReqBodyImpl {}
-
-impl ReqBody for () {}
-impl<'a> ReqBody for &'a str {}
-impl ReqBody for String {}
-impl ReqBody for Body {}
-
-mod req_body {
-    use hyper::body::Body;
-    use input::ReqBody;
-    use mime;
-    use mime::Mime;
-
-    #[doc(hidden)]
-    pub trait ReqBodyImpl {
-        fn content_type(&self) -> Option<Mime> {
-            None
-        }
-
-        fn into_req_body(self) -> ReqBody
-        where
-            Self: Sized;
+#[allow(missing_docs)]
+pub trait RequestBody {
+    fn content_type(&self) -> Option<Mime> {
+        None
     }
 
-    impl ReqBodyImpl for () {
-        fn into_req_body(self) -> ReqBody
-        where
-            Self: Sized,
-        {
-            ReqBody::new(Default::default())
-        }
+    fn into_req_body(self) -> ReqBody
+    where
+        Self: Sized;
+}
+
+impl RequestBody for () {
+    fn into_req_body(self) -> ReqBody {
+        ReqBody::new(Default::default())
+    }
+}
+
+impl<'a> RequestBody for &'a str {
+    fn content_type(&self) -> Option<Mime> {
+        Some(mime::TEXT_PLAIN_UTF_8)
     }
 
-    impl<'a> ReqBodyImpl for &'a str {
-        fn content_type(&self) -> Option<Mime> {
-            Some(mime::TEXT_PLAIN_UTF_8)
-        }
+    fn into_req_body(self) -> ReqBody {
+        ReqBody::new(self.to_owned().into())
+    }
+}
 
-        fn into_req_body(self) -> ReqBody
-        where
-            Self: Sized,
-        {
-            ReqBody::new(self.to_owned().into())
-        }
+impl RequestBody for String {
+    fn content_type(&self) -> Option<Mime> {
+        Some(mime::TEXT_PLAIN_UTF_8)
     }
 
-    impl ReqBodyImpl for String {
-        fn content_type(&self) -> Option<Mime> {
-            Some(mime::TEXT_PLAIN_UTF_8)
-        }
-
-        fn into_req_body(self) -> ReqBody
-        where
-            Self: Sized,
-        {
-            ReqBody::new(self.into())
-        }
+    fn into_req_body(self) -> ReqBody {
+        ReqBody::new(self.into())
     }
+}
 
-    impl ReqBodyImpl for Body {
-        fn into_req_body(self) -> ReqBody
-        where
-            Self: Sized,
-        {
-            ReqBody::new(self)
-        }
+impl RequestBody for Body {
+    fn into_req_body(self) -> ReqBody {
+        ReqBody::new(self)
     }
 }
 
