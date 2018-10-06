@@ -1,10 +1,7 @@
 //! Error primitives.
 
-mod never;
-
-pub use self::never::Never;
-
 use std::any::TypeId;
+use std::error;
 use std::fmt;
 use std::fmt::{Debug, Display};
 use std::io;
@@ -103,7 +100,7 @@ impl Error {
     }
 
     /// Attempts to downcast the boxed value to a conrete type.
-    pub fn downcast<T: HttpError>(self) -> Result<T, Error> {
+    pub fn downcast<T: HttpError>(self) -> Result<T> {
         if self.is::<T>() {
             unsafe {
                 Ok(*Box::from_raw(
@@ -143,7 +140,7 @@ impl Error {
 }
 
 impl Serialize for Error {
-    fn serialize<S>(&self, ser: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(&self, ser: S) -> ::std::result::Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
@@ -154,6 +151,9 @@ impl Serialize for Error {
         map.end()
     }
 }
+
+/// A type alias of `Result<T, E>` whose error type is restricted to `Error`.
+pub type Result<T> = ::std::result::Result<T, Error>;
 
 // ==== Failure ====
 
@@ -212,3 +212,36 @@ where
         self.status
     }
 }
+
+// ==== Never ====
+
+/// A type which has no possible values.
+#[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Ord, Eq)]
+pub enum Never {}
+
+impl Never {
+    /// Consume itself and transform into an arbitrary type.
+    ///
+    /// NOTE: This function has never been actually called because the possible values don't exist.
+    pub fn never_into<T>(self) -> T {
+        match self {}
+    }
+}
+
+impl fmt::Display for Never {
+    fn fmt(&self, _: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match *self {}
+    }
+}
+
+impl error::Error for Never {
+    fn description(&self) -> &str {
+        match *self {}
+    }
+
+    fn cause(&self) -> Option<&dyn error::Error> {
+        match *self {}
+    }
+}
+
+impl HttpError for Never {}
