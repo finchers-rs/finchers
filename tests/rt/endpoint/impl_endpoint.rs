@@ -1,6 +1,6 @@
 use finchers;
 use finchers::prelude::*;
-use finchers::rt::testing;
+use finchers::rt::test;
 
 fn foo() -> impl_endpoint!(Output = (u32,)) {
     endpoint::unit().map(|| 42).into()
@@ -8,7 +8,7 @@ fn foo() -> impl_endpoint!(Output = (u32,)) {
 
 #[test]
 fn test_send_endpoint() {
-    let mut runner = testing::runner(foo().with_output::<(u32,)>());
+    let mut runner = test::runner(foo().with_output::<(u32,)>());
     assert_matches!(runner.apply("/"), Ok(42));
 }
 

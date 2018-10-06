@@ -10,7 +10,7 @@ mod server;
 
 pub mod app;
 pub mod middleware;
-pub mod testing;
+pub mod test;
 
 // re-exports
 pub use self::blocking::{blocking, blocking_section, BlockingSection};

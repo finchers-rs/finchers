@@ -1,12 +1,12 @@
 use finchers::endpoints::body;
-use finchers::rt::testing;
+use finchers::rt::test;
 use http::Request;
 
 #[test]
 fn test_body_text() {
     let message = "The quick brown fox jumps over the lazy dog";
 
-    let mut runner = testing::runner(body::text());
+    let mut runner = test::runner(body::text());
 
     assert_matches!(
         runner.apply(Request::post("/")
@@ -23,7 +23,7 @@ fn test_body_json() {
         text: String,
     }
 
-    let mut runner = testing::runner(body::json::<Param>());
+    let mut runner = test::runner(body::json::<Param>());
 
     assert_matches!(
         runner.apply(Request::post("/")
@@ -67,7 +67,7 @@ fn test_body_urlencoded() {
 
     let form_str = r#"grant_type=authorization_code&code=SplxlOBeZQQYbYS6WxSbIA&redirect_uri=https%3A%2F%2Fclient%2Eexample%2Ecom%2Fcb"#;
 
-    let mut runner = testing::runner(body::urlencoded::<AccessTokenRequest>());
+    let mut runner = test::runner(body::urlencoded::<AccessTokenRequest>());
 
     assert_matches!(
         runner.apply(Request::post("/")

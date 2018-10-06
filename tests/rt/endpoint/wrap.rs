@@ -1,6 +1,6 @@
 use finchers;
 use finchers::endpoint::{ApplyContext, ApplyResult, Endpoint, Wrapper};
-use finchers::rt::testing;
+use finchers::rt::test;
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -45,7 +45,7 @@ fn test_wrap() {
         counter: counter.clone(),
     };
     let endpoint = path!(@get /).wrap(wrapper);
-    let mut runner = testing::runner(endpoint);
+    let mut runner = test::runner(endpoint);
 
     assert_matches!(runner.apply_raw("/"), Ok(..));
     assert_eq!(counter.load(Ordering::SeqCst), 1);

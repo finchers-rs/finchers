@@ -1,19 +1,19 @@
 use finchers;
 use finchers::endpoint::{EndpointObj, LocalEndpointObj};
 use finchers::prelude::*;
-use finchers::rt::testing;
+use finchers::rt::test;
 
 #[test]
 fn test_boxed() {
     let endpoint = path!(@get /"foo");
-    let mut runner = testing::runner(EndpointObj::new(endpoint));
+    let mut runner = test::runner(EndpointObj::new(endpoint));
     assert_matches!(runner.apply_raw("/foo"), Ok(()));
 }
 
 #[test]
 fn test_boxed_local() {
     let endpoint = path!(@get /"foo");
-    let mut runner = testing::runner(LocalEndpointObj::new(endpoint));
+    let mut runner = test::runner(LocalEndpointObj::new(endpoint));
     assert_matches!(runner.apply_raw("/foo"), Ok(..));
 }
 

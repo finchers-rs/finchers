@@ -1,13 +1,13 @@
 use finchers::endpoint::syntax;
 use finchers::endpoint::ApplyError;
 use finchers::prelude::*;
-use finchers::rt::testing;
+use finchers::rt::test;
 use futures::future;
 use http::{Request, Response};
 
 #[test]
 fn test_recover() {
-    let mut runner = testing::runner({
+    let mut runner = test::runner({
         let endpoint = syntax::verb::get()
             .and(syntax::segment("posts"))
             .and(syntax::param::<u32>())

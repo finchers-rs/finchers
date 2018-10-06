@@ -1,11 +1,11 @@
 use finchers::endpoint::ApplyError;
 use finchers::endpoint::Endpoint;
 use finchers::endpoints::query;
-use finchers::rt::testing;
+use finchers::rt::test;
 
 #[test]
 fn test_query_raw() {
-    let mut runner = testing::runner({ query::raw().with_output::<(Option<String>,)>() });
+    let mut runner = test::runner({ query::raw().with_output::<(Option<String>,)>() });
 
     assert_matches!(
         runner.apply("/?foo=bar"),
@@ -23,7 +23,7 @@ fn test_query_parse() {
         count: Option<u32>,
     }
 
-    let mut runner = testing::runner(query::required::<Query>());
+    let mut runner = test::runner(query::required::<Query>());
 
     assert_matches!(
         runner.apply("/?count=20&param=rustlang"),
@@ -44,7 +44,7 @@ fn test_query_optional() {
         count: Option<u32>,
     }
 
-    let mut runner = testing::runner(query::optional::<Query>());
+    let mut runner = test::runner(query::optional::<Query>());
 
     assert_matches!(
         runner.apply("/?count=20&param=rustlang"),
