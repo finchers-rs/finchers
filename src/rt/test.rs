@@ -4,14 +4,16 @@ use std::io;
 
 use bytes::Buf;
 use futures::{future, stream, Async, Future, Stream};
+use http;
 use http::header;
-use http::header::HeaderMap;
-use http::Response;
+use http::header::{HeaderMap, HeaderName, HeaderValue};
+use http::{Request, Response};
 use hyper::body::Payload;
 use tokio::runtime::current_thread::Runtime;
 
 use endpoint::Endpoint;
 use error;
+use input::ReqBody;
 use output::Output;
 
 use super::app::app_service::{AppFuture, AppService};
@@ -30,6 +32,13 @@ impl<'a> AnnotatedRuntime<'a> {
     }
 }
 
+fn or_insert(headers: &mut HeaderMap, name: HeaderName, value: &'static str) {
+    headers
+        .entry(name)
+        .unwrap()
+        .or_insert_with(|| HeaderValue::from_static(value));
+}
+
 /// A helper function for creating a new `TestRunner` from the specified endpoint.
 pub fn runner<E>(endpoint: E) -> TestRunner<E>
 where
@@ -45,8 +54,8 @@ where
 #[derive(Debug)]
 pub struct TestRunner<E> {
     endpoint: E,
-    headers: Option<HeaderMap>,
     rt: Runtime,
+    default_headers: Option<HeaderMap>,
 }
 
 impl<E> TestRunner<E> {
@@ -55,11 +64,7 @@ impl<E> TestRunner<E> {
     where
         for<'e> E: Endpoint<'e>,
     {
-        Ok(TestRunner {
-            endpoint,
-            headers: None,
-            rt: Runtime::new()?,
-        })
+        Runtime::new().map(|rt| TestRunner::with_runtime(endpoint, rt))
     }
 
     /// Create a `TestRunner` from the specified endpoint with a Tokio runtime.
@@ -67,39 +72,55 @@ impl<E> TestRunner<E> {
         TestRunner {
             endpoint,
             rt,
-            headers: None,
+            default_headers: None,
         }
     }
 
     /// Returns a reference to the header map, whose values are set before
     /// applying the request to endpoint.
     pub fn default_headers(&mut self) -> &mut HeaderMap {
-        self.headers.get_or_insert_with(Default::default)
+        self.default_headers.get_or_insert_with(Default::default)
     }
 
-    fn apply_inner<'a, Req, F, R>(&'a mut self, request: Req, f: F) -> R
-    where
-        E: Endpoint<'a>,
-        Req: TestRequest,
-        F: FnOnce(AppFuture<'a, E>, &mut AnnotatedRuntime<'_>) -> R,
-    {
-        let mut request = request
-            .into_request()
-            .expect("failed to construct a request");
-        if let Some(headers) = self.headers.clone() {
-            request.headers_mut().extend(headers);
+    fn prepare_request(&self, request: impl TestRequest) -> http::Result<Request<ReqBody>> {
+        let mut request = request.into_request()?;
+
+        if let Some(ref default_headers) = self.default_headers {
+            for (k, v) in default_headers {
+                request.headers_mut().append(k, v.clone());
+            }
         }
+
         if let Some(len) = request.body().content_length() {
             request
                 .headers_mut()
                 .entry(header::CONTENT_LENGTH)
                 .unwrap()
-                .or_insert(
+                .or_insert_with(|| {
                     len.to_string()
                         .parse()
-                        .expect("should be a valid header value"),
-                );
+                        .expect("should be a valid header value")
+                });
         }
+
+        or_insert(request.headers_mut(), header::HOST, "localhost");
+        or_insert(
+            request.headers_mut(),
+            header::USER_AGENT,
+            concat!("finchers/", env!("CARGO_PKG_VERSION")),
+        );
+
+        Ok(request)
+    }
+
+    fn apply_inner<'a, F, R>(&'a mut self, request: impl TestRequest, f: F) -> R
+    where
+        E: Endpoint<'a>,
+        F: FnOnce(AppFuture<'a, E>, &mut AnnotatedRuntime<'_>) -> R,
+    {
+        let request = self
+            .prepare_request(request)
+            .expect("failed to construct a request");
 
         let future = AppService::new(&self.endpoint).dispatch(request);
 
@@ -229,19 +250,21 @@ mod request {
 
     impl<'a> TestRequestImpl for &'a Uri {
         fn into_request(self) -> http::Result<Request<ReqBody>> {
-            let mut request =
-                Request::get(self.path_and_query().map(|s| s.as_str()).unwrap_or("/"));
+            let path = self.path_and_query().map(|s| s.as_str()).unwrap_or("/");
+            let mut request = Request::get(path).body(ReqBody::new(Default::default()))?;
+
             if let Some(authority) = self.authority_part() {
-                match authority.port() {
-                    Some(port) => {
-                        request.header(header::HOST, format!("{}:{}", authority.host(), port));
-                    }
-                    None => {
-                        request.header(header::HOST, authority.host());
-                    }
-                }
+                request
+                    .headers_mut()
+                    .entry(header::HOST)
+                    .unwrap()
+                    .or_insert(match authority.port() {
+                        Some(port) => format!("{}:{}", authority.host(), port).parse()?,
+                        None => authority.host().parse()?,
+                    });
             }
-            request.body(ReqBody::new(Default::default()))
+
+            Ok(request)
         }
     }
 
@@ -414,6 +437,7 @@ mod response {
 mod tests {
     use super::{runner, TestRequest, TestResponse};
     use endpoint;
+    use http::header;
     use http::{Request, Uri};
 
     #[test]
@@ -458,16 +482,51 @@ mod tests {
     }
 
     #[test]
+    fn test_host_useragent() {
+        let mut runner = runner({
+            endpoint::apply_fn(|cx| {
+                let host = cx.headers().get(header::HOST).cloned();
+                let user_agent = cx.headers().get(header::USER_AGENT).cloned();
+                Ok(Ok((host, user_agent)))
+            })
+        });
+
+        assert_matches!(
+            runner.apply_raw("/"),
+            Ok((Some(ref host), Some(ref user_agent)))
+                if host == "localhost" &&
+                   user_agent.to_str().unwrap().starts_with("finchers/")
+        );
+
+        assert_matches!(
+            runner.apply_raw("http://www.example.com/path/to"),
+            Ok((Some(ref host), Some(ref user_agent)))
+                if host == "www.example.com" &&
+                   user_agent.to_str().unwrap().starts_with("finchers/")
+        );
+
+        assert_matches!(
+            runner.apply_raw(
+                Request::get("/path/to")
+                    .header(header::USER_AGENT, "custom/0.0.0")),
+            Ok((Some(ref host), Some(ref user_agent)))
+                if host == "localhost" &&
+                   user_agent.to_str().unwrap() == "custom/0.0.0"
+
+        );
+    }
+
+    #[test]
     fn test_default_headers() {
         let mut runner = runner({
             endpoint::apply_fn(|cx| {
-                assert!(cx.headers().contains_key("origin"));
+                assert!(cx.headers().contains_key(header::ORIGIN));
                 Ok(Ok(()))
             })
         });
         runner
             .default_headers()
-            .entry("origin")
+            .entry(header::ORIGIN)
             .unwrap()
             .or_insert("www.example.com".parse().unwrap());
 
