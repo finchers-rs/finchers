@@ -10,6 +10,7 @@ mod and;
 mod apply_fn;
 mod by_ref;
 mod cloned;
+mod lazy;
 mod or;
 mod or_strict;
 mod unit;
@@ -28,6 +29,7 @@ pub use self::or_strict::OrStrict;
 pub use self::apply_fn::{apply_fn, ApplyFn};
 pub use self::by_ref::{by_ref, ByRef};
 pub use self::cloned::{cloned, Cloned};
+pub use self::lazy::{lazy, Lazy};
 pub use self::unit::{unit, Unit};
 
 // ====
