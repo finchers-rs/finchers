@@ -7,6 +7,7 @@
 
 #![allow(missing_docs)]
 
+pub mod log;
 mod map_response_body;
 
 // ---- reexports ----
