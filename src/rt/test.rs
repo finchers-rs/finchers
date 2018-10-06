@@ -6,7 +6,7 @@ use bytes::Buf;
 use futures::{future, stream, Async, Future, Stream};
 use http::header;
 use http::header::HeaderMap;
-use http::{Request, Response};
+use http::Response;
 use hyper::body::Payload;
 use tokio::runtime::current_thread::Runtime;
 
@@ -14,7 +14,6 @@ use endpoint::Endpoint;
 use error;
 use output::Output;
 
-use self::request::RequestBody;
 use super::app::app_service::{AppFuture, AppService};
 use super::blocking::{with_set_runtime_mode, RuntimeMode};
 
@@ -84,28 +83,15 @@ impl<E> TestRunner<E> {
         Req: TestRequest,
         F: FnOnce(AppFuture<'a, E>, &mut AnnotatedRuntime<'_>) -> R,
     {
-        let (mut parts, body) = request
+        let mut request = request
             .into_request()
-            .expect("failed to construct a request")
-            .into_parts();
+            .expect("failed to construct a request");
         if let Some(headers) = self.headers.clone() {
-            parts.headers.extend(headers);
+            request.headers_mut().extend(headers);
         }
-        if let Some(mime) = body.content_type() {
-            parts
-                .headers
-                .entry(header::CONTENT_TYPE)
-                .unwrap()
-                .or_insert(
-                    mime.as_ref()
-                        .parse()
-                        .expect("should be a valid header value"),
-                );
-        }
-        let body = body.into_req_body();
-        if let Some(len) = body.content_length() {
-            parts
-                .headers
+        if let Some(len) = request.body().content_length() {
+            request
+                .headers_mut()
                 .entry(header::CONTENT_LENGTH)
                 .unwrap()
                 .or_insert(
@@ -115,7 +101,6 @@ impl<E> TestRunner<E> {
                 );
         }
 
-        let request = Request::from_parts(parts, body);
         let future = AppService::new(&self.endpoint).dispatch(request);
 
         f(future, &mut AnnotatedRuntime(&mut self.rt))
@@ -221,38 +206,29 @@ mod request {
     impl<T: TestRequestImpl> TestRequest for T {}
 
     pub trait TestRequestImpl {
-        type Body: RequestBody;
-        fn into_request(self) -> http::Result<Request<Self::Body>>;
+        fn into_request(self) -> http::Result<Request<ReqBody>>;
     }
 
     impl<'a> TestRequestImpl for &'a str {
-        type Body = ();
-
-        fn into_request(self) -> http::Result<Request<Self::Body>> {
+        fn into_request(self) -> http::Result<Request<ReqBody>> {
             (*self).parse::<Uri>()?.into_request()
         }
     }
 
     impl TestRequestImpl for String {
-        type Body = ();
-
-        fn into_request(self) -> http::Result<Request<Self::Body>> {
+        fn into_request(self) -> http::Result<Request<ReqBody>> {
             self.parse::<Uri>()?.into_request()
         }
     }
 
     impl TestRequestImpl for Uri {
-        type Body = ();
-
-        fn into_request(self) -> http::Result<Request<Self::Body>> {
+        fn into_request(self) -> http::Result<Request<ReqBody>> {
             (&self).into_request()
         }
     }
 
     impl<'a> TestRequestImpl for &'a Uri {
-        type Body = ();
-
-        fn into_request(self) -> http::Result<Request<Self::Body>> {
+        fn into_request(self) -> http::Result<Request<ReqBody>> {
             let mut request =
                 Request::get(self.path_and_query().map(|s| s.as_str()).unwrap_or("/"));
             if let Some(authority) = self.authority_part() {
@@ -265,31 +241,35 @@ mod request {
                     }
                 }
             }
-            request.body(())
+            request.body(ReqBody::new(Default::default()))
         }
     }
 
     impl<T: RequestBody> TestRequestImpl for Request<T> {
-        type Body = T;
-
-        fn into_request(self) -> http::Result<Request<Self::Body>> {
-            Ok(self)
+        fn into_request(mut self) -> http::Result<Request<ReqBody>> {
+            if let Some(mime) = self.body().content_type() {
+                self.headers_mut()
+                    .entry(header::CONTENT_TYPE)
+                    .unwrap()
+                    .or_insert(
+                        mime.as_ref()
+                            .parse()
+                            .expect("should be a valid header value"),
+                    );
+            }
+            Ok(self.map(|bd| bd.into_req_body()))
         }
     }
 
     impl TestRequestImpl for http::request::Builder {
-        type Body = ();
-
-        fn into_request(mut self) -> http::Result<Request<Self::Body>> {
-            self.body(())
+        fn into_request(mut self) -> http::Result<Request<ReqBody>> {
+            self.body(ReqBody::new(Default::default()))
         }
     }
 
     impl<'a> TestRequestImpl for &'a mut http::request::Builder {
-        type Body = ();
-
-        fn into_request(self) -> http::Result<Request<Self::Body>> {
-            self.body(())
+        fn into_request(self) -> http::Result<Request<ReqBody>> {
+            self.body(ReqBody::new(Default::default()))
         }
     }
 
@@ -298,9 +278,7 @@ mod request {
         T: TestRequestImpl,
         E: Into<http::Error>,
     {
-        type Body = T::Body;
-
-        fn into_request(self) -> http::Result<Request<Self::Body>> {
+        fn into_request(self) -> http::Result<Request<ReqBody>> {
             self.map_err(Into::into)?.into_request()
         }
     }
