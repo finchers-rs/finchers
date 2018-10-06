@@ -115,7 +115,7 @@ pub(crate) mod app_service {
     use http::header;
     use http::header::HeaderValue;
     use http::{Request, Response};
-    use hyper::body::Body;
+    use hyper::body::{Body, Payload as _Payload};
     use tower_service::Service;
 
     use endpoint::context::{ApplyContext, TaskContext};
@@ -255,6 +255,61 @@ pub(crate) mod app_service {
                 _ => unreachable!("unexpected condition"),
             }
         }
+
+        pub(crate) fn poll_all(&mut self) -> Poll<Response<AppPayload>, Never>
+        where
+            E::Output: Output,
+        {
+            let output = match self.poll_output() {
+                Ok(Async::Ready(item)) => Ok(item),
+                Ok(Async::NotReady) => return Ok(Async::NotReady),
+                Err(err) => Err(err),
+            };
+
+            match mem::replace(&mut self.state, State::Gone) {
+                State::Done(input) => {
+                    let mut response = input.finalize(output).map(AppPayload::new);
+
+                    // The `content-length` header is automatically insterted by Hyper
+                    // by using `Payload::content_length()`.
+                    // However, the instance of `AppPayload` may be convert to another type
+                    // by middleware and the implementation of `content_length()` does not
+                    // propagate appropriately.
+                    // Here is a workaround that presets the value of `content_length()`
+                    // in advance to prevent the above situation.
+                    if let Some(len) = response.body().content_length() {
+                        response
+                            .headers_mut()
+                            .entry(header::CONTENT_LENGTH)
+                            .expect("should be a valid header name")
+                            .or_insert_with(|| {
+                                len.to_string()
+                                    .parse()
+                                    .expect("should be a valid header value")
+                            });
+                    } else {
+                        response
+                            .headers_mut()
+                            .entry(header::TRANSFER_ENCODING)
+                            .expect("should be a valid header name")
+                            .or_insert_with(|| HeaderValue::from_static("chunked"));
+                    }
+
+                    response
+                        .headers_mut()
+                        .entry(header::SERVER)
+                        .unwrap()
+                        .or_insert_with(|| {
+                            HeaderValue::from_static(concat!(
+                                "finchers/",
+                                env!("CARGO_PKG_VERSION")
+                            ))
+                        });
+                    Ok(Async::Ready(response))
+                }
+                _ => unreachable!("unexpected condition"),
+            }
+        }
     }
 
     impl<'e, E> Future for AppFuture<'e, E>
@@ -266,27 +321,7 @@ pub(crate) mod app_service {
         type Error = Never;
 
         fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-            let output = match self.poll_output() {
-                Ok(Async::Ready(item)) => Ok(item),
-                Ok(Async::NotReady) => return Ok(Async::NotReady),
-                Err(err) => Err(err),
-            };
-
-            match mem::replace(&mut self.state, State::Gone) {
-                State::Done(input) => {
-                    let mut response = input.finalize(output).map(AppPayload::new);
-                    response
-                        .headers_mut()
-                        .entry(header::SERVER)
-                        .unwrap()
-                        .or_insert(HeaderValue::from_static(concat!(
-                            "finchers/",
-                            env!("CARGO_PKG_VERSION")
-                        )));
-                    Ok(Async::Ready(response))
-                }
-                _ => unreachable!("unexpected condition"),
-            }
+            self.poll_all()
         }
     }
 }

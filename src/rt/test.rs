@@ -162,18 +162,11 @@ impl<E> TestRunner<E> {
         E::Output: Output,
     {
         self.apply_inner(request, |mut future, rt| {
-            let response = rt.block_on(future::poll_fn(|| future.poll())).unwrap();
-            let (mut parts, mut payload) = response.into_parts();
+            let response = rt.block_on(future::poll_fn(|| future.poll_all())).unwrap();
+            let (parts, mut payload) = response.into_parts();
 
             // construct ResBody
             let content_length = payload.content_length();
-            if let Some(len) = content_length {
-                parts
-                    .headers
-                    .entry(header::CONTENT_LENGTH)
-                    .unwrap()
-                    .or_insert_with(|| len.to_string().parse().unwrap());
-            }
 
             let data = rt
                 .block_on(
