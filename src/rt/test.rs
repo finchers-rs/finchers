@@ -198,7 +198,8 @@ impl<E> TestRunner<E> {
 
 mod request {
     use http;
-    use http::Request;
+    use http::header;
+    use http::{Request, Uri};
     use hyper::body::Body;
     use mime;
     use mime::Mime;
@@ -228,7 +229,7 @@ mod request {
         type Body = ();
 
         fn into_request(self) -> http::Result<Request<Self::Body>> {
-            Request::get(self).body(())
+            (*self).parse::<Uri>()?.into_request()
         }
     }
 
@@ -236,7 +237,35 @@ mod request {
         type Body = ();
 
         fn into_request(self) -> http::Result<Request<Self::Body>> {
-            Request::get(self).body(())
+            self.parse::<Uri>()?.into_request()
+        }
+    }
+
+    impl TestRequestImpl for Uri {
+        type Body = ();
+
+        fn into_request(self) -> http::Result<Request<Self::Body>> {
+            (&self).into_request()
+        }
+    }
+
+    impl<'a> TestRequestImpl for &'a Uri {
+        type Body = ();
+
+        fn into_request(self) -> http::Result<Request<Self::Body>> {
+            let mut request =
+                Request::get(self.path_and_query().map(|s| s.as_str()).unwrap_or("/"));
+            if let Some(authority) = self.authority_part() {
+                match authority.port() {
+                    Some(port) => {
+                        request.header(header::HOST, format!("{}:{}", authority.host(), port));
+                    }
+                    None => {
+                        request.header(header::HOST, authority.host());
+                    }
+                }
+            }
+            request.body(())
         }
     }
 
@@ -407,7 +436,7 @@ mod response {
 mod tests {
     use super::{runner, TestRequest, TestResponse};
     use endpoint;
-    use http::Request;
+    use http::{Request, Uri};
 
     #[test]
     fn test_test_request() {
@@ -417,6 +446,8 @@ mod tests {
 
         assert_impl("/"); // &str
         assert_impl(format!("/foo/bar")); // String
+        assert_impl(Uri::from_static("http://example.com/"));
+        assert_impl(&Uri::from_static("/foo/bar?count=1"));
         assert_impl(Request::get("/")); // Builder
         assert_impl(Request::post("/").header("content-type", "application/json")); // &mut Builder
         assert_impl(Request::put("/").body("text")); // Result<Response<_>, Error>
