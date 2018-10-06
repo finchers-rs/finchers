@@ -1,12 +1,12 @@
 use finchers::endpoint::syntax;
 use finchers::endpoint::ApplyError;
 use finchers::prelude::*;
-use finchers::rt::testing;
+use finchers::rt::test;
 use http::StatusCode;
 
 #[test]
 fn test_match_single_segment() {
-    let mut runner = testing::runner(syntax::segment("foo"));
+    let mut runner = test::runner(syntax::segment("foo"));
 
     assert_matches!(runner.apply_raw("/foo"), Ok(()));
     assert_matches!(
@@ -17,7 +17,7 @@ fn test_match_single_segment() {
 
 #[test]
 fn test_match_multi_segments() {
-    let mut runner = testing::runner({ syntax::segment("foo").and(syntax::segment("bar")) });
+    let mut runner = test::runner({ syntax::segment("foo").and(syntax::segment("bar")) });
 
     assert_matches!(runner.apply_raw("/foo/bar"), Ok(()));
     assert_matches!(runner.apply_raw("/foo/bar/"), Ok(()));
@@ -34,7 +34,7 @@ fn test_match_multi_segments() {
 
 #[test]
 fn test_match_encoded_path() {
-    let mut runner = testing::runner(syntax::segment("foo/bar"));
+    let mut runner = test::runner(syntax::segment("foo/bar"));
 
     assert_matches!(runner.apply_raw("/foo%2Fbar"), Ok(()));
     assert_matches!(
@@ -45,7 +45,7 @@ fn test_match_encoded_path() {
 
 #[test]
 fn test_extract_integer() {
-    let mut runner = testing::runner(syntax::param::<i32>());
+    let mut runner = test::runner(syntax::param::<i32>());
 
     assert_matches!(runner.apply("/42"), Ok(42i32));
     assert_matches!(
@@ -56,7 +56,7 @@ fn test_extract_integer() {
 
 #[test]
 fn test_extract_strings() {
-    let mut runner = testing::runner(syntax::segment("foo").and(syntax::remains::<String>()));
+    let mut runner = test::runner(syntax::segment("foo").and(syntax::remains::<String>()));
 
     assert_matches!(
         runner.apply("/foo/bar/baz/"),
@@ -66,7 +66,7 @@ fn test_extract_strings() {
 
 #[test]
 fn test_path_macro() {
-    let mut runner = testing::runner(
+    let mut runner = test::runner(
         path!(@get / "posts" / u32 / "stars" /)
             .map(|id: u32| format!("id={}", id))
             .with_output::<(String,)>(),

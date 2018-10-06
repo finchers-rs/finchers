@@ -1,7 +1,7 @@
 use finchers::endpoint::syntax;
 use finchers::endpoint::IntoEndpointExt;
 use finchers::endpoints::{body, query};
-use finchers::rt::testing;
+use finchers::rt::test;
 
 use http::Request;
 use serde::de;
@@ -59,7 +59,7 @@ struct Param {
 fn test_or_strict() {
     let query_str = "query=rustlang&count=42&tags=tokio,hyper";
 
-    let mut runner = testing::runner({
+    let mut runner = test::runner({
         let query = syntax::verb::get().and(query::required::<Param>());
         let form = syntax::verb::post().and(body::urlencoded::<Param>());
         query.or_strict(form)

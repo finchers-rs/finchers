@@ -1,6 +1,6 @@
 use finchers::error;
 use finchers::prelude::*;
-use finchers::rt::testing;
+use finchers::rt::test;
 
 use http::header::CONTENT_TYPE;
 use http::Request;
@@ -9,7 +9,7 @@ use mime::Mime;
 
 #[test]
 fn test_header_raw() {
-    let mut runner = testing::runner(endpoints::header::raw(CONTENT_TYPE));
+    let mut runner = test::runner(endpoints::header::raw(CONTENT_TYPE));
 
     assert_matches!(
         runner.apply(Request::get("/")
@@ -22,9 +22,8 @@ fn test_header_raw() {
 
 #[test]
 fn test_header_parse() {
-    let mut runner = testing::runner({
-        endpoints::header::parse::<Mime>("content-type").with_output::<(Mime,)>()
-    });
+    let mut runner =
+        test::runner({ endpoints::header::parse::<Mime>("content-type").with_output::<(Mime,)>() });
 
     assert_matches!(
         runner.apply(Request::post("/")
@@ -40,7 +39,7 @@ fn test_header_parse() {
 
 #[test]
 fn test_header_parse_required() {
-    let mut runner = testing::runner({
+    let mut runner = test::runner({
         endpoints::header::parse::<Mime>("content-type")
             .wrap(endpoint::wrapper::or_reject_with(|_, _| {
                 error::bad_request("missing content-type")
@@ -62,7 +61,7 @@ fn test_header_parse_required() {
 
 #[test]
 fn test_header_optional() {
-    let mut runner = testing::runner({
+    let mut runner = test::runner({
         endpoints::header::optional::<Mime>("content-type").with_output::<(Option<Mime>,)>()
     });
 
@@ -77,7 +76,7 @@ fn test_header_optional() {
 
 #[test]
 fn test_header_matches_with_rejection() {
-    let mut runner = testing::runner({
+    let mut runner = test::runner({
         endpoints::header::matches("origin", "www.example.com")
             .wrap(endpoint::wrapper::or_reject_with(|_, _| {
                 error::bad_request("The value of Origin is invalid")
