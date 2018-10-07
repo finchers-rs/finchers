@@ -33,7 +33,10 @@ pub use self::lazy::{lazy, Lazy};
 pub use self::unit::{unit, Unit};
 
 pub use self::output_endpoint::OutputEndpoint;
-pub use self::send_endpoint::{IsSendEndpoint, SendEndpoint};
+pub use self::send_endpoint::IsSendEndpoint;
+#[doc(hidden)]
+#[allow(deprecated)]
+pub use self::send_endpoint::SendEndpoint;
 
 // ====
 
@@ -181,6 +184,7 @@ impl<'a, E: IntoEndpoint<'a>> IntoEndpointExt<'a> for E {}
 
 mod send_endpoint {
     use futures::Future;
+    use std::fmt;
 
     use super::{ApplyContext, ApplyResult, Endpoint};
     use common::Tuple;
@@ -220,13 +224,37 @@ mod send_endpoint {
         }
     }
 
-    /// A wrapper struct which wraps a value whose type implements `IsSendEndpoint`
-    /// and provides the implementations of `Endpoint<'a>`.
-    #[derive(Debug, Copy, Clone)]
+    #[doc(hidden)]
+    #[deprecated(
+        since = "0.12.3",
+        note = "This type will be removed in the next version."
+    )]
     pub struct SendEndpoint<E> {
         endpoint: E,
     }
 
+    #[allow(deprecated)]
+    impl<E: fmt::Debug> fmt::Debug for SendEndpoint<E> {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.debug_struct("SendEndpoint")
+                .field("endpoint", &self.endpoint)
+                .finish()
+        }
+    }
+
+    #[allow(deprecated)]
+    impl<E: Copy> Copy for SendEndpoint<E> {}
+
+    #[allow(deprecated)]
+    impl<E: Clone> Clone for SendEndpoint<E> {
+        fn clone(&self) -> Self {
+            SendEndpoint {
+                endpoint: self.endpoint.clone(),
+            }
+        }
+    }
+
+    #[allow(deprecated)]
     impl<E> From<E> for SendEndpoint<E>
     where
         for<'a> E: IsSendEndpoint<'a>,
@@ -236,6 +264,7 @@ mod send_endpoint {
         }
     }
 
+    #[allow(deprecated)]
     impl<'a, E: IsSendEndpoint<'a>> Endpoint<'a> for SendEndpoint<E> {
         type Output = E::Output;
         type Future = E::Future;

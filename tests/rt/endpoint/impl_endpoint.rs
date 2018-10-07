@@ -2,8 +2,8 @@ use finchers;
 use finchers::prelude::*;
 use finchers::rt::test;
 
-fn foo() -> impl_endpoint!(Output = (u32,)) {
-    endpoint::unit().map(|| 42).into()
+fn foo() -> impl for<'a> Endpoint<'a, Output = (u32,), Future = impl Send + 'a> {
+    endpoint::unit().map(|| 42)
 }
 
 #[test]

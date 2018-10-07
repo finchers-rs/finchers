@@ -102,7 +102,10 @@ pub use launcher::launch;
 pub mod prelude {
     pub use endpoint;
     pub use endpoint::wrapper::{EndpointWrapExt, Wrapper};
-    pub use endpoint::{Endpoint, IntoEndpoint, IntoEndpointExt, SendEndpoint};
+    #[doc(hidden)]
+    #[allow(deprecated)]
+    pub use endpoint::SendEndpoint;
+    pub use endpoint::{Endpoint, IntoEndpoint, IntoEndpointExt};
     pub use endpoints;
     pub use error::HttpError;
 }

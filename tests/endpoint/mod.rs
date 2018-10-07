@@ -1,7 +1,6 @@
 mod and;
 mod and_then;
 mod boxed;
-mod impl_endpoint;
 mod macros;
 mod map;
 mod or;
