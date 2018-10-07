@@ -30,8 +30,9 @@
 //!     let post_api = path!(/ "posts")
 //!         .and(get_post.or(create_post));
 //!
-//!     finchers::launch(post_api)
-//!         .start("127.0.0.1:4000");
+//!     finchers::server::start(post_api)
+//!         .serve_http("127.0.0.1:4000")
+//!         .expect("failed to start the server");
 //! }
 //! ```
 
