@@ -8,8 +8,9 @@ use tower_service::NewService;
 pub use self::app_payload::AppPayload;
 use self::app_service::{AppService, Lift};
 
-use endpoint::OutputEndpoint;
+use endpoint::{Endpoint, OutputEndpoint};
 use error::Never;
+use output::Output;
 
 /// A wrapper struct for lifting the instance of `Endpoint` to an HTTP service.
 ///
@@ -52,6 +53,42 @@ where
         // longer than the generated future.
         let endpoint = unsafe { &*(&self.endpoint as *const _) };
         future::ok(AppService { endpoint })
+    }
+}
+
+/// A wrapper struct for lifting a reference to `Endpoint` to an HTTP service.
+#[derive(Debug)]
+pub struct AppRef<'a, E: 'a> {
+    endpoint: &'a E,
+}
+
+impl<'a, E> AppRef<'a, E>
+where
+    E: Endpoint<'a>,
+    E::Output: Output,
+{
+    /// Create a new `AppRef` from a reference to the specified endpoint.
+    pub fn new(endpoint: &'a E) -> AppRef<'a, E> {
+        AppRef { endpoint }
+    }
+}
+
+impl<'a, E> NewService for AppRef<'a, E>
+where
+    E: Endpoint<'a>,
+    E::Output: Output,
+{
+    type Request = Request<Body>;
+    type Response = Response<AppPayload>;
+    type Error = Never;
+    type Service = AppService<'a, E>;
+    type InitError = Never;
+    type Future = future::FutureResult<Self::Service, Self::InitError>;
+
+    fn new_service(&self) -> Self::Future {
+        future::ok(AppService {
+            endpoint: self.endpoint,
+        })
     }
 }
 
