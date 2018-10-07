@@ -1,4 +1,8 @@
-//! Wrapper for logging.
+#![doc(hidden)]
+#![deprecated(
+    since = "0.12.3",
+    note = "The endpoint-level logging support will be removed on the next version."
+)]
 
 use http::Response;
 use http::StatusCode;
