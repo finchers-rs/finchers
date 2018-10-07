@@ -1,8 +1,9 @@
 use finchers::endpoint::syntax;
 use finchers::endpoint::IntoEndpointExt;
 use finchers::endpoints::{body, query};
-use finchers::local;
+use finchers::test;
 
+use http::Request;
 use serde::de;
 use serde::de::IntoDeserializer;
 use std::fmt;
@@ -56,16 +57,17 @@ struct Param {
 
 #[test]
 fn test_or_strict() {
-    let query = syntax::verb::get().and(query::required::<Param>());
-    let form = syntax::verb::post().and(body::urlencoded::<Param>());
-    let endpoint = query.or_strict(form);
-
     let query_str = "query=rustlang&count=42&tags=tokio,hyper";
 
+    let mut runner = test::runner({
+        let query = syntax::verb::get().and(query::required::<Param>());
+        let form = syntax::verb::post().and(body::urlencoded::<Param>());
+        query.or_strict(form)
+    });
+
     assert_matches!(
-        local::get(&format!("/?{}", query_str))
-            .apply(&endpoint),
-        Ok((ref param, )) if *param == Param {
+        runner.apply(format!("/?{}", query_str)),
+        Ok(ref param) if *param == Param {
             query: "rustlang".into(),
             count: Some(42),
             tags: vec!["tokio".into(), "hyper".into()]
@@ -73,11 +75,10 @@ fn test_or_strict() {
     );
 
     assert_matches!(
-        local::post("/")
+        runner.apply(Request::post("/")
             .header("content-type", "application/x-www-form-urlencoded")
-            .body(query_str)
-            .apply(&endpoint),
-        Ok((ref param, )) if *param == Param {
+            .body(query_str)),
+        Ok(ref param) if *param == Param {
             query: "rustlang".into(),
             count: Some(42),
             tags: vec!["tokio".into(), "hyper".into()]
@@ -85,22 +86,19 @@ fn test_or_strict() {
     );
 
     assert_matches!(
-        local::get("/")
-            .apply(&endpoint),
+        runner.apply("/"),
         Err(ref e) if e.status_code().as_u16() == 400
     );
 
     assert_matches!(
-        local::delete(&format!("/?{}", query_str))
-            .apply(&endpoint),
+        runner.apply(Request::delete(format!("/?{}", query_str))),
         Err(ref e) if e.status_code().as_u16() == 405
     );
 
     assert_matches!(
-        local::put("/")
+        runner.apply(Request::put("/")
             .header("content-type", "application/x-www-form-urlencoded")
-            .body(query_str)
-            .apply(&endpoint),
+            .body(query_str)),
         Err(ref e) if e.status_code().as_u16() == 405
     );
 }

@@ -153,7 +153,6 @@ impl Input {
     }
 }
 
-#[cfg(feature = "rt")]
 mod finalize {
     use super::*;
     use either::Either;
@@ -162,7 +161,6 @@ mod finalize {
     use http::{Response, StatusCode};
 
     impl Input {
-        #[cfg(feature = "rt")]
         pub(crate) fn finalize<T>(
             self,
             output: Result<Response<T>, Error>,

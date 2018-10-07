@@ -5,7 +5,7 @@
 //! ```
 //! # #[macro_use]
 //! # extern crate finchers;
-//! # use finchers::rt::test;
+//! # use finchers::test;
 //! # use finchers::prelude::*;
 //! # fn main() {
 //! let endpoint = path!(@get / "greeting" / String)
@@ -26,7 +26,7 @@
 //! Validates the result of the endpoint without converting to HTTP response.
 //!
 //! ```
-//! # use finchers::rt::test;
+//! # use finchers::test;
 //! # use finchers::prelude::*;
 //! use finchers::error::Result;
 //!
@@ -59,8 +59,8 @@ use error;
 use input::ReqBody;
 use output::Output;
 
-use super::app::app_service::{AppFuture, AppService};
-use super::blocking::{with_set_runtime_mode, RuntimeMode};
+use app::{AppFuture, AppService};
+use rt::{with_set_runtime_mode, RuntimeMode};
 
 pub use self::request::{IntoReqBody, TestRequest};
 pub use self::response::TestResult;

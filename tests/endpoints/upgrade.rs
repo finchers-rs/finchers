@@ -1,6 +1,6 @@
 use finchers::endpoints::upgrade::Builder;
 use finchers::prelude::*;
-use finchers::rt::test;
+use finchers::test;
 
 #[test]
 fn test_upgrade() {

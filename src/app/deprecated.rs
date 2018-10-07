@@ -1,5 +1,7 @@
 //! The components to construct an asynchronous HTTP service from the `Endpoint`.
 
+#![deprecated(since = "0.12.3")]
+
 use futures::{Async, Future, Poll};
 use std::io;
 

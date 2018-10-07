@@ -1,21 +1,20 @@
 use finchers::endpoint::{cloned, unit, IntoEndpointExt};
-use finchers::local;
+use finchers::test;
 
 #[test]
 fn test_and_all_ok() {
-    let endpoint = cloned("Hello").and(cloned("world"));
+    let mut runner = test::runner(cloned("Hello").and(cloned("world")));
 
-    assert_matches!(local::get("/").apply(&endpoint), Ok(("Hello", "world")));
+    assert_matches!(runner.apply_raw("/"), Ok(("Hello", "world")));
 }
 
 #[test]
 fn test_and_flatten() {
-    let endpoint = cloned("Hello")
-        .and(unit())
-        .and(cloned("world").and(cloned(":)")));
-
-    assert_matches!(
-        local::get("/").apply(&endpoint),
-        Ok(("Hello", "world", ":)"))
+    let mut runner = test::runner(
+        cloned("Hello")
+            .and(unit())
+            .and(cloned("world").and(cloned(":)"))),
     );
+
+    assert_matches!(runner.apply_raw("/"), Ok(("Hello", "world", ":)")));
 }

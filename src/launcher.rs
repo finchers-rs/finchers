@@ -1,5 +1,11 @@
 //! Components for managing HTTP server.
 
+#![deprecated(
+    since = "0.12.3",
+    note = "use the new server implementation instead."
+)]
+#![allow(deprecated)]
+
 use failure::{err_msg, Fallible};
 use futures::future::poll_fn;
 use futures::Future;
@@ -9,21 +15,14 @@ use std::net::ToSocketAddrs;
 use tokio::net::TcpListener;
 use tokio::runtime::Runtime;
 
-use app::App;
+use app::deprecated::App;
 use endpoint::Endpoint;
 use output::Output;
 
-#[cfg(feature = "rt")]
-use rt::blocking::{with_set_runtime_mode, RuntimeMode};
+use rt::{with_set_runtime_mode, RuntimeMode};
 
-#[cfg(feature = "rt")]
 fn annotate<R>(f: impl FnOnce() -> R) -> R {
     with_set_runtime_mode(RuntimeMode::ThreadPool, f)
-}
-
-#[cfg(not(feature = "rt"))]
-fn annotate<R>(f: impl FnOnce() -> R) -> R {
-    f()
 }
 
 // ==== LaunchEndpoint ====
@@ -127,6 +126,7 @@ where
         }
     }
 
+    #[allow(deprecated)]
     fn start_inner(self, addr: impl ToSocketAddrs) -> Fallible<()> {
         let Launcher { endpoint, rt, http } = self;
 

@@ -1,6 +1,6 @@
 use finchers;
 use finchers::endpoint::{ApplyContext, ApplyResult, Endpoint, Wrapper};
-use finchers::local;
+use finchers::test;
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -45,10 +45,18 @@ fn test_wrap() {
         counter: counter.clone(),
     };
     let endpoint = path!(@get /).wrap(wrapper);
+    let mut runner = test::runner(endpoint);
 
-    assert_matches!(local::get("/").apply(&endpoint), Ok(..));
-
+    assert_matches!(runner.apply_raw("/"), Ok(..));
     assert_eq!(counter.load(Ordering::SeqCst), 1);
+}
 
-    drop(move || finchers::launch(endpoint).start("127.0.0.1:4000"));
+#[test]
+fn test_launch_wrapped_endpoint() {
+    let wrapper = Wrap {
+        counter: Arc::new(AtomicUsize::new(0)),
+    };
+    let endpoint = path!(@get /).wrap(wrapper);
+
+    drop(move || finchers::server::start(endpoint).serve_http("127.0.0.1:4000"));
 }

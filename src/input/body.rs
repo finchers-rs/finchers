@@ -4,20 +4,16 @@ use std::io;
 use std::mem;
 
 use bytes::Bytes;
+use futures::Future;
 use futures::Poll;
 use http::header::HeaderMap;
 use hyper::body::Body;
 
-#[cfg(feature = "rt")]
-use futures::Future;
-
-#[cfg(feature = "rt")]
 type Task = Box<dyn Future<Item = (), Error = ()> + Send + 'static>;
 
 enum ReqBodyState {
     Unused(Body),
     Gone,
-    #[cfg(feature = "rt")]
     Upgraded(Task),
 }
 
@@ -26,7 +22,6 @@ impl fmt::Debug for ReqBodyState {
         match self {
             ReqBodyState::Unused(ref bd) => f.debug_tuple("Unused").field(bd).finish(),
             ReqBodyState::Gone => f.debug_tuple("Gone").finish(),
-            #[cfg(feature = "rt")]
             ReqBodyState::Upgraded(..) => f.debug_tuple("Upgraded").finish(),
         }
     }
@@ -70,7 +65,6 @@ impl ReqBody {
         match mem::replace(&mut self.state, ReqBodyState::Gone) {
             ReqBodyState::Unused(body) => Some(Payload(body)),
             ReqBodyState::Gone => None,
-            #[cfg(feature = "rt")]
             ReqBodyState::Upgraded(task) => {
                 self.state = ReqBodyState::Upgraded(task);
                 None
@@ -88,7 +82,6 @@ impl ReqBody {
     }
 
     /// Returns whether the protocol has already upgraded to another protocol.
-    #[cfg(feature = "rt")]
     pub fn is_upgraded(&self) -> bool {
         match self.state {
             ReqBodyState::Upgraded(..) => true,
@@ -159,7 +152,6 @@ impl ::futures::Stream for Payload {
     }
 }
 
-#[cfg(feature = "rt")]
 mod rt {
     use super::{ReqBody, ReqBodyState, Task};
 
@@ -206,7 +198,7 @@ mod rt {
     }
 }
 
-#[cfg(all(feature = "rt", feature = "tower-web"))]
+#[cfg(feature = "tower-web")]
 mod payload_buf_stream {
     use super::Payload;
 

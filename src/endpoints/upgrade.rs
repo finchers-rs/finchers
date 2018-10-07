@@ -1,10 +1,4 @@
-//! **\[unstable\]**
 //! Endpoints for supporting HTTP/1.1 protocol upgrade.
-//!
-//! This module is currently unstable and disabled by default.
-//! It is available only when the feature `rt` is set.
-
-#![cfg(feature = "rt")]
 
 use std::io;
 

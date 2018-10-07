@@ -10,5 +10,5 @@ fn smoke_by_ref() {
             Ok(format!("id={}, s={}, body={}", id, s, body))
         });
 
-    drop(move || finchers::launch(endpoint).start("127.0.0.1:4000"));
+    drop(move || finchers::server::start(endpoint).serve_http("127.0.0.1:4000"));
 }

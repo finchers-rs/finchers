@@ -1,15 +1,18 @@
 use finchers::endpoints::body;
-use finchers::local;
+use finchers::test;
+use http::Request;
 
 #[test]
 fn test_body_text() {
     let message = "The quick brown fox jumps over the lazy dog";
 
-    let endpoint = body::text();
+    let mut runner = test::runner(body::text());
 
     assert_matches!(
-        local::post("/").body(message).apply(&endpoint),
-        Ok((ref s,)) if s == message
+        runner.apply(Request::post("/")
+            .header("content-type", "text/plain; charset=utf-8")
+            .body(message)),
+        Ok(ref s) if s == message
     );
 }
 
@@ -20,39 +23,35 @@ fn test_body_json() {
         text: String,
     }
 
-    let endpoint = body::json::<Param>();
+    let mut runner = test::runner(body::json::<Param>());
 
     assert_matches!(
-        local::post("/")
+        runner.apply(Request::post("/")
             .header("content-type", "application/json")
-            .body(r#"{ "text": "TRPL2" }"#)
-            .apply(&endpoint),
-        Ok((ref param,)) if *param == Param { text: "TRPL2".into() }
+            .body(r#"{ "text": "TRPL2" }"#)),
+        Ok(ref param) if *param == Param { text: "TRPL2".into() }
     );
 
     // missing Content-type
     assert_matches!(
-        local::post("/")
-            .body(r#"{ "text": "TRPL2" }"#)
-            .apply(&endpoint),
+        runner.apply(Request::post("/")
+            .body(r#"{ "text": "TRPL2" }"#)),
         Err(ref e) if e.status_code().as_u16() == 400
     );
 
     // invalid content-type
     assert_matches!(
-        local::post("/")
+        runner.apply(Request::post("/")
             .header("content-type", "text/plain")
-            .body(r#"{ "text": "TRPL2" }"#)
-            .apply(&endpoint),
+            .body(r#"{ "text": "TRPL2" }"#)),
         Err(ref e) if e.status_code().as_u16() == 400
     );
 
     // invalid data
     assert_matches!(
-        local::post("/")
+        runner.apply(Request::post("/")
             .header("content-type", "application/json")
-            .body(r#"invalid JSON data"#)
-            .apply(&endpoint),
+            .body(r#"invalid JSON data"#)),
         Err(ref e) if e.status_code().as_u16() == 400
     );
 }
@@ -66,16 +65,15 @@ fn test_body_urlencoded() {
         redirect_uri: String,
     }
 
-    let endpoint = body::urlencoded::<AccessTokenRequest>();
-
     let form_str = r#"grant_type=authorization_code&code=SplxlOBeZQQYbYS6WxSbIA&redirect_uri=https%3A%2F%2Fclient%2Eexample%2Ecom%2Fcb"#;
 
+    let mut runner = test::runner(body::urlencoded::<AccessTokenRequest>());
+
     assert_matches!(
-        local::post("/")
+        runner.apply(Request::post("/")
             .header("content-type", "application/x-www-form-urlencoded")
-            .body(form_str)
-            .apply(&endpoint),
-        Ok((ref req,)) if *req == AccessTokenRequest {
+            .body(form_str)),
+        Ok(ref req) if *req == AccessTokenRequest {
             grant_type: "authorization_code".into(),
             code: "SplxlOBeZQQYbYS6WxSbIA".into(),
             redirect_uri: "https://client.example.com/cb".into(),
@@ -84,27 +82,24 @@ fn test_body_urlencoded() {
 
     // missing Content-type
     assert_matches!(
-        local::post("/")
-            .body(form_str)
-            .apply(&endpoint),
+        runner.apply(Request::post("/")
+            .body(form_str)),
         Err(ref e) if e.status_code().as_u16() == 400
     );
 
     // invalid content-type
     assert_matches!(
-        local::post("/")
+        runner.apply(Request::post("/")
             .header("content-type", "text/plain")
-            .body(form_str)
-            .apply(&endpoint),
+            .body(form_str)),
         Err(ref e) if e.status_code().as_u16() == 400
     );
 
     // invalid data
     assert_matches!(
-        local::post("/")
+        runner.apply(Request::post("/")
             .header("content-type", "application/x-www-form-urlencoded")
-            .body(r#"{ "graht_code": "authorization_code" }"#)
-            .apply(&endpoint),
+            .body(r#"{ "graht_code": "authorization_code" }"#)),
         Err(ref e) if e.status_code().as_u16() == 400
     );
 }

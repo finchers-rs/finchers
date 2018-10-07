@@ -60,6 +60,12 @@
 //! # }
 //! ```
 
+#![deprecated(
+    since = "0.12.3",
+    note = "use the new testing falicity instead."
+)]
+#![allow(deprecated)]
+
 use std::borrow::Cow;
 use std::mem;
 
@@ -74,24 +80,17 @@ use http::{HttpTryFrom, Method, Request, Response, Uri};
 use hyper::body::{Body, Payload};
 use tokio::runtime::current_thread::Runtime;
 
-use app::App;
+use app::deprecated::App;
 use endpoint::Endpoint;
 use error::Error;
 use input::ReqBody;
 use output::body::ResBody as _ResBody;
 use output::Output;
 
-#[cfg(feature = "rt")]
-use rt::blocking::{with_set_runtime_mode, RuntimeMode};
+use rt::{with_set_runtime_mode, RuntimeMode};
 
-#[cfg(feature = "rt")]
 fn annotate<R>(f: impl FnOnce() -> R) -> R {
     with_set_runtime_mode(RuntimeMode::CurrentThread, f)
-}
-
-#[cfg(not(feature = "rt"))]
-fn annotate<R>(f: impl FnOnce() -> R) -> R {
-    f()
 }
 
 macro_rules! impl_constructors {
@@ -197,6 +196,7 @@ impl LocalRequest {
     }
 
     /// Apply this dummy request to the associated endpoint and get its response.
+    #[allow(deprecated)]
     pub fn apply<'e, E: Endpoint<'e>>(self, endpoint: &'e E) -> Result<E::Output, Error> {
         let LocalRequest { mut request } = self;
         let request = request.take().expect("The request has already applied");
@@ -211,6 +211,7 @@ impl LocalRequest {
     }
 
     #[allow(missing_docs)]
+    #[allow(deprecated)]
     pub fn respond<'e, E>(self, endpoint: &'e E) -> Response<ResBody>
     where
         E: Endpoint<'e>,

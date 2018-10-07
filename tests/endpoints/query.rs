@@ -1,19 +1,18 @@
 use finchers::endpoint::ApplyError;
 use finchers::endpoint::Endpoint;
 use finchers::endpoints::query;
-use finchers::local;
+use finchers::test;
 
 #[test]
 fn test_query_raw() {
-    let endpoint = query::raw().with_output::<(Option<String>,)>();
+    let mut runner = test::runner({ query::raw().with_output::<(Option<String>,)>() });
 
     assert_matches!(
-        local::get("/?foo=bar")
-            .apply(&endpoint),
-        Ok((Some(ref s),)) if s == "foo=bar"
+        runner.apply("/?foo=bar"),
+        Ok(Some(ref s)) if s == "foo=bar"
     );
 
-    assert_matches!(local::get("/").apply(&endpoint), Ok((None,)));
+    assert_matches!(runner.apply("/"), Ok(None));
 }
 
 #[test]
@@ -24,17 +23,15 @@ fn test_query_parse() {
         count: Option<u32>,
     }
 
-    let endpoint = query::required::<Query>();
+    let mut runner = test::runner(query::required::<Query>());
 
     assert_matches!(
-        local::get("/?count=20&param=rustlang")
-            .apply(&endpoint),
-        Ok((ref query,)) if query.param == "rustlang" && query.count == Some(20)
+        runner.apply("/?count=20&param=rustlang"),
+        Ok(ref query) if query.param == "rustlang" && query.count == Some(20)
     );
 
     assert_matches!(
-        local::get("/")
-            .apply(&endpoint),
+        runner.apply("/"),
         Err(ref err) if err.is::<ApplyError>() && err.status_code().as_u16() == 400
     );
 }
@@ -47,13 +44,12 @@ fn test_query_optional() {
         count: Option<u32>,
     }
 
-    let endpoint = query::optional::<Query>();
+    let mut runner = test::runner(query::optional::<Query>());
 
     assert_matches!(
-        local::get("/?count=20&param=rustlang")
-            .apply(&endpoint),
-        Ok((Some(ref query),)) if query.param == "rustlang" && query.count == Some(20)
+        runner.apply("/?count=20&param=rustlang"),
+        Ok(Some(ref query)) if query.param == "rustlang" && query.count == Some(20)
     );
 
-    assert_matches!(local::get("/").apply(&endpoint), Ok((None,)));
+    assert_matches!(runner.apply("/"), Ok(None));
 }

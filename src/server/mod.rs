@@ -1,5 +1,7 @@
 //! The implementation of HTTP server based on hyper and tower-service.
 
+pub mod middleware;
+
 use std::error;
 use std::net::ToSocketAddrs;
 use std::sync::Arc;
@@ -13,9 +15,82 @@ use hyper::service as hyper_service;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::runtime::Runtime;
 use tower_service;
+use tower_service::NewService;
+#[cfg(feature = "tower-web")]
+use tower_web;
 
-use super::blocking::{with_set_runtime_mode, RuntimeMode};
-use super::ServiceBuilder;
+use app::App;
+use endpoint::OutputEndpoint;
+use rt::{with_set_runtime_mode, RuntimeMode};
+
+#[cfg(feature = "tower-web")]
+use self::middleware::TowerWebMiddleware;
+use self::middleware::{Chain, Middleware};
+
+/// Create an instance of `ServiceBuilder` from the specified endpoint.
+pub fn start<E>(endpoint: E) -> ServiceBuilder<App<E>>
+where
+    for<'a> E: OutputEndpoint<'a> + 'static,
+{
+    ServiceBuilder::new(App::new(endpoint))
+}
+
+/// A builder of HTTP service.
+#[derive(Debug)]
+pub struct ServiceBuilder<S> {
+    new_service: S,
+}
+
+impl<S> ServiceBuilder<S>
+where
+    S: NewService,
+{
+    /// Creates a new `ServerBuilder` from the specified NewService.
+    pub fn new(new_service: S) -> Self {
+        ServiceBuilder { new_service }
+    }
+
+    /// Wraps the inner service into the specified middleware.
+    pub fn with_middleware<M>(self, middleware: M) -> ServiceBuilder<Chain<S, M>>
+    where
+        M: Middleware<S::Service> + Clone,
+    {
+        ServiceBuilder {
+            new_service: Chain::new(self.new_service, middleware),
+        }
+    }
+
+    /// Wraps the inner service into the specified Tower-web middleware.
+    #[cfg(feature = "tower-web")]
+    pub fn with_tower_middleware<M>(
+        self,
+        middleware: M,
+    ) -> ServiceBuilder<Chain<S, TowerWebMiddleware<M>>>
+    where
+        M: tower_web::middleware::Middleware<S::Service>,
+    {
+        ServiceBuilder {
+            new_service: Chain::new(self.new_service, TowerWebMiddleware::new(middleware)),
+        }
+    }
+}
+
+impl<S> NewService for ServiceBuilder<S>
+where
+    S: NewService,
+{
+    type Request = S::Request;
+    type Response = S::Response;
+    type Error = S::Error;
+    type Service = S::Service;
+    type InitError = S::InitError;
+    type Future = S::Future;
+
+    #[inline]
+    fn new_service(&self) -> Self::Future {
+        self.new_service.new_service()
+    }
+}
 
 impl<S, Bd> ServiceBuilder<S>
 where
@@ -56,7 +131,7 @@ where
         I::Error: Into<Box<dyn error::Error + Send + Sync + 'static>>,
         F: Future<Item = ()> + Send + 'static,
     {
-        serve(self.new_service, builder, rt, signal)
+        serve(self, builder, rt, signal)
     }
 }
 

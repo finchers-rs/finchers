@@ -1,13 +1,8 @@
-use finchers::local;
 use finchers::prelude::*;
+use finchers::test;
 
 #[test]
 fn test_map() {
-    let endpoint = endpoint::cloned("Foo").map(|_| "Bar");
-
-    assert_matches!(
-        local::get("/")
-            .apply(&endpoint),
-        Ok((ref s,)) if *s == "Bar"
-    );
+    let mut runner = test::runner(endpoint::cloned("Foo").map(|_| "Bar"));
+    assert_matches!(runner.apply("/"), Ok("Bar"));
 }
