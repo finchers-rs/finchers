@@ -17,21 +17,9 @@ matrix:
 
   include:
     - rust: stable
-      sudo: required
-      addons:
-        apt:
-          packages:
-            - libcurl4-openssl-dev
-            - libelf-dev
-            - libdw-dev
-            - binutils-dev
       before_script:
         - rustup component add rustfmt-preview
         - rustup component add clippy-preview
-        - cargo install cargo-update || true
-        - cargo install cargo-kcov || true
-        - cargo install-update -a
-        - cargo kcov --print-install-kcov-sh | sh
       script:
         - cargo update
         - env FINCHERS_DENY_WARNINGS=1 cargo test
@@ -51,10 +39,20 @@ matrix:
         - cargo test -p test-edition2018
 
     - rust: nightly
+      sudo: required
+      addons:
+        apt:
+          packages:
+            - libssl-dev
+      before_script:
+        - RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install cargo-tarpaulin || true
+        - cargo +nightly tarpaulin --version
       script:
         - cargo update
         - cargo build
         - cargo test -p doctest
+      after_success:
+        - cargo +nightly tarpaulin --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
 
     # The minimal supported toolchain
     - rust: 1.29.1
