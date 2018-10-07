@@ -205,16 +205,6 @@ impl hyper::body::Payload for Empty {
 pub struct Once<T>(Option<T>);
 
 impl<T> Once<T> {
-    /// Creates an `Once` from the specified data.
-    #[doc(hidden)]
-    #[deprecated(
-        since = "0.12.1",
-        note = "This method will be removed in the future version."
-    )]
-    pub fn new(data: T) -> Once<T> {
-        Once(Some(data))
-    }
-
     #[inline]
     fn new2(data: T) -> Once<T> {
         Once(Some(data))
@@ -244,48 +234,6 @@ where
 /// An instance of `Payload` which acts either a certain data or an empty bytes.
 #[derive(Debug)]
 pub struct Optional<T>(Either<T, bool>);
-
-#[doc(hidden)]
-#[deprecated(
-    since = "0.12.1",
-    note = "This impl will be removed in the future version."
-)]
-impl<T> From<T> for Optional<T> {
-    fn from(data: T) -> Optional<T> {
-        Optional(Either::Left(data))
-    }
-}
-
-#[doc(hidden)]
-#[deprecated(
-    since = "0.12.1",
-    note = "This impl will be removed in the future version."
-)]
-impl<T> From<Option<T>> for Optional<T> {
-    fn from(data: Option<T>) -> Optional<T> {
-        optional(data)
-    }
-}
-
-impl<T> Optional<T> {
-    #[doc(hidden)]
-    #[deprecated(
-        since = "0.12.1",
-        note = "This method will be removed in the future version."
-    )]
-    pub fn empty() -> Optional<T> {
-        Optional(Either::Right(false))
-    }
-
-    #[doc(hidden)]
-    #[deprecated(
-        since = "0.12.1",
-        note = "This method will be removed in the future version."
-    )]
-    pub fn new(data: T) -> Optional<T> {
-        Optional(Either::Left(data))
-    }
-}
 
 impl<T: hyper::body::Payload> hyper::body::Payload for Optional<T> {
     type Data = Either<T::Data, io::Cursor<[u8; 0]>>;
@@ -339,37 +287,6 @@ pub fn optional<T>(bd: Option<T>) -> Optional<T> {
 /// An instance of `Payload` which acts either one of the two `Payload`s.
 #[derive(Debug)]
 pub struct EitherPayload<L, R>(Either<L, R>);
-
-#[doc(hidden)]
-#[deprecated(
-    since = "0.12.1",
-    note = "This impl will be removed in the future version."
-)]
-impl<L, R> From<Either<L, R>> for EitherPayload<L, R> {
-    fn from(either: Either<L, R>) -> Self {
-        EitherPayload(either)
-    }
-}
-
-impl<L, R> EitherPayload<L, R> {
-    #[doc(hidden)]
-    #[deprecated(
-        since = "0.12.1",
-        note = "This method will be removed in the future version."
-    )]
-    pub fn left(left: L) -> EitherPayload<L, R> {
-        EitherPayload(Either::Left(left))
-    }
-
-    #[doc(hidden)]
-    #[deprecated(
-        since = "0.12.1",
-        note = "This method will be removed in the future version."
-    )]
-    pub fn right(right: R) -> EitherPayload<L, R> {
-        EitherPayload(Either::Right(right))
-    }
-}
 
 impl<L, R> hyper::body::Payload for EitherPayload<L, R>
 where

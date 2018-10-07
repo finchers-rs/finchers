@@ -1,7 +1,5 @@
 //! The components for using the implementor of `Endpoint` as an HTTP `Service`.
 
-pub(crate) mod deprecated;
-
 use std::error;
 use std::fmt;
 use std::io;

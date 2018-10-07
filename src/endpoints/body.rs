@@ -1,126 +1,80 @@
 //! Endpoints for parsing the message body.
 
 use std::marker::PhantomData;
-use std::{fmt, mem};
+use std::mem;
 
-use futures::{Future, Poll};
+use futures::Future;
 
 use bytes::Bytes;
 use bytes::BytesMut;
 use http::StatusCode;
-use hyper::body::{Body, Payload};
+use hyper::body::{Body, Payload as _Payload};
 use serde::de::DeserializeOwned;
 
 use endpoint::{with_get_cx, ApplyContext, ApplyResult, Endpoint};
 use error;
 use error::{err_msg, Error};
 
-#[doc(hidden)]
-#[deprecated(since = "0.12.3", note = "use `raw2()` instead.")]
-#[allow(deprecated)]
-#[inline]
-pub fn raw() -> Raw {
-    (Raw { _priv: () }).with_output::<(Body,)>()
+pub use self::raw::{raw, Raw};
+
+// ==== Util ====
+
+fn stolen_payload() -> Error {
+    err_msg(
+        StatusCode::INTERNAL_SERVER_ERROR,
+        "The instance of Payload has already been stolen by another endpoint.",
+    )
 }
 
-#[doc(hidden)]
-#[deprecated(
-    since = "0.12.3",
-    note = "This endpoint will be removed in the future version."
-)]
-#[derive(Copy, Clone)]
-pub struct Raw {
-    _priv: (),
-}
+mod raw {
+    use super::stolen_payload;
 
-#[allow(deprecated)]
-impl fmt::Debug for Raw {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Raw").finish()
-    }
-}
+    use futures::{Future, Poll};
+    use std::fmt;
 
-#[allow(deprecated)]
-impl<'e> Endpoint<'e> for Raw {
-    type Output = (Body,);
-    type Future = RawFuture;
-
-    fn apply(&self, _: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
-        Ok(RawFuture { _priv: () })
-    }
-}
-
-#[doc(hidden)]
-#[deprecated(
-    since = "0.12.3",
-    note = "This type will be removed in the future version."
-)]
-pub struct RawFuture {
-    _priv: (),
-}
-
-#[allow(deprecated)]
-impl fmt::Debug for RawFuture {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("RawFuture").finish()
-    }
-}
-
-#[allow(deprecated)]
-impl Future for RawFuture {
-    type Item = (Body,);
-    type Error = Error;
-
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        with_get_cx(|input| input.body_mut().take())
-            .map(|x| (x.into_inner(),).into())
-            .ok_or_else(stolen_payload)
-    }
-}
-
-pub use self::raw2::{raw2, Raw2};
-mod raw2 {
-    use super::*;
+    use endpoint::{with_get_cx, ApplyContext, ApplyResult, Endpoint};
+    use error::Error;
     use input::Payload;
 
-    /// Creates an endpoint which takes the instance of [`Payload`](input::body::Payload)
+    /// Creates an endpoint which takes the instance of [`Payload`]
     /// from the context.
     ///
     /// If the instance of `Payload` has already been stolen by another endpoint, it will
     /// return an error.
+    ///
+    /// [`Payload`]: ../input/struct.Payload.html
     #[inline]
-    pub fn raw2() -> Raw2 {
-        (Raw2 { _priv: () }).with_output::<(Payload,)>()
+    pub fn raw() -> Raw {
+        (Raw { _priv: () }).with_output::<(Payload,)>()
     }
 
     #[allow(missing_docs)]
     #[derive(Copy, Clone)]
-    pub struct Raw2 {
+    pub struct Raw {
         _priv: (),
     }
 
-    impl fmt::Debug for Raw2 {
+    impl fmt::Debug for Raw {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             f.debug_struct("Raw").finish()
         }
     }
 
-    impl<'e> Endpoint<'e> for Raw2 {
+    impl<'e> Endpoint<'e> for Raw {
         type Output = (Payload,);
-        type Future = Raw2Future;
+        type Future = RawFuture;
 
         fn apply(&self, _: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
-            Ok(Raw2Future { _priv: () })
+            Ok(RawFuture { _priv: () })
         }
     }
 
     #[derive(Debug)]
-    pub struct Raw2Future {
+    pub struct RawFuture {
         _priv: (),
     }
 
-    #[allow(deprecated)]
-    impl Future for Raw2Future {
+    impl Future for RawFuture {
         type Item = (Payload,);
         type Error = Error;
 
@@ -209,13 +163,6 @@ impl ::futures::Future for ReceiveAllFuture {
             }
         }
     }
-}
-
-fn stolen_payload() -> Error {
-    err_msg(
-        StatusCode::INTERNAL_SERVER_ERROR,
-        "The instance of Payload has already been stolen by another endpoint.",
-    )
 }
 
 // ==== Text ====

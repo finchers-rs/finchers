@@ -14,9 +14,7 @@ use cookie::{Cookie, CookieJar};
 use http;
 use http::header::HeaderMap;
 use http::Request;
-use hyper::body::Body;
 use mime::Mime;
-use std::ops::Deref;
 
 use error::{bad_request, Error};
 
@@ -38,15 +36,6 @@ impl Input {
             cookie_jar: None,
             response_headers: None,
         }
-    }
-
-    #[doc(hidden)]
-    #[deprecated(
-        since = "0.12.3",
-        note = "The method will be removed in the future version."
-    )]
-    pub fn request(&self) -> &Request<ReqBody> {
-        &self.request
     }
 
     /// Returns a reference to the HTTP method of the request.
@@ -83,17 +72,6 @@ impl Input {
     /// Returns a mutable reference to the message body in the request.
     pub fn body_mut(&mut self) -> &mut ReqBody {
         self.request.body_mut()
-    }
-
-    #[doc(hidden)]
-    #[deprecated(
-        since = "0.12.3",
-        note = "use the method provided by `ReqBody` instead."
-    )]
-    #[inline]
-    #[allow(deprecated)]
-    pub fn payload(&mut self) -> Option<Body> {
-        self.request.body_mut().payload()
     }
 
     /// Attempts to get the entry of `Content-type` and parse its value.
@@ -137,19 +115,11 @@ impl Input {
         }
     }
 
-    pub(crate) fn cookie_jar(&self) -> Option<&CookieJar> {
-        self.cookie_jar.as_ref()
-    }
-
     /// Returns a mutable reference to a `HeaderMap` which contains the entries of response headers.
     ///
     /// The values inserted in this header map are automatically added to the actual response.
     pub fn response_headers(&mut self) -> &mut HeaderMap {
         self.response_headers.get_or_insert_with(Default::default)
-    }
-
-    pub(crate) fn take_response_headers(&mut self) -> Option<HeaderMap> {
-        self.response_headers.take()
     }
 }
 
@@ -200,21 +170,5 @@ mod finalize {
 
             (response, upgraded_opt)
         }
-    }
-}
-
-/// # Compatibility Notes
-///
-/// The dereference to `Request<ReqBody>` will be removed in the future version.
-#[doc(hidden)]
-#[deprecated(
-    since = "0.12.3",
-    note = "Dereference to Request<ReqBody> will be removed in the future version."
-)]
-impl Deref for Input {
-    type Target = Request<ReqBody>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.request
     }
 }

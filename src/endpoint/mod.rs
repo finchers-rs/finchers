@@ -34,9 +34,6 @@ pub use self::unit::{unit, Unit};
 
 pub use self::output_endpoint::OutputEndpoint;
 pub use self::send_endpoint::IsSendEndpoint;
-#[doc(hidden)]
-#[allow(deprecated)]
-pub use self::send_endpoint::SendEndpoint;
 
 // ====
 
@@ -184,7 +181,6 @@ impl<'a, E: IntoEndpoint<'a>> IntoEndpointExt<'a> for E {}
 
 mod send_endpoint {
     use futures::Future;
-    use std::fmt;
 
     use super::{ApplyContext, ApplyResult, Endpoint};
     use common::Tuple;
@@ -221,101 +217,6 @@ mod send_endpoint {
         #[inline(always)]
         fn apply(&'a self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
             self.apply(cx)
-        }
-    }
-
-    #[doc(hidden)]
-    #[deprecated(
-        since = "0.12.3",
-        note = "This type will be removed in the next version."
-    )]
-    pub struct SendEndpoint<E> {
-        endpoint: E,
-    }
-
-    #[allow(deprecated)]
-    impl<E: fmt::Debug> fmt::Debug for SendEndpoint<E> {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            f.debug_struct("SendEndpoint")
-                .field("endpoint", &self.endpoint)
-                .finish()
-        }
-    }
-
-    #[allow(deprecated)]
-    impl<E: Copy> Copy for SendEndpoint<E> {}
-
-    #[allow(deprecated)]
-    impl<E: Clone> Clone for SendEndpoint<E> {
-        fn clone(&self) -> Self {
-            SendEndpoint {
-                endpoint: self.endpoint.clone(),
-            }
-        }
-    }
-
-    #[allow(deprecated)]
-    impl<E> From<E> for SendEndpoint<E>
-    where
-        for<'a> E: IsSendEndpoint<'a>,
-    {
-        fn from(endpoint: E) -> Self {
-            SendEndpoint { endpoint }
-        }
-    }
-
-    #[allow(deprecated)]
-    impl<'a, E: IsSendEndpoint<'a>> Endpoint<'a> for SendEndpoint<E> {
-        type Output = E::Output;
-        type Future = E::Future;
-
-        #[inline(always)]
-        fn apply(&'a self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
-            self.endpoint.apply(cx)
-        }
-    }
-
-    #[doc(hidden)]
-    #[deprecated(
-        since = "0.12.3",
-        note = "This macro will be removed at the next version."
-    )]
-    #[macro_export]
-    macro_rules! impl_endpoint {
-        () => {
-            $crate::endpoint::SendEndpoint<
-                impl for<'a> $crate::endpoint::IsSendEndpoint<'a>
-            >
-        };
-        (Output = $Output:ty) => {
-            $crate::endpoint::SendEndpoint<
-                impl for<'a> $crate::endpoint::IsSendEndpoint<'a, Output = $Output>
-            >
-        };
-    }
-
-    #[allow(deprecated)]
-    #[cfg(test)]
-    mod tests {
-        use super::*;
-        use endpoint::cloned;
-
-        fn return_unit() -> impl_endpoint!() {
-            cloned(42).into()
-        }
-
-        fn return_value() -> impl_endpoint![Output = (u32,)] {
-            cloned(42).into()
-        }
-
-        #[test]
-        fn test_impl() {
-            fn assert_impl(endpoint: impl for<'a> Endpoint<'a>) {
-                drop(endpoint)
-            }
-
-            assert_impl(return_unit());
-            assert_impl(return_value());
         }
     }
 }

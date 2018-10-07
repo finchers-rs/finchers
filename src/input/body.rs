@@ -34,27 +34,10 @@ pub struct ReqBody {
 }
 
 impl ReqBody {
-    #[doc(hidden)]
-    #[deprecated(
-        since = "0.12.3",
-        note = "This method will be removed in the future version."
-    )]
-    #[inline]
-    pub fn from_hyp(body: Body) -> ReqBody {
-        ReqBody::new(body)
-    }
-
     pub(crate) fn new(body: Body) -> ReqBody {
         ReqBody {
             state: ReqBodyState::Unused(body),
         }
-    }
-
-    #[inline]
-    #[doc(hidden)]
-    #[deprecated(since = "0.12.3", note = "use `ReqBody::take()` instead.")]
-    pub fn payload(&mut self) -> Option<Body> {
-        self.take().map(|Payload(body)| body)
     }
 
     /// Takes the instance of raw request body from the current context.
@@ -71,6 +54,7 @@ impl ReqBody {
             }
         }
     }
+
     /// Returns whether the instance of `Payload` is available or not.
     ///
     /// It returns `false` if the request body has already taken or upgraded to another protocol.
@@ -87,15 +71,6 @@ impl ReqBody {
             ReqBodyState::Upgraded(..) => true,
             _ => false,
         }
-    }
-
-    #[doc(hidden)]
-    #[deprecated(
-        since = "0.12.3",
-        note = "use `!body.is_available()` instead"
-    )]
-    pub fn is_gone(&self) -> bool {
-        !self.is_available()
     }
 }
 

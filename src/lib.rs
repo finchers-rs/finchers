@@ -93,21 +93,10 @@ pub mod rt;
 pub mod server;
 pub mod test;
 
-#[doc(hidden)]
-pub mod launcher;
-#[doc(hidden)]
-pub mod local;
-#[doc(hidden)]
-#[allow(deprecated)]
-pub use launcher::launch;
-
 /// A prelude for crates using the `finchers` crate.
 pub mod prelude {
     pub use endpoint;
     pub use endpoint::wrapper::{EndpointWrapExt, Wrapper};
-    #[doc(hidden)]
-    #[allow(deprecated)]
-    pub use endpoint::SendEndpoint;
     pub use endpoint::{Endpoint, IntoEndpoint, IntoEndpointExt};
     pub use endpoints;
     pub use error::HttpError;
