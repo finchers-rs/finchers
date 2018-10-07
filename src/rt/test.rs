@@ -9,6 +9,7 @@ use http::header;
 use http::header::{HeaderMap, HeaderName, HeaderValue};
 use http::{Request, Response};
 use hyper::body::Payload;
+use tokio::executor::{Executor, SpawnError};
 use tokio::runtime::current_thread::Runtime;
 
 use endpoint::Endpoint;
@@ -22,6 +23,10 @@ use super::blocking::{with_set_runtime_mode, RuntimeMode};
 pub use self::request::TestRequest;
 pub use self::response::TestResponse;
 
+// ====
+
+type Task = Box<dyn Future<Item = (), Error = ()> + Send + 'static>;
+
 struct AnnotatedRuntime<'a>(&'a mut Runtime);
 
 impl<'a> AnnotatedRuntime<'a> {
@@ -29,6 +34,15 @@ impl<'a> AnnotatedRuntime<'a> {
         self.0.block_on(future::poll_fn(move || {
             with_set_runtime_mode(RuntimeMode::CurrentThread, || future.poll())
         }))
+    }
+}
+
+struct DummyExecutor(Option<Task>);
+
+impl Executor for DummyExecutor {
+    fn spawn(&mut self, task: Task) -> Result<(), SpawnError> {
+        self.0 = Some(task);
+        Ok(())
     }
 }
 
@@ -168,7 +182,10 @@ impl<E> TestRunner<E> {
         E::Output: Output,
     {
         self.apply_inner(request, |mut future, rt| {
-            let response = rt.block_on(future::poll_fn(|| future.poll_all())).unwrap();
+            let mut exec = DummyExecutor(None);
+            let response = rt
+                .block_on(future::poll_fn(|| future.poll_all(&mut exec)))
+                .expect("DummyExecutor::spawn() never fails");
             let (parts, mut payload) = response.into_parts();
 
             // construct ResBody
@@ -192,6 +209,7 @@ impl<E> TestRunner<E> {
                 data,
                 trailers,
                 content_length,
+                task: exec.0,
             }
         })
     }
@@ -348,6 +366,7 @@ mod request {
 
 mod response {
     use std::borrow::Cow;
+    use std::fmt;
     use std::ops::Deref;
     use std::str;
 
@@ -355,13 +374,27 @@ mod response {
     use http::header::HeaderMap;
     use http::response::Parts;
 
+    use super::Task;
+
     /// A struct representing a response body returned from the test runner.
-    #[derive(Debug)]
     pub struct TestResponse {
         pub(super) parts: Parts,
         pub(super) data: Vec<Bytes>,
         pub(super) trailers: Option<HeaderMap>,
         pub(super) content_length: Option<u64>,
+        pub(super) task: Option<Task>,
+    }
+
+    impl fmt::Debug for TestResponse {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.debug_struct("TestResponse")
+                .field("parts", &self.parts)
+                .field("data", &self.data)
+                .field("trailers", &self.trailers)
+                .field("content_length", &self.content_length)
+                .field("task", &self.task.as_ref().map(|_| "<task>"))
+                .finish()
+        }
     }
 
     impl Deref for TestResponse {
@@ -396,6 +429,11 @@ mod response {
         #[allow(missing_docs)]
         pub fn is_chunked(&self) -> bool {
             self.content_length.is_none()
+        }
+
+        #[allow(missing_docs)]
+        pub fn is_upgraded(&self) -> bool {
+            self.task.is_some()
         }
 
         #[allow(missing_docs)]

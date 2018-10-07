@@ -5,49 +5,90 @@
 //! It is available only when the feature `rt` is set.
 
 #![cfg(feature = "rt")]
-#![allow(missing_docs)]
 
-use futures::future;
-use futures::IntoFuture;
+use std::io;
+
+use bytes::{Buf, BufMut};
+use futures::{IntoFuture, Poll};
 use http::header::{HeaderName, HeaderValue};
 use http::response;
 use http::{HttpTryFrom, Response, StatusCode};
 use hyper::upgrade::Upgraded;
-use tokio::executor::Executor;
+use tokio::io::{AsyncRead, AsyncWrite};
 
-use endpoint::{ApplyContext, ApplyResult, Endpoint};
+use endpoint::{lazy, Lazy};
+use error;
 use error::Error;
 use output::{Output, OutputContext};
-use rt::DefaultExecutor;
 
-/// A builder for constructing an HTTP response
-/// with upgrading the protocol.
+/// An asynchronous I/O representing an upgraded HTTP connection.
+///
+/// This type is currently implemented as a thin wrrapper of `hyper::upgrade::Upgraded`.
 #[derive(Debug)]
-pub struct Builder<Exec = DefaultExecutor> {
-    builder: response::Builder,
-    exec: Exec,
+pub struct UpgradedIo(Upgraded);
+
+impl io::Read for UpgradedIo {
+    #[inline]
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        self.0.read(buf)
+    }
 }
 
-impl Builder<()> {
-    pub fn new() -> Builder<DefaultExecutor> {
-        Builder::with_executor(DefaultExecutor::current())
+impl io::Write for UpgradedIo {
+    #[inline]
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.0.write(buf)
     }
 
-    pub fn with_executor<Exec>(exec: Exec) -> Builder<Exec>
-    where
-        Exec: Executor,
-    {
+    #[inline]
+    fn flush(&mut self) -> io::Result<()> {
+        self.0.flush()
+    }
+}
+
+impl AsyncRead for UpgradedIo {
+    #[inline]
+    unsafe fn prepare_uninitialized_buffer(&self, buf: &mut [u8]) -> bool {
+        self.0.prepare_uninitialized_buffer(buf)
+    }
+
+    #[inline]
+    fn read_buf<B: BufMut>(&mut self, buf: &mut B) -> Poll<usize, io::Error> {
+        self.0.read_buf(buf)
+    }
+}
+
+impl AsyncWrite for UpgradedIo {
+    #[inline]
+    fn shutdown(&mut self) -> Poll<(), io::Error> {
+        AsyncWrite::shutdown(&mut self.0)
+    }
+
+    #[inline]
+    fn write_buf<B: Buf>(&mut self, buf: &mut B) -> Poll<usize, io::Error> {
+        self.0.write_buf(buf)
+    }
+}
+
+/// A builder for constructing an upgraded HTTP response.
+///
+/// The output to be created will spawn a task when it is converted into
+/// an HTTP response. The task represents the handler of upgraded protocol.
+#[derive(Debug)]
+pub struct Builder {
+    builder: response::Builder,
+}
+
+impl Builder {
+    /// Creates a new `Builder` with the specified task executor.
+    pub fn new() -> Builder {
         let mut builder = response::Builder::new();
         builder.status(StatusCode::SWITCHING_PROTOCOLS);
 
-        Builder { builder, exec }
+        Builder { builder }
     }
-}
 
-impl<Exec> Builder<Exec>
-where
-    Exec: Executor,
-{
+    /// Appends a header filed which will be inserted into the response.
     pub fn header<K, V>(mut self, name: K, value: V) -> Self
     where
         HeaderName: HttpTryFrom<K>,
@@ -57,9 +98,10 @@ where
         self
     }
 
-    pub fn finish<F, R>(self, on_upgrade: F) -> UpgradeOutput<F, Exec>
+    /// Consumes itself and creates a new `Output` from the specified function.
+    pub fn finish<F, R>(self, on_upgrade: F) -> impl Output
     where
-        F: FnOnce(Upgraded) -> R + Send + 'static,
+        F: FnOnce(UpgradedIo) -> R + Send + 'static,
         R: IntoFuture<Item = (), Error = ()>,
         R::Future: Send + 'static,
     {
@@ -71,68 +113,33 @@ where
 }
 
 #[derive(Debug)]
-pub struct UpgradeOutput<F, Exec> {
-    builder: Builder<Exec>,
+struct UpgradeOutput<F> {
+    builder: Builder,
     on_upgrade: F,
 }
 
-impl<F, R, Exec> Output for UpgradeOutput<F, Exec>
+impl<F, R> Output for UpgradeOutput<F>
 where
-    F: FnOnce(Upgraded) -> R + Send + 'static,
+    F: FnOnce(UpgradedIo) -> R + Send + 'static,
     R: IntoFuture<Item = (), Error = ()>,
     R::Future: Send + 'static,
-    Exec: Executor,
 {
     type Body = ();
     type Error = Error;
 
     fn respond(self, cx: &mut OutputContext<'_>) -> Result<Response<Self::Body>, Self::Error> {
         let Self {
-            builder: Builder {
-                mut builder,
-                mut exec,
-            },
+            builder: Builder { mut builder },
             on_upgrade,
         } = self;
         cx.input()
             .body_mut()
-            .upgrade_with_executor(|upgraded| on_upgrade(upgraded), &mut exec);
+            .upgrade(|upgraded| on_upgrade(UpgradedIo(upgraded)));
         builder.body(()).map_err(::error::fail)
     }
 }
 
-/// Create an endpoint which just returns a value of `Builder`
-/// using the default task executor.
-pub fn default() -> Upgrade<impl Fn() -> DefaultExecutor> {
-    Upgrade {
-        f: || DefaultExecutor::current(),
-    }
-}
-
-/// Create an endpoint which just returns a value of `Builder`
-/// using the default task executor generated by the specified function.
-pub fn with_executor<F, Exec>(f: F) -> Upgrade<F>
-where
-    F: Fn() -> Exec,
-    Exec: Executor,
-{
-    Upgrade { f }
-}
-
-#[derive(Debug)]
-pub struct Upgrade<F> {
-    f: F,
-}
-
-impl<'a, F, Exec> Endpoint<'a> for Upgrade<F>
-where
-    F: Fn() -> Exec + 'a,
-    Exec: Executor + 'a,
-{
-    type Output = (Builder<Exec>,);
-    type Future = future::FutureResult<Self::Output, Error>;
-
-    fn apply(&'a self, _: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
-        Ok(future::ok((Builder::with_executor((self.f)()),)))
-    }
+/// Create an endpoint which just returns a value of `Builder`.
+pub fn builder() -> Lazy<impl Fn() -> error::Result<Builder>> {
+    lazy(|| Ok(Builder::new()))
 }

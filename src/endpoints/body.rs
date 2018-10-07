@@ -3,7 +3,7 @@
 use std::marker::PhantomData;
 use std::{fmt, mem};
 
-use futures::Future as _Future;
+use futures::{Future, Poll};
 
 use bytes::Bytes;
 use bytes::BytesMut;
@@ -15,28 +15,32 @@ use endpoint::{with_get_cx, ApplyContext, ApplyResult, Endpoint};
 use error;
 use error::{err_msg, Error};
 
-/// Creates an endpoint which takes the instance of [`Payload`](input::body::Payload)
-/// from the context.
-///
-/// If the instance of `Payload` has already been stolen by another endpoint, it will
-/// return an error.
+#[doc(hidden)]
+#[deprecated(since = "0.12.3", note = "use `raw2()` instead.")]
+#[allow(deprecated)]
 #[inline]
 pub fn raw() -> Raw {
     (Raw { _priv: () }).with_output::<(Body,)>()
 }
 
-#[allow(missing_docs)]
+#[doc(hidden)]
+#[deprecated(
+    since = "0.12.3",
+    note = "This endpoint will be removed in the future version."
+)]
 #[derive(Copy, Clone)]
 pub struct Raw {
     _priv: (),
 }
 
+#[allow(deprecated)]
 impl fmt::Debug for Raw {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Raw").finish()
     }
 }
 
+#[allow(deprecated)]
 impl<'e> Endpoint<'e> for Raw {
     type Output = (Body,);
     type Future = RawFuture;
@@ -47,19 +51,84 @@ impl<'e> Endpoint<'e> for Raw {
 }
 
 #[doc(hidden)]
-#[derive(Debug)]
+#[deprecated(
+    since = "0.12.3",
+    note = "This type will be removed in the future version."
+)]
 pub struct RawFuture {
     _priv: (),
 }
 
-impl ::futures::Future for RawFuture {
+#[allow(deprecated)]
+impl fmt::Debug for RawFuture {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("RawFuture").finish()
+    }
+}
+
+#[allow(deprecated)]
+impl Future for RawFuture {
     type Item = (Body,);
     type Error = Error;
 
-    fn poll(&mut self) -> ::futures::Poll<Self::Item, Self::Error> {
-        with_get_cx(|input| input.body_mut().payload())
-            .map(|x| (x,).into())
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        with_get_cx(|input| input.body_mut().take())
+            .map(|x| (x.into_inner(),).into())
             .ok_or_else(stolen_payload)
+    }
+}
+
+pub use self::raw2::{raw2, Raw2};
+mod raw2 {
+    use super::*;
+    use input::Payload;
+
+    /// Creates an endpoint which takes the instance of [`Payload`](input::body::Payload)
+    /// from the context.
+    ///
+    /// If the instance of `Payload` has already been stolen by another endpoint, it will
+    /// return an error.
+    #[inline]
+    pub fn raw2() -> Raw2 {
+        (Raw2 { _priv: () }).with_output::<(Payload,)>()
+    }
+
+    #[allow(missing_docs)]
+    #[derive(Copy, Clone)]
+    pub struct Raw2 {
+        _priv: (),
+    }
+
+    impl fmt::Debug for Raw2 {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.debug_struct("Raw").finish()
+        }
+    }
+
+    impl<'e> Endpoint<'e> for Raw2 {
+        type Output = (Payload,);
+        type Future = Raw2Future;
+
+        fn apply(&self, _: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+            Ok(Raw2Future { _priv: () })
+        }
+    }
+
+    #[derive(Debug)]
+    pub struct Raw2Future {
+        _priv: (),
+    }
+
+    #[allow(deprecated)]
+    impl Future for Raw2Future {
+        type Item = (Payload,);
+        type Error = Error;
+
+        fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+            with_get_cx(|input| input.body_mut().take())
+                .map(|x| (x,).into())
+                .ok_or_else(stolen_payload)
+        }
     }
 }
 
@@ -126,8 +195,8 @@ impl ::futures::Future for ReceiveAllFuture {
 
             match mem::replace(&mut self.state, State::Done) {
                 State::Start => {
-                    let payload = match with_get_cx(|input| input.body_mut().payload()) {
-                        Some(payload) => payload,
+                    let payload = match with_get_cx(|input| input.body_mut().take()) {
+                        Some(payload) => payload.into_inner(),
                         None => return Err(stolen_payload()),
                     };
                     self.state = State::Receiving(payload, BytesMut::new());
