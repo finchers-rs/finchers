@@ -8,11 +8,8 @@ environment:
   matrix:
     - TARGET: x86_64-pc-windows-msvc
       TOOLCHAIN: stable
-    - TARGET: x86_64-pc-windows-msvc
-      TOOLCHAIN: beta
-    - TARGET: x86_64-pc-windows-msvc
-      TOOLCHAIN: nightly
-
+    - TARGET: x86_64-pc-windows-gnu
+      TOOLCHAIN: stable
 matrix:
   allow_failures:
    - TOOLCHAIN: nightly
@@ -21,14 +18,10 @@ install:
   - appveyor-retry appveyor DownloadFile https://win.rustup.rs/ -FileName rustup-init.exe
   - rustup-init.exe -y --default-host %TARGET% --default-toolchain %TOOLCHAIN%
   - set PATH=%PATH%;C:\Users\appveyor\.cargo\bin
-  - set RUST_TEST_THREADS=1
   - rustc -V
   - cargo -V
 
 build: false
 
 test_script:
-  - cargo clean
-  - cargo test
-  - cargo test --all-features
-  - cargo test --no-default-features
+  - cargo build --all-features
