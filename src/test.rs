@@ -1,5 +1,47 @@
 //! The basic facilities for testing endpoints.
+//!
+//! # Example
+//!
+//! ```
+//! # #[macro_use]
+//! # extern crate finchers;
+//! # use finchers::test;
+//! # use finchers::prelude::*;
+//! # fn main() {
+//! let endpoint = path!(@get / "greeting" / String)
+//!     .map(|name: String| format!("Hello, {}.", name));
+//!
+//! // Create an instance of TestRunner from an endpoint.
+//! let mut runner = test::runner(endpoint);
+//!
+//! let response = runner
+//!     .perform("http://www.example.com/greeting/Alice")
+//!     .unwrap();
+//! assert_eq!(response.status().as_u16(), 200);
+//! assert!(response.headers().contains_key("content-type"));
+//! assert_eq!(response.body().to_utf8().unwrap(), "Hello, Alice.");
+//! # }
+//! ```
+//!
+//! Validates the result of the endpoint without converting to HTTP response.
+//!
+//! ```
+//! # use finchers::test;
+//! # use finchers::prelude::*;
+//! use finchers::error::Result;
+//!
+//! // A user-defined type which does not implement `Output`.
+//! struct Credential;
+//! let endpoint = endpoint::unit().map(|| Credential);
+//!
+//! let mut runner = test::runner(endpoint);
+//!
+//! let result: Result<Credential> = runner.apply("/");
+//!
+//! assert!(result.is_ok());
+//! ```
 
+use std::error::Error as StdError;
 use std::io;
 
 use bytes::Buf;
@@ -17,11 +59,11 @@ use error;
 use input::ReqBody;
 use output::Output;
 
-use super::app::app_service::{AppFuture, AppService};
-use super::blocking::{with_set_runtime_mode, RuntimeMode};
+use app::{AppFuture, AppService};
+use rt::{with_set_runtime_mode, RuntimeMode};
 
-pub use self::request::TestRequest;
-pub use self::response::TestResponse;
+pub use self::request::{IntoReqBody, TestRequest};
+pub use self::response::TestResult;
 
 // ====
 
@@ -82,7 +124,10 @@ impl<E> TestRunner<E> {
     }
 
     /// Create a `TestRunner` from the specified endpoint with a Tokio runtime.
-    pub fn with_runtime(endpoint: E, rt: Runtime) -> TestRunner<E> {
+    pub fn with_runtime(endpoint: E, rt: Runtime) -> TestRunner<E>
+    where
+        for<'e> E: Endpoint<'e>,
+    {
         TestRunner {
             endpoint,
             rt,
@@ -94,6 +139,16 @@ impl<E> TestRunner<E> {
     /// applying the request to endpoint.
     pub fn default_headers(&mut self) -> &mut HeaderMap {
         self.default_headers.get_or_insert_with(Default::default)
+    }
+
+    /// Returns a reference to the instance of `Endpoint` owned by this runner.
+    pub fn endpoint(&mut self) -> &mut E {
+        &mut self.endpoint
+    }
+
+    /// Returns a reference to the Tokio runtime managed by this runner.
+    pub fn runtime(&mut self) -> &mut Runtime {
+        &mut self.rt
     }
 
     fn prepare_request(&self, request: impl TestRequest) -> http::Result<Request<ReqBody>> {
@@ -141,17 +196,10 @@ impl<E> TestRunner<E> {
         f(future, &mut AnnotatedRuntime(&mut self.rt))
     }
 
-    /// Applys the given request to the inner endpoint and retrieves the result of returned future.
-    pub fn apply_raw<'a>(&'a mut self, request: impl TestRequest) -> error::Result<E::Output>
-    where
-        E: Endpoint<'a>,
-    {
-        self.apply_inner(request, |mut future, rt| {
-            rt.block_on(future::poll_fn(|| future.poll_endpoint()))
-        })
-    }
-
-    #[allow(missing_docs)]
+    /// Applies the given request to the inner endpoint and retrieves the result of returned future.
+    ///
+    /// This method is available only if the output of endpoint is a tuple with a single element.
+    /// If the output type is an unit or the tuple contains more than one element, use `apply_raw` instead.
     #[inline]
     pub fn apply<'a, T>(&'a mut self, request: impl TestRequest) -> error::Result<T>
     where
@@ -160,23 +208,23 @@ impl<E> TestRunner<E> {
         self.apply_raw(request).map(|(x,)| x)
     }
 
-    /// Retrieves the retrieves the result of future returned from `Endpoint::apply`,
-    /// and converting it into an HTTP response by calling `Output::respond`.
-    pub fn apply_output<'a>(
-        &'a mut self,
-        request: impl TestRequest,
-    ) -> error::Result<Response<<E::Output as Output>::Body>>
+    /// Applies the given request to the inner endpoint and retrieves the result of returned future
+    /// *without peeling tuples*.
+    pub fn apply_raw<'a>(&'a mut self, request: impl TestRequest) -> error::Result<E::Output>
     where
         E: Endpoint<'a>,
-        E::Output: Output,
     {
         self.apply_inner(request, |mut future, rt| {
-            rt.block_on(future::poll_fn(|| future.poll_output()))
+            rt.block_on(future::poll_fn(|| future.poll_apply()))
         })
     }
 
-    /// Gets the response of specified HTTP request.
-    pub fn apply_all<'a>(&'a mut self, request: impl TestRequest) -> TestResponse
+    /// Applies the given request to the endpoint and convert the result
+    /// into an HTTP response sent to the client.
+    pub fn perform<'a>(
+        &'a mut self,
+        request: impl TestRequest,
+    ) -> Result<Response<TestResult>, Box<dyn StdError + Send + Sync + 'static>>
     where
         E: Endpoint<'a>,
         E::Output: Output,
@@ -188,35 +236,32 @@ impl<E> TestRunner<E> {
                 .expect("DummyExecutor::spawn() never fails");
             let (parts, mut payload) = response.into_parts();
 
-            // construct ResBody
-            let content_length = payload.content_length();
+            let result = match exec.0 {
+                Some(task) => TestResult::Upgraded(task),
+                None => {
+                    // construct ResBody
+                    let content_length = payload.content_length();
 
-            let data = rt
-                .block_on(
-                    stream::poll_fn(|| match payload.poll_data() {
-                        Ok(Async::Ready(data)) => Ok(Async::Ready(data.map(Buf::collect))),
-                        Ok(Async::NotReady) => Ok(Async::NotReady),
-                        Err(err) => Err(err),
-                    }).collect(),
-                ).expect("error during sending the response body.");
+                    let chunks = rt.block_on(
+                        stream::poll_fn(|| match payload.poll_data() {
+                            Ok(Async::Ready(data)) => Ok(Async::Ready(data.map(Buf::collect))),
+                            Ok(Async::NotReady) => Ok(Async::NotReady),
+                            Err(err) => Err(err),
+                        }).collect(),
+                    )?;
 
-            let trailers = rt
-                .block_on(future::poll_fn(|| payload.poll_trailers()))
-                .expect("error during sending trailers.");
+                    let trailers = rt.block_on(future::poll_fn(|| payload.poll_trailers()))?;
 
-            TestResponse {
-                parts,
-                data,
-                trailers,
-                content_length,
-                task: exec.0,
-            }
+                    TestResult::Payload {
+                        chunks,
+                        trailers,
+                        content_length,
+                    }
+                }
+            };
+
+            Ok(Response::from_parts(parts, result))
         })
-    }
-
-    /// Returns a reference to the underlying Tokio runtime.
-    pub fn runtime(&mut self) -> &mut Runtime {
-        &mut self.rt
     }
 }
 
@@ -230,19 +275,23 @@ mod request {
 
     use input::ReqBody;
 
-    /// A trait representing a request used by the test runner.
+    /// A trait representing the conversion into an HTTP request.
     ///
-    /// The implementors of this trait is currently as follows:
-    ///
-    /// * `&str` and `String`. It will be converted to a GET request with the specified URI.
-    /// * `http::Request<T>`, where the type of message body `T` is one of the following:
-    ///   - `()`
-    ///   - `&str` or `String` (they also insert the value of `content-type` and `content-length` if missing)
-    ///   - `hyper::Body` (it also inserts the value of `content-length` if mentioned)
-    /// * `http::request::Builder` and `&mut http::request::Builder`, with an empty body.
-    /// * `Result<T: TestRequest, E: Into<Error>>`
+    /// This trait is internally used by the test runner.
     pub trait TestRequest: TestRequestImpl {}
-    impl<T: TestRequestImpl> TestRequest for T {}
+
+    impl<'a> TestRequest for &'a str {}
+    impl TestRequest for String {}
+    impl TestRequest for Uri {}
+    impl<'a> TestRequest for &'a Uri {}
+    impl<T: IntoReqBody> TestRequest for Request<T> {}
+    impl TestRequest for http::request::Builder {}
+    impl<'a> TestRequest for &'a mut http::request::Builder {}
+    impl<T, E> TestRequest for Result<T, E>
+    where
+        T: TestRequest,
+        E: Into<http::Error>,
+    {}
 
     pub trait TestRequestImpl {
         fn into_request(self) -> http::Result<Request<ReqBody>>;
@@ -286,7 +335,7 @@ mod request {
         }
     }
 
-    impl<T: RequestBody> TestRequestImpl for Request<T> {
+    impl<T: IntoReqBody> TestRequestImpl for Request<T> {
         fn into_request(mut self) -> http::Result<Request<ReqBody>> {
             if let Some(mime) = self.body().content_type() {
                 self.headers_mut()
@@ -324,20 +373,46 @@ mod request {
         }
     }
 
-    pub trait RequestBody: Sized {
+    // ==== IntoReqBody ====
+
+    /// A trait representing the conversion into a message body in HTTP requests.
+    ///
+    /// This trait is internally used by the test runner.
+    pub trait IntoReqBody: IntoReqBodyImpl {}
+
+    impl IntoReqBody for () {}
+    impl<'a> IntoReqBody for &'a [u8] {}
+    impl IntoReqBody for Vec<u8> {}
+    impl<'a> IntoReqBody for &'a str {}
+    impl IntoReqBody for String {}
+    impl IntoReqBody for Body {}
+
+    pub trait IntoReqBodyImpl: Sized {
         fn content_type(&self) -> Option<Mime> {
             None
         }
         fn into_req_body(self) -> ReqBody;
     }
 
-    impl RequestBody for () {
+    impl IntoReqBodyImpl for () {
         fn into_req_body(self) -> ReqBody {
             ReqBody::new(Default::default())
         }
     }
 
-    impl<'a> RequestBody for &'a str {
+    impl<'a> IntoReqBodyImpl for &'a [u8] {
+        fn into_req_body(self) -> ReqBody {
+            ReqBody::new(self.to_owned().into())
+        }
+    }
+
+    impl<'a> IntoReqBodyImpl for Vec<u8> {
+        fn into_req_body(self) -> ReqBody {
+            ReqBody::new(self.into())
+        }
+    }
+
+    impl<'a> IntoReqBodyImpl for &'a str {
         fn content_type(&self) -> Option<Mime> {
             Some(mime::TEXT_PLAIN_UTF_8)
         }
@@ -347,7 +422,7 @@ mod request {
         }
     }
 
-    impl RequestBody for String {
+    impl IntoReqBodyImpl for String {
         fn content_type(&self) -> Option<Mime> {
             Some(mime::TEXT_PLAIN_UTF_8)
         }
@@ -357,7 +432,7 @@ mod request {
         }
     }
 
-    impl RequestBody for Body {
+    impl IntoReqBodyImpl for Body {
         fn into_req_body(self) -> ReqBody {
             ReqBody::new(self)
         }
@@ -367,105 +442,95 @@ mod request {
 mod response {
     use std::borrow::Cow;
     use std::fmt;
-    use std::ops::Deref;
     use std::str;
 
     use bytes::Bytes;
     use http::header::HeaderMap;
-    use http::response::Parts;
 
     use super::Task;
 
     /// A struct representing a response body returned from the test runner.
-    pub struct TestResponse {
-        pub(super) parts: Parts,
-        pub(super) data: Vec<Bytes>,
-        pub(super) trailers: Option<HeaderMap>,
-        pub(super) content_length: Option<u64>,
-        pub(super) task: Option<Task>,
+    #[allow(missing_docs)]
+    pub enum TestResult {
+        Upgraded(Task),
+        Payload {
+            chunks: Vec<Bytes>,
+            trailers: Option<HeaderMap>,
+            content_length: Option<u64>,
+        },
     }
 
-    impl fmt::Debug for TestResponse {
+    impl fmt::Debug for TestResult {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            f.debug_struct("TestResponse")
-                .field("parts", &self.parts)
-                .field("data", &self.data)
-                .field("trailers", &self.trailers)
-                .field("content_length", &self.content_length)
-                .field("task", &self.task.as_ref().map(|_| "<task>"))
-                .finish()
+            match self {
+                TestResult::Upgraded(..) => f.debug_tuple("Upgraded").finish(),
+                TestResult::Payload {
+                    ref chunks,
+                    ref trailers,
+                    ref content_length,
+                } => f
+                    .debug_struct("Payload")
+                    .field("chunks", chunks)
+                    .field("trailers", trailers)
+                    .field("content_length", content_length)
+                    .finish(),
+            }
         }
     }
 
-    impl Deref for TestResponse {
-        type Target = Parts;
-
-        fn deref(&self) -> &Self::Target {
-            self.parts()
-        }
-    }
-
-    impl TestResponse {
-        #[allow(missing_docs)]
-        pub fn parts(&self) -> &Parts {
-            &self.parts
+    #[allow(missing_docs)]
+    impl TestResult {
+        pub fn chunks(&self) -> Option<&[Bytes]> {
+            match self {
+                TestResult::Payload { ref chunks, .. } => Some(chunks),
+                TestResult::Upgraded(..) => None,
+            }
         }
 
-        #[allow(missing_docs)]
-        pub fn data(&self) -> &Vec<Bytes> {
-            &self.data
-        }
-
-        #[allow(missing_docs)]
         pub fn trailers(&self) -> Option<&HeaderMap> {
-            self.trailers.as_ref()
+            match self {
+                TestResult::Payload { ref trailers, .. } => trailers.as_ref(),
+                TestResult::Upgraded(..) => None,
+            }
         }
 
-        #[allow(missing_docs)]
         pub fn content_length(&self) -> Option<u64> {
-            self.content_length
+            match *self {
+                TestResult::Payload { content_length, .. } => content_length,
+                TestResult::Upgraded(..) => None,
+            }
         }
 
-        #[allow(missing_docs)]
         pub fn is_chunked(&self) -> bool {
-            self.content_length.is_none()
+            match self {
+                TestResult::Upgraded(..) => false,
+                TestResult::Payload { content_length, .. } => content_length.is_none(),
+            }
         }
 
-        #[allow(missing_docs)]
         pub fn is_upgraded(&self) -> bool {
-            self.task.is_some()
+            match self {
+                TestResult::Upgraded(..) => true,
+                TestResult::Payload { .. } => false,
+            }
         }
 
-        #[allow(missing_docs)]
-        pub fn to_bytes(&self) -> Cow<'_, [u8]> {
-            match self.data.len() {
+        pub fn to_bytes(&self) -> Option<Cow<'_, [u8]>> {
+            let chunks = self.chunks()?;
+            Some(match chunks.len() {
                 0 => Cow::Borrowed(&[]),
-                1 => Cow::Borrowed(self.data[0].as_ref()),
-                _ => Cow::Owned(self.data.iter().fold(Vec::new(), |mut acc, chunk| {
+                1 => Cow::Borrowed(chunks[0].as_ref()),
+                _ => Cow::Owned(chunks.iter().fold(Vec::new(), |mut acc, chunk| {
                     acc.extend_from_slice(&chunk);
                     acc
                 })),
-            }
+            })
         }
 
-        #[allow(missing_docs)]
-        pub fn to_utf8(&self) -> Result<Cow<'_, str>, str::Utf8Error> {
-            match self.to_bytes() {
-                Cow::Borrowed(bytes) => str::from_utf8(bytes).map(Cow::Borrowed),
-                Cow::Owned(bytes) => String::from_utf8(bytes)
-                    .map(Cow::Owned)
-                    .map_err(|e| e.utf8_error()),
-            }
-        }
-
-        #[allow(missing_docs)]
-        pub fn to_utf8_lossy(&self) -> Cow<'_, str> {
-            match self.to_bytes() {
-                Cow::Borrowed(bytes) => String::from_utf8_lossy(bytes),
-                Cow::Owned(bytes) => match String::from_utf8_lossy(&bytes) {
-                    Cow::Borrowed(..) => Cow::Owned(unsafe { String::from_utf8_unchecked(bytes) }),
-                    Cow::Owned(bytes) => Cow::Owned(bytes),
-                },
+        pub fn to_utf8(&self) -> Option<Cow<'_, str>> {
+            match self.to_bytes()? {
+                Cow::Borrowed(bytes) => str::from_utf8(bytes).map(Cow::Borrowed).ok(),
+                Cow::Owned(bytes) => String::from_utf8(bytes).map(Cow::Owned).ok(),
             }
         }
     }
@@ -473,10 +538,10 @@ mod response {
 
 #[cfg(test)]
 mod tests {
-    use super::{runner, TestRequest, TestResponse};
+    use super::{runner, TestRequest, TestResult};
     use endpoint;
     use http::header;
-    use http::{Request, Uri};
+    use http::{Request, Response, Uri};
 
     #[test]
     fn test_test_request() {
@@ -494,29 +559,16 @@ mod tests {
     }
 
     #[test]
-    fn test_apply_output() {
-        let mut runner = runner({ endpoint::cloned("Hello") });
-        let res = runner.apply_output("/");
-        assert!(res.is_ok());
-        let output = res.unwrap();
-
-        assert_eq!(output.status().as_u16(), 200);
-        assert!(output.headers().contains_key("content-type"));
-        assert!(!output.headers().contains_key("content-length"));
-        assert!(!output.headers().contains_key("server"));
-    }
-
-    #[test]
     fn test_apply_all() {
         let mut runner = runner({ endpoint::cloned("Hello") });
-        let response: TestResponse = runner.apply_all("/");
+        let response: Response<TestResult> = runner.perform("/").unwrap();
 
-        assert_eq!(response.status.as_u16(), 200);
-        assert!(response.headers.contains_key("content-type"));
-        assert!(response.headers.contains_key("content-length"));
-        assert!(response.headers.contains_key("server"));
-        assert_eq!(response.to_utf8_lossy(), "Hello");
-        assert!(response.trailers().is_none());
+        assert_eq!(response.status().as_u16(), 200);
+        assert!(response.headers().contains_key("content-type"));
+        assert!(response.headers().contains_key("content-length"));
+        assert!(response.headers().contains_key("server"));
+        assert_eq!(response.body().to_utf8().unwrap_or("".into()), "Hello");
+        assert!(response.body().trailers().is_none());
     }
 
     #[test]

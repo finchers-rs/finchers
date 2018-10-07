@@ -2,12 +2,24 @@
 
 use std::cell::Cell;
 
+use futures::sync::oneshot;
 use futures::{Async, Future, Poll};
 use tokio_threadpool;
-use tokio_threadpool::BlockingError;
 
 use error::fail;
 use error::Error;
+
+// re-exports
+#[doc(no_inline)]
+pub use futures::sync::oneshot::SpawnHandle;
+#[doc(no_inline)]
+pub use tokio::executor::DefaultExecutor;
+#[doc(no_inline)]
+pub use tokio::spawn;
+#[doc(no_inline)]
+pub use tokio_threadpool::BlockingError;
+
+// ====
 
 #[derive(Debug, Copy, Clone)]
 pub(crate) enum RuntimeMode {
@@ -95,4 +107,15 @@ where
         );
         result.map(Async::Ready).map_err(Into::into)
     }
+}
+
+/// Spawns a future onto the default executor and returns its handle.
+#[inline]
+pub fn spawn_with_handle<F>(future: F) -> SpawnHandle<F::Item, F::Error>
+where
+    F: Future + Send + 'static,
+    F::Item: Send + 'static,
+    F::Error: Send + 'static,
+{
+    oneshot::spawn(future, &DefaultExecutor::current())
 }

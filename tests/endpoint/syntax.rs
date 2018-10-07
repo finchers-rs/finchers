@@ -1,73 +1,78 @@
 use finchers::endpoint::syntax;
 use finchers::endpoint::ApplyError;
-use finchers::local;
 use finchers::prelude::*;
-
+use finchers::test;
 use http::StatusCode;
 
 #[test]
 fn test_match_single_segment() {
-    let endpoint = syntax::segment("foo");
-    assert_matches!(local::get("/foo").apply(&endpoint), Ok(()));
+    let mut runner = test::runner(syntax::segment("foo"));
+
+    assert_matches!(runner.apply_raw("/foo"), Ok(()));
     assert_matches!(
-        local::get("/bar").apply(&endpoint),
+        runner.apply_raw("/bar"),
         Err(ref e) if e.status_code() == StatusCode::NOT_FOUND
     );
 }
 
 #[test]
 fn test_match_multi_segments() {
-    let endpoint = syntax::segment("foo").and(syntax::segment("bar"));
-    assert_matches!(local::get("/foo/bar").apply(&endpoint), Ok(()));
-    assert_matches!(local::get("/foo/bar/").apply(&endpoint), Ok(()));
-    assert_matches!(local::get("/foo/bar/baz").apply(&endpoint), Ok(()));
+    let mut runner = test::runner({ syntax::segment("foo").and(syntax::segment("bar")) });
+
+    assert_matches!(runner.apply_raw("/foo/bar"), Ok(()));
+    assert_matches!(runner.apply_raw("/foo/bar/"), Ok(()));
+    assert_matches!(runner.apply_raw("/foo/bar/baz"), Ok(()));
     assert_matches!(
-        local::get("/foo").apply(&endpoint),
+        runner.apply_raw("/foo"),
         Err(ref e) if e.status_code() == StatusCode::NOT_FOUND
     );
     assert_matches!(
-        local::get("/foo/baz").apply(&endpoint),
+        runner.apply_raw("/foo/baz"),
         Err(ref e) if e.status_code() == StatusCode::NOT_FOUND
     );
 }
 
 #[test]
 fn test_match_encoded_path() {
-    let endpoint = syntax::segment("foo/bar");
-    assert_matches!(local::get("/foo%2Fbar").apply(&endpoint), Ok(()));
+    let mut runner = test::runner(syntax::segment("foo/bar"));
+
+    assert_matches!(runner.apply_raw("/foo%2Fbar"), Ok(()));
     assert_matches!(
-        local::get("/foo/bar").apply(&endpoint),
+        runner.apply_raw("/foo/bar"),
         Err(ref e) if e.status_code() == StatusCode::NOT_FOUND
     );
 }
 
 #[test]
 fn test_extract_integer() {
-    let endpoint = syntax::param::<i32>();
-    assert_matches!(local::get("/42").apply(&endpoint), Ok((42i32,)));
+    let mut runner = test::runner(syntax::param::<i32>());
+
+    assert_matches!(runner.apply("/42"), Ok(42i32));
     assert_matches!(
-        local::get("/foo").apply(&endpoint),
+        runner.apply("/foo"),
         Err(ref e) if e.is::<ApplyError>() && e.status_code() == StatusCode::BAD_REQUEST
     );
 }
 
 #[test]
 fn test_extract_strings() {
-    let endpoint = syntax::segment("foo").and(syntax::remains::<String>());
+    let mut runner = test::runner(syntax::segment("foo").and(syntax::remains::<String>()));
+
     assert_matches!(
-        local::get("/foo/bar/baz/").apply(&endpoint),
-        Ok((ref s,)) if s == "bar/baz/"
+        runner.apply("/foo/bar/baz/"),
+        Ok(ref s) if s == "bar/baz/"
     );
 }
 
 #[test]
 fn test_path_macro() {
-    let endpoint = path!(@get / "posts" / u32 / "stars" /)
-        .map(|id: u32| format!("id={}", id))
-        .with_output::<(String,)>();
+    let mut runner = test::runner(
+        path!(@get / "posts" / u32 / "stars" /)
+            .map(|id: u32| format!("id={}", id))
+            .with_output::<(String,)>(),
+    );
     assert_matches!(
-        local::get("/posts/42/stars")
-            .apply(&endpoint),
-        Ok((ref s,)) if s == "id=42"
+        runner.apply("/posts/42/stars"),
+        Ok(ref s) if s == "id=42"
     );
 }

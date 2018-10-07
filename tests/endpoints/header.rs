@@ -1,58 +1,59 @@
 use finchers::error;
-use finchers::local;
 use finchers::prelude::*;
+use finchers::test;
 
 use http::header::CONTENT_TYPE;
+use http::Request;
 use mime;
 use mime::Mime;
 
 #[test]
 fn test_header_raw() {
-    let endpoint = endpoints::header::raw(CONTENT_TYPE);
+    let mut runner = test::runner(endpoints::header::raw(CONTENT_TYPE));
 
     assert_matches!(
-        local::get("/")
-            .header("content-type", "application/json")
-            .apply(&endpoint),
-        Ok((Some(ref value),)) if value.as_bytes() == &b"application/json"[..]
+        runner.apply(Request::get("/")
+            .header("content-type", "application/json")),
+        Ok(Some(ref value)) if value.as_bytes() == &b"application/json"[..]
     );
 
-    assert_matches!(local::get("/").apply(&endpoint), Ok((None,)));
+    assert_matches!(runner.apply(Request::new(())), Ok(None));
 }
 
 #[test]
 fn test_header_parse() {
-    let endpoint = endpoints::header::parse::<Mime>("content-type").with_output::<(Mime,)>();
+    let mut runner =
+        test::runner({ endpoints::header::parse::<Mime>("content-type").with_output::<(Mime,)>() });
 
     assert_matches!(
-        local::get("/")
-            .header("content-type", "application/json")
-            .apply(&endpoint),
-        Ok((ref m,)) if *m == mime::APPLICATION_JSON
+        runner.apply(Request::post("/")
+            .header("content-type", "application/json")),
+        Ok(ref m) if *m == mime::APPLICATION_JSON
     );
 
     assert_matches!(
-        local::get("/").apply(&endpoint),
+        runner.apply(Request::new(())),
         Err(ref e) if e.status_code().as_u16() == 400
     );
 }
 
 #[test]
 fn test_header_parse_required() {
-    let endpoint = endpoints::header::parse::<Mime>("content-type")
-        .wrap(endpoint::wrapper::or_reject_with(|_, _| {
-            error::bad_request("missing content-type")
-        })).with_output::<(Mime,)>();
+    let mut runner = test::runner({
+        endpoints::header::parse::<Mime>("content-type")
+            .wrap(endpoint::wrapper::or_reject_with(|_, _| {
+                error::bad_request("missing content-type")
+            })).with_output::<(Mime,)>()
+    });
 
     assert_matches!(
-        local::get("/")
-            .header("content-type", "application/json")
-            .apply(&endpoint),
-        Ok((ref m,)) if *m == mime::APPLICATION_JSON
+        runner.apply(Request::post("/")
+            .header("content-type", "application/json")),
+        Ok(ref m) if *m == mime::APPLICATION_JSON
     );
 
     assert_matches!(
-        local::get("/").apply(&endpoint),
+        runner.apply(Request::new(())),
         Err(ref e) if e.status_code().as_u16() == 400
             && e.to_string() == "missing content-type"
     );
@@ -60,41 +61,39 @@ fn test_header_parse_required() {
 
 #[test]
 fn test_header_optional() {
-    let endpoint =
-        endpoints::header::optional::<Mime>("content-type").with_output::<(Option<Mime>,)>();
+    let mut runner = test::runner({
+        endpoints::header::optional::<Mime>("content-type").with_output::<(Option<Mime>,)>()
+    });
 
     assert_matches!(
-        local::get("/")
-            .header("content-type", "application/json")
-            .apply(&endpoint),
-        Ok((Some(ref m),)) if *m == mime::APPLICATION_JSON
+        runner.apply(Request::post("/")
+            .header("content-type", "application/json")),
+        Ok(Some(ref m)) if *m == mime::APPLICATION_JSON
     );
 
-    assert_matches!(local::get("/").apply(&endpoint), Ok((None,)));
+    assert_matches!(runner.apply(Request::new(())), Ok(None));
 }
 
 #[test]
 fn test_header_matches_with_rejection() {
-    let endpoint = endpoints::header::matches("origin", "www.example.com")
-        .wrap(endpoint::wrapper::or_reject_with(|_, _| {
-            error::bad_request("The value of Origin is invalid")
-        })).with_output::<()>();
+    let mut runner = test::runner({
+        endpoints::header::matches("origin", "www.example.com")
+            .wrap(endpoint::wrapper::or_reject_with(|_, _| {
+                error::bad_request("The value of Origin is invalid")
+            })).with_output::<()>()
+    });
 
     assert_matches!(
-        local::get("/")
-            .header("origin", "www.example.com")
-            .apply(&endpoint),
+        runner.apply_raw(Request::get("/").header("origin", "www.example.com")),
         Ok(..)
     );
 
     // missing header
-    assert_matches!(local::get("/").apply(&endpoint), Err(..));
+    assert_matches!(runner.apply_raw(Request::new(())), Err(..));
 
     // invalid header value
     assert_matches!(
-        local::get("/")
-            .header("origin", "www.rust-lang.org")
-            .apply(&endpoint),
+        runner.apply_raw(Request::get("/").header("origin", "www.rust-lang.org")),
         Err(..)
     );
 }

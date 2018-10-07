@@ -69,7 +69,7 @@ matrix:
         - cargo kcov --print-install-kcov-sh | sh
       script:
         - cargo update
-        - cargo kcov -v --features "secure rt tower-web" --coveralls
+        - cargo kcov -v --features "secure tower-web" --coveralls
 
     - rust: stable
       env: LINT

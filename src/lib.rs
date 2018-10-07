@@ -69,13 +69,11 @@ extern crate serde;
 extern crate serde_json;
 extern crate serde_qs;
 extern crate tokio;
+extern crate tokio_threadpool;
+extern crate tower_service;
 extern crate url;
 
-#[cfg(feature = "rt")]
-extern crate tokio_threadpool;
-#[cfg(feature = "rt")]
-extern crate tower_service;
-#[cfg(all(feature = "rt", feature = "tower-web"))]
+#[cfg(feature = "tower-web")]
 extern crate tower_web;
 
 #[cfg(test)]
@@ -89,13 +87,17 @@ pub mod endpoint;
 pub mod endpoints;
 pub mod error;
 pub mod input;
-pub mod launcher;
-pub mod local;
 pub mod output;
-#[cfg(feature = "rt")]
 pub mod rt;
+pub mod server;
+pub mod test;
 
-#[doc(inline)]
+#[doc(hidden)]
+pub mod launcher;
+#[doc(hidden)]
+pub mod local;
+#[doc(hidden)]
+#[allow(deprecated)]
 pub use launcher::launch;
 
 /// A prelude for crates using the `finchers` crate.
