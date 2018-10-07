@@ -4,7 +4,7 @@ mod body;
 mod encoded;
 mod header;
 
-pub use self::body::ReqBody;
+pub use self::body::{Payload, ReqBody};
 pub use self::encoded::{EncodedStr, FromEncodedStr};
 pub use self::header::FromHeaderValue;
 
@@ -40,7 +40,7 @@ impl Input {
         }
     }
 
-    /// Return a shared reference to the value of raw HTTP request without the message body.
+    #[doc(hidden)]
     #[deprecated(
         since = "0.12.3",
         note = "The method will be removed in the future version."
@@ -85,12 +85,13 @@ impl Input {
         self.request.body_mut()
     }
 
-    /// Takes the instance of `RequestBody` from this value.
+    #[doc(hidden)]
     #[deprecated(
         since = "0.12.3",
         note = "use the method provided by `ReqBody` instead."
     )]
     #[inline]
+    #[allow(deprecated)]
     pub fn payload(&mut self) -> Option<Body> {
         self.request.body_mut().payload()
     }
@@ -156,22 +157,37 @@ impl Input {
 mod finalize {
     use super::*;
     use either::Either;
+    use futures::Future;
     use http::header::HeaderValue;
-    use http::Response;
+    use http::{Response, StatusCode};
 
     impl Input {
         #[cfg(feature = "rt")]
         pub(crate) fn finalize<T>(
             self,
             output: Result<Response<T>, Error>,
-        ) -> Response<Either<String, T>> {
-            let mut response = output
-                .map(|mut response| {
-                    if self.body().is_upgraded() {
-                        *response.status_mut() = http::StatusCode::SWITCHING_PROTOCOLS;
+        ) -> (
+            Response<Either<String, Option<T>>>,
+            Option<Box<dyn Future<Item = (), Error = ()> + Send + 'static>>,
+        ) {
+            let (_parts, body) = self.request.into_parts();
+            let mut upgraded_opt = None;
+
+            let mut response = match output {
+                Ok(mut response) => match body.into_upgraded() {
+                    Some(upgraded) => {
+                        upgraded_opt = Some(upgraded);
+
+                        // Forcibly rewrite the status code and response body.
+                        // Since these operations are automaically done by Hyper,
+                        // they are substantially unnecessary.
+                        *response.status_mut() = StatusCode::SWITCHING_PROTOCOLS;
+                        response.map(|_bd| Either::Right(None))
                     }
-                    response.map(Either::Right)
-                }).unwrap_or_else(|err| err.to_response().map(Either::Left));
+                    None => response.map(|bd| Either::Right(Some(bd))),
+                },
+                Err(err) => err.to_response().map(Either::Left),
+            };
 
             if let Some(ref jar) = self.cookie_jar {
                 for cookie in jar.delta() {
@@ -184,7 +200,7 @@ mod finalize {
                 response.headers_mut().extend(headers);
             }
 
-            response
+            (response, upgraded_opt)
         }
     }
 }

@@ -3,6 +3,7 @@
 use futures::future;
 use http::{Request, Response};
 use hyper::body::Body;
+use std::io;
 use tower_service::NewService;
 
 pub use self::app_payload::AppPayload;
@@ -43,7 +44,7 @@ where
 {
     type Request = Request<Body>;
     type Response = Response<AppPayload>;
-    type Error = Never;
+    type Error = io::Error;
     type Service = AppService<'static, Lift<E>>;
     type InitError = Never;
     type Future = future::FutureResult<Self::Service, Self::InitError>;
@@ -80,7 +81,7 @@ where
 {
     type Request = Request<Body>;
     type Response = Response<AppPayload>;
-    type Error = Never;
+    type Error = io::Error;
     type Service = AppService<'a, E>;
     type InitError = Never;
     type Future = future::FutureResult<Self::Service, Self::InitError>;
@@ -94,6 +95,7 @@ where
 
 pub(crate) mod app_service {
     use std::fmt;
+    use std::io;
     use std::mem;
 
     use futures::{Async, Future, Poll};
@@ -101,13 +103,15 @@ pub(crate) mod app_service {
     use http::header::HeaderValue;
     use http::{Request, Response};
     use hyper::body::{Body, Payload as _Payload};
+    use tokio::executor::{Executor, SpawnError};
     use tower_service::Service;
 
     use endpoint::context::{ApplyContext, TaskContext};
     use endpoint::{with_set_cx, ApplyResult, Cursor, Endpoint, OutputEndpoint};
-    use error::{Error, Never};
+    use error::Error;
     use input::{Input, ReqBody};
     use output::{Output, OutputContext};
+    use rt::DefaultExecutor;
 
     use super::AppPayload;
 
@@ -155,7 +159,7 @@ pub(crate) mod app_service {
     {
         type Request = Request<Body>;
         type Response = Response<AppPayload>;
-        type Error = Never;
+        type Error = io::Error;
         type Future = AppFuture<'e, E>;
 
         fn poll_ready(&mut self) -> Poll<(), Self::Error> {
@@ -257,7 +261,10 @@ pub(crate) mod app_service {
             }
         }
 
-        pub(crate) fn poll_all(&mut self) -> Poll<Response<AppPayload>, Never>
+        pub(crate) fn poll_all(
+            &mut self,
+            exec: &mut impl Executor,
+        ) -> Poll<Response<AppPayload>, SpawnError>
         where
             E::Output: Output,
         {
@@ -269,7 +276,11 @@ pub(crate) mod app_service {
 
             match mem::replace(&mut self.state, State::Gone) {
                 State::Done(input) => {
-                    let mut response = input.finalize(output).map(AppPayload::new);
+                    let (response, task_opt) = input.finalize(output);
+                    if let Some(task) = task_opt {
+                        exec.spawn(task)?;
+                    }
+                    let mut response = response.map(AppPayload::new);
 
                     // The `content-length` header is automatically insterted by Hyper
                     // by using `Payload::content_length()`.
@@ -319,10 +330,13 @@ pub(crate) mod app_service {
         E::Output: Output,
     {
         type Item = Response<AppPayload>;
-        type Error = Never;
+        type Error = io::Error;
 
         fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-            self.poll_all()
+            self.poll_all(&mut DefaultExecutor::current()).map_err(|e| {
+                error!("failed to spawn an upgraded task: {}", e);
+                io::Error::new(io::ErrorKind::Other, e)
+            })
         }
     }
 }
