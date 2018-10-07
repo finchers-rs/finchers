@@ -33,7 +33,7 @@ pub use self::lazy::{lazy, Lazy};
 pub use self::unit::{unit, Unit};
 
 pub use self::output_endpoint::OutputEndpoint;
-pub use self::send_endpoint::IsSendEndpoint;
+pub use self::send_endpoint::SendEndpoint;
 
 // ====
 
@@ -188,13 +188,13 @@ mod send_endpoint {
 
     /// A trait representing an endpoint with a constraint that the returned "Future"
     /// to be transferred across thread boundaries.
-    pub trait IsSendEndpoint<'a>: 'a + Sealed {
+    pub trait SendEndpoint<'a>: 'a + Sealed {
         #[doc(hidden)]
         type Output: Tuple;
         #[doc(hidden)]
         type Future: Future<Item = Self::Output, Error = Error> + Send + 'a;
         #[doc(hidden)]
-        fn apply(&'a self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future>;
+        fn apply_send(&'a self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future>;
     }
 
     pub trait Sealed {}
@@ -206,7 +206,7 @@ mod send_endpoint {
     {
     }
 
-    impl<'a, E> IsSendEndpoint<'a> for E
+    impl<'a, E> SendEndpoint<'a> for E
     where
         E: Endpoint<'a>,
         E::Future: Send,
@@ -215,7 +215,7 @@ mod send_endpoint {
         type Future = E::Future;
 
         #[inline(always)]
-        fn apply(&'a self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+        fn apply_send(&'a self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
             self.apply(cx)
         }
     }

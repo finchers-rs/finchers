@@ -2,7 +2,7 @@ use futures::Future;
 use std::fmt;
 
 use common::Tuple;
-use endpoint::{ApplyContext, ApplyResult, Endpoint, IsSendEndpoint};
+use endpoint::{ApplyContext, ApplyResult, Endpoint, SendEndpoint};
 use error::Error;
 
 trait FutureObjEndpoint<'a>: 'a {
@@ -14,7 +14,7 @@ trait FutureObjEndpoint<'a>: 'a {
     ) -> ApplyResult<Box<dyn Future<Item = Self::Output, Error = Error> + Send + 'a>>;
 }
 
-impl<'e, E: IsSendEndpoint<'e>> FutureObjEndpoint<'e> for E {
+impl<'e, E: SendEndpoint<'e>> FutureObjEndpoint<'e> for E {
     type Output = E::Output;
 
     #[inline(always)]
@@ -22,7 +22,7 @@ impl<'e, E: IsSendEndpoint<'e>> FutureObjEndpoint<'e> for E {
         &'e self,
         ecx: &mut ApplyContext<'_>,
     ) -> ApplyResult<Box<dyn Future<Item = Self::Output, Error = Error> + Send + 'e>> {
-        let future = self.apply(ecx)?;
+        let future = self.apply_send(ecx)?;
         Ok(Box::new(future))
     }
 }
@@ -36,7 +36,7 @@ impl<T: Tuple + 'static> EndpointObj<T> {
     #[allow(missing_docs)]
     pub fn new<E>(endpoint: E) -> EndpointObj<T>
     where
-        for<'a> E: IsSendEndpoint<'a, Output = T> + Send + Sync + 'static,
+        for<'a> E: SendEndpoint<'a, Output = T> + Send + Sync + 'static,
     {
         EndpointObj {
             inner: Box::new(endpoint),
