@@ -205,7 +205,7 @@ pub(crate) mod app_service {
     where
         E: Endpoint<'e>,
     {
-        pub(crate) fn poll_endpoint(&mut self) -> Poll<E::Output, Error> {
+        pub(crate) fn poll_apply(&mut self) -> Poll<E::Output, Error> {
             loop {
                 let result = match self.state {
                     State::Start(..) => None,
@@ -244,23 +244,6 @@ pub(crate) mod app_service {
             }
         }
 
-        pub(crate) fn poll_output(&mut self) -> Poll<Response<<E::Output as Output>::Body>, Error>
-        where
-            E::Output: Output,
-        {
-            let output = try_ready!(self.poll_endpoint());
-            match self.state {
-                State::Done(ref mut input) => {
-                    let mut cx = OutputContext::new(input);
-                    output
-                        .respond(&mut cx)
-                        .map(|res| Async::Ready(res))
-                        .map_err(Into::into)
-                }
-                _ => unreachable!("unexpected condition"),
-            }
-        }
-
         pub(crate) fn poll_all(
             &mut self,
             exec: &mut impl Executor,
@@ -268,14 +251,20 @@ pub(crate) mod app_service {
         where
             E::Output: Output,
         {
-            let output = match self.poll_output() {
-                Ok(Async::Ready(item)) => Ok(item),
+            let output = match self.poll_apply() {
                 Ok(Async::NotReady) => return Ok(Async::NotReady),
+                Ok(Async::Ready(output)) => Ok(output),
                 Err(err) => Err(err),
             };
 
             match mem::replace(&mut self.state, State::Gone) {
-                State::Done(input) => {
+                State::Done(mut input) => {
+                    let output = output.and_then(|output| {
+                        output
+                            .respond(&mut OutputContext::new(&mut input))
+                            .map_err(Into::into)
+                    });
+
                     let (response, task_opt) = input.finalize(output);
                     if let Some(task) = task_opt {
                         exec.spawn(task)?;

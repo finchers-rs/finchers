@@ -15,11 +15,12 @@ fn test_upgrade() {
         })
     });
 
-    let response = runner.apply_all("/");
-    assert!(response.is_upgraded());
-    assert_eq!(response.status.as_u16(), 101);
+    let response = runner.perform("/").unwrap();
+
+    assert!(response.body().is_upgraded());
+    assert_eq!(response.status().as_u16(), 101);
     assert_matches!(
-        response.headers.get("sec-websocket-accept"),
+        response.headers().get("sec-websocket-accept"),
         Some(h) if h == "xxxx"
     );
 }
