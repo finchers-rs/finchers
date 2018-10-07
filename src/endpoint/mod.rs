@@ -32,6 +32,9 @@ pub use self::cloned::{cloned, Cloned};
 pub use self::lazy::{lazy, Lazy};
 pub use self::unit::{unit, Unit};
 
+pub use self::output_endpoint::OutputEndpoint;
+pub use self::send_endpoint::{IsSendEndpoint, SendEndpoint};
+
 // ====
 
 use std::rc::Rc;
@@ -97,70 +100,6 @@ impl<'a, E: Endpoint<'a>> Endpoint<'a> for Arc<E> {
 
     fn apply(&'a self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         (**self).apply(ecx)
-    }
-}
-
-/// A trait representing an endpoint with a constraint that the returned "Future"
-/// to be transferred across thread boundaries.
-pub trait IsSendEndpoint<'a>: 'a + sealed_is_send_endpoint::Sealed {
-    #[doc(hidden)]
-    type Output: Tuple;
-    #[doc(hidden)]
-    type Future: Future<Item = Self::Output, Error = Error> + Send + 'a;
-    #[doc(hidden)]
-    fn apply(&'a self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future>;
-}
-
-mod sealed_is_send_endpoint {
-    use super::*;
-
-    pub trait Sealed {}
-
-    impl<'a, E> Sealed for E
-    where
-        E: Endpoint<'a>,
-        E::Future: Send,
-    {
-    }
-}
-
-impl<'a, E> IsSendEndpoint<'a> for E
-where
-    E: Endpoint<'a>,
-    E::Future: Send,
-{
-    type Output = E::Output;
-    type Future = E::Future;
-
-    #[inline(always)]
-    fn apply(&'a self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
-        self.apply(cx)
-    }
-}
-
-/// A wrapper struct which wraps a value whose type implements `IsSendEndpoint`
-/// and provides the implementations of `Endpoint<'a>`.
-#[derive(Debug, Copy, Clone)]
-pub struct SendEndpoint<E> {
-    endpoint: E,
-}
-
-impl<E> From<E> for SendEndpoint<E>
-where
-    for<'a> E: IsSendEndpoint<'a>,
-{
-    fn from(endpoint: E) -> Self {
-        SendEndpoint { endpoint }
-    }
-}
-
-impl<'a, E: IsSendEndpoint<'a>> Endpoint<'a> for SendEndpoint<E> {
-    type Output = E::Output;
-    type Future = E::Future;
-
-    #[inline(always)]
-    fn apply(&'a self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
-        self.endpoint.apply(cx)
     }
 }
 
@@ -240,39 +179,157 @@ pub trait IntoEndpointExt<'a>: IntoEndpoint<'a> + Sized {
 
 impl<'a, E: IntoEndpoint<'a>> IntoEndpointExt<'a> for E {}
 
-#[macro_export]
-macro_rules! impl_endpoint {
-    () => {
-        $crate::endpoint::SendEndpoint<
-            impl for<'a> $crate::endpoint::IsSendEndpoint<'a>
-        >
-    };
-    (Output = $Output:ty) => {
-        $crate::endpoint::SendEndpoint<
-            impl for<'a> $crate::endpoint::IsSendEndpoint<'a, Output = $Output>
-        >
-    };
-}
+mod send_endpoint {
+    use futures::Future;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+    use super::{ApplyContext, ApplyResult, Endpoint};
+    use common::Tuple;
+    use error::Error;
 
-    fn return_unit() -> impl_endpoint!() {
-        cloned(42).into()
+    /// A trait representing an endpoint with a constraint that the returned "Future"
+    /// to be transferred across thread boundaries.
+    pub trait IsSendEndpoint<'a>: 'a + Sealed {
+        #[doc(hidden)]
+        type Output: Tuple;
+        #[doc(hidden)]
+        type Future: Future<Item = Self::Output, Error = Error> + Send + 'a;
+        #[doc(hidden)]
+        fn apply(&'a self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future>;
     }
 
-    fn return_value() -> impl_endpoint![Output = (u32,)] {
-        cloned(42).into()
+    pub trait Sealed {}
+
+    impl<'a, E> Sealed for E
+    where
+        E: Endpoint<'a>,
+        E::Future: Send,
+    {
     }
 
-    #[test]
-    fn test_impl() {
-        fn assert_impl(endpoint: impl for<'a> Endpoint<'a>) {
-            drop(endpoint)
+    impl<'a, E> IsSendEndpoint<'a> for E
+    where
+        E: Endpoint<'a>,
+        E::Future: Send,
+    {
+        type Output = E::Output;
+        type Future = E::Future;
+
+        #[inline(always)]
+        fn apply(&'a self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+            self.apply(cx)
+        }
+    }
+
+    /// A wrapper struct which wraps a value whose type implements `IsSendEndpoint`
+    /// and provides the implementations of `Endpoint<'a>`.
+    #[derive(Debug, Copy, Clone)]
+    pub struct SendEndpoint<E> {
+        endpoint: E,
+    }
+
+    impl<E> From<E> for SendEndpoint<E>
+    where
+        for<'a> E: IsSendEndpoint<'a>,
+    {
+        fn from(endpoint: E) -> Self {
+            SendEndpoint { endpoint }
+        }
+    }
+
+    impl<'a, E: IsSendEndpoint<'a>> Endpoint<'a> for SendEndpoint<E> {
+        type Output = E::Output;
+        type Future = E::Future;
+
+        #[inline(always)]
+        fn apply(&'a self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+            self.endpoint.apply(cx)
+        }
+    }
+
+    #[doc(hidden)]
+    #[deprecated(
+        since = "0.12.3",
+        note = "This macro will be removed at the next version."
+    )]
+    #[macro_export]
+    macro_rules! impl_endpoint {
+        () => {
+            $crate::endpoint::SendEndpoint<
+                impl for<'a> $crate::endpoint::IsSendEndpoint<'a>
+            >
+        };
+        (Output = $Output:ty) => {
+            $crate::endpoint::SendEndpoint<
+                impl for<'a> $crate::endpoint::IsSendEndpoint<'a, Output = $Output>
+            >
+        };
+    }
+
+    #[allow(deprecated)]
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use endpoint::cloned;
+
+        fn return_unit() -> impl_endpoint!() {
+            cloned(42).into()
         }
 
-        assert_impl(return_unit());
-        assert_impl(return_value());
+        fn return_value() -> impl_endpoint![Output = (u32,)] {
+            cloned(42).into()
+        }
+
+        #[test]
+        fn test_impl() {
+            fn assert_impl(endpoint: impl for<'a> Endpoint<'a>) {
+                drop(endpoint)
+            }
+
+            assert_impl(return_unit());
+            assert_impl(return_value());
+        }
+    }
+}
+
+mod output_endpoint {
+    use futures::Future;
+
+    use common::Tuple;
+    use endpoint::{ApplyContext, ApplyResult, Endpoint};
+    use error::Error;
+    use output::Output;
+
+    /// A trait representing an endpoint with a constraint that the returned value
+    /// can be convert into an HTTP response.
+    pub trait OutputEndpoint<'a>: 'a + Sealed {
+        #[doc(hidden)]
+        type Output: Tuple + Output;
+        #[doc(hidden)]
+        type Future: Future<Item = Self::Output, Error = Error> + 'a;
+        #[doc(hidden)]
+        fn apply_output(&'a self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future>;
+    }
+
+    impl<'a, E> OutputEndpoint<'a> for E
+    where
+        E: Endpoint<'a>,
+        E::Output: Output,
+    {
+        type Output = E::Output;
+        type Future = E::Future;
+
+        #[inline]
+        fn apply_output(&'a self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+            self.apply(cx)
+        }
+    }
+
+    pub trait Sealed {}
+
+    impl<'a, E> Sealed for E
+    where
+        E: Endpoint<'a>,
+        E::Output: Output,
+    {
     }
 }

@@ -5,63 +5,11 @@ use http::{Request, Response};
 use hyper::body::Body;
 use tower_service::NewService;
 
-use self::app_endpoint::{AppEndpoint, Lift};
 pub use self::app_payload::AppPayload;
-use self::app_service::AppService;
+use self::app_service::{AppService, Lift};
 
+use endpoint::OutputEndpoint;
 use error::Never;
-
-/// A trait which compose the trait bounds representing that
-/// the implementor is able to use as an HTTP service.
-pub trait IsAppEndpoint: for<'a> AppEndpoint<'a> {}
-
-impl<E> IsAppEndpoint for E where for<'a> E: AppEndpoint<'a> {}
-
-mod app_endpoint {
-    use futures::Future;
-
-    use common::Tuple;
-    use endpoint::{ApplyContext, ApplyResult, Endpoint};
-    use error::Error;
-    use output::Output;
-
-    pub trait AppEndpoint<'a>: Send + Sync + 'static {
-        type Output: Tuple + Output;
-        type Future: Future<Item = Self::Output, Error = Error> + Send + 'a;
-        fn apply_app(&'a self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future>;
-    }
-
-    impl<'a, E> AppEndpoint<'a> for E
-    where
-        E: Endpoint<'a> + Send + Sync + 'static,
-        E::Output: Output,
-        E::Future: Send,
-    {
-        type Output = E::Output;
-        type Future = E::Future;
-
-        #[inline]
-        fn apply_app(&'a self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
-            self.apply(cx)
-        }
-    }
-
-    #[derive(Debug)]
-    pub struct Lift<E>(pub(super) E);
-
-    impl<'a, E> Endpoint<'a> for Lift<E>
-    where
-        E: AppEndpoint<'a>,
-    {
-        type Output = E::Output;
-        type Future = E::Future;
-
-        #[inline]
-        fn apply(&'a self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
-            self.0.apply_app(cx)
-        }
-    }
-}
 
 /// A wrapper struct for lifting the instance of `Endpoint` to an HTTP service.
 ///
@@ -72,13 +20,13 @@ mod app_endpoint {
 /// Ensure that the all of spawned tasks are terminated and their instance
 /// are destroyed before `Self::drop`.
 #[derive(Debug)]
-pub struct App<E: IsAppEndpoint> {
+pub struct App<E> {
     endpoint: Lift<E>,
 }
 
 impl<E> App<E>
 where
-    E: IsAppEndpoint,
+    for<'a> E: OutputEndpoint<'a> + 'static,
 {
     /// Create a new `App` from the specified endpoint.
     pub fn new(endpoint: E) -> App<E> {
@@ -90,7 +38,7 @@ where
 
 impl<E> NewService for App<E>
 where
-    E: IsAppEndpoint,
+    for<'a> E: OutputEndpoint<'a> + 'static,
 {
     type Request = Request<Body>;
     type Response = Response<AppPayload>;
@@ -119,12 +67,28 @@ pub(crate) mod app_service {
     use tower_service::Service;
 
     use endpoint::context::{ApplyContext, TaskContext};
-    use endpoint::{with_set_cx, Cursor, Endpoint};
+    use endpoint::{with_set_cx, ApplyResult, Cursor, Endpoint, OutputEndpoint};
     use error::{Error, Never};
     use input::{Input, ReqBody};
     use output::{Output, OutputContext};
 
     use super::AppPayload;
+
+    #[derive(Debug)]
+    pub struct Lift<E>(pub(super) E);
+
+    impl<'a, E> Endpoint<'a> for Lift<E>
+    where
+        E: OutputEndpoint<'a>,
+    {
+        type Output = E::Output;
+        type Future = E::Future;
+
+        #[inline]
+        fn apply(&'a self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+            self.0.apply_output(cx)
+        }
+    }
 
     #[derive(Debug)]
     pub struct AppService<'e, E: Endpoint<'e>> {

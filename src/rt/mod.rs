@@ -92,12 +92,13 @@ mod service_builder {
 
 // ==== launch ====
 
-use self::app::{App, IsAppEndpoint};
+use self::app::App;
+use endpoint::OutputEndpoint;
 
 /// Create an instance of `ServiceBuilder` from the specified endpoint.
 pub fn launch<E>(endpoint: E) -> ServiceBuilder<App<E>>
 where
-    E: IsAppEndpoint,
+    for<'a> E: OutputEndpoint<'a> + 'static,
 {
     ServiceBuilder::new(App::new(endpoint))
 }
