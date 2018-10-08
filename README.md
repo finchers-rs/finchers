@@ -24,7 +24,7 @@ Add this item to `Cargo.toml` in your project:
 
 ```toml
 [dependencies]
-finchers = "0.13.0"
+finchers = "0.13.1"
 ```
 
 # Example
@@ -76,7 +76,7 @@ at your option.
 <!-- links -->
 
 [crates-io]: https://crates.io/crates/finchers
-[docs-rs]: https://docs.rs/finchers/0.13.0
+[docs-rs]: https://docs.rs/finchers/0.13.1
 [master-doc]: https://finchers-rs.github.io/finchers
 [examples]: https://github.com/finchers-rs/examples
 [user-guide]: https://finchers-rs.github.io/finchers/guide/index.html
@@ -84,18 +84,18 @@ at your option.
 [travis]: https://travis-ci.org/finchers-rs/finchers
 [appveyor]: https://ci.appveyor.com/project/ubnt-intrepid/finchers/branch/master
 [coveralls]: https://coveralls.io/github/finchers-rs/finchers
-[dependencies]: https://deps.rs/crate/finchers/0.13.0
+[dependencies]: https://deps.rs/crate/finchers/0.13.1
 [rustc-version]: https://rust-lang.org
 
 [crates-io-badge]: https://img.shields.io/crates/v/finchers.svg
 [downloads-badge]: https://img.shields.io/crates/d/finchers.svg
-[docs-rs-badge]: https://docs.rs/finchers/0.13.0
+[docs-rs-badge]: https://docs.rs/finchers/0.13.1
 [master-doc-badge]: https://img.shields.io/badge/docs-master-lightgreen.svg
 [gitter-badge]: https://badges.gitter.im/finchers-rs/finchers.svg
 [travis-badge]: https://travis-ci.org/finchers-rs/finchers.svg?branch=master
 [appveyor-badge]: https://ci.appveyor.com/api/projects/status/76smoc919fni4n6l/branch/master?svg=true
 [coveralls-badge]: https://coveralls.io/repos/github/finchers-rs/finchers/badge.svg
-[dependencies-badge]: https://deps.rs/crate/finchers/0.13.0/status.svg
+[dependencies-badge]: https://deps.rs/crate/finchers/0.13.1/status.svg
 [rustc-version-badge]: https://img.shields.io/badge/rustc-1.29+-yellow.svg
 
 [`finchers-juniper`]: https://github.com/finchers-rs/finchers-juniper
