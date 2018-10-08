@@ -24,7 +24,7 @@ Add this item to `Cargo.toml` in your project:
 
 ```toml
 [dependencies]
-finchers = "0.12"
+finchers = "0.13.0"
 ```
 
 # Example
