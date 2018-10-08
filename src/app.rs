@@ -362,10 +362,12 @@ impl Payload for AppPayload {
     #[inline]
     fn poll_data(&mut self) -> Poll<Option<Self::Data>, Self::Error> {
         match self.inner {
-            Either::Left(ref mut message) => message
-                .take()
-                .map(|message| Ok(Async::Ready(Some(Either::Left(io::Cursor::new(message))))))
-                .expect("The payload has already polled"),
+            Either::Left(ref mut message) => {
+                let message_opt = message
+                    .take()
+                    .map(|message| Either::Left(io::Cursor::new(message)));
+                Ok(Async::Ready(message_opt))
+            }
             Either::Right(ref mut payload) => payload
                 .poll_data()
                 .map(|x| x.map(|data_opt| data_opt.map(Either::Right))),
