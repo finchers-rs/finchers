@@ -1,5 +1,6 @@
 mod and;
 mod and_then;
+mod apply;
 mod boxed;
 mod macros;
 mod map;

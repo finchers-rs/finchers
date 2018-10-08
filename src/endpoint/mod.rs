@@ -7,7 +7,7 @@ pub mod syntax;
 pub mod wrapper;
 
 mod and;
-mod apply_fn;
+mod apply;
 mod by_ref;
 mod cloned;
 mod lazy;
@@ -26,7 +26,7 @@ pub use self::and::And;
 pub use self::or::Or;
 pub use self::or_strict::OrStrict;
 
-pub use self::apply_fn::{apply_fn, ApplyFn};
+pub use self::apply::{apply, apply_raw, Apply, ApplyRaw};
 pub use self::by_ref::{by_ref, ByRef};
 pub use self::cloned::{cloned, Cloned};
 pub use self::lazy::{lazy, Lazy};

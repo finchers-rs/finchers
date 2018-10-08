@@ -540,6 +540,7 @@ mod response {
 mod tests {
     use super::{runner, TestRequest, TestResult};
     use endpoint;
+    use endpoint::Endpoint;
     use http::header;
     use http::{Request, Response, Uri};
 
@@ -574,7 +575,7 @@ mod tests {
     #[test]
     fn test_host_useragent() {
         let mut runner = runner({
-            endpoint::apply_fn(|cx| {
+            endpoint::apply_raw(|cx| {
                 let host = cx.headers().get(header::HOST).cloned();
                 let user_agent = cx.headers().get(header::USER_AGENT).cloned();
                 Ok(Ok((host, user_agent)))
@@ -609,10 +610,10 @@ mod tests {
     #[test]
     fn test_default_headers() {
         let mut runner = runner({
-            endpoint::apply_fn(|cx| {
+            endpoint::unit().wrap(endpoint::wrapper::before_apply(|cx| {
                 assert!(cx.headers().contains_key(header::ORIGIN));
-                Ok(Ok(()))
-            })
+                Ok(())
+            }))
         });
         runner
             .default_headers()
