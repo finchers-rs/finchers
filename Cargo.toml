@@ -1,6 +1,6 @@
 [package]
 name = "finchers"
-version = "0.13.1"
+version = "0.13.2-dev"
 description = "A combinator library for builidng asynchronous HTTP services"
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 license = "MIT OR Apache-2.0"
