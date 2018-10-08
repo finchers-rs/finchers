@@ -6,4 +6,4 @@ authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 publish = false
 
 [dependencies]
-finchers = { version = "0.12.0-alpha.8", path = "../.." }
+finchers = { path = "../.." }
