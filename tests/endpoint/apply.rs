@@ -7,7 +7,7 @@ fn smoketest_apply() {
 
     drop(|| {
         finchers::server::start(endpoint)
-            .serve_http("127.0.0.1:4000")
+            .serve("127.0.0.1:4000")
             .unwrap();
     })
 }
@@ -19,7 +19,7 @@ fn smoketest_apply_raw() {
 
     drop(|| {
         finchers::server::start(endpoint)
-            .serve_http("127.0.0.1:4000")
+            .serve("127.0.0.1:4000")
             .unwrap();
     })
 }

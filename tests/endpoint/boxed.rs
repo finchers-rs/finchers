@@ -23,7 +23,7 @@ fn smoke_test() {
 
     drop(move || {
         finchers::server::start(endpoint)
-            .serve_http("127.0.0.1:4000")
+            .serve("127.0.0.1:4000")
             .expect("failed to start the server");
     });
 }

@@ -58,5 +58,5 @@ fn test_launch_wrapped_endpoint() {
     };
     let endpoint = path!(@get /).wrap(wrapper);
 
-    drop(move || finchers::server::start(endpoint).serve_http("127.0.0.1:4000"));
+    drop(move || finchers::server::start(endpoint).serve("127.0.0.1:4000"));
 }

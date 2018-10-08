@@ -19,7 +19,7 @@
 //!
 //! use finchers::prelude::*;
 //!
-//! fn main() {
+//! fn main() -> finchers::server::ServerResult<()> {
 //!     let get_post = path!(@get / u64 /)
 //!         .map(|id: u64| format!("GET: id={}", id));
 //!
@@ -31,8 +31,7 @@
 //!         .and(get_post.or(create_post));
 //!
 //!     finchers::server::start(post_api)
-//!         .serve_http("127.0.0.1:4000")
-//!         .expect("failed to start the server");
+//!         .serve("127.0.0.1:4000")
 //! }
 //! ```
 
