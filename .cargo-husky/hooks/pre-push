@@ -1,0 +1,24 @@
+#!/bin/bash
+
+set -e
+
+BRANCH="$(git symbolic-ref --short HEAD)"
+[[ "${BRANCH:-}" = wip-* ]] && exit 0
+
+echo '+cargo test'
+cargo test
+
+if [[ "${BRANCH:-}" = release-* ]]; then
+    echo '+cargo publish --dry-run'
+    cargo publish --dry-run
+fi
+
+if which cargo-fmt >/dev/null 2>&1; then
+    echo '+cargo fmt -- --check'
+    cargo fmt -- --check
+fi
+
+if which cargo-clippy >/dev/null 2>&1; then
+    echo '+cargo clippy --tests'
+    cargo clippy --tests
+fi
