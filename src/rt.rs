@@ -47,23 +47,16 @@ pub(crate) fn with_set_runtime_mode<R>(mode: RuntimeMode, f: impl FnOnce() -> R)
     }
 }
 
-fn with_get_runtime_mode<R>(f: impl FnOnce(RuntimeMode) -> R) -> R {
-    match MODE.with(|m| m.get()) {
-        Some(mode) => f(mode),
-        None => panic!("The runtime mode is not set on the current context."),
-    }
-}
-
 /// Enter a blocking section of code.
 ///
 /// See also the documentation of tokio-threadpool's [`blocking`] for details.
 ///
 /// [`blocking`]: https://docs.rs/tokio-threadpool/0.1/tokio_threadpool/fn.blocking.html
 pub fn blocking<R>(f: impl FnOnce() -> R) -> Poll<R, BlockingError> {
-    with_get_runtime_mode(|mode| match mode {
-        RuntimeMode::ThreadPool => tokio_threadpool::blocking(f),
-        RuntimeMode::CurrentThread => Ok(Async::Ready(f())),
-    })
+    match MODE.with(|mode| mode.get()) {
+        Some(RuntimeMode::ThreadPool) | None => tokio_threadpool::blocking(f),
+        Some(RuntimeMode::CurrentThread) => Ok(Async::Ready(f())),
+    }
 }
 
 /// A helper function to create a future from a function which represents a blocking section.
