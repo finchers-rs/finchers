@@ -44,7 +44,10 @@ where
 }
 
 /// Create a logging middleware which use the standard `log` crate.
-pub fn stdlog(level: Level, target: &'static str) -> LogMiddleware<impl Logger + Clone + Copy> {
+pub fn stdlog(
+    level: Level,
+    target: &'static str,
+) -> LogMiddleware<impl Logger<Instance = impl Send> + Clone + Copy> {
     log(self::imp::StdLog { level, target })
 }
 
@@ -185,5 +188,21 @@ mod imp {
                     .build(),
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use endpoint;
+    use log::Level;
+    use server;
+
+    #[test]
+    fn compiletest_stdlog() {
+        drop(|| {
+            server::start(endpoint::cloned("foo"))
+                .with_middleware(super::stdlog(Level::Debug, "target"))
+                .serve("127.0.0.1:4000")
+        })
     }
 }
