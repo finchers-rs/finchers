@@ -17,26 +17,29 @@ mod endpoint;
 mod endpoints;
 
 #[test]
-fn smoketest_new_runtime() {
+#[ignore]
+fn compiletest_new_runtime() {
     use finchers::prelude::*;
-    drop(|| finchers::server::start(endpoint::cloned("Hello")).serve("127.0.0.1:4000"))
+    finchers::server::start(endpoint::cloned("Hello"))
+        .serve("127.0.0.1:4000")
+        .unwrap();
 }
 
 #[cfg(feature = "tower-web")]
 #[test]
-fn smoketest_tower_web_middlewares() {
+#[ignore]
+fn compiletest_tower_web_middlewares() {
     use finchers::output::body::optional;
     use finchers::prelude::*;
     use finchers::server::middleware::map_response_body;
     use tower_web::middleware::log::LogMiddleware;
 
-    drop(|| {
-        finchers::server::start(endpoint::unit())
-            .with_tower_middleware(LogMiddleware::new(module_path!()))
-            .with_middleware(map_response_body(Some))
-            .with_middleware(map_response_body(optional))
-            .serve("127.0.0.1:4000")
-    });
+    finchers::server::start(endpoint::unit())
+        .with_tower_middleware(LogMiddleware::new(module_path!()))
+        .with_middleware(map_response_body(Some))
+        .with_middleware(map_response_body(optional))
+        .serve("127.0.0.1:4000")
+        .unwrap();
 }
 
 #[test]

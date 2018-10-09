@@ -52,11 +52,14 @@ fn test_wrap() {
 }
 
 #[test]
-fn test_launch_wrapped_endpoint() {
+#[ignore]
+fn compiletest_launch_wrapped_endpoint() {
     let wrapper = Wrap {
         counter: Arc::new(AtomicUsize::new(0)),
     };
     let endpoint = path!(@get /).wrap(wrapper);
 
-    drop(move || finchers::server::start(endpoint).serve("127.0.0.1:4000"));
+    finchers::server::start(endpoint)
+        .serve("127.0.0.1:4000")
+        .unwrap();
 }

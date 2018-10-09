@@ -8,7 +8,6 @@ mod or;
 mod or_strict;
 mod recover;
 mod syntax;
-mod value;
 mod wrap;
 
 // blocked on rust-lang/rust#54895

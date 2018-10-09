@@ -13,14 +13,13 @@ fn test_send_endpoint() {
 }
 
 #[test]
-fn smoke_test() {
+#[ignore]
+fn compiletest() {
     let endpoint = foo()
         .with_output::<(u32,)>()
         .map(|id: u32| format!("{}", id));
 
-    drop(move || {
-        finchers::rt::launch(endpoint)
-            .serve_http("127.0.0.1:4000")
-            .expect("failed to start the server");
-    });
+    finchers::server::start(endpoint)
+        .serve("127.0.0.1:4000")
+        .unwrap();
 }

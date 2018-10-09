@@ -67,3 +67,24 @@ impl<'a, T: 'a> Future for ByRefFuture<'a, T> {
         Ok((self.x,).into())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use endpoint;
+    use prelude::*;
+    use server;
+
+    #[test]
+    #[ignore]
+    fn compiletest_by_ref() {
+        let endpoint = endpoint::syntax::verb::get()
+            .and(endpoint::syntax::param::<u32>())
+            .and(endpoint::by_ref(String::from("Hello, world")))
+            .and(endpoints::body::text())
+            .and_then(|id: u32, s: &String, body: String| {
+                Ok(format!("id={}, s={}, body={}", id, s, body))
+            });
+
+        server::start(endpoint).serve("127.0.0.1:4000").unwrap();
+    }
+}

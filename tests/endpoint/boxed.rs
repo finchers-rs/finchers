@@ -18,12 +18,10 @@ fn test_boxed_local() {
 }
 
 #[test]
-fn smoke_test() {
+#[ignore]
+fn compiletest() {
     let endpoint = EndpointObj::new(path!(@get /"foo").map(|| "foo"));
-
-    drop(move || {
-        finchers::server::start(endpoint)
-            .serve("127.0.0.1:4000")
-            .expect("failed to start the server");
-    });
+    finchers::server::start(endpoint)
+        .serve("127.0.0.1:4000")
+        .expect("failed to start the server");
 }
