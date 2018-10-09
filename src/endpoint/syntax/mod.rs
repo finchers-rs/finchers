@@ -250,19 +250,32 @@ where
 ///
 /// The following macro call
 ///
-/// ```ignore
-/// path!(@get / "api" / "v1" / "posts" / i32);
+/// ```
+/// # #[macro_use]
+/// # extern crate finchers;
+/// # fn main() {
+/// # drop(|| {
+/// path!(@get / "api" / "v1" / "posts" / i32)
+/// # });
+/// # }
 /// ```
 ///
-/// will be roughly expanded to:
+/// will be expanded to the following code:
 ///
-/// ```ignore
+/// ```
+/// # #[macro_use]
+/// # extern crate finchers;
+/// # use finchers::prelude::*;
+/// use finchers::endpoint::syntax;
+/// # fn main() {
+/// # drop(|| {
 /// syntax::verb::get()
 ///     .and("api")
 ///     .and("v1")
 ///     .and("posts")
 ///     .and(syntax::param::<i32>())
-/// )
+/// # });
+/// # }
 /// ```
 #[macro_export(local_inner_macros)]
 macro_rules! path {
