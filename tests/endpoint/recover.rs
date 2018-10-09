@@ -15,23 +15,20 @@ fn test_recover() {
             .map(|id: u32| format!("param={}", id))
             .with_output::<(String,)>();
 
-        let recovered =
-            endpoint
-                .wrap(endpoint::wrapper::or_reject())
-                .wrap(endpoint::wrapper::recover(|err| {
-                    if err.is::<ApplyError>() {
-                        future::ok(
-                            Response::builder()
-                                .status(err.status_code())
-                                .body(err.status_code().to_string())
-                                .expect("should be a valid response"),
-                        )
-                    } else {
-                        future::err(err)
-                    }
-                }));
-
-        recovered
+        endpoint
+            .wrap(endpoint::wrapper::or_reject())
+            .wrap(endpoint::wrapper::recover(|err| {
+                if err.is::<ApplyError>() {
+                    future::ok(
+                        Response::builder()
+                            .status(err.status_code())
+                            .body(err.status_code().to_string())
+                            .expect("should be a valid response"),
+                    )
+                } else {
+                    future::err(err)
+                }
+            }))
     });
 
     assert!(runner.apply(Request::get("/posts/42")).is_ok());

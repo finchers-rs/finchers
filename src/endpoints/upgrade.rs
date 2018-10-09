@@ -73,13 +73,19 @@ pub struct Builder {
     builder: response::Builder,
 }
 
-impl Builder {
-    /// Creates a new `Builder` with the specified task executor.
-    pub fn new() -> Builder {
+impl Default for Builder {
+    fn default() -> Builder {
         let mut builder = response::Builder::new();
         builder.status(StatusCode::SWITCHING_PROTOCOLS);
 
         Builder { builder }
+    }
+}
+
+impl Builder {
+    /// Creates a new `Builder` with the specified task executor.
+    pub fn new() -> Builder {
+        Default::default()
     }
 
     /// Appends a header filed which will be inserted into the response.

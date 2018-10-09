@@ -205,11 +205,11 @@ mod tests {
     use server;
 
     #[test]
+    #[ignore]
     fn compiletest_stdlog() {
-        drop(|| {
-            server::start(endpoint::cloned("foo"))
-                .with_middleware(super::stdlog(Level::Debug, "target"))
-                .serve("127.0.0.1:4000")
-        })
+        server::start(endpoint::cloned("foo"))
+            .with_middleware(super::stdlog(Level::Debug, "target"))
+            .serve("127.0.0.1:4000")
+            .unwrap();
     }
 }

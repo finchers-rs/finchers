@@ -136,6 +136,7 @@ pub struct AppFuture<'e, E: Endpoint<'e>> {
     state: State<'e, E>,
 }
 
+#[cfg_attr(feature = "cargo-clippy", allow(large_enum_variant))]
 enum State<'a, E: Endpoint<'a>> {
     Start(Request<ReqBody>),
     InFlight(Input, E::Future, Cursor),

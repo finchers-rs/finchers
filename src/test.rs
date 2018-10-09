@@ -551,7 +551,7 @@ mod tests {
         }
 
         assert_impl("/"); // &str
-        assert_impl(format!("/foo/bar")); // String
+        assert_impl("/foo/bar".to_string()); // String
         assert_impl(Uri::from_static("http://example.com/"));
         assert_impl(&Uri::from_static("/foo/bar?count=1"));
         assert_impl(Request::get("/")); // Builder
@@ -568,7 +568,10 @@ mod tests {
         assert!(response.headers().contains_key("content-type"));
         assert!(response.headers().contains_key("content-length"));
         assert!(response.headers().contains_key("server"));
-        assert_eq!(response.body().to_utf8().unwrap_or("".into()), "Hello");
+        assert_eq!(
+            response.body().to_utf8().unwrap_or_else(|| "".into()),
+            "Hello"
+        );
         assert!(response.body().trailers().is_none());
     }
 

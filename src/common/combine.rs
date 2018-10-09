@@ -68,36 +68,32 @@ mod tests {
 
     #[test]
     fn case1_units() {
-        let a = ();
-        let b = ();
-        assert_eq!(combine(a, b), ());
+        assert_eq!(combine((), ()), ());
     }
 
     #[test]
     fn case2_unit1() {
-        let a = (10,);
-        let b = ();
-        assert_eq!(combine(a, b), (10,));
+        assert_eq!(combine((10,), ()), (10,));
     }
 
     #[test]
     fn case3_unit2() {
-        let a = ();
-        let b = (10,);
-        assert_eq!(combine(a, b), (10,));
+        assert_eq!(combine((), (10,)), (10,));
     }
 
     #[test]
     fn case4_complicated() {
-        let a = ("a", "b", "c");
-        let b = (10, 20, 30);
-        assert_eq!(combine(a, b), ("a", "b", "c", 10, 20, 30));
+        assert_eq!(
+            combine(("a", "b", "c"), (10, 20, 30)),
+            ("a", "b", "c", 10, 20, 30)
+        );
     }
 
     #[test]
     fn case5_nested() {
-        let a = ("a", ("b", "c"));
-        let b = (10, (20,), 30);
-        assert_eq!(combine(a, b), ("a", ("b", "c"), 10, (20,), 30));
+        assert_eq!(
+            combine(("a", ("b", "c")), (10, (20,), 30)),
+            ("a", ("b", "c"), 10, (20,), 30)
+        );
     }
 }

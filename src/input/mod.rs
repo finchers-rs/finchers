@@ -131,6 +131,7 @@ mod finalize {
     use http::{Response, StatusCode};
 
     impl Input {
+        #[cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
         pub(crate) fn finalize<T>(
             self,
             output: Result<Response<T>, Error>,

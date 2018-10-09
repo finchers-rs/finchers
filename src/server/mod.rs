@@ -283,6 +283,7 @@ mod imp {
         type Error = S::Error;
         type Service = HttpService<S::Service>;
         type InitError = S::InitError;
+        #[cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
         type Future = future::Map<S::Future, fn(S::Service) -> HttpService<S::Service>>;
 
         #[inline]
