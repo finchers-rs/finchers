@@ -1,0 +1,8 @@
+#!/bin/sh
+
+set -e
+
+GIT_DIR="$(cd "$(git rev-parse --git-dir)"; pwd)"
+
+rm -f "${GIT_DIR}/hooks/pre-commit"
+rm -f "${GIT_DIR}/hooks/pre-push"
