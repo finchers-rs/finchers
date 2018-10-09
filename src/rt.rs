@@ -1,4 +1,4 @@
-//! Components for executing blocking codes.
+//! Components for working with Finchers runtime.
 
 use std::cell::Cell;
 
@@ -63,11 +63,24 @@ pub fn blocking<R>(f: impl FnOnce() -> R) -> Poll<R, BlockingError> {
 ///
 /// # Example
 ///
-/// ```ignore
-/// path!(@get / u32 /)
-///     .and_then(|id: u32| blocking_section(|| {
-///         get_post_sync(id).map_err(finchers::error::fail)
-///     }))
+/// ```
+/// # #[macro_use]
+/// # extern crate finchers;
+/// # extern crate failure;
+/// # use finchers::prelude::*;
+/// # use finchers::rt::blocking_section;
+/// fn get_post_sync(id: u32) -> failure::Fallible<String> {
+///     // ...
+/// #    Ok("".into())
+/// }
+///
+/// # fn main() {
+/// let endpoint = path!(@get / u32 /)
+///     .and_then(|id: u32| {
+///         blocking_section(move || get_post_sync(id))
+///     });
+/// # drop(endpoint);
+/// # }
 /// ```
 pub fn blocking_section<F, T, E>(f: F) -> BlockingSection<F>
 where
@@ -77,7 +90,7 @@ where
     BlockingSection { op: Some(f) }
 }
 
-#[allow(missing_docs)]
+/// A `Future` which executes a blocking section with annotation.
 #[derive(Debug)]
 pub struct BlockingSection<F> {
     op: Option<F>,

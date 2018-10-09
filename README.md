@@ -29,7 +29,7 @@ finchers = "0.13.1"
 
 # Example
 
-```rust
+```rust,no_run
 #[macro_use]
 extern crate finchers;
 use finchers::prelude::*;
@@ -40,7 +40,9 @@ fn main() {
             format!("Hello, {}!\n", name)
         });
 
-    finchers::launch(endpoint).start("127.0.0.1:4000");
+    finchers::server::start(endpoint)
+        .serve("127.0.0.1:4000")
+        .expect("failed to start the server");
 }
 ```
 
