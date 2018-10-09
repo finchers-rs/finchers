@@ -1,9 +1,10 @@
 //! An implementation of logging middleware.
 
-use super::{Middleware, Service};
 use http::{Request, Response};
-use log::Level;
 use std::sync::Arc;
+
+pub use self::impl_log::{log, LogMiddleware};
+pub use self::impl_stdlog::stdlog;
 
 /// A trait representing a logger.
 pub trait Logger {
@@ -33,121 +34,127 @@ impl<L: Logging> Logging for Option<L> {
     }
 }
 
-// ====
+// ==== LogMiddleware ====
 
-/// Create a logging middleware from the specified logger.
-pub fn log<F>(f: F) -> LogMiddleware<F>
-where
-    F: Logger + Clone,
-{
-    LogMiddleware { f }
-}
-
-/// Create a logging middleware which use the standard `log` crate.
-pub fn stdlog(
-    level: Level,
-    target: &'static str,
-) -> LogMiddleware<impl Logger<Instance = impl Send> + Clone + Copy> {
-    log(self::imp::StdLog { level, target })
-}
-
-#[allow(missing_docs)]
-#[derive(Debug, Clone)]
-pub struct LogMiddleware<F> {
-    f: F,
-}
-
-impl<F, S, ReqBody, ResBody> Middleware<S> for LogMiddleware<F>
-where
-    S: Service<Request = Request<ReqBody>, Response = Response<ResBody>>,
-    F: Logger + Clone,
-{
-    type Request = Request<ReqBody>;
-    type Response = Response<ResBody>;
-    type Error = S::Error;
-    type Service = self::imp::LogService<S, F>;
-
-    fn wrap(&self, inner: S) -> Self::Service {
-        self::imp::LogService {
-            inner,
-            f: self.f.clone(),
-        }
-    }
-}
-
-mod imp {
-    use super::super::Service;
+mod impl_log {
+    use super::super::{Middleware, Service};
     use super::{Logger, Logging};
 
     use futures::{Async, Future, Poll};
-    use http::{Method, Request, Response, Uri, Version};
-    use log::{logger, Level, Record};
-    use std::time::Instant;
+    use http::{Request, Response};
 
-    #[derive(Debug)]
-    pub struct LogService<S, F> {
-        pub(super) inner: S,
-        pub(super) f: F,
+    /// Create a logging middleware from the specified logger.
+    pub fn log<L>(logger: L) -> LogMiddleware<L>
+    where
+        L: Logger + Clone,
+    {
+        LogMiddleware { logger }
     }
 
-    impl<F, S, ReqBody, ResBody> Service for LogService<S, F>
+    #[allow(missing_docs)]
+    #[derive(Debug, Clone)]
+    pub struct LogMiddleware<L> {
+        logger: L,
+    }
+
+    impl<S, L, ReqBody, ResBody> Middleware<S> for LogMiddleware<L>
     where
         S: Service<Request = Request<ReqBody>, Response = Response<ResBody>>,
-        F: Logger,
+        L: Logger + Clone,
     {
         type Request = Request<ReqBody>;
         type Response = Response<ResBody>;
         type Error = S::Error;
-        type Future = LogServiceFuture<S::Future, F::Instance>;
+        type Service = LogService<S, L>;
+
+        fn wrap(&self, inner: S) -> Self::Service {
+            LogService {
+                inner,
+                logger: self.logger.clone(),
+            }
+        }
+    }
+
+    #[derive(Debug)]
+    pub struct LogService<S, L> {
+        inner: S,
+        logger: L,
+    }
+
+    impl<S, L, ReqBody, ResBody> Service for LogService<S, L>
+    where
+        S: Service<Request = Request<ReqBody>, Response = Response<ResBody>>,
+        L: Logger,
+    {
+        type Request = Request<ReqBody>;
+        type Response = Response<ResBody>;
+        type Error = S::Error;
+        type Future = LogServiceFuture<S::Future, L::Instance>;
 
         fn poll_ready(&mut self) -> Poll<(), Self::Error> {
             self.inner.poll_ready()
         }
 
         fn call(&mut self, request: Self::Request) -> Self::Future {
-            let f = self.f.start(&request);
+            let log_session = self.logger.start(&request);
             LogServiceFuture {
                 future: self.inner.call(request),
-                f: Some(f),
+                log_session: Some(log_session),
             }
         }
     }
 
     #[derive(Debug)]
-    pub struct LogServiceFuture<Fut, F> {
+    pub struct LogServiceFuture<Fut, L> {
         future: Fut,
-        f: Option<F>,
+        log_session: Option<L>,
     }
 
-    impl<Fut, F, Bd> Future for LogServiceFuture<Fut, F>
+    impl<Fut, L, Bd> Future for LogServiceFuture<Fut, L>
     where
         Fut: Future<Item = Response<Bd>>,
-        F: Logging,
+        L: Logging,
     {
         type Item = Response<Bd>;
         type Error = Fut::Error;
 
         fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
             let response = try_ready!(self.future.poll());
-            let instance = self.f.take().expect("The future has already polled");
+            let instance = self
+                .log_session
+                .take()
+                .expect("The future has already polled");
             instance.finish(&response);
             Ok(Async::Ready(response))
         }
     }
+}
 
-    // ==== StdLogger ====
+// ==== StdLogger ====
+
+mod impl_stdlog {
+    use super::{log, LogMiddleware, Logger, Logging};
+
+    use http::{Method, Request, Response, Uri, Version};
+    use log::{logger, Level, Record};
+    use std::time::Instant;
+
+    /// Create a logging middleware which use the standard `log` crate.
+    pub fn stdlog(level: Level, target: &'static str) -> LogMiddleware<StdLog> {
+        log(StdLog { level, target })
+    }
 
     #[derive(Debug, Copy, Clone)]
     pub struct StdLog {
-        pub(super) level: Level,
-        pub(super) target: &'static str,
+        level: Level,
+        target: &'static str,
     }
 
     impl Logger for StdLog {
         type Instance = Option<StdLogInstance>;
 
         fn start<T>(&self, request: &Request<T>) -> Self::Instance {
-            if log_enabled!(target:self.target, self.level) {
+            if log_enabled!(target: self.target, self.level) {
                 let start = Instant::now();
                 Some(StdLogInstance {
                     target: self.target,
