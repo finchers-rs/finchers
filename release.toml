@@ -1,4 +1,5 @@
 tag-prefix = "v"
+disable-push = true
 no-dev-version = true
 pre-release-commit-message = "(cargo-release) bump version to {{version}}"
 
