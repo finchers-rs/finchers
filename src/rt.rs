@@ -71,6 +71,7 @@ pub fn blocking<R>(f: impl FnOnce() -> R) -> Poll<R, BlockingError> {
 /// # use finchers::rt::blocking_section;
 /// fn get_post_sync(id: u32) -> failure::Fallible<String> {
 ///     // ...
+/// #    drop(id);
 /// #    Ok("".into())
 /// }
 ///

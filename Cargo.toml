@@ -36,6 +36,9 @@ members = [
   "testcrates/doctest",
   "testcrates/edition2018",
 ]
+exclude = [
+  "kcov-*/",
+]
 
 [dependencies]
 bitflags = "1.0.4"

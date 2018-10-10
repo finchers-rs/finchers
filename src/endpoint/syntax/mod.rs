@@ -263,8 +263,6 @@ where
 /// will be expanded to the following code:
 ///
 /// ```
-/// # #[macro_use]
-/// # extern crate finchers;
 /// # use finchers::prelude::*;
 /// use finchers::endpoint::syntax;
 /// # fn main() {
