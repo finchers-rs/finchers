@@ -4,6 +4,7 @@ use finchers::endpoint::Endpoint;
 #[test]
 fn compile_test_path() {
     let _ = path!(/).with_output::<()>();
+    let _ = path!(/ "foo").with_output::<()>();
     let _ = path!(/ "foo" / i32).with_output::<(i32,)>();
 
     let _ = path!(@get /).with_output::<()>();
