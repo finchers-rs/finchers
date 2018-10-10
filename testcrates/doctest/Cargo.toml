@@ -1,0 +1,12 @@
+[package]
+name = "doctest"
+version = "0.1.0"
+authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
+publish = false
+
+[lib]
+name = "doctest"
+path = "lib.rs"
+
+[dev-dependencies]
+finchers = { path = "../.." }

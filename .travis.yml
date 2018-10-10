@@ -12,10 +12,6 @@ branches:
   only:
     - master
 
-script:
-  - cargo update
-  - cargo clean -p finchers
-  - cargo build
 
 matrix:
   allow_failures:
@@ -23,9 +19,6 @@ matrix:
   fast_finish: true
 
   include:
-    - rust: 1.29.1   # The minimal supported toolchain
-    - rust: nightly  # The latest nightly
-
     - rust: stable
       sudo: required
       addons:
@@ -44,7 +37,6 @@ matrix:
         - cargo kcov --print-install-kcov-sh | sh
       script:
         - cargo update
-        - cargo clean -p finchers
         - cargo test
         - cargo test --all-features
         - cargo test --no-default-features
@@ -57,9 +49,20 @@ matrix:
     - rust: beta
       script:
         - cargo update
-        - cargo clean -p finchers
-        - cargo test --all-features
+        - cargo build
         - (cd testcrates/test_edition_2018; cargo test)
+
+    - rust: nightly
+      script:
+        - cargo update
+        - cargo build
+        - cargo test -p doctest
+
+    # The minimal supported toolchain
+    - rust: 1.29.1
+      script:
+        - cargo update
+        - cargo build
 
     - rust: beta
       env: DEPLOY_API_DOC
