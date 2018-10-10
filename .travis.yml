@@ -14,6 +14,7 @@ branches:
 
 script:
   - cargo update
+  - cargo clean -p finchers
   - cargo build
 
 matrix:
@@ -43,6 +44,7 @@ matrix:
         - cargo kcov --print-install-kcov-sh | sh
       script:
         - cargo update
+        - cargo clean -p finchers
         - cargo test
         - cargo test --all-features
         - cargo test --no-default-features
