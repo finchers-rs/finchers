@@ -310,5 +310,5 @@ macro_rules! path_impl {
     (@start /) => ( $crate::endpoint::syntax::eos() );
 
     (@segment $t:ty) => ( $crate::endpoint::syntax::param::<$t>() );
-    (@segment $s:expr) => ( ($s) );
+    (@segment $s:expr) => ( $crate::endpoint::IntoEndpoint::into_endpoint($s) );
 }
