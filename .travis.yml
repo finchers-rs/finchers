@@ -57,6 +57,7 @@ matrix:
     - rust: beta
       script:
         - cargo update
+        - cargo clean -p finchers
         - cargo test --all-features
         - (cd testcrates/test_edition_2018; cargo test)
 
