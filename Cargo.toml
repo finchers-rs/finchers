@@ -10,6 +10,8 @@ repository = "https://github.com/finchers-rs/finchers.git"
 keywords = ["finchers", "web", "framework", "server"]
 categories = ["web-programming::http-server"]
 
+build = "build.rs"
+
 include = [
   "Cargo.toml",
   "build.rs",
@@ -32,9 +34,6 @@ maintenance = { status = "actively-developed" }
 [workspace]
 members = [
   "testcrates/doctest",
-]
-exclude = [
-  # FIXME: add 2018-style crates to the members of workspace
   "testcrates/edition2018",
 ]
 

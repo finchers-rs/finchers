@@ -1,0 +1,10 @@
+--- testcrates/edition2018/Cargo.toml	2018-10-11 05:28:42.252010871 +0900
++++ testcrates/edition2018/Cargo.toml.patch	2018-10-11 05:31:03.427108202 +0900
+@@ -1,6 +1,7 @@
+ [package]
+ name = "test-edition2018"
+ version = "0.0.0"
++edition = "2018"
+ authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
+ publish = false
+ 

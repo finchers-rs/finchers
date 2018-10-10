@@ -1,7 +1,6 @@
 [package]
 name = "test-edition2018"
 version = "0.0.0"
-edition = "2018"
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 publish = false
 
