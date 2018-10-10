@@ -50,7 +50,7 @@ matrix:
       script:
         - cargo update
         - cargo build
-        - (cd testcrates/test_edition_2018; cargo test)
+        - (cd testcrates/edition2018; cargo test)
 
     - rust: nightly
       script:

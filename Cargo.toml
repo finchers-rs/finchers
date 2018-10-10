@@ -33,6 +33,10 @@ maintenance = { status = "actively-developed" }
 members = [
   "testcrates/doctest",
 ]
+exclude = [
+  # FIXME: add 2018-style crates to the members of workspace
+  "testcrates/edition2018",
+]
 
 [dependencies]
 bitflags = "1.0.4"
