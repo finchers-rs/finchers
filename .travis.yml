@@ -6,12 +6,11 @@ cache:
   apt: true
   cargo: true
   directories:
-    - testcrates/test_edition_2018/target
+    - testcrates/edition2018/target
 
 branches:
   only:
     - master
-
 
 matrix:
   allow_failures:
