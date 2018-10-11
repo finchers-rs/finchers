@@ -3,6 +3,5 @@
 set -e
 
 if which cargo-fmt >/dev/null 2>&1; then
-    echo '+cargo fmt'
-    cargo fmt
+    (set -x; cargo fmt -- --check)
 fi
