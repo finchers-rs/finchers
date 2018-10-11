@@ -7,10 +7,12 @@
 
 #![allow(missing_docs)]
 
+mod error_handler;
 pub mod log;
 mod map_response_body;
 
 // ---- reexports ----
+pub use self::error_handler::{error_handler, ErrorHandler};
 pub use self::map_response_body::{map_response_body, MapResponseBody};
 #[doc(no_inline)]
 pub use tower_service::{NewService, Service};

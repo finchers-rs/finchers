@@ -11,12 +11,16 @@ pub use self::header::FromHeaderValue;
 // ====
 
 use cookie::{Cookie, CookieJar};
+use futures::Future;
 use http;
-use http::header::HeaderMap;
+use http::header::{HeaderMap, HeaderValue};
 use http::Request;
+use http::{Response, StatusCode};
 use mime::Mime;
 
 use error::{bad_request, Error};
+
+type Task = Box<dyn Future<Item = (), Error = ()> + Send + 'static>;
 
 /// The contextual information with an incoming HTTP request.
 #[derive(Debug)]
@@ -121,55 +125,42 @@ impl Input {
     pub fn response_headers(&mut self) -> &mut HeaderMap {
         self.response_headers.get_or_insert_with(Default::default)
     }
-}
 
-mod finalize {
-    use super::*;
-    use either::Either;
-    use futures::Future;
-    use http::header::HeaderValue;
-    use http::{Response, StatusCode};
+    #[cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
+    pub(crate) fn finalize<T>(
+        self,
+        output: Result<Response<T>, Error>,
+    ) -> (Response<Result<Option<T>, Error>>, Option<Task>) {
+        let (_parts, body) = self.request.into_parts();
+        let mut upgraded_opt = None;
 
-    impl Input {
-        #[cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
-        pub(crate) fn finalize<T>(
-            self,
-            output: Result<Response<T>, Error>,
-        ) -> (
-            Response<Either<String, Option<T>>>,
-            Option<Box<dyn Future<Item = (), Error = ()> + Send + 'static>>,
-        ) {
-            let (_parts, body) = self.request.into_parts();
-            let mut upgraded_opt = None;
+        let mut response = match output {
+            Ok(mut response) => match body.into_upgraded() {
+                Some(upgraded) => {
+                    upgraded_opt = Some(upgraded);
 
-            let mut response = match output {
-                Ok(mut response) => match body.into_upgraded() {
-                    Some(upgraded) => {
-                        upgraded_opt = Some(upgraded);
-
-                        // Forcibly rewrite the status code and response body.
-                        // Since these operations are automaically done by Hyper,
-                        // they are substantially unnecessary.
-                        *response.status_mut() = StatusCode::SWITCHING_PROTOCOLS;
-                        response.map(|_bd| Either::Right(None))
-                    }
-                    None => response.map(|bd| Either::Right(Some(bd))),
-                },
-                Err(err) => err.to_response().map(Either::Left),
-            };
-
-            if let Some(ref jar) = self.cookie_jar {
-                for cookie in jar.delta() {
-                    let val = HeaderValue::from_str(&cookie.encoded().to_string()).unwrap();
-                    response.headers_mut().append(http::header::SET_COOKIE, val);
+                    // Forcibly rewrite the status code and response body.
+                    // Since these operations are automaically done by Hyper,
+                    // they are substantially unnecessary.
+                    *response.status_mut() = StatusCode::SWITCHING_PROTOCOLS;
+                    response.map(|_bd| Ok(None))
                 }
-            }
+                None => response.map(|bd| Ok(Some(bd))),
+            },
+            Err(err) => err.into_response().map(Err),
+        };
 
-            if let Some(headers) = self.response_headers {
-                response.headers_mut().extend(headers);
+        if let Some(ref jar) = self.cookie_jar {
+            for cookie in jar.delta() {
+                let val = HeaderValue::from_str(&cookie.encoded().to_string()).unwrap();
+                response.headers_mut().append(http::header::SET_COOKIE, val);
             }
-
-            (response, upgraded_opt)
         }
+
+        if let Some(headers) = self.response_headers {
+            response.headers_mut().extend(headers);
+        }
+
+        (response, upgraded_opt)
     }
 }
