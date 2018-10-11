@@ -28,6 +28,8 @@ matrix:
         - if [[ "${TRAVIS_PULL_REQUEST_BRANCH:-}" = release-* ]]; then cargo publish --dry-run; fi
         - cargo fmt -- --check
         - env FINCHERS_DENY_WARNINGS=1 cargo clippy --tests
+        - cargo test -p doctest
+        #- cargo test -p test-edition2018
       after_success:
         - cargo kcov -v --features "secure tower-web" --coveralls
 
@@ -50,7 +52,6 @@ matrix:
       script:
         - cargo update
         - cargo build
-        - cargo test -p doctest
       after_success:
         - cargo +nightly tarpaulin --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
 

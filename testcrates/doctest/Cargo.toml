@@ -1,12 +1,15 @@
 [package]
 name = "doctest"
-version = "0.1.0"
+version = "0.0.0"
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 publish = false
 
 [lib]
 name = "doctest"
 path = "lib.rs"
+
+[dependencies]
+doubter = "0.0.2"
 
 [dev-dependencies]
 finchers = { path = "../.." }
