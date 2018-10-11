@@ -1,6 +1,6 @@
 [package]
 name = "finchers"
-version = "0.13.3"
+version = "0.13.4"
 description = "A combinator library for builidng asynchronous HTTP services"
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 license = "MIT OR Apache-2.0"
@@ -13,15 +13,15 @@ categories = ["web-programming::http-server"]
 build = "build.rs"
 
 include = [
-  "Cargo.toml",
-  "build.rs",
-  "src/**/*",
-  "tests/**/*",
-  "examples/**/*",
-  "benches/**/*",
-  "LICENSE-MIT",
-  "LICENSE-APACHE",
-  "README.md"
+  "/Cargo.toml",
+  "/build.rs",
+  "/src/**/*",
+  "/tests/**/*",
+  "/examples/**/*",
+  "/benches/**/*",
+  "/LICENSE-MIT",
+  "/LICENSE-APACHE",
+  "/README.md"
 ]
 
 [package.metadata.docs.rs]
@@ -35,9 +35,6 @@ maintenance = { status = "actively-developed" }
 members = [
   "testcrates/doctest",
   "testcrates/edition2018",
-]
-exclude = [
-  "kcov-*/",
 ]
 
 [dependencies]

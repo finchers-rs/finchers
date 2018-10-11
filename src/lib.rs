@@ -35,7 +35,7 @@
 //! }
 //! ```
 
-#![doc(html_root_url = "https://docs.rs/finchers/0.13.3")]
+#![doc(html_root_url = "https://docs.rs/finchers/0.13.4")]
 #![warn(
     missing_docs,
     missing_debug_implementations,
