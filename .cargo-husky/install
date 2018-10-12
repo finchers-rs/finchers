@@ -1,6 +1,0 @@
-#!/bin/sh
-
-set -e
-
-cargo clean -p cargo-husky
-cargo build -p cargo-husky

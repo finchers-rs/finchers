@@ -21,17 +21,8 @@ matrix:
         - rustup component add rustfmt-preview
         - rustup component add clippy-preview
       script:
-        - cargo update
-        - env FINCHERS_DENY_WARNINGS=1 cargo test
-        - env FINCHERS_DENY_WARNINGS=1 cargo test --all-features
-        - env FINCHERS_DENY_WARNINGS=1 cargo test --no-default-features
+        - rake ci_flow
         - if [[ "${TRAVIS_PULL_REQUEST_BRANCH:-}" = release-* ]]; then cargo publish --dry-run; fi
-        - cargo fmt -- --check
-        - env FINCHERS_DENY_WARNINGS=1 cargo clippy --tests
-        - cargo test -p doctest
-        #- cargo test -p test-edition2018
-      after_success:
-        - cargo kcov -v --features "secure tower-web" --coveralls
 
     - rust: beta
       script:
@@ -46,9 +37,10 @@ matrix:
         apt:
           packages:
             - libssl-dev
-      before_script:
-        - RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install cargo-tarpaulin || true
-        - cargo +nightly tarpaulin --version
+      before_script: |
+        which cargo +nightly tarpaulin --version || {
+          RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install --force cargo-tarpaulin
+        }
       script:
         - cargo update
         - cargo build
