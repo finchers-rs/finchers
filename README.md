@@ -78,7 +78,7 @@ at your option.
 <!-- links -->
 
 [crates-io]: https://crates.io/crates/finchers
-[docs-rs]: https://docs.rs/finchers/0.13.4
+[docs-rs]: https://docs.rs/finchers
 [master-doc]: https://finchers-rs.github.io/finchers
 [examples]: https://github.com/finchers-rs/examples
 [user-guide]: https://finchers-rs.github.io/finchers/guide/index.html
@@ -91,8 +91,8 @@ at your option.
 
 [crates-io-badge]: https://img.shields.io/crates/v/finchers.svg
 [downloads-badge]: https://img.shields.io/crates/d/finchers.svg
-[docs-rs-badge]: https://docs.rs/finchers/0.13.4
-[master-doc-badge]: https://img.shields.io/badge/docs-master-lightgreen.svg
+[docs-rs-badge]: https://docs.rs/finchers/badge.svg
+[master-doc-badge]: https://img.shields.io/badge/docs-master-blue.svg
 [gitter-badge]: https://badges.gitter.im/finchers-rs/finchers.svg
 [travis-badge]: https://travis-ci.org/finchers-rs/finchers.svg?branch=master
 [appveyor-badge]: https://ci.appveyor.com/api/projects/status/76smoc919fni4n6l/branch/master?svg=true
