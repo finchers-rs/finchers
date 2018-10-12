@@ -2,19 +2,27 @@
 
 set -e
 
+[[ -n "${DISABLE_GIT_HOOKS}" ]] && {
+    echo "[warn] the Git hooks are disabled by user."
+    exit 0
+}
+
 BRANCH="$(git symbolic-ref --short HEAD)"
-[[ "${BRANCH:-}" = wip-* ]] && exit 0
+[[ "${BRANCH:-}" = wip-* ]] && {
+    echo "[info] The current branch is working in progress."
+    exit 0
+}
 
-(set -x; cargo test)
+which rake >/dev/null 2>&1 || {
+    echo "[warn] the command 'rake' is not installed."
+    echo "[warn] the pre-push hook is skipped."
+    exit 0
+}
 
-if [[ "${BRANCH:-}" = release-* ]]; then
-    (set -x; cargo publish --dry-run)
-fi
+which cargo >/dev/null 2>&1 || {
+    echo "[warn] Rust toolchain is not installed."
+    echo "[warn] the pre-push hook is skipped."
+    exit 0
+}
 
-if which cargo-fmt >/dev/null 2>&1; then
-    (set -x; cargo fmt -- --check)
-fi
-
-if which cargo-clippy >/dev/null 2>&1; then
-    (set -x; cargo clippy --tests)
-fi
+rake ci_flow
