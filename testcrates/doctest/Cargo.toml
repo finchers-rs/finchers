@@ -9,7 +9,7 @@ name = "doctest"
 path = "lib.rs"
 
 [dependencies]
-doubter = "0.0.2"
+doubter = "0.1"
 
 [dev-dependencies]
 finchers = { path = "../.." }

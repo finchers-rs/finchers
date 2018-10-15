@@ -4,6 +4,6 @@
 #[macro_use]
 extern crate doubter;
 
-doubter! {
-    file = "../../README.md",
+generate_doc_tests! {
+    include = "../../README.md",
 }
