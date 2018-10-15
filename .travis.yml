@@ -28,10 +28,8 @@ matrix:
 
     - rust: beta
       script: >-
-        patch testcrates/edition2018/{Cargo.toml,Cargo.toml.patch} &&
         cargo update &&
-        cargo build &&
-        cargo test -p test-edition2018
+        cargo build
 
     - rust: nightly
       sudo: required

@@ -1,6 +1,6 @@
-#![cfg_attr(finchers_deny_warnings, deny(warnings))]
-#![cfg_attr(finchers_deny_warnings, doc(test(attr(deny(warnings)))))]
-#![cfg(test)]
+#![cfg(use_external_macros)]
+
+extern crate finchers;
 
 use finchers::endpoint::syntax;
 use finchers::path;
