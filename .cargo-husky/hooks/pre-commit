@@ -3,20 +3,10 @@
 set -e
 
 [[ -n "${DISABLE_GIT_HOOKS}" ]] && {
-    echo "[warn] the Git hooks are disabled by user."
+    echo "[warn] Git hooks are disabled by user."
     exit 0
 }
 
-which rake >/dev/null 2>&1 || {
-    echo "[warn] the command 'rake' is not installed."
-    echo "[warn] the pre-push hook is skipped."
-    exit 0
-}
-
-which cargo-fmt >/dev/null 2>&1 || {
-    echo "[warn] rustfmt is not installed."
-    echo "[warn] the pre-commit hook is skipped."
-    exit 0
-}
-
-rake format_check
+if which cargo-fmt >/dev/null 2>&1; then
+    (set -x; cargo fmt -- --check)
+fi
