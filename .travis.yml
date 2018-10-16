@@ -10,6 +10,10 @@ branches:
   only:
     - master
 
+script: >-
+  cargo update &&
+  cargo test
+
 matrix:
   allow_failures:
     - rust: nightly
@@ -27,31 +31,8 @@ matrix:
         - if [[ "${TRAVIS_PULL_REQUEST_BRANCH:-}" = release-* ]]; then cargo publish --dry-run; fi
 
     - rust: beta
-      script: >-
-        cargo update &&
-        cargo build
-
     - rust: nightly
-      sudo: required
-      addons:
-        apt:
-          packages:
-            - libssl-dev
-      before_script: |
-        cargo +nightly tarpaulin --version || {
-          RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install --force cargo-tarpaulin
-        }
-      script: >-
-        cargo update &&
-        cargo build
-      after_success: >-
-        cargo +nightly tarpaulin --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
-
-    # The minimal supported toolchain
     - rust: 1.29.1
-      script: >-
-        cargo update &&
-        cargo build
 
     - rust: beta
       env: DEPLOY_API_DOC
