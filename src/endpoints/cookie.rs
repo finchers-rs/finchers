@@ -6,10 +6,11 @@ use std::fmt;
 use cookie::Cookie;
 #[cfg(feature = "secure")]
 use cookie::Key;
+use futures::future;
 
 use endpoint::{ApplyContext, ApplyResult, Endpoint};
 use error::{bad_request, Error};
-use input::Input;
+use input::{Cookies, Input};
 
 #[derive(Clone)]
 enum Mode {
@@ -27,6 +28,7 @@ impl fmt::Debug for Mode {
 }
 
 impl Mode {
+    #[allow(deprecated)]
     fn extract_cookie(
         &self,
         input: &mut Input,
@@ -43,28 +45,12 @@ impl Mode {
     }
 }
 
-/// Create an endpoint which extracts a Cookie value.
-///
-/// If the value is not found, it will skip the current request.
-///
-/// # Example
-///
-/// ```
-/// # #[macro_use]
-/// # extern crate finchers;
-/// # use finchers::endpoints::cookie;
-/// # use finchers::prelude::*;
-/// #
-/// # fn main() {
-/// let home = path!(@get / "home")
-///     .and(routes![
-///         cookie::required("session")
-///             .map(|_| "authorized"),
-///         endpoint::unit().map(|| "unauthorized"),
-///     ]);
-/// # drop(home);
-/// # }
-/// ```
+#[doc(hidden)]
+#[deprecated(
+    since = "0.13.5",
+    note = "use `endpoints::cookies()` instead."
+)]
+#[allow(deprecated)]
 #[inline]
 pub fn required(name: impl Into<Cow<'static, str>>) -> Required {
     (Required {
@@ -73,13 +59,37 @@ pub fn required(name: impl Into<Cow<'static, str>>) -> Required {
     }).with_output::<(Cookie<'static>,)>()
 }
 
-#[allow(missing_docs)]
-#[derive(Debug, Clone)]
+#[doc(hidden)]
+#[deprecated(
+    since = "0.13.5",
+    note = "use `endpoints::cookies()` instead."
+)]
 pub struct Required {
     name: Cow<'static, str>,
     mode: Mode,
 }
 
+#[allow(deprecated)]
+impl fmt::Debug for Required {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Required")
+            .field("name", &self.name)
+            .field("mode", &self.mode)
+            .finish()
+    }
+}
+
+#[allow(deprecated)]
+impl Clone for Required {
+    fn clone(&self) -> Self {
+        Self {
+            name: self.name.clone(),
+            mode: self.mode.clone(),
+        }
+    }
+}
+
+#[allow(deprecated)]
 impl Required {
     #[cfg(feature = "secure")]
     #[allow(missing_docs)]
@@ -100,9 +110,10 @@ impl Required {
     }
 }
 
+#[allow(deprecated)]
 impl<'a> Endpoint<'a> for Required {
     type Output = (Cookie<'static>,);
-    type Future = ::futures::future::FutureResult<Self::Output, Error>;
+    type Future = future::FutureResult<Self::Output, Error>;
 
     fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         let cookie = self
@@ -111,35 +122,16 @@ impl<'a> Endpoint<'a> for Required {
             .and_then(|cookie| {
                 cookie.ok_or_else(|| bad_request(format!("missing Cookie item: {}", self.name)))
             });
-        Ok(::futures::future::result(cookie.map(|x| (x,))))
+        Ok(future::result(cookie.map(|x| (x,))))
     }
 }
 
-/// Create an endpoint which extracts a Cookie value.
-///
-/// This endpoint always accepts the request and will return a `None` if the value is missing.
-///
-/// # Example
-///
-/// ```
-/// # #[macro_use]
-/// # extern crate finchers;
-/// # extern crate cookie;
-/// # use finchers::endpoints::cookie::optional;
-/// # use finchers::prelude::*;
-/// # use cookie::Cookie;
-/// #
-/// # fn main() {
-/// let home = path!(@get / "home")
-///     .and(optional("session"))
-///     .map(|c: Option<Cookie>| {
-///         // ...
-/// #       drop(c);
-/// #       ()
-///     });
-/// # drop(home);
-/// # }
-/// ```
+#[doc(hidden)]
+#[deprecated(
+    since = "0.13.5",
+    note = "use `endpoints::cookies()` instead."
+)]
+#[allow(deprecated)]
 #[inline]
 pub fn optional(name: impl Into<Cow<'static, str>>) -> Optional {
     (Optional {
@@ -148,13 +140,37 @@ pub fn optional(name: impl Into<Cow<'static, str>>) -> Optional {
     }).with_output::<(Option<Cookie<'static>>,)>()
 }
 
-#[allow(missing_docs)]
-#[derive(Debug, Clone)]
+#[doc(hidden)]
+#[deprecated(
+    since = "0.13.5",
+    note = "use `endpoints::cookies()` instead."
+)]
 pub struct Optional {
     name: Cow<'static, str>,
     mode: Mode,
 }
 
+#[allow(deprecated)]
+impl fmt::Debug for Optional {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Optional")
+            .field("name", &self.name)
+            .field("mode", &self.mode)
+            .finish()
+    }
+}
+
+#[allow(deprecated)]
+impl Clone for Optional {
+    fn clone(&self) -> Self {
+        Self {
+            name: self.name.clone(),
+            mode: self.mode.clone(),
+        }
+    }
+}
+
+#[allow(deprecated)]
 impl Optional {
     #[cfg(feature = "secure")]
     #[allow(missing_docs)]
@@ -175,15 +191,60 @@ impl Optional {
     }
 }
 
+#[allow(deprecated)]
 impl<'a> Endpoint<'a> for Optional {
     type Output = (Option<Cookie<'static>>,);
-    type Future = ::futures::future::FutureResult<Self::Output, Error>;
+    type Future = future::FutureResult<Self::Output, Error>;
 
     fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
-        Ok(::futures::future::result(
+        Ok(future::result(
             self.mode
                 .extract_cookie(ecx.input(), &self.name)
                 .map(|x| (x,)),
+        ))
+    }
+}
+
+// ==== cookies ====
+
+/// Creates an endpoint which returns an object for tracking Cookie values.
+///
+/// # Example
+///
+/// ```
+/// # extern crate finchers;
+/// # use finchers::prelude::*;
+/// # use finchers::endpoints::cookie::cookies;
+/// # use finchers::input::Cookies;
+/// #
+/// # fn main() {
+/// let endpoint = cookies()
+///     .map(|cookies: Cookies| {
+///         let session_id = cookies.get("session-id");
+///         // ...
+/// #       drop(session_id);
+/// #       ()
+///     });
+/// # drop(endpoint);
+/// # }
+/// ```
+pub fn cookies() -> CookiesEndpoint {
+    CookiesEndpoint { _priv: () }
+}
+
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct CookiesEndpoint {
+    _priv: (),
+}
+
+impl<'a> Endpoint<'a> for CookiesEndpoint {
+    type Output = (Cookies,);
+    type Future = future::FutureResult<Self::Output, Error>;
+
+    fn apply(&'a self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+        Ok(future::result(
+            cx.input().cookies2().map(|cookies| (cookies,)),
         ))
     }
 }

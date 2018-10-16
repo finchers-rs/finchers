@@ -1,4 +1,5 @@
 extern crate bytes;
+extern crate cookie;
 #[macro_use]
 extern crate failure;
 #[macro_use]
