@@ -227,6 +227,16 @@ pub fn bad_request(msg: impl Debug + Display + Send + Sync + 'static) -> Error {
 }
 
 #[allow(missing_docs)]
+pub fn forbidden(msg: impl Debug + Display + Send + Sync + 'static) -> Error {
+    err_msg(StatusCode::FORBIDDEN, msg)
+}
+
+#[allow(missing_docs)]
+pub fn not_found() -> Error {
+    err_msg(StatusCode::NOT_FOUND, "not found")
+}
+
+#[allow(missing_docs)]
 pub fn err_msg(status: StatusCode, msg: impl Debug + Display + Send + Sync + 'static) -> Error {
     ErrorMessage { status, msg }.into()
 }
