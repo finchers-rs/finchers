@@ -7,6 +7,7 @@ pub mod status;
 mod binary;
 mod debug;
 mod json;
+mod redirect;
 mod text;
 
 use either::Either;
@@ -23,6 +24,7 @@ use self::body::ResBody;
 pub use self::debug::Debug;
 pub use self::fs::NamedFile;
 pub use self::json::Json;
+pub use self::redirect::Redirect;
 
 /// Contextual information at applying `Output::respond`.
 #[derive(Debug)]
