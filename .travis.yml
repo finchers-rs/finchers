@@ -45,7 +45,8 @@ matrix:
         cargo update &&
         cargo build
       after_success: >-
-        cargo +nightly tarpaulin --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
+        cargo +nightly tarpaulin --out Xml --verbose --all-features &&
+        bash <(curl -s https://codecov.io/bash)
 
     # The minimal supported toolchain
     - rust: 1.29.1
