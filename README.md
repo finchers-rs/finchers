@@ -24,7 +24,7 @@ Add this item to `Cargo.toml` in your project:
 
 ```toml
 [dependencies]
-finchers = "0.13.4"
+finchers = "0.13.5"
 ```
 
 # Example
@@ -86,7 +86,7 @@ at your option.
 [appveyor]: https://ci.appveyor.com/project/ubnt-intrepid/finchers/branch/master
 [circleci]: https://circleci.com/gh/finchers-rs/finchers/tree/master
 [codecov]: https://codecov.io/gh/finchers-rs/finchers
-[dependencies]: https://deps.rs/crate/finchers/0.13.4
+[dependencies]: https://deps.rs/crate/finchers/0.13.5
 [rustc-version]: https://rust-lang.org
 
 [crates-io-badge]: https://img.shields.io/crates/v/finchers.svg
@@ -98,7 +98,7 @@ at your option.
 [appveyor-badge]: https://ci.appveyor.com/api/projects/status/76smoc919fni4n6l/branch/master?svg=true
 [circleci-badge]: https://circleci.com/gh/finchers-rs/finchers/tree/master.svg?style=svg
 [codecov-badge]: https://codecov.io/gh/finchers-rs/finchers/branch/master/graph/badge.svg
-[dependencies-badge]: https://deps.rs/crate/finchers/0.13.4/status.svg
+[dependencies-badge]: https://deps.rs/crate/finchers/0.13.5/status.svg
 [rustc-version-badge]: https://img.shields.io/badge/rustc-1.29+-yellow.svg
 
 [`finchers-juniper`]: https://github.com/finchers-rs/finchers-juniper
