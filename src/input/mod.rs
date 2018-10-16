@@ -1,16 +1,17 @@
 //! Components for parsing the incoming HTTP request.
 
 mod body;
+mod cookie;
 mod encoded;
 mod header;
 
 pub use self::body::{Payload, ReqBody};
+pub use self::cookie::Cookies;
 pub use self::encoded::{EncodedStr, FromEncodedStr};
 pub use self::header::FromHeaderValue;
 
 // ====
 
-use cookie::{Cookie, CookieJar};
 use futures::Future;
 use http;
 use http::header::{HeaderMap, HeaderValue};
@@ -18,6 +19,7 @@ use http::Request;
 use http::{Response, StatusCode};
 use mime::Mime;
 
+use self::cookie::{CookieJar, CookieManager};
 use error::{bad_request, Error};
 
 type Task = Box<dyn Future<Item = (), Error = ()> + Send + 'static>;
@@ -28,7 +30,7 @@ pub struct Input {
     request: Request<ReqBody>,
     #[cfg_attr(feature = "cargo-clippy", allow(option_option))]
     media_type: Option<Option<Mime>>,
-    cookie_jar: Option<CookieJar>,
+    cookie_manager: CookieManager,
     response_headers: Option<HeaderMap>,
 }
 
@@ -37,7 +39,7 @@ impl Input {
         Input {
             request,
             media_type: None,
-            cookie_jar: None,
+            cookie_manager: Default::default(),
             response_headers: None,
         }
     }
@@ -99,24 +101,17 @@ impl Input {
         }
     }
 
-    /// Returns a `Cookies<'_>` or initialize the internal Cookie jar.
+    #[doc(hidden)]
+    #[deprecated(since = "0.13.5", note = "use `Input::cookies2()` instead.")]
     pub fn cookies(&mut self) -> Result<&mut CookieJar, Error> {
-        match self.cookie_jar {
-            Some(ref mut jar) => Ok(jar),
-            None => {
-                let mut cookie_jar = CookieJar::new();
+        self.cookies2()?;
+        Ok(self.cookie_manager.jar().expect("should be available"))
+    }
 
-                for cookie in self.request.headers().get_all(http::header::COOKIE) {
-                    let cookie_str = cookie.to_str().map_err(bad_request)?;
-                    for s in cookie_str.split(';').map(|s| s.trim()) {
-                        let cookie = Cookie::parse_encoded(s).map_err(bad_request)?.into_owned();
-                        cookie_jar.add_original(cookie);
-                    }
-                }
-
-                Ok(self.cookie_jar.get_or_insert(cookie_jar))
-            }
-        }
+    /// Returns a `Cookies` or initialize the internal Cookie jar.
+    pub fn cookies2(&mut self) -> Result<Cookies, Error> {
+        self.cookie_manager
+            .ensure_initialized(self.request.headers())
     }
 
     /// Returns a mutable reference to a `HeaderMap` which contains the entries of response headers.
@@ -150,7 +145,7 @@ impl Input {
             Err(err) => err.into_response().map(Err),
         };
 
-        if let Some(ref jar) = self.cookie_jar {
+        if let Some(jar) = self.cookie_manager.into_inner() {
             for cookie in jar.delta() {
                 let val = HeaderValue::from_str(&cookie.encoded().to_string()).unwrap();
                 response.headers_mut().append(http::header::SET_COOKIE, val);
