@@ -4,7 +4,7 @@ use std::fmt;
 use super::{Output, OutputContext};
 use error::Never;
 
-/// An instance of `Responder` representing text responses with debug output.
+/// An instance of `Output` representing text responses with debug output.
 ///
 /// NOTE: This wrapper is only for debugging and should not use in the production code.
 #[derive(Debug)]

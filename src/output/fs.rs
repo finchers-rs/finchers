@@ -19,7 +19,7 @@ use mime_guess::guess_mime_type;
 use super::{Output, OutputContext};
 use error::Never;
 
-/// An instance of `Responder` representing a file on the file system.
+/// An instance of `Output` representing a file on the file system.
 #[derive(Debug)]
 pub struct NamedFile {
     file: File,

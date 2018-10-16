@@ -7,7 +7,7 @@ use serde_json::Value;
 use super::{Output, OutputContext};
 use error::{fail, Error, Never};
 
-/// An instance of `Responder` representing statically typed JSON responses.
+/// An instance of `Output` representing statically typed JSON responses.
 #[derive(Debug)]
 pub struct Json<T>(pub T);
 
