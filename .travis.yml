@@ -3,7 +3,6 @@ sudo: false
 language: rust
 
 cache:
-  apt: true
   cargo: true
 
 branches:
@@ -12,7 +11,7 @@ branches:
 
 script: >-
   cargo update &&
-  cargo test
+  cargo build --all-features
 
 matrix:
   allow_failures:
@@ -28,11 +27,14 @@ matrix:
           cargo fmt -- --check &&
           cargo update &&
           rake FINCHERS_DENY_WARNINGS=1
-        - if [[ "${TRAVIS_PULL_REQUEST_BRANCH:-}" = release-* ]]; then cargo publish --dry-run; fi
 
     - rust: beta
     - rust: nightly
     - rust: 1.29.1
+    - rust: stable
+      os: osx
+    - rust: stable
+      os: windows
 
     - rust: beta
       env: DEPLOY_API_DOC

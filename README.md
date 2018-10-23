@@ -62,9 +62,9 @@ fn main() {
 
 # Status
 
-| Travis CI | Appveyor | CircleCI | Codecov |
-|:---------:|:--------:|:--------:|:-------:|
-| [![Travis CI][travis-badge]][travis] | [![Appveyor][appveyor-badge]][appveyor] | [![CircleCI][circleci-badge]][circleci] | [![Codecov][codecov-badge]][codecov] |
+| Travis CI | CircleCI | Codecov |
+|:---------:|:--------:|:-------:|
+| [![Travis CI][travis-badge]][travis] | [![CircleCI][circleci-badge]][circleci] | [![Codecov][codecov-badge]][codecov] |
 
 # License
 This project is licensed under either of
@@ -83,7 +83,6 @@ at your option.
 [user-guide]: https://finchers-rs.github.io/finchers/guide/index.html
 [gitter]: https://gitter.im/finchers-rs/finchers
 [travis]: https://travis-ci.org/finchers-rs/finchers
-[appveyor]: https://ci.appveyor.com/project/ubnt-intrepid/finchers/branch/master
 [circleci]: https://circleci.com/gh/finchers-rs/finchers/tree/master
 [codecov]: https://codecov.io/gh/finchers-rs/finchers
 [dependencies]: https://deps.rs/crate/finchers/0.13.5
@@ -95,7 +94,6 @@ at your option.
 [master-doc-badge]: https://img.shields.io/badge/docs-master-blue.svg
 [gitter-badge]: https://badges.gitter.im/finchers-rs/finchers.svg
 [travis-badge]: https://travis-ci.org/finchers-rs/finchers.svg?branch=master
-[appveyor-badge]: https://ci.appveyor.com/api/projects/status/76smoc919fni4n6l/branch/master?svg=true
 [circleci-badge]: https://circleci.com/gh/finchers-rs/finchers/tree/master.svg?style=svg
 [codecov-badge]: https://codecov.io/gh/finchers-rs/finchers/branch/master/graph/badge.svg
 [dependencies-badge]: https://deps.rs/crate/finchers/0.13.5/status.svg
