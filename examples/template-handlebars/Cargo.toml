@@ -1,0 +1,18 @@
+[package]
+name = "example-template-handlebars"
+version = "0.0.0"
+authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
+publish = false
+
+[[bin]]
+name = "example_template_handlebars"
+path = "src/main.rs"
+doc = false
+
+[dependencies]
+finchers = "0.13"
+finchers-template = { version = "0.2.0-dev", features = ["use-handlebars"] }
+handlebars = "1"
+pretty_env_logger = "0.2.4"
+log = "0.4.5"
+serde = "1"

@@ -1,0 +1,14 @@
+tag-prefix = "v"
+tag-message = "release {{version}}"
+dev-version-ext = "dev"
+pre-release-commit-message = "bump version to {{version}}"
+
+[[pre-release-replacements]]
+file = "README.md"
+search = "https://deps.rs/crate/finchers-session/[a-z0-9\\.-]+"
+replace = "https://deps.rs/crate/finchers-session/{{version}}"
+
+[[pre-release-replacements]]
+file = "src/lib.rs"
+search = "https://docs.rs/finchers-session/[a-z0-9\\.-]+"
+replace = "https://docs.rs/finchers-session/{{version}}"

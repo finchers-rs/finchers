@@ -1,0 +1,22 @@
+[package]
+name = "example-template-askama"
+version = "0.0.0"
+authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
+publish = false
+
+build = "build.rs"
+
+[[bin]]
+name = "example_template_askama"
+path = "src/main.rs"
+doc = false
+
+[dependencies]
+finchers = "0.13"
+finchers-template = { version = "0.2.0-dev", features = ["use-askama"] }
+askama = "0.7"
+pretty_env_logger = "0.2.4"
+log = "0.4.5"
+
+[build-dependencies]
+askama = "0.7"

@@ -1,0 +1,47 @@
+[package]
+name = "finchers-juniper"
+version = "0.2.1"
+authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
+description = """
+A set of extensions for supporting Juniper integration.
+"""
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/finchers-rs/finchers-juniper.git"
+
+include = [
+  "Cargo.toml",
+  "build.rs",
+  "src/**/*",
+  "tests/**/*",
+  "examples/**/*",
+  "benches/**/*",
+  "LICENSE-MIT",
+  "LICENSE-APACHE",
+  "README.md"
+]
+
+[package.metadata.docs.rs]
+# FIXME: remove it as soon as the rustc version used in docs.rs is updated
+rustdoc-args = ["--cfg", "finchers_inject_extern_prelude"]
+
+[dependencies]
+finchers = "0.13"
+
+bytes = "0.4.9"
+failure = { version = "0.1.2", features = ["derive"] }
+futures = "0.1.24"
+http = "0.1.10"
+juniper = "0.10.0"
+log = "0.4.5"
+percent-encoding = "1.0.1"
+serde = { version = "1.0.75", features = ["derive"] }
+serde_json = "1.0.26"
+serde_qs = "0.4.1"
+
+[dev-dependencies]
+pretty_env_logger = "0.2.4"
+juniper = { version = "0.10.0", features = ["expose-test-schema", "serde_json"] }
+futures-cpupool = "0.1.8"
+matches = "0.1.8"
+cargo-husky = "1.0.1"

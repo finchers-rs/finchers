@@ -1,0 +1,18 @@
+[package]
+name = "example-juniper"
+version = "0.0.0"
+edition = "2018"
+authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
+publish = false
+
+[[bin]]
+name = "example_juniper"
+path = "src/main.rs"
+doc = false
+
+[dependencies]
+finchers = "0.13"
+finchers-juniper = "0.2"
+juniper = "0.10"
+log = "0.4.5"
+pretty_env_logger = "0.2.4"

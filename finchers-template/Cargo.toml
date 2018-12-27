@@ -1,0 +1,64 @@
+[package]
+name = "finchers-template"
+version = "0.2.0-dev"
+authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
+description = """
+Template engine support for Finchers.
+"""
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/finchers-rs/finchers-template.git"
+
+build = "build.rs"
+
+include = [
+  "/Cargo.toml",
+  "/build.rs",
+  "/src/**/*",
+  "/tests/**/*",
+  "/examples/**/*",
+  "/benches/**/*",
+  "/LICENSE-MIT",
+  "/LICENSE-APACHE",
+]
+
+[package.metadata.docs.rs]
+features = [
+  "use-tera",
+  "use-handlebars",
+  "use-askama",
+  "use-horrorshow",
+]
+# FIXME: remove it as soon as the rustc version used in docs.rs is updated
+rustdoc-args = ["--cfg", "finchers_inject_extern_prelude"]
+
+[dependencies]
+finchers = "0.13"
+
+failure = "0.1.2"
+futures = "0.1.24"
+http = "0.1.13"
+lazy_static = "1.1.0"
+mime = "0.3.9"
+
+askama = { version = "0.7", optional = true }
+handlebars = { version = "1", optional = true }
+horrorshow = { version = "0.6", optional = true }
+tera = { version = "0.11", optional = true }
+
+mime_guess = { version = "2.0.0-alpha.6", optional = true }
+serde = { version = "1.0.79", optional = true }
+
+[dev-dependencies]
+matches = "0.1.8"
+
+[dev-dependencies.cargo-husky]
+version = "1"
+default-features = false
+features = ["user-hooks"]
+
+[features]
+use-handlebars = ["handlebars", "mime_guess", "serde"]
+use-tera = ["tera", "mime_guess", "serde"]
+use-askama = ["askama", "mime_guess"]
+use-horrorshow = ["horrorshow"]
