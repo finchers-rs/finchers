@@ -45,7 +45,8 @@ fn main() {
         path!(@get /)
             .map(|| UserInfo {
                 name: "Alice".into(),
-            }).wrap(finchers_template::tera(engine, UserInfo::TEMPLATE_NAME))
+            })
+            .wrap(finchers_template::tera(engine, UserInfo::TEMPLATE_NAME))
     };
 
     info!("Listening on http://127.0.0.1:4000");

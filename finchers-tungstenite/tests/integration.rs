@@ -32,7 +32,8 @@ fn test_handshake() {
                 .header("upgrade", "websocket")
                 .header("sec-websocket-version", "13")
                 .header("sec-websocket-key", "dGhlIHNhbXBsZSBub25jZQ=="),
-        ).unwrap();
+        )
+        .unwrap();
 
     assert_eq!(response.status().as_u16(), 101);
     assert!(response.body().is_upgraded());

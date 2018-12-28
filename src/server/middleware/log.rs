@@ -190,7 +190,8 @@ mod impl_stdlog {
                         self.uri,
                         response.status(),
                         self.start.elapsed()
-                    )).level(self.level)
+                    ))
+                    .level(self.level)
                     .target(self.target)
                     .build(),
             );

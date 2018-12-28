@@ -78,7 +78,8 @@ fn main() -> Fallible<()> {
                 session.with(|session| {
                     let value = serde_json::to_string(&Login {
                         username: form.username,
-                    }).map_err(finchers::error::fail)?;
+                    })
+                    .map_err(finchers::error::fail)?;
                     session.set(value);
                     Ok(redirect_to("/"))
                 })

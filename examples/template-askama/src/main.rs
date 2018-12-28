@@ -24,7 +24,8 @@ fn main() {
     let endpoint = path!(@get /)
         .map(|| UserInfo {
             name: "Alice".into(),
-        }).wrap(finchers_template::askama());
+        })
+        .wrap(finchers_template::askama());
 
     info!("Listening on http://127.0.0.1:4000");
     finchers::server::start(endpoint)

@@ -64,7 +64,8 @@ pub fn segment(s: impl AsRef<str>) -> MatchSegment {
     debug_assert!(!s.is_empty());
     (MatchSegment {
         encoded: percent_encode(s.as_bytes(), SEGMENT_ENCODE_SET).to_string(),
-    }).with_output::<()>()
+    })
+    .with_output::<()>()
 }
 
 #[allow(missing_docs)]
@@ -156,7 +157,8 @@ where
 {
     (Param {
         _marker: PhantomData,
-    }).with_output::<(T,)>()
+    })
+    .with_output::<(T,)>()
 }
 
 #[allow(missing_docs)]
@@ -206,7 +208,8 @@ where
 {
     (Remains {
         _marker: PhantomData,
-    }).with_output::<(T,)>()
+    })
+    .with_output::<(T,)>()
 }
 
 #[allow(missing_docs)]

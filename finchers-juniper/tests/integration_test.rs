@@ -46,13 +46,14 @@ where
                 Request::post(custom_url_encode(url))
                     .header("content-type", "application/json")
                     .body(body.to_owned()),
-            ).unwrap();
+            )
+            .unwrap();
         make_test_response(response)
     }
 }
 
 fn custom_url_encode(url: &str) -> String {
-    define_encode_set!{
+    define_encode_set! {
         pub CUSTOM_ENCODE_SET = [QUERY_ENCODE_SET] | {'{', '}'}
     }
     utf8_percent_encode(url, CUSTOM_ENCODE_SET).to_string()

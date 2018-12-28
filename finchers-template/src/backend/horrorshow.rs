@@ -28,7 +28,7 @@ impl<CtxT: Template> EngineImpl<CtxT> for HorrorshowEngine {
 #[test]
 fn test_horrorshow() {
     let value = {
-        html!{
+        html! {
             p: "Alice";
         }
     };

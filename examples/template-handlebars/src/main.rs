@@ -44,7 +44,8 @@ fn main() {
     let endpoint = path!(@get /)
         .map(|| UserInfo {
             name: "Alice".into(),
-        }).wrap(finchers_template::handlebars(
+        })
+        .wrap(finchers_template::handlebars(
             engine,
             UserInfo::TEMPLATE_NAME,
         ));

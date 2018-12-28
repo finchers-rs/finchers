@@ -29,7 +29,8 @@ fn main() {
                     }
                 }
             }
-        }).wrap(finchers_template::horrorshow());
+        })
+        .wrap(finchers_template::horrorshow());
 
     info!("Listening on http://127.0.0.1:4000");
     finchers::server::start(endpoint)

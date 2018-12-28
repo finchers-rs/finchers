@@ -41,7 +41,7 @@
     missing_debug_implementations,
     nonstandard_style,
     rust_2018_idioms,
-    unused,
+    unused
 )]
 // FIXME: re-enable the following lint after shipping rust-1.31 out
 // #![warn(rust_2018_compatibility)]

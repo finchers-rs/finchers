@@ -45,7 +45,8 @@ where
     (Parse {
         name: HeaderName::from_static(name),
         _marker: PhantomData,
-    }).with_output::<(T,)>()
+    })
+    .with_output::<(T,)>()
 }
 
 #[allow(missing_docs)]
@@ -127,7 +128,8 @@ where
     (Optional {
         name: HeaderName::from_static(name),
         _marker: PhantomData,
-    }).with_output::<(Option<T>,)>()
+    })
+    .with_output::<(Option<T>,)>()
 }
 
 #[allow(missing_docs)]
@@ -214,7 +216,8 @@ where
     (Matches {
         name: HeaderName::try_from(name).expect("invalid header name"),
         value,
-    }).with_output::<()>()
+    })
+    .with_output::<()>()
 }
 
 #[allow(missing_docs)]
@@ -250,7 +253,8 @@ where
 {
     (Raw {
         name: HeaderName::try_from(name).expect("invalid header name"),
-    }).with_output::<(Option<HeaderValue>,)>()
+    })
+    .with_output::<(Option<HeaderValue>,)>()
 }
 
 #[allow(missing_docs)]

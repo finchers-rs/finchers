@@ -45,7 +45,8 @@ mod schema {
     where
         QueryT: GraphQLType<Context = CtxT>,
         MutationT: GraphQLType<Context = CtxT>,
-    {}
+    {
+    }
     impl<S: Schema> Schema for Box<S> {}
     impl<S: Schema> Schema for Rc<S> {}
     impl<S: Schema> Schema for Arc<S> {}
@@ -122,7 +123,8 @@ mod shared {
         S::Mutation: Send + Sync + 'static,
         <S::Query as GraphQLType>::TypeInfo: Send + Sync + 'static,
         <S::Mutation as GraphQLType>::TypeInfo: Send + Sync + 'static,
-    {}
+    {
+    }
 
     pub trait SharedSchemaImpl: Send + Sync + 'static {
         type Context: Send + 'static;

@@ -21,7 +21,7 @@
     missing_debug_implementations,
     nonstandard_style,
     rust_2018_idioms,
-    unused,
+    unused
 )]
 //#![warn(rust_2018_compatibility)]
 #![cfg_attr(test, deny(warnings))]

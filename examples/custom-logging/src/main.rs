@@ -50,7 +50,7 @@ mod logging {
         fn start<T>(&self, request: &Request<T>) -> Self::Instance {
             let start = Instant::now();
             SlogInstance {
-                logger: self.logger.new(slog::o!{
+                logger: self.logger.new(slog::o! {
                     "request_method" => request.method().to_string(),
                     "request_uri" => request.uri().to_string(),
                 }),

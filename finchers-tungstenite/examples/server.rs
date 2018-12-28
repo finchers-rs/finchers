@@ -22,7 +22,8 @@ fn on_upgrade(stream: WsTransport) -> impl Future<Item = (), Error = ()> {
             Message::Pong(..) => None,
             m => Some(m),
         }
-    }).forward(tx)
+    })
+    .forward(tx)
     .map(|_| ())
     .map_err(|e| match e {
         WsError::ConnectionClosed(..) => info!("connection is closed"),
@@ -48,7 +49,8 @@ fn main() {
                   </body>
                 </html>
                 "#,
-            ).unwrap()
+            )
+            .unwrap()
     });
 
     let ws_endpoint = path!(/ "ws" /)

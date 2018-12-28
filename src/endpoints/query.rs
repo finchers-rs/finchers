@@ -47,7 +47,8 @@ where
 {
     (Required {
         _marker: PhantomData,
-    }).with_output::<(T,)>()
+    })
+    .with_output::<(T,)>()
 }
 
 #[allow(missing_docs)]
@@ -108,7 +109,8 @@ where
                 .query()
                 .expect("The query string should be available inside of this future.");
             serde_qs::from_str(query).map_err(SyncFailure::new)
-        }).map(|x| (x,).into())
+        })
+        .map(|x| (x,).into())
         .map_err(bad_request)
     }
 }
@@ -149,7 +151,8 @@ where
 {
     (Optional {
         _marker: PhantomData,
-    }).with_output::<(Option<T>,)>()
+    })
+    .with_output::<(Option<T>,)>()
 }
 
 #[allow(missing_docs)]

@@ -97,6 +97,7 @@ where
             .poll(|result, f| match result {
                 Ok(ok) => TryChainAction::Future(f.call(ok).into_future()),
                 Err(err) => TryChainAction::Output(Err(err)),
-            }).map(|x| x.map(|ok| (ok,)))
+            })
+            .map(|x| x.map(|ok| (ok,)))
     }
 }

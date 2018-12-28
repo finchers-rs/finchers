@@ -9,7 +9,7 @@
     missing_debug_implementations,
     nonstandard_style,
     rust_2018_idioms,
-    unused,
+    unused
 )]
 //#![warn(rust_2018_compatibility)]
 #![cfg_attr(finchers_deny_warnings, deny(warnings))]
@@ -23,13 +23,11 @@ extern crate http;
 #[macro_use]
 extern crate lazy_static;
 extern crate mime;
-#[cfg(
-    any(
-        feature = "use-tera",
-        feature = "use-handlebars",
-        feature = "use-askama"
-    )
-)]
+#[cfg(any(
+    feature = "use-tera",
+    feature = "use-handlebars",
+    feature = "use-askama"
+))]
 extern crate mime_guess;
 
 #[cfg(any(feature = "use-tera", feature = "use-handlebars"))]

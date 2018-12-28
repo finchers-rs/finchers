@@ -139,7 +139,8 @@ pub trait IntoEndpointExt<'a>: IntoEndpoint<'a> + Sized {
         (And {
             e1: self.into_endpoint(),
             e2: other.into_endpoint(),
-        }).with_output::<<Self::Output as Combine<E::Output>>::Out>()
+        })
+        .with_output::<<Self::Output as Combine<E::Output>>::Out>()
     }
 
     /// Create an endpoint which evaluates `self` and `e` sequentially.
@@ -153,7 +154,8 @@ pub trait IntoEndpointExt<'a>: IntoEndpoint<'a> + Sized {
         (Or {
             e1: self.into_endpoint(),
             e2: other.into_endpoint(),
-        }).with_output::<(self::or::Wrapped<Self::Output, E::Output>,)>()
+        })
+        .with_output::<(self::or::Wrapped<Self::Output, E::Output>,)>()
     }
 
     /// Create an endpoint which evaluates `self` and `e` sequentially.
@@ -173,7 +175,8 @@ pub trait IntoEndpointExt<'a>: IntoEndpoint<'a> + Sized {
         (OrStrict {
             e1: self.into_endpoint(),
             e2: other.into_endpoint(),
-        }).with_output::<Self::Output>()
+        })
+        .with_output::<Self::Output>()
     }
 }
 

@@ -89,11 +89,12 @@ fn main() -> Fallible<()> {
                             conn_opt.ok_or_else(|| {
                                 finchers::error::err_msg(StatusCode::NOT_FOUND, "not found")
                             })
-                        }).map(output::Json)
+                        })
+                        .map(output::Json)
                 })
             });
 
-    let endpoint = path!(/"api"/"v1"/"posts").and(routes!{
+    let endpoint = path!(/"api"/"v1"/"posts").and(routes! {
         get_posts,
         create_post,
         find_post,
