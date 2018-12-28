@@ -15,4 +15,4 @@ Session support for Finchers.
 * Redis (requires the feature flag `feature = "redis"`)
 
 # License
-[MIT license](LICENSE-MIT) or [Apache License, Version 2.0](LICENSE-APACHE) at your option.
+[MIT license](../LICENSE-MIT) or [Apache License, Version 2.0](../LICENSE-APACHE) at your option.

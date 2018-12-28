@@ -8,4 +8,4 @@ A collection of endpoints for parsing HTTP headers.
 
 ## License
 
-[MIT license](./LICENSE-MIT) or [Apache License, Version 2.0](./LICENSE-APACHE) at your option.
+[MIT license](../LICENSE-MIT) or [Apache License, Version 2.0](../LICENSE-APACHE) at your option.

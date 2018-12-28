@@ -15,4 +15,4 @@ Template engine support for Finchers.
 * Horrorshow (https://github.com/Stebalien/horrorshow-rs)
 
 # License
-[MIT license](LICENSE-MIT) or [Apache License, Version 2.0](LICENSE-APACHE) at your option.
+[MIT license](../LICENSE-MIT) or [Apache License, Version 2.0](../LICENSE-APACHE) at your option.

@@ -25,8 +25,7 @@ matrix:
       script:
         - >-
           cargo fmt -- --check &&
-          cargo update &&
-          rake FINCHERS_DENY_WARNINGS=1
+          cargo test --all
 
     - rust: beta
     - rust: nightly
@@ -36,7 +35,7 @@ matrix:
     - rust: stable
       os: windows
 
-    - rust: beta
+    - rust: stable
       env: DEPLOY_API_DOC
       script: >-
         rm -rf target/doc &&
