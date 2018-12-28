@@ -13,7 +13,7 @@ BRANCH="$(git symbolic-ref --short HEAD)"
     exit 0
 }
 
-if rake --version >/dev/null 2>&1; then
+if cargo --version >/dev/null 2>&1; then
     (set -x; rake FINCHERS_DENY_WARNINGS=1)
 else
     echo "[warn] 'rake' is not installed."

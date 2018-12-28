@@ -60,10 +60,10 @@ version_check = "0.1.5"
 [dev-dependencies]
 matches = "0.1.8"
 
-[dev-dependencies.cargo-husky]
-version = "1"
-default-features = false
-features = ["user-hooks"]
+# [dev-dependencies.cargo-husky]
+# version = "1"
+# default-features = false
+# features = ["user-hooks"]
 
 [features]
 default = []
