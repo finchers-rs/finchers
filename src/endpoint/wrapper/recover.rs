@@ -101,7 +101,8 @@ where
             .poll(|result, f| match result {
                 Ok(ok) => TryChainAction::Output(Ok(Either::Left(ok))),
                 Err(err) => TryChainAction::Future(f(err)),
-            }).map(|x| x.map(|ok| (Recovered(ok),)))
+            })
+            .map(|x| x.map(|ok| (Recovered(ok),)))
     }
 }
 

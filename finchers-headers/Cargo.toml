@@ -1,0 +1,24 @@
+[package]
+name = "finchers-headers"
+version = "0.1.0-alpha.1"
+description = """
+A collection of endpoints for parsing HTTP headers.
+"""
+authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/finchers-rs/finchers-headers.git"
+readme = "README.md"
+publish = false
+
+[features]
+strict = []
+
+[dependencies]
+failure = "0.1.2"
+finchers = "0.12.0-alpha.5"
+futures-preview = "0.3.0-alpha.6"
+http = "0.1"
+hyperx = "0.13.1"
+
+[patch.crates-io]
+finchers = { git = "https://github.com/finchers-rs/finchers.git", branch = "master" }

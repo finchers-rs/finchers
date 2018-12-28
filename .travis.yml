@@ -21,22 +21,21 @@ matrix:
   include:
     - rust: stable
       before_script:
-        - rustup component add rustfmt-preview clippy-preview
+        - rustup component add rustfmt clippy
       script:
         - >-
           cargo fmt -- --check &&
-          cargo update &&
-          rake FINCHERS_DENY_WARNINGS=1
+          cargo test --all
 
     - rust: beta
     - rust: nightly
-    - rust: 1.29.1
+    - rust: 1.31.1
     - rust: stable
       os: osx
     - rust: stable
       os: windows
 
-    - rust: beta
+    - rust: stable
       env: DEPLOY_API_DOC
       script: >-
         rm -rf target/doc &&

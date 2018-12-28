@@ -43,7 +43,8 @@ fn test_header_parse_required() {
         endpoints::header::parse::<Mime>("content-type")
             .wrap(endpoint::wrapper::or_reject_with(|_, _| {
                 error::bad_request("missing content-type")
-            })).with_output::<(Mime,)>()
+            }))
+            .with_output::<(Mime,)>()
     });
 
     assert_matches!(
@@ -80,7 +81,8 @@ fn test_header_matches_with_rejection() {
         endpoints::header::matches("origin", "www.example.com")
             .wrap(endpoint::wrapper::or_reject_with(|_, _| {
                 error::bad_request("The value of Origin is invalid")
-            })).with_output::<()>()
+            }))
+            .with_output::<()>()
     });
 
     assert_matches!(

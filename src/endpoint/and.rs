@@ -87,7 +87,8 @@ where
         (And {
             e1: self.0.into_endpoint(),
             e2: self.1.into_endpoint(),
-        }).with_output::<<E1::Output as Combine<E2::Output>>::Out>()
+        })
+        .with_output::<<E1::Output as Combine<E2::Output>>::Out>()
     }
 }
 
@@ -109,7 +110,8 @@ where
                 e1: self.1.into_endpoint(),
                 e2: self.2.into_endpoint(),
             },
-        }).with_output::<<E1::Output as Combine<<E2::Output as Combine<E3::Output>>::Out>>::Out>()
+        })
+        .with_output::<<E1::Output as Combine<<E2::Output as Combine<E3::Output>>::Out>>::Out>()
     }
 }
 
@@ -138,7 +140,8 @@ where
                     e2: self.3.into_endpoint(),
                 },
             },
-        }).with_output::<<E1::Output as Combine<
+        })
+        .with_output::<<E1::Output as Combine<
             <E2::Output as Combine<<E3::Output as Combine<E4::Output>>::Out>>::Out,
         >>::Out>()
     }
@@ -181,7 +184,8 @@ where
                     },
                 },
             },
-        }).with_output::<<E1::Output as Combine<
+        })
+        .with_output::<<E1::Output as Combine<
             <E2::Output as Combine<
                 <E3::Output as Combine<<E4::Output as Combine<E5::Output>>::Out>>::Out,
             >>::Out,

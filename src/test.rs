@@ -247,7 +247,8 @@ impl<E> TestRunner<E> {
                             Ok(Async::Ready(data)) => Ok(Async::Ready(data.map(Buf::collect))),
                             Ok(Async::NotReady) => Ok(Async::NotReady),
                             Err(err) => Err(err),
-                        }).collect(),
+                        })
+                        .collect(),
                     )?;
 
                     let trailers = rt.block_on(future::poll_fn(|| payload.poll_trailers()))?;
@@ -291,7 +292,8 @@ mod request {
     where
         T: TestRequest,
         E: Into<http::Error>,
-    {}
+    {
+    }
 
     pub trait TestRequestImpl {
         fn into_request(self) -> http::Result<Request<ReqBody>>;

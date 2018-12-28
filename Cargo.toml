@@ -31,11 +31,6 @@ rustdoc-args = ["--cfg", "finchers_inject_extern_prelude"]
 [badges]
 maintenance = { status = "actively-developed" }
 
-[workspace]
-members = [
-  "testcrates/doctest",
-]
-
 [dependencies]
 bitflags = "1.0.4"
 bytes = { version = "0.4.9", features = ["either"] }
@@ -65,11 +60,43 @@ version_check = "0.1.5"
 [dev-dependencies]
 matches = "0.1.8"
 
-[dev-dependencies.cargo-husky]
-version = "1"
-default-features = false
-features = ["user-hooks"]
+# [dev-dependencies.cargo-husky]
+# version = "1"
+# default-features = false
+# features = ["user-hooks"]
 
 [features]
 default = []
 secure = ["cookie/secure"]
+
+[workspace]
+members = [
+  "testcrates/doctest",
+
+  #"finchers-headers",
+  "finchers-juniper",
+  "finchers-session",
+  "finchers-template",
+  "finchers-tungstenite",
+
+  "examples/custom-logging",
+  "examples/diesel",
+  "examples/juniper",
+  "examples/jwt-auth",
+  "examples/middlewares",
+  "examples/session-redis",
+  "examples/staticfiles",
+  "examples/template-askama",
+  "examples/template-handlebars",
+  "examples/template-horrorshow",
+  "examples/template-tera",
+  "examples/websocket",
+]
+
+[patch.crates-io]
+finchers = { version = "0.13.5", path = "." }
+#finchers-headers = { version = "0.1.0", path = "finchers-headers" }
+finchers-juniper = { version = "0.2.1", path = "finchers-juniper" }
+finchers-session = { version = "0.2.1-dev", path = "finchers-session" }
+finchers-template = { version = "0.2.0-dev", path = "finchers-template" }
+finchers-tungstenite = { version = "0.2.1-dev", path = "finchers-tungstenite" }

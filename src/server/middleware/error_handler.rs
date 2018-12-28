@@ -110,7 +110,8 @@ mod tests {
             .with_middleware(error_handler(|err| {
                 let body = serde_json::to_string_pretty(&err).unwrap();
                 Response::new(body)
-            })).serve("127.0.0.1:4000")
+            }))
+            .serve("127.0.0.1:4000")
             .unwrap();
     }
 }

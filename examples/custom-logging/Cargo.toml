@@ -1,0 +1,18 @@
+[package]
+name = "example-custom-logging"
+version = "0.0.0"
+edition = "2018"
+authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
+publish = false
+
+[[bin]]
+name = "example_custom_logging"
+path = "src/main.rs"
+doc = false
+
+[dependencies]
+finchers = "0.13"
+slog = "2.4"
+sloggers = "0.2"
+http = "0.1.10"
+futures = "0.1.24"

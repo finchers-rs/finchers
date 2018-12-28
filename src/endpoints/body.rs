@@ -198,7 +198,8 @@ where
 {
     (Json {
         _marker: PhantomData,
-    }).with_output::<(T,)>()
+    })
+    .with_output::<(T,)>()
 }
 
 #[allow(missing_docs)]
@@ -231,7 +232,8 @@ where
 {
     (UrlEncoded {
         _marker: PhantomData,
-    }).with_output::<(T,)>()
+    })
+    .with_output::<(T,)>()
 }
 
 #[allow(missing_docs)]

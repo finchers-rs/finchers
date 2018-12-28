@@ -46,24 +46,19 @@ impl Mode {
 }
 
 #[doc(hidden)]
-#[deprecated(
-    since = "0.13.5",
-    note = "use `endpoints::cookies()` instead."
-)]
+#[deprecated(since = "0.13.5", note = "use `endpoints::cookies()` instead.")]
 #[allow(deprecated)]
 #[inline]
 pub fn required(name: impl Into<Cow<'static, str>>) -> Required {
     (Required {
         name: name.into(),
         mode: Mode::Plain,
-    }).with_output::<(Cookie<'static>,)>()
+    })
+    .with_output::<(Cookie<'static>,)>()
 }
 
 #[doc(hidden)]
-#[deprecated(
-    since = "0.13.5",
-    note = "use `endpoints::cookies()` instead."
-)]
+#[deprecated(since = "0.13.5", note = "use `endpoints::cookies()` instead.")]
 pub struct Required {
     name: Cow<'static, str>,
     mode: Mode,
@@ -127,24 +122,19 @@ impl<'a> Endpoint<'a> for Required {
 }
 
 #[doc(hidden)]
-#[deprecated(
-    since = "0.13.5",
-    note = "use `endpoints::cookies()` instead."
-)]
+#[deprecated(since = "0.13.5", note = "use `endpoints::cookies()` instead.")]
 #[allow(deprecated)]
 #[inline]
 pub fn optional(name: impl Into<Cow<'static, str>>) -> Optional {
     (Optional {
         name: name.into(),
         mode: Mode::Plain,
-    }).with_output::<(Option<Cookie<'static>>,)>()
+    })
+    .with_output::<(Option<Cookie<'static>>,)>()
 }
 
 #[doc(hidden)]
-#[deprecated(
-    since = "0.13.5",
-    note = "use `endpoints::cookies()` instead."
-)]
+#[deprecated(since = "0.13.5", note = "use `endpoints::cookies()` instead.")]
 pub struct Optional {
     name: Cow<'static, str>,
     mode: Mode,

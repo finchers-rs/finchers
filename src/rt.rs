@@ -106,12 +106,11 @@ where
     type Error = Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let result = try_ready!(
-            blocking(|| {
-                let op = self.op.take().unwrap();
-                op()
-            }).map_err(fail)
-        );
+        let result = try_ready!(blocking(|| {
+            let op = self.op.take().unwrap();
+            op()
+        })
+        .map_err(fail));
         result.map(Async::Ready).map_err(Into::into)
     }
 }
