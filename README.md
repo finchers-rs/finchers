@@ -62,9 +62,9 @@ fn main() {
 
 # Status
 
-| Travis CI | CircleCI | Codecov |
-|:---------:|:--------:|:-------:|
-| [![Travis CI][travis-badge]][travis] | [![CircleCI][circleci-badge]][circleci] | [![Codecov][codecov-badge]][codecov] |
+| Travis CI | Codecov |
+|:---------:|:-------:|
+| [![Travis CI][travis-badge]][travis] | [![Codecov][codecov-badge]][codecov] |
 
 # License
 This project is licensed under either of

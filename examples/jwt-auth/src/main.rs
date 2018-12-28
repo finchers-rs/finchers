@@ -11,7 +11,7 @@ use jsonwebtoken::TokenData;
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 
-const SECRET_KEY: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/.secret-key"));
+const SECRET_KEY: &[u8] = b"this-is-a-very-very-secret-key";
 
 #[derive(Debug, Deserialize, Serialize)]
 struct Claims {
