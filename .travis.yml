@@ -21,7 +21,7 @@ matrix:
   include:
     - rust: stable
       before_script:
-        - rustup component add rustfmt-preview clippy-preview
+        - rustup component add rustfmt clippy
       script:
         - >-
           cargo fmt -- --check &&
