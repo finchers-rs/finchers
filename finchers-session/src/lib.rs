@@ -21,11 +21,9 @@
     missing_debug_implementations,
     nonstandard_style,
     rust_2018_idioms,
+    rust_2018_compatibility,
     unused
 )]
-//#![warn(rust_2018_compatibility)]
-#![cfg_attr(test, deny(warnings))]
-#![cfg_attr(test, doc(test(attr(deny(warnings)))))]
 
 #[macro_use]
 extern crate failure;

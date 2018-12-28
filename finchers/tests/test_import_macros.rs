@@ -1,5 +1,3 @@
-#![cfg(use_external_macros)]
-
 extern crate finchers;
 
 use finchers::endpoint::syntax;

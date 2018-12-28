@@ -1,6 +1,3 @@
-// FIXME: remove this feature gate as soon as the rustc version used in docs.rs is updated
-#![cfg_attr(finchers_inject_extern_prelude, feature(extern_prelude))]
-
 //! A set of extensions for supporting Juniper integration.
 //!
 //! # Examples
@@ -56,11 +53,9 @@
     missing_debug_implementations,
     nonstandard_style,
     rust_2018_idioms,
+    rust_2018_compatibility,
     unused
 )]
-// #![warn(rust_2018_compatibility)]
-#![cfg_attr(test, deny(warnings))]
-#![cfg_attr(test, doc(test(attr(deny(warnings)))))]
 
 extern crate bytes;
 extern crate failure;
