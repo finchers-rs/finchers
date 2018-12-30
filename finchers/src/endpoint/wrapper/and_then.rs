@@ -30,10 +30,10 @@ pub struct AndThen<T, F> {
     _marker: PhantomData<fn(T)>,
 }
 
-impl<'a, E, F> Wrapper<'a, E> for AndThen<E::Output, F>
+impl<E, F> Wrapper<E> for AndThen<E::Output, F>
 where
-    E: Endpoint<'a>,
-    F: Func<E::Output> + 'a,
+    E: Endpoint,
+    F: Func<E::Output> + Clone,
     F::Out: IntoFuture<Error = Error>,
 {
     type Output = (<F::Out as IntoFuture>::Item,);
@@ -53,40 +53,40 @@ pub struct AndThenEndpoint<E, F> {
     f: F,
 }
 
-impl<'a, E, F> Endpoint<'a> for AndThenEndpoint<E, F>
+impl<E, F> Endpoint for AndThenEndpoint<E, F>
 where
-    E: Endpoint<'a>,
-    F: Func<E::Output> + 'a,
+    E: Endpoint,
+    F: Func<E::Output> + Clone,
     F::Out: IntoFuture<Error = Error>,
 {
     type Output = (<F::Out as IntoFuture>::Item,);
-    type Future = AndThenFuture<'a, E::Future, F::Out, F>;
+    type Future = AndThenFuture<E::Future, F::Out, F>;
 
-    fn apply(&'a self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         let f1 = self.endpoint.apply(ecx)?;
         Ok(AndThenFuture {
-            try_chain: TryChain::new(f1, &self.f),
+            try_chain: TryChain::new(f1, self.f.clone()),
         })
     }
 }
 
 #[allow(missing_docs)]
 #[derive(Debug)]
-pub struct AndThenFuture<'a, F1, F2, F>
+pub struct AndThenFuture<F1, F2, F>
 where
     F1: Future<Error = Error>,
     F2: IntoFuture<Error = Error>,
     F: Func<F1::Item, Out = F2>,
     F1::Item: Tuple,
 {
-    try_chain: TryChain<F1, F2::Future, &'a F>,
+    try_chain: TryChain<F1, F2::Future, F>,
 }
 
-impl<'a, F1, F2, F> Future for AndThenFuture<'a, F1, F2, F>
+impl<F1, F2, F> Future for AndThenFuture<F1, F2, F>
 where
     F1: Future<Error = Error>,
     F2: IntoFuture<Error = Error>,
-    F: Func<F1::Item, Out = F2> + 'a,
+    F: Func<F1::Item, Out = F2>,
     F1::Item: Tuple,
 {
     type Item = (F2::Item,);

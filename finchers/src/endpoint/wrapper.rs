@@ -22,35 +22,35 @@ use crate::error::Error;
 use futures::IntoFuture;
 
 /// A trait representing the conversion of an endpoint to another endpoint.
-pub trait Wrapper<'a, E: Endpoint<'a>> {
+pub trait Wrapper<E: Endpoint> {
     /// The inner type of converted `Endpoint`.
     type Output: Tuple;
 
     /// The type of converted `Endpoint`.
-    type Endpoint: Endpoint<'a, Output = Self::Output>;
+    type Endpoint: Endpoint<Output = Self::Output>;
 
     /// Performs conversion from the provided endpoint into `Self::Endpoint`.
     fn wrap(self, endpoint: E) -> Self::Endpoint;
 }
 
 /// A set of extension methods for using built-in `Wrapper`s.
-pub trait EndpointWrapExt<'a>: Endpoint<'a> + Sized {
+pub trait EndpointWrapExt: Endpoint + Sized {
     #[allow(missing_docs)]
-    fn map<F>(self, f: F) -> <Map<Self::Output, F> as Wrapper<'a, Self>>::Endpoint
+    fn map<F>(self, f: F) -> <Map<Self::Output, F> as Wrapper<Self>>::Endpoint
     where
-        F: Func<Self::Output> + 'a,
+        F: Func<Self::Output> + Clone,
     {
         self.wrap(map(f))
     }
 
     #[allow(missing_docs)]
-    fn and_then<F>(self, f: F) -> <AndThen<Self::Output, F> as Wrapper<'a, Self>>::Endpoint
+    fn and_then<F>(self, f: F) -> <AndThen<Self::Output, F> as Wrapper<Self>>::Endpoint
     where
-        F: Func<Self::Output> + 'a,
-        F::Out: IntoFuture<Error = Error> + 'a,
+        F: Func<Self::Output> + Clone,
+        F::Out: IntoFuture<Error = Error>,
     {
         self.wrap(and_then(f))
     }
 }
 
-impl<'a, E: Endpoint<'a>> EndpointWrapExt<'a> for E {}
+impl<E: Endpoint> EndpointWrapExt for E {}

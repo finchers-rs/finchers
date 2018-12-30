@@ -208,7 +208,7 @@ mod tests {
     #[test]
     #[ignore]
     fn compiletest_stdlog() {
-        server::start(endpoint::cloned("foo"))
+        server::start(endpoint::value("foo"))
             .with_middleware(super::stdlog(Level::Debug, "target"))
             .serve("127.0.0.1:4000")
             .unwrap();

@@ -12,12 +12,14 @@ pub use self::http_server::ServerConfig;
 // ==== start ====
 
 use crate::app::App;
-use crate::endpoint::OutputEndpoint;
+use crate::endpoint::Endpoint;
+use crate::output::Output;
 
 /// Create an instance of `ServiceBuilder` from the specified endpoint.
 pub fn start<E>(endpoint: E) -> ServiceBuilder<App<E>>
 where
-    for<'a> E: OutputEndpoint<'a> + 'static,
+    E: Endpoint,
+    E::Output: Output,
 {
     ServiceBuilder::new(App::new(endpoint))
 }

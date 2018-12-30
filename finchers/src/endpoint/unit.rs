@@ -13,12 +13,12 @@ pub struct Unit {
     _priv: (),
 }
 
-impl<'a> Endpoint<'a> for Unit {
+impl Endpoint for Unit {
     type Output = ();
     type Future = UnitFuture;
 
     #[inline]
-    fn apply(&'a self, _: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+    fn apply(&self, _: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         Ok(UnitFuture { _priv: () })
     }
 }

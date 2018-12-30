@@ -14,5 +14,5 @@ fn test_path_macro() {
 
 #[test]
 fn test_routes_macro() {
-    let _ = routes![endpoint::unit(), endpoint::cloned(42),];
+    let _ = routes![endpoint::unit(), endpoint::value(42),];
 }

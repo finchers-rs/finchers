@@ -17,11 +17,11 @@ pub struct MatchVerbs {
     allowed: Verbs,
 }
 
-impl<'a> Endpoint<'a> for MatchVerbs {
+impl Endpoint for MatchVerbs {
     type Output = ();
     type Future = Matched;
 
-    fn apply(&'a self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         if self.allowed.contains(ecx.input().method()) {
             Ok(Matched { _priv: () })
         } else {
@@ -49,12 +49,12 @@ macro_rules! define_verbs {
             _priv: (),
         }
 
-        impl<'e> Endpoint<'e> for $Endpoint {
+        impl Endpoint for $Endpoint {
             type Output = ();
             type Future = Matched;
 
             #[inline]
-            fn apply(&'e self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+            fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
                 if *ecx.input().method() == Method::$METHOD {
                     Ok(Matched { _priv: () })
                 } else {

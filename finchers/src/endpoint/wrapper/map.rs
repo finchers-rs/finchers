@@ -28,10 +28,10 @@ pub struct Map<T, F> {
     _marker: PhantomData<fn(T)>,
 }
 
-impl<'a, E, F> Wrapper<'a, E> for Map<E::Output, F>
+impl<E, F> Wrapper<E> for Map<E::Output, F>
 where
-    E: Endpoint<'a>,
-    F: Func<E::Output> + 'a,
+    E: Endpoint,
+    F: Func<E::Output> + Clone,
 {
     type Output = (F::Out,);
     type Endpoint = MapEndpoint<E, F>;
@@ -50,34 +50,34 @@ pub struct MapEndpoint<E, F> {
     f: F,
 }
 
-impl<'a, E, F> Endpoint<'a> for MapEndpoint<E, F>
+impl<E, F> Endpoint for MapEndpoint<E, F>
 where
-    E: Endpoint<'a>,
-    F: Func<E::Output> + 'a,
+    E: Endpoint,
+    F: Func<E::Output> + Clone,
 {
     type Output = (F::Out,);
-    type Future = MapFuture<'a, E::Future, F>;
+    type Future = MapFuture<E::Future, F>;
 
     #[inline]
-    fn apply(&'a self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         Ok(MapFuture {
             future: self.endpoint.apply(ecx)?,
-            f: Some(&self.f),
+            f: Some(self.f.clone()),
         })
     }
 }
 
 #[derive(Debug)]
-pub struct MapFuture<'a, T, F> {
+pub struct MapFuture<T, F> {
     future: T,
-    f: Option<&'a F>,
+    f: Option<F>,
 }
 
-impl<'a, T, F> Future for MapFuture<'a, T, F>
+impl<T, F> Future for MapFuture<T, F>
 where
     T: Future<Error = Error>,
     T::Item: Tuple,
-    F: Func<T::Item> + 'a,
+    F: Func<T::Item>,
 {
     type Item = (F::Out,);
     type Error = Error;

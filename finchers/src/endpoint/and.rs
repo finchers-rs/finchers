@@ -16,16 +16,16 @@ pub struct And<E1, E2> {
     pub(super) e2: E2,
 }
 
-impl<'a, E1, E2> Endpoint<'a> for And<E1, E2>
+impl<E1, E2> Endpoint for And<E1, E2>
 where
-    E1: Endpoint<'a>,
-    E2: Endpoint<'a>,
+    E1: Endpoint,
+    E2: Endpoint,
     E1::Output: Combine<E2::Output>,
 {
     type Output = <E1::Output as Combine<E2::Output>>::Out;
     type Future = AndFuture<E1::Future, E2::Future>;
 
-    fn apply(&'a self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         let f1 = self.e1.apply(ecx)?;
         let f2 = self.e2.apply(ecx)?;
         Ok(AndFuture { inner: f1.join(f2) })
@@ -74,10 +74,10 @@ where
 
 // ==== tuples ====
 
-impl<'a, E1, E2> IntoEndpoint<'a> for (E1, E2)
+impl<E1, E2> IntoEndpoint for (E1, E2)
 where
-    E1: IntoEndpoint<'a>,
-    E2: IntoEndpoint<'a>,
+    E1: IntoEndpoint,
+    E2: IntoEndpoint,
     E1::Output: Combine<E2::Output>,
 {
     type Output = <E1::Output as Combine<E2::Output>>::Out;
@@ -92,11 +92,11 @@ where
     }
 }
 
-impl<'a, E1, E2, E3> IntoEndpoint<'a> for (E1, E2, E3)
+impl<E1, E2, E3> IntoEndpoint for (E1, E2, E3)
 where
-    E1: IntoEndpoint<'a>,
-    E2: IntoEndpoint<'a>,
-    E3: IntoEndpoint<'a>,
+    E1: IntoEndpoint,
+    E2: IntoEndpoint,
+    E3: IntoEndpoint,
     E2::Output: Combine<E3::Output>,
     E1::Output: Combine<<E2::Output as Combine<E3::Output>>::Out>,
 {
@@ -115,12 +115,12 @@ where
     }
 }
 
-impl<'a, E1, E2, E3, E4> IntoEndpoint<'a> for (E1, E2, E3, E4)
+impl<E1, E2, E3, E4> IntoEndpoint for (E1, E2, E3, E4)
 where
-    E1: IntoEndpoint<'a>,
-    E2: IntoEndpoint<'a>,
-    E3: IntoEndpoint<'a>,
-    E4: IntoEndpoint<'a>,
+    E1: IntoEndpoint,
+    E2: IntoEndpoint,
+    E3: IntoEndpoint,
+    E4: IntoEndpoint,
     E3::Output: Combine<E4::Output>,
     E2::Output: Combine<<E3::Output as Combine<E4::Output>>::Out>,
     E1::Output: Combine<<E2::Output as Combine<<E3::Output as Combine<E4::Output>>::Out>>::Out>,
@@ -147,13 +147,13 @@ where
     }
 }
 
-impl<'a, E1, E2, E3, E4, E5> IntoEndpoint<'a> for (E1, E2, E3, E4, E5)
+impl<E1, E2, E3, E4, E5> IntoEndpoint for (E1, E2, E3, E4, E5)
 where
-    E1: IntoEndpoint<'a>,
-    E2: IntoEndpoint<'a>,
-    E3: IntoEndpoint<'a>,
-    E4: IntoEndpoint<'a>,
-    E5: IntoEndpoint<'a>,
+    E1: IntoEndpoint,
+    E2: IntoEndpoint,
+    E3: IntoEndpoint,
+    E4: IntoEndpoint,
+    E5: IntoEndpoint,
     E4::Output: Combine<E5::Output>,
     E3::Output: Combine<<E4::Output as Combine<E5::Output>>::Out>,
     E2::Output: Combine<<E3::Output as Combine<<E4::Output as Combine<E5::Output>>::Out>>::Out>,

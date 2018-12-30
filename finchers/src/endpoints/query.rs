@@ -71,7 +71,7 @@ impl<T> fmt::Debug for Required<T> {
     }
 }
 
-impl<'a, T> Endpoint<'a> for Required<T>
+impl<T> Endpoint for Required<T>
 where
     T: DeserializeOwned + 'static,
 {
@@ -175,7 +175,7 @@ impl<T> fmt::Debug for Optional<T> {
     }
 }
 
-impl<'a, T> Endpoint<'a> for Optional<T>
+impl<T> Endpoint for Optional<T>
 where
     T: DeserializeOwned + 'static,
 {
@@ -223,7 +223,7 @@ pub struct Raw {
     _priv: (),
 }
 
-impl<'a> Endpoint<'a> for Raw {
+impl Endpoint for Raw {
     type Output = (Option<String>,);
     type Future = RawFuture;
 

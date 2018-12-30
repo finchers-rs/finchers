@@ -1,9 +1,9 @@
-use finchers::endpoint::{cloned, unit, IntoEndpointExt};
+use finchers::endpoint::{unit, value, IntoEndpointExt};
 use finchers::test;
 
 #[test]
 fn test_and_all_ok() {
-    let mut runner = test::runner(cloned("Hello").and(cloned("world")));
+    let mut runner = test::runner(value("Hello").and(value("world")));
 
     assert_matches!(runner.apply_raw("/"), Ok(("Hello", "world")));
 }
@@ -11,9 +11,9 @@ fn test_and_all_ok() {
 #[test]
 fn test_and_flatten() {
     let mut runner = test::runner(
-        cloned("Hello")
+        value("Hello")
             .and(unit())
-            .and(cloned("world").and(cloned(":)"))),
+            .and(value("world").and(value(":)"))),
     );
 
     assert_matches!(runner.apply_raw("/"), Ok(("Hello", "world", ":)")));

@@ -23,16 +23,16 @@ pub struct Apply<F> {
     f: F,
 }
 
-impl<'a, F, R> Endpoint<'a> for Apply<F>
+impl<F, R> Endpoint for Apply<F>
 where
-    F: Fn(&mut ApplyContext<'_>) -> ApplyResult<R> + 'a,
-    R: IntoFuture<Error = Error> + 'a,
+    F: Fn(&mut ApplyContext<'_>) -> ApplyResult<R>,
+    R: IntoFuture<Error = Error>,
 {
     type Output = (R::Item,);
     type Future = ApplyFuture<R::Future>;
 
     #[inline]
-    fn apply(&'a self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         (self.f)(ecx).map(|res| ApplyFuture(res.into_future()))
     }
 }
@@ -69,17 +69,17 @@ pub struct ApplyRaw<F> {
     f: F,
 }
 
-impl<'a, F, R> Endpoint<'a> for ApplyRaw<F>
+impl<F, R> Endpoint for ApplyRaw<F>
 where
-    F: Fn(&mut ApplyContext<'_>) -> ApplyResult<R> + 'a,
-    R: IntoFuture<Error = Error> + 'a,
+    F: Fn(&mut ApplyContext<'_>) -> ApplyResult<R>,
+    R: IntoFuture<Error = Error>,
     R::Item: Tuple,
 {
     type Output = R::Item;
     type Future = R::Future;
 
     #[inline]
-    fn apply(&'a self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         (self.f)(ecx).map(IntoFuture::into_future)
     }
 }

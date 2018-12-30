@@ -20,7 +20,7 @@ pub struct File {
     path: PathBuf,
 }
 
-impl<'a> Endpoint<'a> for File {
+impl Endpoint for File {
     type Output = (NamedFile,);
     type Future = FileFuture;
 
@@ -43,7 +43,7 @@ pub struct Dir {
     root: PathBuf,
 }
 
-impl<'a> Endpoint<'a> for Dir {
+impl Endpoint for Dir {
     type Output = (NamedFile,);
     type Future = FileFuture;
 

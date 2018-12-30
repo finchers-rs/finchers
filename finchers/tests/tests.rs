@@ -21,7 +21,7 @@ mod endpoints;
 #[ignore]
 fn compiletest_new_runtime() {
     use finchers::prelude::*;
-    finchers::server::start(endpoint::cloned("Hello"))
+    finchers::server::start(endpoint::value("Hello"))
         .serve("127.0.0.1:4000")
         .unwrap();
 }

@@ -5,6 +5,7 @@ use std::error;
 use std::fmt;
 use std::io;
 use std::mem;
+use std::sync::Arc;
 
 use bytes::Buf;
 use futures::future;
@@ -20,7 +21,7 @@ use tower_service::{NewService, Service};
 use tower_web::util::buf_stream::{size_hint, BufStream};
 
 use crate::endpoint::context::{ApplyContext, TaskContext};
-use crate::endpoint::{with_set_cx, ApplyResult, Cursor, Endpoint, OutputEndpoint};
+use crate::endpoint::{with_set_cx, Cursor, Endpoint};
 use crate::error::Error;
 use crate::error::Never;
 use crate::input::{Input, ReqBody};
@@ -40,86 +41,71 @@ use crate::rt::DefaultExecutor;
 /// are destroyed before `Self::drop`.
 #[derive(Debug)]
 pub struct App<E> {
-    endpoint: Lift<E>,
+    endpoint: Arc<E>,
 }
 
 impl<E> App<E>
 where
-    for<'a> E: OutputEndpoint<'a> + 'static,
+    E: Endpoint,
+    E::Output: Output,
 {
     /// Create a new `App` from the specified endpoint.
     pub fn new(endpoint: E) -> App<E> {
         App {
-            endpoint: Lift(endpoint),
+            endpoint: Arc::new(endpoint),
         }
     }
 }
 
 impl<E> NewService for App<E>
 where
-    for<'a> E: OutputEndpoint<'a> + 'static,
-{
-    type Request = Request<Body>;
-    type Response = Response<AppPayload>;
-    type Error = io::Error;
-    type Service = AppService<'static, Lift<E>>;
-    type InitError = Never;
-    type Future = future::FutureResult<Self::Service, Self::InitError>;
-
-    fn new_service(&self) -> Self::Future {
-        // This unsafe code assumes that the lifetime of `&self` is always
-        // longer than the generated future.
-        let endpoint = unsafe { &*(&self.endpoint as *const _) };
-        future::ok(AppService { endpoint })
-    }
-}
-
-#[derive(Debug)]
-pub struct Lift<E>(pub(super) E);
-
-impl<'a, E> Endpoint<'a> for Lift<E>
-where
-    E: OutputEndpoint<'a>,
-{
-    type Output = E::Output;
-    type Future = E::Future;
-
-    #[inline]
-    fn apply(&'a self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
-        self.0.apply_output(cx)
-    }
-}
-
-#[derive(Debug)]
-pub struct AppService<'e, E: Endpoint<'e>> {
-    pub(super) endpoint: &'e E,
-}
-
-impl<'e, E> AppService<'e, E>
-where
-    E: Endpoint<'e>,
-{
-    pub(crate) fn new(endpoint: &'e E) -> AppService<'e, E> {
-        AppService { endpoint }
-    }
-
-    pub(crate) fn dispatch(&self, request: Request<ReqBody>) -> AppFuture<'e, E> {
-        AppFuture {
-            endpoint: self.endpoint,
-            state: State::Start(request),
-        }
-    }
-}
-
-impl<'e, E> Service for AppService<'e, E>
-where
-    E: Endpoint<'e>,
+    E: Endpoint,
     E::Output: Output,
 {
     type Request = Request<Body>;
     type Response = Response<AppPayload>;
     type Error = io::Error;
-    type Future = AppFuture<'e, E>;
+    type Service = AppService<Arc<E>>;
+    type InitError = Never;
+    type Future = future::FutureResult<Self::Service, Self::InitError>;
+
+    fn new_service(&self) -> Self::Future {
+        future::ok(AppService {
+            endpoint: self.endpoint.clone(),
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct AppService<E> {
+    pub(super) endpoint: E,
+}
+
+impl<E> AppService<E>
+where
+    E: Endpoint + Clone,
+{
+    pub(crate) fn new(endpoint: E) -> AppService<E> {
+        AppService { endpoint }
+    }
+
+    pub(crate) fn dispatch(&self, request: Request<ReqBody>) -> AppFuture<E> {
+        AppFuture {
+            endpoint: self.endpoint.clone(),
+            state: State::Start(request),
+        }
+    }
+}
+
+impl<E> Service for AppService<E>
+where
+    E: Endpoint + Clone,
+    E::Output: Output,
+{
+    type Request = Request<Body>;
+    type Response = Response<AppPayload>;
+    type Error = io::Error;
+    type Future = AppFuture<E>;
 
     fn poll_ready(&mut self) -> Poll<(), Self::Error> {
         Ok(Async::Ready(()))
@@ -131,20 +117,20 @@ where
 }
 
 #[derive(Debug)]
-pub struct AppFuture<'e, E: Endpoint<'e>> {
-    endpoint: &'e E,
-    state: State<'e, E>,
+pub struct AppFuture<E: Endpoint> {
+    endpoint: E,
+    state: State<E>,
 }
 
 #[allow(clippy::large_enum_variant)]
-enum State<'a, E: Endpoint<'a>> {
+enum State<E: Endpoint> {
     Start(Request<ReqBody>),
     InFlight(Input, E::Future, Cursor),
     Done(Input),
     Gone,
 }
 
-impl<'a, E: Endpoint<'a>> fmt::Debug for State<'a, E> {
+impl<E: Endpoint> fmt::Debug for State<E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             State::Start(ref request) => f.debug_struct("Start").field("request", request).finish(),
@@ -159,9 +145,9 @@ impl<'a, E: Endpoint<'a>> fmt::Debug for State<'a, E> {
     }
 }
 
-impl<'e, E> AppFuture<'e, E>
+impl<E> AppFuture<E>
 where
-    E: Endpoint<'e>,
+    E: Endpoint,
 {
     pub(crate) fn poll_apply(&mut self) -> Poll<E::Output, Error> {
         loop {
@@ -271,9 +257,9 @@ where
     }
 }
 
-impl<'e, E> Future for AppFuture<'e, E>
+impl<E> Future for AppFuture<E>
 where
-    E: Endpoint<'e>,
+    E: Endpoint,
     E::Output: Output,
 {
     type Item = Response<AppPayload>;
