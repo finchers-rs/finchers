@@ -8,6 +8,11 @@ publish = false
 version = "0.1"
 default-features = false
 
+[dependencies.cargo-husky]
+version = "1"
+default-features = false
+features = ["user-hooks"]
+
 [dev-dependencies]
 finchers = { path = "finchers" }
 
@@ -16,29 +21,29 @@ members = [
   "finchers",
   #"finchers-cors",
   #"finchers-headers",
-  "finchers-juniper",
-  "finchers-session",
-  "finchers-template",
-  "finchers-tungstenite",
+  #"finchers-juniper",
+  #"finchers-session",
+  #"finchers-template",
+  #"finchers-tungstenite",
 
-  "examples/custom-logging",
-  "examples/diesel",
-  "examples/juniper",
-  "examples/jwt-auth",
-  "examples/middlewares",
-  "examples/session-redis",
-  "examples/staticfiles",
-  "examples/template-askama",
-  "examples/template-handlebars",
-  "examples/template-horrorshow",
-  "examples/template-tera",
-  "examples/websocket",
+  #"examples/custom-logging",
+  #"examples/diesel",
+  #"examples/juniper",
+  #"examples/jwt-auth",
+  #"examples/middlewares",
+  #"examples/session-redis",
+  #"examples/staticfiles",
+  #"examples/template-askama",
+  #"examples/template-handlebars",
+  #"examples/template-horrorshow",
+  #"examples/template-tera",
+  #"examples/websocket",
 ]
 
 [patch.crates-io]
-finchers = { version = "0.13.5", path = "finchers" }
+finchers = { version = "0.14.0-dev", path = "finchers" }
 #finchers-headers = { version = "0.1.0", path = "finchers-headers" }
-finchers-juniper = { version = "0.2.1", path = "finchers-juniper" }
-finchers-session = { version = "0.2.1-dev", path = "finchers-session" }
-finchers-template = { version = "0.2.0-dev", path = "finchers-template" }
-finchers-tungstenite = { version = "0.2.1-dev", path = "finchers-tungstenite" }
+#finchers-juniper = { version = "0.2.1", path = "finchers-juniper" }
+#finchers-session = { version = "0.2.1-dev", path = "finchers-session" }
+#finchers-template = { version = "0.2.0-dev", path = "finchers-template" }
+#finchers-tungstenite = { version = "0.2.1-dev", path = "finchers-tungstenite" }

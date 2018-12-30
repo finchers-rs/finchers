@@ -13,8 +13,10 @@ BRANCH="$(git symbolic-ref --short HEAD)"
     exit 0
 }
 
-if cargo --version >/dev/null 2>&1; then
-    (set -x; rake FINCHERS_DENY_WARNINGS=1)
-else
-    echo "[warn] 'rake' is not installed."
-fi
+[[ -z $(git status --porcelain) ]] || {
+    echo '[error] The repository is dirty.'
+    exit 1
+}
+
+set -x
+exec "$(git rev-parse --show-toplevel)/.ci/run_test.sh"
