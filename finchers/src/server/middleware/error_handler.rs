@@ -1,7 +1,7 @@
 use super::{Middleware, Service};
-use app::AppPayload;
-use error::{Error, ErrorPayload};
-use output::body::ResBody;
+use crate::app::AppPayload;
+use crate::error::{Error, ErrorPayload};
+use crate::output::body::ResBody;
 
 use futures::{Async, Future, Poll};
 use http::{Request, Response};
@@ -82,7 +82,7 @@ where
     type Error = Fut::Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let response = try_ready!(self.future.poll());
+        let response = futures::try_ready!(self.future.poll());
         let (parts, body) = response.into_parts();
         Ok(Async::Ready(match body.downcast::<ErrorPayload>() {
             Ok(err_payload) => {
@@ -97,10 +97,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::error_handler;
-    use endpoint;
+    use crate::endpoint;
+    use crate::server;
     use http::Response;
     use serde_json;
-    use server;
 
     #[test]
     #[ignore]

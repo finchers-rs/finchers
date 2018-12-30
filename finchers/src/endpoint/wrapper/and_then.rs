@@ -2,9 +2,9 @@ use std::marker::PhantomData;
 
 use futures::{Future, IntoFuture, Poll};
 
-use common::{Func, Tuple};
-use endpoint::{ApplyContext, ApplyResult, Endpoint};
-use error::Error;
+use crate::common::{Func, Tuple};
+use crate::endpoint::{ApplyContext, ApplyResult, Endpoint};
+use crate::error::Error;
 
 use super::try_chain::{TryChain, TryChainAction};
 use super::Wrapper;
@@ -76,7 +76,7 @@ pub struct AndThenFuture<'a, F1, F2, F>
 where
     F1: Future<Error = Error>,
     F2: IntoFuture<Error = Error>,
-    F: Func<F1::Item, Out = F2> + 'a,
+    F: Func<F1::Item, Out = F2>,
     F1::Item: Tuple,
 {
     try_chain: TryChain<F1, F2::Future, &'a F>,

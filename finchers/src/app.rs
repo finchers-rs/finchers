@@ -19,14 +19,14 @@ use tower_service::{NewService, Service};
 #[cfg(feature = "tower-web")]
 use tower_web::util::buf_stream::{size_hint, BufStream};
 
-use endpoint::context::{ApplyContext, TaskContext};
-use endpoint::{with_set_cx, ApplyResult, Cursor, Endpoint, OutputEndpoint};
-use error::Error;
-use error::Never;
-use input::{Input, ReqBody};
-use output::body::{Payload as PayloadWrapper, ResBody};
-use output::{Output, OutputContext};
-use rt::DefaultExecutor;
+use crate::endpoint::context::{ApplyContext, TaskContext};
+use crate::endpoint::{with_set_cx, ApplyResult, Cursor, Endpoint, OutputEndpoint};
+use crate::error::Error;
+use crate::error::Never;
+use crate::input::{Input, ReqBody};
+use crate::output::body::{Payload as PayloadWrapper, ResBody};
+use crate::output::{Output, OutputContext};
+use crate::rt::DefaultExecutor;
 
 // ==== App ====
 
@@ -136,7 +136,7 @@ pub struct AppFuture<'e, E: Endpoint<'e>> {
     state: State<'e, E>,
 }
 
-#[cfg_attr(feature = "cargo-clippy", allow(large_enum_variant))]
+#[allow(clippy::large_enum_variant)]
 enum State<'a, E: Endpoint<'a>> {
     Start(Request<ReqBody>),
     InFlight(Input, E::Future, Cursor),
@@ -281,7 +281,7 @@ where
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         self.poll_all(&mut DefaultExecutor::current()).map_err(|e| {
-            error!("failed to spawn an upgraded task: {}", e);
+            log::error!("failed to spawn an upgraded task: {}", e);
             io::Error::new(io::ErrorKind::Other, e)
         })
     }

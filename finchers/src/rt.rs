@@ -6,8 +6,8 @@ use futures::sync::oneshot;
 use futures::{Async, Future, Poll};
 use tokio_threadpool;
 
-use error::fail;
-use error::Error;
+use crate::error::fail;
+use crate::error::Error;
 
 // re-exports
 #[doc(no_inline)]
@@ -106,7 +106,7 @@ where
     type Error = Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let result = try_ready!(blocking(|| {
+        let result = futures::try_ready!(blocking(|| {
             let op = self.op.take().unwrap();
             op()
         })

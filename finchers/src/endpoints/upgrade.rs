@@ -10,10 +10,10 @@ use http::{HttpTryFrom, Response, StatusCode};
 use hyper::upgrade::Upgraded;
 use tokio::io::{AsyncRead, AsyncWrite};
 
-use endpoint::{lazy, Lazy};
-use error;
-use error::Error;
-use output::{Output, OutputContext};
+use crate::endpoint::{lazy, Lazy};
+use crate::error;
+use crate::error::Error;
+use crate::output::{Output, OutputContext};
 
 /// An asynchronous I/O representing an upgraded HTTP connection.
 ///
@@ -135,7 +135,7 @@ where
         cx.input()
             .body_mut()
             .upgrade(|upgraded| on_upgrade(UpgradedIo(upgraded)));
-        builder.body(()).map_err(::error::fail)
+        builder.body(()).map_err(crate::error::fail)
     }
 }
 

@@ -5,11 +5,11 @@ use http::HttpTryFrom;
 use std::fmt;
 use std::marker::PhantomData;
 
-use endpoint::with_get_cx;
-use endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint};
-use error;
-use error::Error;
-use input::FromHeaderValue;
+use crate::endpoint::with_get_cx;
+use crate::endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint};
+use crate::error;
+use crate::error::Error;
+use crate::input::FromHeaderValue;
 
 // ==== Parse ====
 
@@ -82,7 +82,7 @@ where
 
 #[doc(hidden)]
 #[derive(Debug)]
-pub struct ParseFuture<'e, T: 'e> {
+pub struct ParseFuture<'e, T> {
     endpoint: &'e Parse<T>,
 }
 
@@ -160,7 +160,7 @@ where
 
 #[doc(hidden)]
 #[derive(Debug)]
-pub struct OptionalFuture<'e, T: 'e> {
+pub struct OptionalFuture<'e, T> {
     endpoint: &'e Optional<T>,
 }
 

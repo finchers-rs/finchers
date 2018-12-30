@@ -6,10 +6,10 @@ use serde_qs;
 use std::fmt;
 use std::marker::PhantomData;
 
-use endpoint::with_get_cx;
-use endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint};
-use error;
-use error::{bad_request, Error};
+use crate::endpoint::with_get_cx;
+use crate::endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint};
+use crate::error;
+use crate::error::{bad_request, Error};
 
 // ==== Required ====
 

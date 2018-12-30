@@ -1,7 +1,7 @@
 use futures::{Future, Poll};
 
-use endpoint::{ApplyContext, ApplyResult, Endpoint};
-use error::Error;
+use crate::endpoint::{ApplyContext, ApplyResult, Endpoint};
+use crate::error::Error;
 
 /// Create an endpoint which simply clones the specified value.
 ///

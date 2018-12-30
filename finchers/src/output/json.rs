@@ -5,7 +5,7 @@ use serde_json;
 use serde_json::Value;
 
 use super::{Output, OutputContext};
-use error::{fail, Error, Never};
+use crate::error::{fail, Error, Never};
 
 /// An instance of `Output` representing statically typed JSON responses.
 #[derive(Debug)]

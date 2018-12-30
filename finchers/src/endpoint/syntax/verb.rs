@@ -3,7 +3,7 @@ use std::ops::{BitOr, BitOrAssign};
 use http::Method;
 
 use super::Matched;
-use endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint};
+use crate::endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint};
 
 /// Create an endpoint which checks if the verb of current request
 /// is equal to the specified value.
@@ -81,7 +81,7 @@ define_verbs! {
 #[derive(Debug, Clone, Copy)]
 pub struct Verbs(Methods);
 
-bitflags! {
+bitflags::bitflags! {
     struct Methods: u32 {
         const GET         = 0b_0000_0000_0001;
         const POST        = 0b_0000_0000_0010;

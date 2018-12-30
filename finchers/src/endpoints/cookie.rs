@@ -8,9 +8,9 @@ use cookie::Cookie;
 use cookie::Key;
 use futures::future;
 
-use endpoint::{ApplyContext, ApplyResult, Endpoint};
-use error::{bad_request, Error};
-use input::{Cookies, Input};
+use crate::endpoint::{ApplyContext, ApplyResult, Endpoint};
+use crate::error::{bad_request, Error};
+use crate::input::{Cookies, Input};
 
 #[derive(Clone)]
 enum Mode {

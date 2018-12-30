@@ -2,9 +2,9 @@ use either::Either;
 use futures::{Async, Future, Poll};
 use http::Response;
 
-use endpoint::{ApplyContext, ApplyResult, Endpoint};
-use error::Error;
-use output::{Output, OutputContext};
+use crate::endpoint::{ApplyContext, ApplyResult, Endpoint};
+use crate::error::Error;
+use crate::output::{Output, OutputContext};
 
 use super::Wrapper;
 

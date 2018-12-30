@@ -119,7 +119,7 @@ mod impl_log {
         type Error = Fut::Error;
 
         fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-            let response = try_ready!(self.future.poll());
+            let response = futures::try_ready!(self.future.poll());
             let instance = self
                 .log_session
                 .take()
@@ -154,7 +154,7 @@ mod impl_stdlog {
         type Instance = Option<StdLogInstance>;
 
         fn start<T>(&self, request: &Request<T>) -> Self::Instance {
-            if log_enabled!(target: self.target, self.level) {
+            if log::log_enabled!(target: self.target, self.level) {
                 let start = Instant::now();
                 Some(StdLogInstance {
                     target: self.target,
@@ -201,9 +201,9 @@ mod impl_stdlog {
 
 #[cfg(test)]
 mod tests {
-    use endpoint;
+    use crate::endpoint;
+    use crate::server;
     use log::Level;
-    use server;
 
     #[test]
     #[ignore]

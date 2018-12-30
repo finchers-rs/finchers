@@ -2,7 +2,7 @@ use http::Response;
 use std::fmt;
 
 use super::{Output, OutputContext};
-use error::Never;
+use crate::error::Never;
 
 /// An instance of `Output` representing text responses with debug output.
 ///

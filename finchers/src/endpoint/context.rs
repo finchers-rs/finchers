@@ -6,7 +6,7 @@ use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
 use std::rc::Rc;
 
-use input::{EncodedStr, Input};
+use crate::input::{EncodedStr, Input};
 
 #[derive(Debug, Clone)]
 pub(crate) struct Cursor {
@@ -153,7 +153,7 @@ impl Drop for SetOnDrop {
     }
 }
 
-#[cfg_attr(feature = "cargo-clippy", allow(cast_ptr_alignment))]
+#[allow(clippy::cast_ptr_alignment)]
 pub(crate) fn with_set_cx<R>(current: &mut TaskContext<'_>, f: impl FnOnce() -> R) -> R {
     CX.with(|cx| {
         cx.set(Some(unsafe {
@@ -188,8 +188,8 @@ pub fn with_get_cx<R>(f: impl FnOnce(&mut TaskContext<'_>) -> R) -> R {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::input::ReqBody;
     use http::Request;
-    use input::ReqBody;
 
     #[test]
     fn test_segments() {

@@ -8,9 +8,9 @@ pub(super) use cookie::CookieJar;
 #[cfg(feature = "secure")]
 use cookie::Key;
 
-use endpoint::with_get_cx;
-use error;
-use error::Error;
+use crate::endpoint::with_get_cx;
+use crate::error;
+use crate::error::Error;
 
 /// A proxy object for tracking Cookie values in the current context.
 #[derive(Debug)]

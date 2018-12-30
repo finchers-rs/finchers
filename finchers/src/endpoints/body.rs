@@ -11,9 +11,9 @@ use http::StatusCode;
 use hyper::body::{Body, Payload as _Payload};
 use serde::de::DeserializeOwned;
 
-use endpoint::{with_get_cx, ApplyContext, ApplyResult, Endpoint};
-use error;
-use error::{err_msg, Error};
+use crate::endpoint::{with_get_cx, ApplyContext, ApplyResult, Endpoint};
+use crate::error;
+use crate::error::{err_msg, Error};
 
 pub use self::raw::{raw, Raw};
 
@@ -32,9 +32,9 @@ mod raw {
     use futures::{Future, Poll};
     use std::fmt;
 
-    use endpoint::{with_get_cx, ApplyContext, ApplyResult, Endpoint};
-    use error::Error;
-    use input::Payload;
+    use crate::endpoint::{with_get_cx, ApplyContext, ApplyResult, Endpoint};
+    use crate::error::Error;
+    use crate::input::Payload;
 
     /// Creates an endpoint which takes the instance of [`Payload`]
     /// from the context.
@@ -140,7 +140,9 @@ impl ::futures::Future for ReceiveAllFuture {
             match self.state {
                 State::Start => {}
                 State::Receiving(ref mut body, ref mut buf) => {
-                    while let Some(data) = try_ready!(body.poll_data().map_err(error::fail)) {
+                    while let Some(data) =
+                        futures::try_ready!(body.poll_data().map_err(error::fail))
+                    {
                         buf.extend_from_slice(&*data);
                     }
                 }
@@ -213,7 +215,7 @@ where
     T: DeserializeOwned + 'static,
 {
     type Output = (T,);
-    #[cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
+    #[allow(clippy::type_complexity)]
     type Future =
         ::futures::future::Map<parse::ParseFuture<parse::Json<T>>, fn((parse::Json<T>,)) -> (T,)>;
 
@@ -247,7 +249,7 @@ where
     T: DeserializeOwned + 'static,
 {
     type Output = (T,);
-    #[cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
+    #[allow(clippy::type_complexity)]
     type Future = ::futures::future::Map<
         parse::ParseFuture<parse::UrlEncoded<T>>,
         fn((parse::UrlEncoded<T>,)) -> (T,),
@@ -273,8 +275,8 @@ mod parse {
 
     use futures::{Future, Poll};
 
-    use endpoint::with_get_cx;
-    use error::{bad_request, Error};
+    use crate::endpoint::with_get_cx;
+    use crate::error::{bad_request, Error};
 
     use super::ReceiveAllFuture;
 
@@ -309,7 +311,7 @@ mod parse {
                 let content_type = input.content_type().map_err(bad_request)?;
                 T::validate(content_type)
             })?;
-            let (data,) = try_ready!(self.receive_all.poll());
+            let (data,) = futures::try_ready!(self.receive_all.poll());
             T::parse(data).map(|x| (x,).into())
         }
     }

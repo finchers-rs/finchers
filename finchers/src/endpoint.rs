@@ -42,8 +42,8 @@ use std::sync::Arc;
 
 use futures::Future;
 
-use common::{Combine, Tuple};
-use error::Error;
+use crate::common::{Combine, Tuple};
+use crate::error::Error;
 
 /// Trait representing an endpoint.
 pub trait Endpoint<'a>: 'a {
@@ -186,8 +186,8 @@ mod send_endpoint {
     use futures::Future;
 
     use super::{ApplyContext, ApplyResult, Endpoint};
-    use common::Tuple;
-    use error::Error;
+    use crate::common::Tuple;
+    use crate::error::Error;
 
     /// A trait representing an endpoint with a constraint that the returned "Future"
     /// to be transferred across thread boundaries.
@@ -227,10 +227,10 @@ mod send_endpoint {
 mod output_endpoint {
     use futures::Future;
 
-    use common::Tuple;
-    use endpoint::{ApplyContext, ApplyResult, Endpoint};
-    use error::Error;
-    use output::Output;
+    use crate::common::Tuple;
+    use crate::endpoint::{ApplyContext, ApplyResult, Endpoint};
+    use crate::error::Error;
+    use crate::output::Output;
 
     /// A trait representing an endpoint with a constraint that the returned value
     /// can be convert into an HTTP response.

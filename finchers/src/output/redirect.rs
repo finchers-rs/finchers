@@ -2,7 +2,7 @@ use http::header::{HeaderValue, LOCATION};
 use http::{Response, StatusCode};
 
 use super::{Output, OutputContext};
-use error::Never;
+use crate::error::Never;
 
 /// An instance of `Output` representing redirect responses.
 #[derive(Debug, Clone)]

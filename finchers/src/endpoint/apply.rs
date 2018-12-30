@@ -1,8 +1,8 @@
 use futures::{Future, IntoFuture, Poll};
 
-use common::Tuple;
-use endpoint::{ApplyContext, ApplyResult, Endpoint};
-use error::Error;
+use crate::common::Tuple;
+use crate::endpoint::{ApplyContext, ApplyResult, Endpoint};
+use crate::error::Error;
 
 /// Create an endpoint from a function which takes the reference to `ApplyContext`
 /// and returns a future.

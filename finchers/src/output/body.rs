@@ -10,7 +10,7 @@ use std::borrow::Cow;
 use std::error;
 use std::io;
 
-use error::Never;
+use crate::error::Never;
 
 /// The trait representing the message body in an HTTP response.
 pub trait ResBody {

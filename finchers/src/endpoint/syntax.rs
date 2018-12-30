@@ -9,10 +9,10 @@ use std::marker::PhantomData;
 
 use percent_encoding::{percent_encode, DEFAULT_ENCODE_SET};
 
-use endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint, IntoEndpoint};
-use error;
-use error::Error;
-use input::FromEncodedStr;
+use crate::endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint, IntoEndpoint};
+use crate::error;
+use crate::error::Error;
+use crate::input::FromEncodedStr;
 
 #[doc(hidden)]
 #[derive(Debug)]
@@ -49,7 +49,7 @@ impl<T> ::futures::Future for Extracted<T> {
 
 // ==== MatchSegment =====
 
-define_encode_set! {
+percent_encoding::define_encode_set! {
     /// The encode set for MatchSegment
     #[doc(hidden)]
     pub SEGMENT_ENCODE_SET = [DEFAULT_ENCODE_SET] | {'/'}

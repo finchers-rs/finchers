@@ -14,7 +14,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::runtime::Runtime;
 use tower_service::{NewService, Service};
 
-use rt::{with_set_runtime_mode, RuntimeMode};
+use crate::rt::{with_set_runtime_mode, RuntimeMode};
 
 /// A trait representing the configuration to start the HTTP server.
 pub trait ServerConfig: ServerConfigImpl {}
@@ -122,7 +122,7 @@ where
         let mut server = builder
             .serve(NewHttpService(new_service.clone()))
             .with_graceful_shutdown(signal)
-            .map_err(|err| error!("server error: {}", err));
+            .map_err(|err| log::error!("server error: {}", err));
 
         let server = future::poll_fn(move || {
             with_set_runtime_mode(RuntimeMode::ThreadPool, || server.poll())
@@ -149,7 +149,7 @@ where
     type Error = S::Error;
     type Service = HttpService<S::Service>;
     type InitError = S::InitError;
-    #[cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
+    #[allow(clippy::type_complexity)]
     type Future = future::Map<S::Future, fn(S::Service) -> HttpService<S::Service>>;
 
     #[inline]

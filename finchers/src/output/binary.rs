@@ -4,7 +4,7 @@ use http::{header, Response};
 use std::borrow::Cow;
 
 use super::{Output, OutputContext};
-use error::Never;
+use crate::error::Never;
 
 impl Output for &'static [u8] {
     type Body = &'static [u8];

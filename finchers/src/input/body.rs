@@ -146,7 +146,7 @@ mod rt {
                 ReqBodyState::Unused(body) => {
                     self.state = ReqBodyState::Upgraded(Box::new(
                         body.on_upgrade()
-                            .map_err(|e| error!("during upgrading the protocol: {}", e))
+                            .map_err(|e| log::error!("during upgrading the protocol: {}", e))
                             .and_then(|upgraded| f(upgraded).into_future()),
                     ));
                 }

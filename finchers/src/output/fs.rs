@@ -6,7 +6,7 @@ use std::io;
 use std::mem;
 use std::path::PathBuf;
 
-use futures::{Async, Future, Poll};
+use futures::{try_ready, Async, Future, Poll};
 use hyper::body::Payload;
 use tokio::io::AsyncRead;
 
@@ -17,7 +17,7 @@ use http::{header, Response};
 use mime_guess::guess_mime_type;
 
 use super::{Output, OutputContext};
-use error::Never;
+use crate::error::Never;
 
 /// An instance of `Output` representing a file on the file system.
 #[derive(Debug)]

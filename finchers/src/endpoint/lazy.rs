@@ -1,7 +1,7 @@
 use futures::{Future, IntoFuture, Poll};
 
-use endpoint::{ApplyContext, ApplyResult, Endpoint};
-use error::Error;
+use crate::endpoint::{ApplyContext, ApplyResult, Endpoint};
+use crate::error::Error;
 
 /// Create an endpoint from the specified function which returns a `Future`.
 pub fn lazy<F, R>(f: F) -> Lazy<F>

@@ -3,7 +3,7 @@
 use http::{Response, StatusCode};
 
 use super::{Output, OutputContext};
-use error::Never;
+use crate::error::Never;
 
 impl Output for StatusCode {
     type Body = ();

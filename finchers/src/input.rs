@@ -20,7 +20,7 @@ use http::{Response, StatusCode};
 use mime::Mime;
 
 use self::cookie::{CookieJar, CookieManager};
-use error::{bad_request, Error};
+use crate::error::{bad_request, Error};
 
 type Task = Box<dyn Future<Item = (), Error = ()> + Send + 'static>;
 
@@ -28,7 +28,7 @@ type Task = Box<dyn Future<Item = (), Error = ()> + Send + 'static>;
 #[derive(Debug)]
 pub struct Input {
     request: Request<ReqBody>,
-    #[cfg_attr(feature = "cargo-clippy", allow(option_option))]
+    #[allow(clippy::option_option)]
     media_type: Option<Option<Mime>>,
     cookie_manager: CookieManager,
     response_headers: Option<HeaderMap>,
@@ -121,7 +121,7 @@ impl Input {
         self.response_headers.get_or_insert_with(Default::default)
     }
 
-    #[cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
+    #[allow(clippy::type_complexity)]
     pub(crate) fn finalize<T>(
         self,
         output: Result<Response<T>, Error>,

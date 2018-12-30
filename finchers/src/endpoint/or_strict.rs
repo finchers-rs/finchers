@@ -1,7 +1,7 @@
 use either::Either;
 
-use endpoint::{ApplyContext, ApplyResult, Endpoint};
-use error::Error;
+use crate::endpoint::{ApplyContext, ApplyResult, Endpoint};
+use crate::error::Error;
 
 #[allow(missing_docs)]
 #[derive(Debug, Copy, Clone)]

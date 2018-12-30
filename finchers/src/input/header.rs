@@ -7,7 +7,7 @@ use http::header::{HeaderValue, ToStrError};
 use mime::Mime;
 use url::Url;
 
-use error::Never;
+use crate::error::Never;
 
 /// Trait representing the conversion from a header value.
 pub trait FromHeaderValue: Sized + 'static {

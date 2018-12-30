@@ -2,9 +2,9 @@ use std::marker::PhantomData;
 
 use futures::{Future, Poll};
 
-use common::{Func, Tuple};
-use endpoint::{ApplyContext, ApplyResult, Endpoint};
-use error::Error;
+use crate::common::{Func, Tuple};
+use crate::endpoint::{ApplyContext, ApplyResult, Endpoint};
+use crate::error::Error;
 
 use super::Wrapper;
 
@@ -68,7 +68,7 @@ where
 }
 
 #[derive(Debug)]
-pub struct MapFuture<'a, T, F: 'a> {
+pub struct MapFuture<'a, T, F> {
     future: T,
     f: Option<&'a F>,
 }
@@ -83,7 +83,7 @@ where
     type Error = Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let item = try_ready!(self.future.poll());
+        let item = futures::try_ready!(self.future.poll());
         let f = self.f.take().expect("this future has already polled.");
         Ok((f.call(item),).into())
     }

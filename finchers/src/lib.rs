@@ -32,50 +32,17 @@
 //! }
 //! ```
 
-#![doc(html_root_url = "https://docs.rs/finchers/0.13.5")]
+#![doc(html_root_url = "https://docs.rs/finchers/0.14.0-dev")]
 #![warn(
     missing_docs,
     missing_debug_implementations,
     nonstandard_style,
+    rust_2018_compatibility,
     rust_2018_idioms,
     unused
 )]
-// FIXME: re-enable the following lint after shipping rust-1.31 out
-// #![warn(rust_2018_compatibility)]
-#![cfg_attr(finchers_deny_warnings, deny(warnings))]
-#![cfg_attr(finchers_deny_warnings, doc(test(attr(deny(warnings)))))]
-
-#[macro_use]
-extern crate bitflags;
-extern crate bytes;
-extern crate cookie;
-extern crate either;
-#[macro_use]
-extern crate failure;
-#[macro_use]
-extern crate futures;
-extern crate http;
-extern crate hyper;
-#[macro_use]
-extern crate log;
-extern crate mime;
-extern crate mime_guess;
-#[macro_use]
-extern crate percent_encoding;
-extern crate serde;
-extern crate serde_json;
-extern crate serde_qs;
-extern crate tokio;
-extern crate tokio_threadpool;
-extern crate tower_service;
-extern crate url;
-
-#[cfg(feature = "tower-web")]
-extern crate tower_web;
-
-#[cfg(test)]
-#[macro_use]
-extern crate matches;
+#![forbid(clippy::unimplemented)]
+#![doc(test(attr(deny(warnings))))]
 
 mod app;
 mod common;
@@ -91,9 +58,9 @@ pub mod test;
 
 /// A prelude for crates using the `finchers` crate.
 pub mod prelude {
-    pub use endpoint;
-    pub use endpoint::wrapper::{EndpointWrapExt, Wrapper};
-    pub use endpoint::{Endpoint, IntoEndpoint, IntoEndpointExt};
-    pub use endpoints;
-    pub use error::HttpError;
+    pub use crate::endpoint;
+    pub use crate::endpoint::wrapper::{EndpointWrapExt, Wrapper};
+    pub use crate::endpoint::{Endpoint, IntoEndpoint, IntoEndpointExt};
+    pub use crate::endpoints;
+    pub use crate::error::HttpError;
 }

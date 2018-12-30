@@ -1,13 +1,13 @@
-#![cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
+#![allow(clippy::type_complexity)]
 
 use std::fmt;
 
 use futures::future;
 use futures::{Future, Poll};
 
-use common::{Combine, Tuple};
-use endpoint::{ApplyContext, ApplyResult, Endpoint, IntoEndpoint};
-use error::Error;
+use crate::common::{Combine, Tuple};
+use crate::endpoint::{ApplyContext, ApplyResult, Endpoint, IntoEndpoint};
+use crate::error::Error;
 
 #[allow(missing_docs)]
 #[derive(Copy, Clone, Debug)]

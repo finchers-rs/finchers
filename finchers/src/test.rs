@@ -54,13 +54,13 @@ use hyper::body::Payload;
 use tokio::executor::{Executor, SpawnError};
 use tokio::runtime::current_thread::Runtime;
 
-use endpoint::Endpoint;
-use error;
-use input::ReqBody;
-use output::Output;
+use crate::endpoint::Endpoint;
+use crate::error;
+use crate::input::ReqBody;
+use crate::output::Output;
 
-use app::{AppFuture, AppService};
-use rt::{with_set_runtime_mode, RuntimeMode};
+use crate::app::{AppFuture, AppService};
+use crate::rt::{with_set_runtime_mode, RuntimeMode};
 
 pub use self::request::{IntoReqBody, TestRequest};
 pub use self::response::TestResult;
@@ -274,7 +274,7 @@ mod request {
     use mime;
     use mime::Mime;
 
-    use input::ReqBody;
+    use crate::input::ReqBody;
 
     /// A trait representing the conversion into an HTTP request.
     ///
@@ -327,7 +327,7 @@ mod request {
                     .headers_mut()
                     .entry(header::HOST)
                     .unwrap()
-                    .or_insert(match authority.port() {
+                    .or_insert(match authority.port_part() {
                         Some(port) => format!("{}:{}", authority.host(), port).parse()?,
                         None => authority.host().parse()?,
                     });
@@ -541,10 +541,11 @@ mod response {
 #[cfg(test)]
 mod tests {
     use super::{runner, TestRequest, TestResult};
-    use endpoint;
-    use endpoint::Endpoint;
+    use crate::endpoint;
+    use crate::endpoint::Endpoint;
     use http::header;
     use http::{Request, Response, Uri};
+    use matches::assert_matches;
 
     #[test]
     fn test_test_request() {

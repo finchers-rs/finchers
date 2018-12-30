@@ -1,7 +1,7 @@
 use futures::{Future, Poll};
 
-use endpoint::{ApplyContext, ApplyResult, Endpoint};
-use error::Error;
+use crate::endpoint::{ApplyContext, ApplyResult, Endpoint};
+use crate::error::Error;
 
 /// Create an endpoint which simply returns a reference to the specified value.
 ///
@@ -55,7 +55,7 @@ impl<'a, T: 'a> Endpoint<'a> for ByRef<T> {
 }
 
 #[derive(Debug)]
-pub struct ByRefFuture<'a, T: 'a> {
+pub struct ByRefFuture<'a, T> {
     x: &'a T,
 }
 
@@ -70,9 +70,9 @@ impl<'a, T: 'a> Future for ByRefFuture<'a, T> {
 
 #[cfg(test)]
 mod tests {
-    use endpoint;
-    use prelude::*;
-    use server;
+    use crate::endpoint;
+    use crate::prelude::*;
+    use crate::server;
 
     #[test]
     #[ignore]
