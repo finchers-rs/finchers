@@ -2,7 +2,7 @@ use futures::Future;
 use std::fmt;
 
 use crate::common::Tuple;
-use crate::endpoint::{ApplyContext, ApplyResult, Endpoint, SendEndpoint};
+use crate::endpoint::{ApplyContext, ApplyResult, Endpoint};
 use crate::error::Error;
 
 trait FutureObjEndpoint {
@@ -26,7 +26,7 @@ where
         &self,
         ecx: &mut ApplyContext<'_>,
     ) -> ApplyResult<Box<dyn Future<Item = Self::Output, Error = Error> + Send + 'static>> {
-        let future = self.apply_send(ecx)?;
+        let future = self.apply(ecx)?;
         Ok(Box::new(future))
     }
 }

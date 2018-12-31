@@ -30,9 +30,6 @@ pub use self::lazy::{lazy, Lazy};
 pub use self::unit::{unit, Unit};
 pub use self::value::{value, Value};
 
-pub use self::output_endpoint::OutputEndpoint;
-pub use self::send_endpoint::SendEndpoint;
-
 // ====
 
 use std::rc::Rc;
@@ -188,88 +185,3 @@ pub trait IntoEndpointExt: IntoEndpoint + Sized {
 }
 
 impl<E: IntoEndpoint> IntoEndpointExt for E {}
-
-mod send_endpoint {
-    use futures::Future;
-
-    use super::{ApplyContext, ApplyResult, Endpoint};
-    use crate::common::Tuple;
-    use crate::error::Error;
-
-    /// A trait representing an endpoint with a constraint that the returned "Future"
-    /// to be transferred across thread boundaries.
-    pub trait SendEndpoint: Sealed {
-        #[doc(hidden)]
-        type Output: Tuple;
-        #[doc(hidden)]
-        type Future: Future<Item = Self::Output, Error = Error> + Send;
-        #[doc(hidden)]
-        fn apply_send(&self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future>;
-    }
-
-    pub trait Sealed {}
-
-    impl<E> Sealed for E
-    where
-        E: Endpoint,
-        E::Future: Send,
-    {
-    }
-
-    impl<E> SendEndpoint for E
-    where
-        E: Endpoint,
-        E::Future: Send,
-    {
-        type Output = E::Output;
-        type Future = E::Future;
-
-        #[inline(always)]
-        fn apply_send(&self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
-            self.apply(cx)
-        }
-    }
-}
-
-mod output_endpoint {
-    use futures::Future;
-
-    use crate::common::Tuple;
-    use crate::endpoint::{ApplyContext, ApplyResult, Endpoint};
-    use crate::error::Error;
-    use crate::output::Output;
-
-    /// A trait representing an endpoint with a constraint that the returned value
-    /// can be convert into an HTTP response.
-    pub trait OutputEndpoint: Sealed {
-        #[doc(hidden)]
-        type Output: Tuple + Output;
-        #[doc(hidden)]
-        type Future: Future<Item = Self::Output, Error = Error>;
-        #[doc(hidden)]
-        fn apply_output(&self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future>;
-    }
-
-    impl<E> OutputEndpoint for E
-    where
-        E: Endpoint,
-        E::Output: Output,
-    {
-        type Output = E::Output;
-        type Future = E::Future;
-
-        #[inline]
-        fn apply_output(&self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
-            self.apply(cx)
-        }
-    }
-
-    pub trait Sealed {}
-
-    impl<E> Sealed for E
-    where
-        E: Endpoint,
-        E::Output: Output,
-    {
-    }
-}
