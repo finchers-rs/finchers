@@ -19,7 +19,7 @@ use http::Request;
 use http::{Response, StatusCode};
 use mime::Mime;
 
-use self::cookie::{CookieJar, CookieManager};
+use self::cookie::CookieManager;
 use crate::error::{bad_request, Error};
 
 type Task = Box<dyn Future<Item = (), Error = ()> + Send + 'static>;
@@ -101,15 +101,8 @@ impl Input {
         }
     }
 
-    #[doc(hidden)]
-    #[deprecated(since = "0.13.5", note = "use `Input::cookies2()` instead.")]
-    pub fn cookies(&mut self) -> Result<&mut CookieJar, Error> {
-        self.cookies2()?;
-        Ok(self.cookie_manager.jar().expect("should be available"))
-    }
-
     /// Returns a `Cookies` or initialize the internal Cookie jar.
-    pub fn cookies2(&mut self) -> Result<Cookies, Error> {
+    pub fn cookies(&mut self) -> Result<Cookies, Error> {
         self.cookie_manager
             .ensure_initialized(self.request.headers())
     }
