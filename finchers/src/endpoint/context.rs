@@ -188,13 +188,12 @@ pub fn with_get_cx<R>(f: impl FnOnce(&mut TaskContext<'_>) -> R) -> R {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::input::ReqBody;
     use http::Request;
 
     #[test]
     fn test_segments() {
         let request = Request::get("/foo/bar.txt")
-            .body(ReqBody::new(Default::default()))
+            .body(Default::default())
             .unwrap();
         let mut input = Input::new(request);
         let mut cursor = Cursor::default();
@@ -215,9 +214,7 @@ mod tests {
 
     #[test]
     fn test_segments_from_root_path() {
-        let request = Request::get("/")
-            .body(ReqBody::new(Default::default()))
-            .unwrap();
+        let request = Request::get("/").body(Default::default()).unwrap();
         let mut input = Input::new(request);
         let mut cursor = Cursor::default();
         let mut ecx = ApplyContext::new(&mut input, &mut cursor);

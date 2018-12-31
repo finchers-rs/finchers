@@ -3,7 +3,7 @@
 use std::io;
 
 use bytes::{Buf, BufMut};
-use futures::{IntoFuture, Poll};
+use futures::{Future, IntoFuture, Poll};
 use http::header::{HeaderName, HeaderValue};
 use http::response;
 use http::{HttpTryFrom, Response, StatusCode};
@@ -132,9 +132,17 @@ where
             builder: Builder { mut builder },
             on_upgrade,
         } = self;
-        cx.input()
-            .body_mut()
-            .upgrade(|upgraded| on_upgrade(UpgradedIo(upgraded)));
+        tokio::spawn(
+            cx.input()
+                .body()
+                .take()
+                .ok_or_else(|| {
+                    crate::error::err_msg(http::StatusCode::INTERNAL_SERVER_ERROR, "stolen payload")
+                })?
+                .on_upgrade()
+                .map_err(|e| log::error!("upgrade error: {}", e))
+                .and_then(|upgraded| on_upgrade(UpgradedIo(upgraded)).into_future()),
+        );
         builder.body(()).map_err(crate::error::fail)
     }
 }

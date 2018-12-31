@@ -1,33 +1,29 @@
 //! Components for parsing the incoming HTTP request.
 
-mod body;
 mod cookie;
 mod encoded;
 mod header;
 
-pub use self::body::{Payload, ReqBody};
 pub use self::cookie::Cookies;
 pub use self::encoded::{EncodedStr, FromEncodedStr};
 pub use self::header::FromHeaderValue;
 
 // ====
 
-use futures::Future;
 use http;
 use http::header::{HeaderMap, HeaderValue};
 use http::Request;
-use http::{Response, StatusCode};
+use http::Response;
 use mime::Mime;
 
 use self::cookie::CookieManager;
 use crate::error::{bad_request, Error};
 
-type Task = Box<dyn Future<Item = (), Error = ()> + Send + 'static>;
-
 /// The contextual information with an incoming HTTP request.
 #[derive(Debug)]
 pub struct Input {
-    request: Request<ReqBody>,
+    request: Request<()>,
+    body: Option<hyper::Body>,
     #[allow(clippy::option_option)]
     media_type: Option<Option<Mime>>,
     cookie_manager: CookieManager,
@@ -35,9 +31,11 @@ pub struct Input {
 }
 
 impl Input {
-    pub(crate) fn new(request: Request<ReqBody>) -> Input {
+    pub(crate) fn new(request: Request<hyper::Body>) -> Input {
+        let (parts, body) = request.into_parts();
         Input {
-            request,
+            request: Request::from_parts(parts, ()),
+            body: Some(body),
             media_type: None,
             cookie_manager: Default::default(),
             response_headers: None,
@@ -70,14 +68,9 @@ impl Input {
         self.request.extensions()
     }
 
-    /// Returns a reference to the message body in the request.
-    pub fn body(&self) -> &ReqBody {
-        self.request.body()
-    }
-
     /// Returns a mutable reference to the message body in the request.
-    pub fn body_mut(&mut self) -> &mut ReqBody {
-        self.request.body_mut()
+    pub fn body(&mut self) -> &mut Option<hyper::Body> {
+        &mut self.body
     }
 
     /// Attempts to get the entry of `Content-type` and parse its value.
@@ -118,23 +111,9 @@ impl Input {
     pub(crate) fn finalize<T>(
         self,
         output: Result<Response<T>, Error>,
-    ) -> (Response<Result<Option<T>, Error>>, Option<Task>) {
-        let (_parts, body) = self.request.into_parts();
-        let mut upgraded_opt = None;
-
+    ) -> Response<Result<Option<T>, Error>> {
         let mut response = match output {
-            Ok(mut response) => match body.into_upgraded() {
-                Some(upgraded) => {
-                    upgraded_opt = Some(upgraded);
-
-                    // Forcibly rewrite the status code and response body.
-                    // Since these operations are automaically done by Hyper,
-                    // they are substantially unnecessary.
-                    *response.status_mut() = StatusCode::SWITCHING_PROTOCOLS;
-                    response.map(|_bd| Ok(None))
-                }
-                None => response.map(|bd| Ok(Some(bd))),
-            },
+            Ok(response) => response.map(|bd| Ok(Some(bd))),
             Err(err) => err.into_response().map(Err),
         };
 
@@ -149,6 +128,6 @@ impl Input {
             response.headers_mut().extend(headers);
         }
 
-        (response, upgraded_opt)
+        response
     }
 }

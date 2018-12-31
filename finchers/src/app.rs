@@ -15,19 +15,15 @@ use http::header::HeaderMap;
 use http::header::HeaderValue;
 use http::{Request, Response};
 use hyper::body::{Body, Payload};
-use tokio::executor::{Executor, SpawnError};
 use tower_service::{NewService, Service};
-#[cfg(feature = "tower-web")]
-use tower_web::util::buf_stream::{size_hint, BufStream};
 
 use crate::endpoint::context::{ApplyContext, TaskContext};
 use crate::endpoint::{with_set_cx, Cursor, Endpoint};
 use crate::error::Error;
 use crate::error::Never;
-use crate::input::{Input, ReqBody};
+use crate::input::Input;
 use crate::output::body::{Payload as PayloadWrapper, ResBody};
 use crate::output::{Output, OutputContext};
-use crate::rt::DefaultExecutor;
 
 // ==== App ====
 
@@ -89,7 +85,7 @@ where
         AppService { endpoint }
     }
 
-    pub(crate) fn dispatch(&self, request: Request<ReqBody>) -> AppFuture<E> {
+    pub(crate) fn dispatch(&self, request: Request<Body>) -> AppFuture<E> {
         AppFuture {
             endpoint: self.endpoint.clone(),
             state: State::Start(request),
@@ -112,7 +108,7 @@ where
     }
 
     fn call(&mut self, request: Self::Request) -> Self::Future {
-        self.dispatch(request.map(ReqBody::new))
+        self.dispatch(request)
     }
 }
 
@@ -124,7 +120,7 @@ pub struct AppFuture<E: Endpoint> {
 
 #[allow(clippy::large_enum_variant)]
 enum State<E: Endpoint> {
-    Start(Request<ReqBody>),
+    Start(Request<Body>),
     InFlight(Input, E::Future, Cursor),
     Done(Input),
     Gone,
@@ -188,10 +184,7 @@ where
         }
     }
 
-    pub(crate) fn poll_all(
-        &mut self,
-        exec: &mut impl Executor,
-    ) -> Poll<Response<AppPayload>, SpawnError>
+    pub(crate) fn poll_all(&mut self) -> Poll<Response<AppPayload>, io::Error>
     where
         E::Output: Output,
     {
@@ -209,10 +202,7 @@ where
                         .map_err(Into::into)
                 });
 
-                let (response, task_opt) = input.finalize(output);
-                if let Some(task) = task_opt {
-                    exec.spawn(task)?;
-                }
+                let response = input.finalize(output);
                 let mut response = response.map(|payload| match payload {
                     Ok(payload) => AppPayload::new(payload),
                     Err(err) => AppPayload::new(PayloadWrapper::from(err.into_payload())),
@@ -266,10 +256,7 @@ where
     type Error = io::Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        self.poll_all(&mut DefaultExecutor::current()).map_err(|e| {
-            log::error!("failed to spawn an upgraded task: {}", e);
-            io::Error::new(io::ErrorKind::Other, e)
-        })
+        self.poll_all()
     }
 }
 

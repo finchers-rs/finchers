@@ -34,7 +34,6 @@ mod raw {
 
     use crate::endpoint::{with_get_cx, ApplyContext, ApplyResult, Endpoint};
     use crate::error::Error;
-    use crate::input::Payload;
 
     /// Creates an endpoint which takes the instance of [`Payload`]
     /// from the context.
@@ -45,7 +44,7 @@ mod raw {
     /// [`Payload`]: ../input/struct.Payload.html
     #[inline]
     pub fn raw() -> Raw {
-        (Raw { _priv: () }).with_output::<(Payload,)>()
+        (Raw { _priv: () }).with_output::<(hyper::Body,)>()
     }
 
     #[allow(missing_docs)]
@@ -61,7 +60,7 @@ mod raw {
     }
 
     impl Endpoint for Raw {
-        type Output = (Payload,);
+        type Output = (hyper::Body,);
         type Future = RawFuture;
 
         fn apply(&self, _: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
@@ -75,11 +74,11 @@ mod raw {
     }
 
     impl Future for RawFuture {
-        type Item = (Payload,);
+        type Item = (hyper::Body,);
         type Error = Error;
 
         fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-            with_get_cx(|input| input.body_mut().take())
+            with_get_cx(|input| input.body().take())
                 .map(|x| (x,).into())
                 .ok_or_else(stolen_payload)
         }
@@ -151,10 +150,8 @@ impl ::futures::Future for ReceiveAllFuture {
 
             match mem::replace(&mut self.state, State::Done) {
                 State::Start => {
-                    let payload = match with_get_cx(|input| input.body_mut().take()) {
-                        Some(payload) => payload.into_inner(),
-                        None => return Err(stolen_payload()),
-                    };
+                    let payload =
+                        with_get_cx(|input| input.body().take()).ok_or_else(stolen_payload)?;
                     self.state = State::Receiving(payload, BytesMut::new());
                     continue 'poll;
                 }

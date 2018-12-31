@@ -51,12 +51,10 @@ use http::header;
 use http::header::{HeaderMap, HeaderName, HeaderValue};
 use http::{Request, Response};
 use hyper::body::Payload;
-use tokio::executor::{Executor, SpawnError};
 use tokio::runtime::current_thread::Runtime;
 
 use crate::endpoint::Endpoint;
 use crate::error;
-use crate::input::ReqBody;
 use crate::output::Output;
 
 use crate::app::{AppFuture, AppService};
@@ -67,8 +65,6 @@ pub use self::response::TestResult;
 
 // ====
 
-type Task = Box<dyn Future<Item = (), Error = ()> + Send + 'static>;
-
 struct AnnotatedRuntime<'a>(&'a mut Runtime);
 
 impl<'a> AnnotatedRuntime<'a> {
@@ -76,15 +72,6 @@ impl<'a> AnnotatedRuntime<'a> {
         self.0.block_on(future::poll_fn(move || {
             with_set_runtime_mode(RuntimeMode::CurrentThread, || future.poll())
         }))
-    }
-}
-
-struct DummyExecutor(Option<Task>);
-
-impl Executor for DummyExecutor {
-    fn spawn(&mut self, task: Task) -> Result<(), SpawnError> {
-        self.0 = Some(task);
-        Ok(())
     }
 }
 
@@ -151,7 +138,7 @@ impl<E> TestRunner<E> {
         &mut self.rt
     }
 
-    fn prepare_request(&self, request: impl TestRequest) -> http::Result<Request<ReqBody>> {
+    fn prepare_request(&self, request: impl TestRequest) -> http::Result<Request<hyper::Body>> {
         let mut request = request.into_request()?;
 
         if let Some(ref default_headers) = self.default_headers {
@@ -230,34 +217,30 @@ impl<E> TestRunner<E> {
         E::Output: Output,
     {
         self.apply_inner(request, |mut future, rt| {
-            let mut exec = DummyExecutor(None);
             let response = rt
-                .block_on(future::poll_fn(|| future.poll_all(&mut exec)))
+                .block_on(future::poll_fn(|| future.poll_all()))
                 .expect("DummyExecutor::spawn() never fails");
             let (parts, mut payload) = response.into_parts();
 
-            let result = match exec.0 {
-                Some(task) => TestResult::Upgraded(task),
-                None => {
-                    // construct ResBody
-                    let content_length = payload.content_length();
+            let result = {
+                // construct ResBody
+                let content_length = payload.content_length();
 
-                    let chunks = rt.block_on(
-                        stream::poll_fn(|| match payload.poll_data() {
-                            Ok(Async::Ready(data)) => Ok(Async::Ready(data.map(Buf::collect))),
-                            Ok(Async::NotReady) => Ok(Async::NotReady),
-                            Err(err) => Err(err),
-                        })
-                        .collect(),
-                    )?;
+                let chunks = rt.block_on(
+                    stream::poll_fn(|| match payload.poll_data() {
+                        Ok(Async::Ready(data)) => Ok(Async::Ready(data.map(Buf::collect))),
+                        Ok(Async::NotReady) => Ok(Async::NotReady),
+                        Err(err) => Err(err),
+                    })
+                    .collect(),
+                )?;
 
-                    let trailers = rt.block_on(future::poll_fn(|| payload.poll_trailers()))?;
+                let trailers = rt.block_on(future::poll_fn(|| payload.poll_trailers()))?;
 
-                    TestResult::Payload {
-                        chunks,
-                        trailers,
-                        content_length,
-                    }
+                TestResult::Payload {
+                    chunks,
+                    trailers,
+                    content_length,
                 }
             };
 
@@ -273,8 +256,6 @@ mod request {
     use hyper::body::Body;
     use mime;
     use mime::Mime;
-
-    use crate::input::ReqBody;
 
     /// A trait representing the conversion into an HTTP request.
     ///
@@ -296,31 +277,31 @@ mod request {
     }
 
     pub trait TestRequestImpl {
-        fn into_request(self) -> http::Result<Request<ReqBody>>;
+        fn into_request(self) -> http::Result<Request<Body>>;
     }
 
     impl<'a> TestRequestImpl for &'a str {
-        fn into_request(self) -> http::Result<Request<ReqBody>> {
+        fn into_request(self) -> http::Result<Request<Body>> {
             (*self).parse::<Uri>()?.into_request()
         }
     }
 
     impl TestRequestImpl for String {
-        fn into_request(self) -> http::Result<Request<ReqBody>> {
+        fn into_request(self) -> http::Result<Request<Body>> {
             self.parse::<Uri>()?.into_request()
         }
     }
 
     impl TestRequestImpl for Uri {
-        fn into_request(self) -> http::Result<Request<ReqBody>> {
+        fn into_request(self) -> http::Result<Request<Body>> {
             (&self).into_request()
         }
     }
 
     impl<'a> TestRequestImpl for &'a Uri {
-        fn into_request(self) -> http::Result<Request<ReqBody>> {
+        fn into_request(self) -> http::Result<Request<Body>> {
             let path = self.path_and_query().map(|s| s.as_str()).unwrap_or("/");
-            let mut request = Request::get(path).body(ReqBody::new(Default::default()))?;
+            let mut request = Request::get(path).body(Default::default())?;
 
             if let Some(authority) = self.authority_part() {
                 request
@@ -338,7 +319,7 @@ mod request {
     }
 
     impl<T: IntoReqBody> TestRequestImpl for Request<T> {
-        fn into_request(mut self) -> http::Result<Request<ReqBody>> {
+        fn into_request(mut self) -> http::Result<Request<Body>> {
             if let Some(mime) = self.body().content_type() {
                 self.headers_mut()
                     .entry(header::CONTENT_TYPE)
@@ -354,14 +335,14 @@ mod request {
     }
 
     impl TestRequestImpl for http::request::Builder {
-        fn into_request(mut self) -> http::Result<Request<ReqBody>> {
-            self.body(ReqBody::new(Default::default()))
+        fn into_request(mut self) -> http::Result<Request<Body>> {
+            self.body(Default::default())
         }
     }
 
     impl<'a> TestRequestImpl for &'a mut http::request::Builder {
-        fn into_request(self) -> http::Result<Request<ReqBody>> {
-            self.body(ReqBody::new(Default::default()))
+        fn into_request(self) -> http::Result<Request<Body>> {
+            self.body(Default::default())
         }
     }
 
@@ -370,7 +351,7 @@ mod request {
         T: TestRequestImpl,
         E: Into<http::Error>,
     {
-        fn into_request(self) -> http::Result<Request<ReqBody>> {
+        fn into_request(self) -> http::Result<Request<Body>> {
             self.map_err(Into::into)?.into_request()
         }
     }
@@ -393,24 +374,24 @@ mod request {
         fn content_type(&self) -> Option<Mime> {
             None
         }
-        fn into_req_body(self) -> ReqBody;
+        fn into_req_body(self) -> Body;
     }
 
     impl IntoReqBodyImpl for () {
-        fn into_req_body(self) -> ReqBody {
-            ReqBody::new(Default::default())
+        fn into_req_body(self) -> Body {
+            Default::default()
         }
     }
 
     impl<'a> IntoReqBodyImpl for &'a [u8] {
-        fn into_req_body(self) -> ReqBody {
-            ReqBody::new(self.to_owned().into())
+        fn into_req_body(self) -> Body {
+            self.to_owned().into()
         }
     }
 
     impl<'a> IntoReqBodyImpl for Vec<u8> {
-        fn into_req_body(self) -> ReqBody {
-            ReqBody::new(self.into())
+        fn into_req_body(self) -> Body {
+            self.into()
         }
     }
 
@@ -419,8 +400,8 @@ mod request {
             Some(mime::TEXT_PLAIN_UTF_8)
         }
 
-        fn into_req_body(self) -> ReqBody {
-            ReqBody::new(self.to_owned().into())
+        fn into_req_body(self) -> Body {
+            self.to_owned().into()
         }
     }
 
@@ -429,14 +410,14 @@ mod request {
             Some(mime::TEXT_PLAIN_UTF_8)
         }
 
-        fn into_req_body(self) -> ReqBody {
-            ReqBody::new(self.into())
+        fn into_req_body(self) -> Body {
+            self.into()
         }
     }
 
     impl IntoReqBodyImpl for Body {
-        fn into_req_body(self) -> ReqBody {
-            ReqBody::new(self)
+        fn into_req_body(self) -> Body {
+            self
         }
     }
 }
@@ -449,12 +430,9 @@ mod response {
     use bytes::Bytes;
     use http::header::HeaderMap;
 
-    use super::Task;
-
     /// A struct representing a response body returned from the test runner.
     #[allow(missing_docs)]
     pub enum TestResult {
-        Upgraded(Task),
         Payload {
             chunks: Vec<Bytes>,
             trailers: Option<HeaderMap>,
@@ -465,7 +443,6 @@ mod response {
     impl fmt::Debug for TestResult {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             match self {
-                TestResult::Upgraded(..) => f.debug_tuple("Upgraded").finish(),
                 TestResult::Payload {
                     ref chunks,
                     ref trailers,
@@ -485,35 +462,24 @@ mod response {
         pub fn chunks(&self) -> Option<&[Bytes]> {
             match self {
                 TestResult::Payload { ref chunks, .. } => Some(chunks),
-                TestResult::Upgraded(..) => None,
             }
         }
 
         pub fn trailers(&self) -> Option<&HeaderMap> {
             match self {
                 TestResult::Payload { ref trailers, .. } => trailers.as_ref(),
-                TestResult::Upgraded(..) => None,
             }
         }
 
         pub fn content_length(&self) -> Option<u64> {
             match *self {
                 TestResult::Payload { content_length, .. } => content_length,
-                TestResult::Upgraded(..) => None,
             }
         }
 
         pub fn is_chunked(&self) -> bool {
             match self {
-                TestResult::Upgraded(..) => false,
                 TestResult::Payload { content_length, .. } => content_length.is_none(),
-            }
-        }
-
-        pub fn is_upgraded(&self) -> bool {
-            match self {
-                TestResult::Upgraded(..) => true,
-                TestResult::Payload { .. } => false,
             }
         }
 
