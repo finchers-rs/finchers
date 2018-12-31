@@ -16,8 +16,8 @@ mod value;
 
 // re-exports
 pub use self::boxed::{EndpointObj, LocalEndpointObj};
-pub use self::context::{with_get_cx, ApplyContext, TaskContext};
-pub(crate) use self::context::{with_set_cx, Cursor};
+pub use self::context::ApplyContext;
+pub(crate) use self::context::Cursor;
 pub use self::error::{ApplyError, ApplyResult};
 pub use self::wrapper::{EndpointWrapExt, Wrapper};
 
@@ -35,10 +35,8 @@ pub use self::value::{value, Value};
 use std::rc::Rc;
 use std::sync::Arc;
 
-use futures::Future;
-
 use crate::common::{Combine, Tuple};
-use crate::error::Error;
+use crate::future::EndpointFuture;
 
 /// Trait representing an endpoint.
 pub trait Endpoint {
@@ -46,7 +44,7 @@ pub trait Endpoint {
     type Output: Tuple;
 
     /// The type of value which will be returned from `apply`.
-    type Future: Future<Item = Self::Output, Error = Error>;
+    type Future: EndpointFuture<Output = Self::Output>;
 
     /// Perform checking the incoming HTTP request and returns
     /// an instance of the associated Future if matched.

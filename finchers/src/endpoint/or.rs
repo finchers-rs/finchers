@@ -5,6 +5,7 @@ use std::mem;
 
 use crate::endpoint::{ApplyContext, ApplyResult, Endpoint};
 use crate::error::Error;
+use crate::future::{EndpointFuture, Poll, TaskContext};
 use crate::output::{Output, OutputContext};
 
 #[allow(missing_docs)]
@@ -88,19 +89,18 @@ impl<L, R> OrFuture<L, R> {
     }
 }
 
-impl<L, R> ::futures::Future for OrFuture<L, R>
+impl<L, R> EndpointFuture for OrFuture<L, R>
 where
-    L: ::futures::Future<Error = Error>,
-    R: ::futures::Future<Error = Error>,
+    L: EndpointFuture,
+    R: EndpointFuture,
 {
-    type Item = (Wrapped<L::Item, R::Item>,);
-    type Error = Error;
+    type Output = (Wrapped<L::Output, R::Output>,);
 
-    #[inline(always)]
-    fn poll(&mut self) -> ::futures::Poll<Self::Item, Self::Error> {
+    #[inline]
+    fn poll_endpoint(&mut self, cx: &mut TaskContext<'_>) -> Poll<Self::Output, Error> {
         match self.inner {
-            Left(ref mut t) => t.poll().map(|t| t.map(|t| (Wrapped(Left(t)),))),
-            Right(ref mut t) => t.poll().map(|t| t.map(|t| (Wrapped(Right(t)),))),
+            Left(ref mut t) => t.poll_endpoint(cx).map(|t| t.map(|t| (Wrapped(Left(t)),))),
+            Right(ref mut t) => t.poll_endpoint(cx).map(|t| t.map(|t| (Wrapped(Right(t)),))),
         }
     }
 }

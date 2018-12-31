@@ -5,10 +5,10 @@ use http::HttpTryFrom;
 use std::fmt;
 use std::marker::PhantomData;
 
-use crate::endpoint::with_get_cx;
 use crate::endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint};
 use crate::error;
 use crate::error::Error;
+use crate::future::with_get_cx;
 use crate::input::FromHeaderValue;
 
 // ==== Parse ====

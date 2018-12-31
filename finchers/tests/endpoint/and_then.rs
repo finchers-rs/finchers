@@ -1,11 +1,12 @@
-use finchers::error::bad_request;
+use finchers::error::{bad_request, Error};
 use finchers::prelude::*;
 use finchers::test;
 use futures::future;
 
 #[test]
 fn test_and_then_1() {
-    let mut runner = test::runner(endpoint::value("Foo").and_then(|_| future::ok("Bar")));
+    let mut runner =
+        test::runner(endpoint::value("Foo").and_then(|_| future::ok::<_, Error>("Bar")));
     assert_matches!(
         runner.apply("/"),
         Ok(s) if s == "Bar"

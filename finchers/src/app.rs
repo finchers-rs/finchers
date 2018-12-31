@@ -17,10 +17,11 @@ use http::{Request, Response};
 use hyper::body::{Body, Payload};
 use tower_service::{NewService, Service};
 
-use crate::endpoint::context::{ApplyContext, TaskContext};
-use crate::endpoint::{with_set_cx, Cursor, Endpoint};
+use crate::endpoint::context::ApplyContext;
+use crate::endpoint::{Cursor, Endpoint};
 use crate::error::Error;
 use crate::error::Never;
+use crate::future::{EndpointFuture, TaskContext};
 use crate::input::Input;
 use crate::output::body::{Payload as PayloadWrapper, ResBody};
 use crate::output::{Output, OutputContext};
@@ -151,7 +152,7 @@ where
                 State::Start(..) => None,
                 State::InFlight(ref mut input, ref mut f, ref mut cursor) => {
                     let mut tcx = TaskContext::new(input, cursor);
-                    match with_set_cx(&mut tcx, || f.poll()) {
+                    match f.poll_endpoint(&mut tcx) {
                         Ok(Async::NotReady) => return Ok(Async::NotReady),
                         Ok(Async::Ready(ok)) => Some(Ok(ok)),
                         Err(err) => Some(Err(err)),

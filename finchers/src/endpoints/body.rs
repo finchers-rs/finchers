@@ -11,9 +11,10 @@ use http::StatusCode;
 use hyper::body::{Body, Payload as _Payload};
 use serde::de::DeserializeOwned;
 
-use crate::endpoint::{with_get_cx, ApplyContext, ApplyResult, Endpoint};
+use crate::endpoint::{ApplyContext, ApplyResult, Endpoint};
 use crate::error;
 use crate::error::{err_msg, Error};
+use crate::future::with_get_cx;
 
 pub use self::raw::{raw, Raw};
 
@@ -32,8 +33,9 @@ mod raw {
     use futures::{Future, Poll};
     use std::fmt;
 
-    use crate::endpoint::{with_get_cx, ApplyContext, ApplyResult, Endpoint};
+    use crate::endpoint::{ApplyContext, ApplyResult, Endpoint};
     use crate::error::Error;
+    use crate::future::with_get_cx;
 
     /// Creates an endpoint which takes the instance of [`Payload`]
     /// from the context.
@@ -272,8 +274,8 @@ mod parse {
 
     use futures::{Future, Poll};
 
-    use crate::endpoint::with_get_cx;
     use crate::error::{bad_request, Error};
+    use crate::future::with_get_cx;
 
     use super::ReceiveAllFuture;
 

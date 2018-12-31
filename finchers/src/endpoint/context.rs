@@ -1,9 +1,7 @@
 //! The definition of contextual information during applying endpoints.
 
-use std::cell::Cell;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
-use std::ptr::NonNull;
 use std::rc::Rc;
 
 use crate::input::{EncodedStr, Input};
@@ -99,89 +97,6 @@ impl<'a> DerefMut for ApplyContext<'a> {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.input()
-    }
-}
-
-/// The contexual information per request during polling the future returned from endpoints.
-///
-/// The value of this context can be indirectly access by calling `with_get_cx()`.
-#[derive(Debug)]
-pub struct TaskContext<'a> {
-    input: &'a mut Input,
-    cursor: &'a Cursor,
-    _marker: PhantomData<Rc<()>>,
-}
-
-impl<'a> TaskContext<'a> {
-    pub(crate) fn new(input: &'a mut Input, cursor: &'a Cursor) -> TaskContext<'a> {
-        TaskContext {
-            input,
-            cursor,
-            _marker: PhantomData,
-        }
-    }
-
-    #[allow(missing_docs)]
-    pub fn input(&mut self) -> &mut Input {
-        &mut *self.input
-    }
-}
-
-impl<'a> Deref for TaskContext<'a> {
-    type Target = Input;
-
-    #[inline]
-    fn deref(&self) -> &Self::Target {
-        &*self.input
-    }
-}
-
-impl<'a> DerefMut for TaskContext<'a> {
-    #[inline]
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        self.input()
-    }
-}
-
-thread_local!(static CX: Cell<Option<NonNull<TaskContext<'static>>>> = Cell::new(None));
-
-struct SetOnDrop(Option<NonNull<TaskContext<'static>>>);
-
-impl Drop for SetOnDrop {
-    fn drop(&mut self) {
-        CX.with(|cx| cx.set(self.0));
-    }
-}
-
-#[allow(clippy::cast_ptr_alignment)]
-pub(crate) fn with_set_cx<R>(current: &mut TaskContext<'_>, f: impl FnOnce() -> R) -> R {
-    CX.with(|cx| {
-        cx.set(Some(unsafe {
-            NonNull::new_unchecked(
-                current as *mut TaskContext<'_> as *mut () as *mut TaskContext<'static>,
-            )
-        }))
-    });
-    let _reset = SetOnDrop(None);
-    f()
-}
-
-/// Acquires a mutable reference to `TaskContext` from the current task context
-/// and executes the provided function using its value.
-///
-/// This function is usually used to access the value of `Input` within the `Future`
-/// returned by the `Endpoint`.
-///
-/// # Panics
-///
-/// A panic will occur if you call this function inside the provided closure `f`, since the
-/// reference to `TaskContext` on the task context is invalidated while executing `f`.
-pub fn with_get_cx<R>(f: impl FnOnce(&mut TaskContext<'_>) -> R) -> R {
-    let prev = CX.with(|cx| cx.replace(None));
-    let _reset = SetOnDrop(prev);
-    match prev {
-        Some(mut ptr) => unsafe { f(ptr.as_mut()) },
-        None => panic!("The reference to TaskContext is not set at the current context."),
     }
 }
 

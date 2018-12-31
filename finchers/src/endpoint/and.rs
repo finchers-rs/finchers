@@ -1,13 +1,9 @@
 #![allow(clippy::type_complexity)]
 
-use std::fmt;
-
-use futures::future;
-use futures::{Future, Poll};
-
 use crate::common::{Combine, Tuple};
 use crate::endpoint::{ApplyContext, ApplyResult, Endpoint, IntoEndpoint};
 use crate::error::Error;
+use crate::future::{EndpointFuture, MaybeDone, Poll, TaskContext};
 
 #[allow(missing_docs)]
 #[derive(Copy, Clone, Debug)]
@@ -26,49 +22,44 @@ where
     type Future = AndFuture<E1::Future, E2::Future>;
 
     fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
-        let f1 = self.e1.apply(ecx)?;
-        let f2 = self.e2.apply(ecx)?;
-        Ok(AndFuture { inner: f1.join(f2) })
+        Ok(AndFuture {
+            f1: self.e1.apply(ecx).map(MaybeDone::Pending)?,
+            f2: self.e2.apply(ecx).map(MaybeDone::Pending)?,
+        })
     }
 }
 
+#[allow(missing_debug_implementations)]
 pub struct AndFuture<F1, F2>
 where
-    F1: Future<Error = Error>,
-    F2: Future<Error = Error>,
+    F1: EndpointFuture,
+    F2: EndpointFuture,
 {
-    inner: future::Join<F1, F2>,
+    f1: MaybeDone<F1>,
+    f2: MaybeDone<F2>,
 }
 
-impl<F1, F2> fmt::Debug for AndFuture<F1, F2>
+impl<F1, F2> EndpointFuture for AndFuture<F1, F2>
 where
-    F1: Future<Error = Error> + fmt::Debug,
-    F2: Future<Error = Error> + fmt::Debug,
-    F1::Item: fmt::Debug,
-    F2::Item: fmt::Debug,
+    F1: EndpointFuture,
+    F2: EndpointFuture,
+    F1::Output: Combine<F2::Output>,
+    F2::Output: Tuple,
 {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("AndFuture")
-            .field("inner", &self.inner)
-            .finish()
-    }
-}
+    type Output = <F1::Output as Combine<F2::Output>>::Out;
 
-impl<F1, F2> Future for AndFuture<F1, F2>
-where
-    F1: Future<Error = Error>,
-    F2: Future<Error = Error>,
-    F1::Item: Tuple + Combine<F2::Item>,
-    F2::Item: Tuple,
-{
-    type Item = <F1::Item as Combine<F2::Item>>::Out;
-    type Error = Error;
-
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        self.inner
-            .poll()
-            .map(|x| x.map(|(v1, v2)| Combine::combine(v1, v2)))
+    fn poll_endpoint(&mut self, cx: &mut TaskContext<'_>) -> Poll<Self::Output, Error> {
+        futures::try_ready!(self.f1.poll_endpoint(cx));
+        futures::try_ready!(self.f2.poll_endpoint(cx));
+        let v1 = self
+            .f1
+            .take_item()
+            .expect("the future has already been polled.");
+        let v2 = self
+            .f2
+            .take_item()
+            .expect("the future has already been polled.");
+        Ok(Combine::combine(v1, v2).into())
     }
 }
 
