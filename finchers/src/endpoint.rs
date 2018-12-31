@@ -7,12 +7,8 @@ pub mod syntax;
 pub mod wrapper;
 
 mod and;
-mod apply;
-mod lazy;
 mod or;
 mod or_strict;
-mod unit;
-mod value;
 
 // re-exports
 pub use self::boxed::{EndpointObj, LocalEndpointObj};
@@ -25,17 +21,15 @@ pub use self::and::And;
 pub use self::or::Or;
 pub use self::or_strict::OrStrict;
 
-pub use self::apply::{apply, apply_raw, Apply, ApplyRaw};
-pub use self::lazy::{lazy, Lazy};
-pub use self::unit::{unit, Unit};
-pub use self::value::{value, Value};
-
 // ====
 
 use std::rc::Rc;
 use std::sync::Arc;
 
+use futures::IntoFuture;
+
 use crate::common::{Combine, Tuple};
+use crate::error::Error;
 use crate::future::EndpointFuture;
 
 /// Trait representing an endpoint.
@@ -102,6 +96,159 @@ impl<E: Endpoint> Endpoint for Arc<E> {
 
     fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         (**self).apply(ecx)
+    }
+}
+
+/// Create an endpoint from a function which takes the reference to `ApplyContext`
+/// and returns a future.
+///
+/// The endpoint created by this function will wrap the result of future into a tuple.
+/// If you want to return the result without wrapping, use `apply_raw` instead.
+pub fn apply_fn<F, R>(f: F) -> impl Endpoint<Output = R::Output, Future = R>
+where
+    F: Fn(&mut ApplyContext<'_>) -> ApplyResult<R>,
+    R: EndpointFuture,
+    R::Output: Tuple,
+{
+    #[allow(missing_debug_implementations)]
+    struct ApplyEndpoint<F>(F);
+
+    impl<F, R> Endpoint for ApplyEndpoint<F>
+    where
+        F: Fn(&mut ApplyContext<'_>) -> ApplyResult<R>,
+        R: EndpointFuture,
+        R::Output: Tuple,
+    {
+        type Output = R::Output;
+        type Future = R;
+
+        #[inline]
+        fn apply(&self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+            (self.0)(cx)
+        }
+    }
+
+    ApplyEndpoint(f)
+}
+
+/// Create an endpoint which simply returns an unit (`()`).
+#[inline]
+pub fn unit() -> impl Endpoint<
+    Output = (), //
+    Future = impl EndpointFuture<Output = ()> + Send + 'static,
+> {
+    apply_fn(|_| {
+        Ok(crate::future::poll_fn(|_| {
+            Ok::<_, crate::error::Never>(().into())
+        }))
+    })
+}
+
+/// Create an endpoint which simply clones the specified value.
+///
+/// # Examples
+///
+/// ```
+/// # #[macro_use]
+/// # extern crate finchers;
+/// # use finchers::prelude::*;
+/// # use finchers::endpoint::value;
+/// #
+/// #[derive(Clone)]
+/// struct Conn {
+///     // ...
+/// #   _p: (),
+/// }
+///
+/// # fn main() {
+/// let conn = {
+///     // do some stuff...
+/// #   Conn { _p: () }
+/// };
+///
+/// let endpoint = path!(@get / "posts" / u32 /)
+///     .and(value(conn))
+///     .and_then(|id: u32, conn: Conn| {
+///         // ...
+/// #       drop(id);
+/// #       Ok(conn)
+///     });
+/// # drop(endpoint);
+/// # }
+/// ```
+#[inline]
+pub fn value<T: Clone>(
+    x: T,
+) -> impl Endpoint<
+    Output = (T,),
+    Future = self::value::ValueFuture<T>, // private
+> {
+    apply_fn(move |_| Ok(self::value::ValueFuture { x: Some(x.clone()) }))
+}
+
+mod value {
+    use crate::{
+        error::Error,
+        future::{EndpointFuture, Poll, TaskContext},
+    };
+
+    // not a public API.
+    #[derive(Debug)]
+    pub struct ValueFuture<T> {
+        pub(super) x: Option<T>,
+    }
+
+    impl<T> EndpointFuture for ValueFuture<T> {
+        type Output = (T,);
+
+        fn poll_endpoint(&mut self, _: &mut TaskContext<'_>) -> Poll<Self::Output, Error> {
+            Ok((self.x.take().expect("The value has already taken."),).into())
+        }
+    }
+}
+
+/// Create an endpoint from the specified function which returns a `Future`.
+pub fn lazy<F, R>(
+    f: F,
+) -> impl Endpoint<
+    Output = (R::Item,),
+    Future = self::lazy::LazyFuture<R::Future>, // private
+>
+where
+    F: Fn() -> R,
+    R: IntoFuture<Error = Error>,
+{
+    apply_fn(move |_| {
+        Ok(self::lazy::LazyFuture {
+            future: f().into_future(),
+        })
+    })
+}
+
+mod lazy {
+    use {
+        crate::{
+            error::Error,
+            future::{EndpointFuture, Poll, TaskContext},
+        },
+        futures::Future,
+    };
+
+    #[derive(Debug)]
+    pub struct LazyFuture<F> {
+        pub(super) future: F,
+    }
+
+    impl<F> EndpointFuture for LazyFuture<F>
+    where
+        F: Future<Error = Error>,
+    {
+        type Output = (F::Item,);
+
+        #[inline]
+        fn poll_endpoint(&mut self, _: &mut TaskContext<'_>) -> Poll<Self::Output, Error> {
+            self.future.poll().map(|x| x.map(|ok| (ok,)))
+        }
     }
 }
 

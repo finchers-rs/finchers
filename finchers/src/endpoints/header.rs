@@ -3,12 +3,10 @@
 use http::header::{HeaderName, HeaderValue};
 use http::HttpTryFrom;
 use std::fmt;
-use std::marker::PhantomData;
 
-use crate::endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint};
+use crate::endpoint::{ApplyError, Endpoint};
 use crate::error;
-use crate::error::Error;
-use crate::future::with_get_cx;
+use crate::future::EndpointFuture;
 use crate::input::FromHeaderValue;
 
 // ==== Parse ====
@@ -38,76 +36,36 @@ use crate::input::FromHeaderValue;
 /// # drop(endpoint);
 /// ```
 #[inline]
-pub fn parse<T>(name: &'static str) -> Parse<T>
+pub fn parse<T>(
+    name: &'static str,
+) -> impl Endpoint<
+    Output = (T,),
+    Future = impl EndpointFuture<Output = (T,)> + Send + 'static, // private
+>
 where
     T: FromHeaderValue,
 {
-    (Parse {
-        name: HeaderName::from_static(name),
-        _marker: PhantomData,
-    })
-    .with_output::<(T,)>()
-}
+    let name = HeaderName::from_static(name);
 
-#[allow(missing_docs)]
-pub struct Parse<T> {
-    name: HeaderName,
-    _marker: PhantomData<fn() -> T>,
-}
-
-impl<T> fmt::Debug for Parse<T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Parse").field("name", &self.name).finish()
-    }
-}
-
-impl<T> Endpoint for Parse<T>
-where
-    T: FromHeaderValue,
-{
-    type Output = (T,);
-    type Future = ParseFuture<T>;
-
-    fn apply(&self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
-        if cx.input().headers().contains_key(&self.name) {
-            Ok(ParseFuture {
-                name: self.name.clone(),
-                _marker: PhantomData,
-            })
+    crate::endpoint::apply_fn(move |cx| {
+        if cx.input().headers().contains_key(&name) {
+            let name = name.clone();
+            Ok(crate::future::poll_fn(move |cx| {
+                let h = cx
+                    .headers()
+                    .get(&name)
+                    .expect("The header value should be always available inside of this Future.");
+                T::from_header_value(h)
+                    .map(|parsed| (parsed,).into())
+                    .map_err(error::bad_request)
+            }))
         } else {
             Err(ApplyError::custom(error::bad_request(format!(
                 "missing header: `{}'",
-                self.name.as_str()
+                name.as_str()
             ))))
         }
-    }
-}
-
-#[doc(hidden)]
-#[derive(Debug)]
-pub struct ParseFuture<T> {
-    name: HeaderName,
-    _marker: PhantomData<fn() -> T>,
-}
-
-impl<T> ::futures::Future for ParseFuture<T>
-where
-    T: FromHeaderValue,
-{
-    type Item = (T,);
-    type Error = Error;
-
-    fn poll(&mut self) -> ::futures::Poll<Self::Item, Self::Error> {
-        with_get_cx(|input| {
-            let h = input
-                .headers()
-                .get(&self.name)
-                .expect("The header value should be always available inside of this Future.");
-            T::from_header_value(h)
-                .map(|parsed| (parsed,).into())
-                .map_err(error::bad_request)
-        })
-    }
+    })
 }
 
 // ==== Optional ====
@@ -125,68 +83,27 @@ where
 /// # drop(endpoint);
 /// ```
 #[inline]
-pub fn optional<T>(name: &'static str) -> Optional<T>
+pub fn optional<T>(
+    name: &'static str,
+) -> impl Endpoint<
+    Output = (Option<T>,),
+    Future = impl EndpointFuture<Output = (Option<T>,)> + Send + 'static, // private
+>
 where
     T: FromHeaderValue,
 {
-    (Optional {
-        name: HeaderName::from_static(name),
-        _marker: PhantomData,
+    let name = HeaderName::from_static(name);
+    crate::endpoint::apply_fn(move |_| {
+        let name = name.clone();
+        Ok(crate::future::poll_fn(move |cx| {
+            match cx.headers().get(&name) {
+                Some(h) => T::from_header_value(h)
+                    .map(|parsed| (Some(parsed),).into())
+                    .map_err(error::bad_request),
+                None => Ok((None,).into()),
+            }
+        }))
     })
-    .with_output::<(Option<T>,)>()
-}
-
-#[allow(missing_docs)]
-pub struct Optional<T> {
-    name: HeaderName,
-    _marker: PhantomData<fn() -> T>,
-}
-
-impl<T> fmt::Debug for Optional<T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Optional")
-            .field("name", &self.name)
-            .finish()
-    }
-}
-
-impl<T> Endpoint for Optional<T>
-where
-    T: FromHeaderValue,
-{
-    type Output = (Option<T>,);
-    type Future = OptionalFuture<T>;
-
-    fn apply(&self, _: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
-        Ok(OptionalFuture {
-            name: self.name.clone(),
-            _marker: PhantomData,
-        })
-    }
-}
-
-#[doc(hidden)]
-#[derive(Debug)]
-pub struct OptionalFuture<T> {
-    name: HeaderName,
-    _marker: PhantomData<fn() -> T>,
-}
-
-impl<T> ::futures::Future for OptionalFuture<T>
-where
-    T: FromHeaderValue,
-{
-    type Item = (Option<T>,);
-    type Error = Error;
-
-    fn poll(&mut self) -> ::futures::Poll<Self::Item, Self::Error> {
-        with_get_cx(|input| match input.headers().get(&self.name) {
-            Some(h) => T::from_header_value(h)
-                .map(|parsed| (Some(parsed),).into())
-                .map_err(error::bad_request),
-            None => Ok((None,).into()),
-        })
-    }
 }
 
 // ==== Matches ====
@@ -215,68 +132,46 @@ where
 /// # drop(endpoint);
 /// ```
 #[inline]
-pub fn matches<K, V>(name: K, value: V) -> Matches<V>
+pub fn matches<K, V>(
+    name: K,
+    value: V,
+) -> impl Endpoint<
+    Output = (),
+    Future = impl EndpointFuture<Output = ()> + Send + 'static, // private
+>
 where
     HeaderName: HttpTryFrom<K>,
     <HeaderName as HttpTryFrom<K>>::Error: fmt::Debug,
     V: PartialEq<HeaderValue>,
 {
-    (Matches {
-        name: HeaderName::try_from(name).expect("invalid header name"),
-        value,
+    let name = HeaderName::try_from(name).expect("invalid header name");
+    crate::endpoint::apply_fn(move |cx| match cx.headers().get(&name) {
+        Some(v) if value == *v => Ok(crate::future::poll_fn(|_| {
+            Ok::<_, crate::error::Never>(().into())
+        })),
+        _ => Err(ApplyError::not_matched()),
     })
-    .with_output::<()>()
-}
-
-#[allow(missing_docs)]
-#[derive(Debug, Clone)]
-pub struct Matches<V> {
-    name: HeaderName,
-    value: V,
-}
-
-impl<V> Endpoint for Matches<V>
-where
-    V: PartialEq<HeaderValue>,
-{
-    type Output = ();
-    type Future = ::futures::future::FutureResult<Self::Output, Error>;
-
-    fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
-        match ecx.input().headers().get(&self.name) {
-            Some(value) if self.value == *value => Ok(::futures::future::result(Ok(()))),
-            _ => Err(ApplyError::not_matched()),
-        }
-    }
 }
 
 // ==== Raw ====
 
 /// Create an endpoint which retrieves the value of a header with the specified name.
 #[inline]
-pub fn raw<H>(name: H) -> Raw
+pub fn raw<H>(
+    name: H,
+) -> impl Endpoint<
+    Output = (Option<HeaderValue>,),
+    Future = impl EndpointFuture<Output = (Option<HeaderValue>,)> + Send + 'static, //
+>
 where
     HeaderName: HttpTryFrom<H>,
     <HeaderName as HttpTryFrom<H>>::Error: fmt::Debug,
 {
-    (Raw {
-        name: HeaderName::try_from(name).expect("invalid header name"),
+    let name = HeaderName::try_from(name).expect("invalid header name");
+    crate::endpoint::apply_fn(move |cx| {
+        let mut value = cx.headers().get(&name).cloned();
+        Ok(crate::future::poll_fn(move |_| {
+            Ok::<_, crate::error::Never>((value.take(),).into())
+        }))
     })
-    .with_output::<(Option<HeaderValue>,)>()
-}
-
-#[allow(missing_docs)]
-#[derive(Debug)]
-pub struct Raw {
-    name: HeaderName,
-}
-
-impl Endpoint for Raw {
-    type Output = (Option<HeaderValue>,);
-    type Future = ::futures::future::FutureResult<Self::Output, Error>;
-
-    fn apply(&self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
-        let header = cx.input().headers().get(&self.name).cloned();
-        Ok(::futures::future::result(Ok((header,))))
-    }
 }

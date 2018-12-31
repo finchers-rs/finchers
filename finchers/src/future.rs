@@ -35,6 +35,30 @@ where
     }
 }
 
+pub fn poll_fn<T, E>(
+    f: impl FnMut(&mut TaskContext<'_>) -> Poll<T, E>,
+) -> impl EndpointFuture<Output = T>
+where
+    E: Into<Error>,
+{
+    #[allow(missing_debug_implementations)]
+    struct PollFn<F>(F);
+
+    impl<F, T, E> EndpointFuture for PollFn<F>
+    where
+        F: FnMut(&mut TaskContext<'_>) -> Poll<T, E>,
+        E: Into<Error>,
+    {
+        type Output = T;
+
+        fn poll_endpoint(&mut self, cx: &mut TaskContext<'_>) -> Poll<Self::Output, Error> {
+            (self.0)(cx).map_err(Into::into)
+        }
+    }
+
+    PollFn(f)
+}
+
 /// The contexual information per request during polling the future returned from endpoints.
 ///
 /// The value of this context can be indirectly access by calling `with_get_cx()`.

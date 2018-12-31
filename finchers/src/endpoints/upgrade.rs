@@ -10,9 +10,9 @@ use http::{HttpTryFrom, Response, StatusCode};
 use hyper::upgrade::Upgraded;
 use tokio::io::{AsyncRead, AsyncWrite};
 
-use crate::endpoint::{lazy, Lazy};
-use crate::error;
+use crate::endpoint::{lazy, Endpoint};
 use crate::error::Error;
+use crate::future::EndpointFuture;
 use crate::output::{Output, OutputContext};
 
 /// An asynchronous I/O representing an upgraded HTTP connection.
@@ -148,6 +148,9 @@ where
 }
 
 /// Create an endpoint which just returns a value of `Builder`.
-pub fn builder() -> Lazy<impl Fn() -> error::Result<Builder>> {
+pub fn builder() -> impl Endpoint<
+    Output = (Builder,), //
+    Future = impl EndpointFuture<Output = (Builder,)> + Send + 'static,
+> {
     lazy(|| Ok(Builder::new()))
 }

@@ -3,13 +3,11 @@
 use failure::SyncFailure;
 use serde::de::DeserializeOwned;
 use serde_qs;
-use std::fmt;
-use std::marker::PhantomData;
 
-use crate::endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint};
+use crate::endpoint::{ApplyError, Endpoint};
 use crate::error;
-use crate::error::{bad_request, Error};
-use crate::future::with_get_cx;
+use crate::error::bad_request;
+use crate::future::EndpointFuture;
 
 // ==== Required ====
 
@@ -41,78 +39,29 @@ use crate::future::with_get_cx;
 /// # }
 /// ```
 #[inline]
-pub fn required<T>() -> Required<T>
+pub fn required<T>() -> impl Endpoint<
+    Output = (T,),
+    Future = impl EndpointFuture<Output = (T,)> + Send + 'static, //
+>
 where
     T: DeserializeOwned + 'static,
 {
-    (Required {
-        _marker: PhantomData,
-    })
-    .with_output::<(T,)>()
-}
-
-#[allow(missing_docs)]
-pub struct Required<T> {
-    _marker: PhantomData<fn() -> T>,
-}
-
-impl<T> Copy for Required<T> {}
-
-impl<T> Clone for Required<T> {
-    #[inline]
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl<T> fmt::Debug for Required<T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Required").finish()
-    }
-}
-
-impl<T> Endpoint for Required<T>
-where
-    T: DeserializeOwned + 'static,
-{
-    type Output = (T,);
-    type Future = RequiredFuture<T>;
-
-    fn apply(&self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
-        if cx.input().uri().query().is_some() {
-            Ok(RequiredFuture {
-                _marker: PhantomData,
-            })
+    crate::endpoint::apply_fn(|cx| {
+        if cx.uri().query().is_some() {
+            Ok(crate::future::poll_fn(|input| {
+                let query = input
+                    .uri()
+                    .query()
+                    .expect("The query string should be available inside of this future.");
+                serde_qs::from_str(query)
+                    .map(|x| (x,).into())
+                    .map_err(SyncFailure::new)
+                    .map_err(bad_request)
+            }))
         } else {
             Err(ApplyError::custom(error::bad_request("missing query")))
         }
-    }
-}
-
-#[doc(hidden)]
-#[derive(Debug)]
-pub struct RequiredFuture<T> {
-    _marker: PhantomData<fn() -> T>,
-}
-
-impl<T> ::futures::Future for RequiredFuture<T>
-where
-    T: DeserializeOwned + 'static,
-{
-    type Item = (T,);
-    type Error = Error;
-
-    fn poll(&mut self) -> ::futures::Poll<Self::Item, Self::Error> {
-        with_get_cx(|input| {
-            let query = input
-                .uri()
-                .query()
-                .expect("The query string should be available inside of this future.");
-            serde_qs::from_str(query).map_err(SyncFailure::new)
-        })
-        .map(|x| (x,).into())
-        .map_err(bad_request)
-    }
+    })
 }
 
 // ==== Optional ====
@@ -145,105 +94,32 @@ where
 /// # }
 /// ```
 #[inline]
-pub fn optional<T>() -> Optional<T>
+pub fn optional<T>() -> impl Endpoint<
+    Output = (Option<T>,),
+    Future = impl EndpointFuture<Output = (Option<T>,)> + Send + 'static, //
+>
 where
     T: DeserializeOwned + 'static,
 {
-    (Optional {
-        _marker: PhantomData,
-    })
-    .with_output::<(Option<T>,)>()
-}
-
-#[allow(missing_docs)]
-pub struct Optional<T> {
-    _marker: PhantomData<fn() -> T>,
-}
-
-impl<T> Copy for Optional<T> {}
-
-impl<T> Clone for Optional<T> {
-    #[inline]
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl<T> fmt::Debug for Optional<T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Optional").finish()
-    }
-}
-
-impl<T> Endpoint for Optional<T>
-where
-    T: DeserializeOwned + 'static,
-{
-    type Output = (Option<T>,);
-    type Future = OptionalFuture<T>;
-
-    fn apply(&self, _: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
-        Ok(OptionalFuture {
-            _marker: PhantomData,
-        })
-    }
-}
-
-#[doc(hidden)]
-#[derive(Debug)]
-pub struct OptionalFuture<T> {
-    _marker: PhantomData<fn() -> T>,
-}
-
-impl<T> ::futures::Future for OptionalFuture<T>
-where
-    T: DeserializeOwned + 'static,
-{
-    type Item = (Option<T>,);
-    type Error = Error;
-
-    fn poll(&mut self) -> ::futures::Poll<Self::Item, Self::Error> {
-        with_get_cx(|input| match input.uri().query() {
+    crate::endpoint::apply_fn(|_| {
+        Ok(crate::future::poll_fn(|cx| match cx.uri().query() {
             Some(query) => serde_qs::from_str(query)
                 .map(|x| (Some(x),).into())
                 .map_err(|err| bad_request(SyncFailure::new(err))),
             None => Ok((None,).into()),
-        })
-    }
+        }))
+    })
 }
 
 /// Create an endpoint which extracts the query string from a request.
-pub fn raw() -> Raw {
-    (Raw { _priv: () }).with_output::<(Option<String>,)>()
-}
-
-#[allow(missing_docs)]
-#[derive(Copy, Clone, Debug)]
-pub struct Raw {
-    _priv: (),
-}
-
-impl Endpoint for Raw {
-    type Output = (Option<String>,);
-    type Future = RawFuture;
-
-    fn apply(&self, _: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
-        Ok(RawFuture { _priv: () })
-    }
-}
-
-#[doc(hidden)]
-#[derive(Debug)]
-pub struct RawFuture {
-    _priv: (),
-}
-
-impl ::futures::Future for RawFuture {
-    type Item = (Option<String>,);
-    type Error = Error;
-
-    fn poll(&mut self) -> ::futures::Poll<Self::Item, Self::Error> {
-        let raw = with_get_cx(|input| input.uri().query().map(ToOwned::to_owned));
-        Ok((raw,).into())
-    }
+pub fn raw() -> impl Endpoint<
+    Output = (Option<String>,),
+    Future = impl EndpointFuture<Output = (Option<String>,)> + Send + 'static, //
+> {
+    crate::endpoint::apply_fn(|_| {
+        Ok(crate::future::poll_fn(|cx| {
+            let raw = cx.uri().query().map(ToOwned::to_owned);
+            Ok::<_, crate::error::Never>((raw,).into())
+        }))
+    })
 }
