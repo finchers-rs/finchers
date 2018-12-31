@@ -87,7 +87,7 @@ impl Drop for SetOnDrop {
 }
 
 #[allow(clippy::cast_ptr_alignment)]
-pub(crate) fn with_set_cx<R>(current: &mut TaskContext<'_>, f: impl FnOnce() -> R) -> R {
+fn with_set_cx<R>(current: &mut TaskContext<'_>, f: impl FnOnce() -> R) -> R {
     CX.with(|cx| {
         cx.set(Some(unsafe {
             NonNull::new_unchecked(
@@ -109,6 +109,7 @@ pub(crate) fn with_set_cx<R>(current: &mut TaskContext<'_>, f: impl FnOnce() -> 
 ///
 /// A panic will occur if you call this function inside the provided closure `f`, since the
 /// reference to `TaskContext` on the task context is invalidated while executing `f`.
+#[deprecated]
 pub fn with_get_cx<R>(f: impl FnOnce(&mut TaskContext<'_>) -> R) -> R {
     let prev = CX.with(|cx| cx.replace(None));
     let _reset = SetOnDrop(prev);
