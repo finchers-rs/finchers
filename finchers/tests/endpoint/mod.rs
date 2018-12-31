@@ -9,6 +9,3 @@ mod or_strict;
 mod recover;
 mod syntax;
 mod wrap;
-
-// blocked on rust-lang/rust#54895
-//mod impl_endpoint;

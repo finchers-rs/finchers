@@ -61,16 +61,19 @@ impl<T> fmt::Debug for Parse<T> {
     }
 }
 
-impl<'e, T> Endpoint<'e> for Parse<T>
+impl<T> Endpoint for Parse<T>
 where
     T: FromHeaderValue,
 {
     type Output = (T,);
-    type Future = ParseFuture<'e, T>;
+    type Future = ParseFuture<T>;
 
-    fn apply(&'e self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+    fn apply(&self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         if cx.input().headers().contains_key(&self.name) {
-            Ok(ParseFuture { endpoint: self })
+            Ok(ParseFuture {
+                name: self.name.clone(),
+                _marker: PhantomData,
+            })
         } else {
             Err(ApplyError::custom(error::bad_request(format!(
                 "missing header: `{}'",
@@ -82,11 +85,12 @@ where
 
 #[doc(hidden)]
 #[derive(Debug)]
-pub struct ParseFuture<'e, T> {
-    endpoint: &'e Parse<T>,
+pub struct ParseFuture<T> {
+    name: HeaderName,
+    _marker: PhantomData<fn() -> T>,
 }
 
-impl<'e, T> ::futures::Future for ParseFuture<'e, T>
+impl<T> ::futures::Future for ParseFuture<T>
 where
     T: FromHeaderValue,
 {
@@ -97,7 +101,7 @@ where
         with_get_cx(|input| {
             let h = input
                 .headers()
-                .get(&self.endpoint.name)
+                .get(&self.name)
                 .expect("The header value should be always available inside of this Future.");
             T::from_header_value(h)
                 .map(|parsed| (parsed,).into())
@@ -146,25 +150,29 @@ impl<T> fmt::Debug for Optional<T> {
     }
 }
 
-impl<'e, T> Endpoint<'e> for Optional<T>
+impl<T> Endpoint for Optional<T>
 where
     T: FromHeaderValue,
 {
     type Output = (Option<T>,);
-    type Future = OptionalFuture<'e, T>;
+    type Future = OptionalFuture<T>;
 
-    fn apply(&'e self, _: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
-        Ok(OptionalFuture { endpoint: self })
+    fn apply(&self, _: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+        Ok(OptionalFuture {
+            name: self.name.clone(),
+            _marker: PhantomData,
+        })
     }
 }
 
 #[doc(hidden)]
 #[derive(Debug)]
-pub struct OptionalFuture<'e, T> {
-    endpoint: &'e Optional<T>,
+pub struct OptionalFuture<T> {
+    name: HeaderName,
+    _marker: PhantomData<fn() -> T>,
 }
 
-impl<'e, T> ::futures::Future for OptionalFuture<'e, T>
+impl<T> ::futures::Future for OptionalFuture<T>
 where
     T: FromHeaderValue,
 {
@@ -172,7 +180,7 @@ where
     type Error = Error;
 
     fn poll(&mut self) -> ::futures::Poll<Self::Item, Self::Error> {
-        with_get_cx(|input| match input.headers().get(&self.endpoint.name) {
+        with_get_cx(|input| match input.headers().get(&self.name) {
             Some(h) => T::from_header_value(h)
                 .map(|parsed| (Some(parsed),).into())
                 .map_err(error::bad_request),
@@ -227,14 +235,14 @@ pub struct Matches<V> {
     value: V,
 }
 
-impl<'e, V> Endpoint<'e> for Matches<V>
+impl<V> Endpoint for Matches<V>
 where
-    V: PartialEq<HeaderValue> + 'e,
+    V: PartialEq<HeaderValue>,
 {
     type Output = ();
     type Future = ::futures::future::FutureResult<Self::Output, Error>;
 
-    fn apply(&'e self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         match ecx.input().headers().get(&self.name) {
             Some(value) if self.value == *value => Ok(::futures::future::result(Ok(()))),
             _ => Err(ApplyError::not_matched()),
@@ -263,11 +271,11 @@ pub struct Raw {
     name: HeaderName,
 }
 
-impl<'a> Endpoint<'a> for Raw {
+impl Endpoint for Raw {
     type Output = (Option<HeaderValue>,);
     type Future = ::futures::future::FutureResult<Self::Output, Error>;
 
-    fn apply(&'a self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+    fn apply(&self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         let header = cx.input().headers().get(&self.name).cloned();
         Ok(::futures::future::result(Ok((header,))))
     }

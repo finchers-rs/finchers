@@ -11,7 +11,7 @@ use crate::error::Error;
 /// # #[macro_use]
 /// # extern crate finchers;
 /// # use finchers::prelude::*;
-/// # use finchers::endpoint::cloned;
+/// # use finchers::endpoint::value;
 /// #
 /// #[derive(Clone)]
 /// struct Conn {
@@ -26,7 +26,7 @@ use crate::error::Error;
 /// };
 ///
 /// let endpoint = path!(@get / "posts" / u32 /)
-///     .and(cloned(conn))
+///     .and(value(conn))
 ///     .and_then(|id: u32, conn: Conn| {
 ///         // ...
 /// #       drop(id);
@@ -36,33 +36,33 @@ use crate::error::Error;
 /// # }
 /// ```
 #[inline]
-pub fn cloned<T: Clone>(x: T) -> Cloned<T> {
-    (Cloned { x }).with_output::<(T,)>()
+pub fn value<T: Clone>(x: T) -> Value<T> {
+    (Value { x }).with_output::<(T,)>()
 }
 
 #[allow(missing_docs)]
 #[derive(Debug, Copy, Clone)]
-pub struct Cloned<T> {
+pub struct Value<T> {
     x: T,
 }
 
-impl<'a, T: Clone + 'a> Endpoint<'a> for Cloned<T> {
+impl<T: Clone> Endpoint for Value<T> {
     type Output = (T,);
-    type Future = ClonedFuture<T>;
+    type Future = ValueFuture<T>;
 
-    fn apply(&'a self, _: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
-        Ok(ClonedFuture {
+    fn apply(&self, _: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+        Ok(ValueFuture {
             x: Some(self.x.clone()),
         })
     }
 }
 
 #[derive(Debug)]
-pub struct ClonedFuture<T> {
+pub struct ValueFuture<T> {
     x: Option<T>,
 }
 
-impl<T> Future for ClonedFuture<T> {
+impl<T> Future for ValueFuture<T> {
     type Item = (T,);
     type Error = Error;
 

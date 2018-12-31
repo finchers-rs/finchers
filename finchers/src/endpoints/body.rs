@@ -60,7 +60,7 @@ mod raw {
         }
     }
 
-    impl<'e> Endpoint<'e> for Raw {
+    impl Endpoint for Raw {
         type Output = (Payload,);
         type Future = RawFuture;
 
@@ -101,11 +101,11 @@ pub struct ReceiveAll {
     _priv: (),
 }
 
-impl<'a> Endpoint<'a> for ReceiveAll {
+impl Endpoint for ReceiveAll {
     type Output = (Bytes,);
     type Future = ReceiveAllFuture;
 
-    fn apply(&'a self, _: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+    fn apply(&self, _: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         Ok(ReceiveAllFuture::new())
     }
 }
@@ -181,11 +181,11 @@ pub struct Text {
     _priv: (),
 }
 
-impl<'a> Endpoint<'a> for Text {
+impl Endpoint for Text {
     type Output = (String,);
     type Future = parse::ParseFuture<String>;
 
-    fn apply(&'a self, _: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+    fn apply(&self, _: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         Ok(parse::ParseFuture::new())
     }
 }
@@ -210,7 +210,7 @@ pub struct Json<T> {
     _marker: PhantomData<fn() -> T>,
 }
 
-impl<'e, T> Endpoint<'e> for Json<T>
+impl<T> Endpoint for Json<T>
 where
     T: DeserializeOwned + 'static,
 {
@@ -244,7 +244,7 @@ pub struct UrlEncoded<T> {
     _marker: PhantomData<fn() -> T>,
 }
 
-impl<'e, T> Endpoint<'e> for UrlEncoded<T>
+impl<T> Endpoint for UrlEncoded<T>
 where
     T: DeserializeOwned + 'static,
 {

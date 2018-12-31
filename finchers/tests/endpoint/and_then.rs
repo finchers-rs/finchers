@@ -5,7 +5,7 @@ use futures::future;
 
 #[test]
 fn test_and_then_1() {
-    let mut runner = test::runner(endpoint::cloned("Foo").and_then(|_| future::ok("Bar")));
+    let mut runner = test::runner(endpoint::value("Foo").and_then(|_| future::ok("Bar")));
     assert_matches!(
         runner.apply("/"),
         Ok(s) if s == "Bar"
@@ -14,9 +14,8 @@ fn test_and_then_1() {
 
 #[test]
 fn test_and_then_2() {
-    let mut runner = test::runner(
-        endpoint::cloned("Foo").and_then(|_| future::err::<(), _>(bad_request("Bar"))),
-    );
+    let mut runner =
+        test::runner(endpoint::value("Foo").and_then(|_| future::err::<(), _>(bad_request("Bar"))));
     assert_matches!(
         runner.apply("/"),
         Err(ref e) if e.status_code().as_u16() == 400

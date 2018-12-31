@@ -74,7 +74,7 @@ pub struct MatchSegment {
     encoded: String,
 }
 
-impl<'a> Endpoint<'a> for MatchSegment {
+impl Endpoint for MatchSegment {
     type Output = ();
     type Future = Matched;
 
@@ -88,7 +88,7 @@ impl<'a> Endpoint<'a> for MatchSegment {
     }
 }
 
-impl<'a, 's> IntoEndpoint<'a> for &'s str {
+impl<'s> IntoEndpoint for &'s str {
     type Output = ();
     type Endpoint = MatchSegment;
 
@@ -98,7 +98,7 @@ impl<'a, 's> IntoEndpoint<'a> for &'s str {
     }
 }
 
-impl<'a> IntoEndpoint<'a> for String {
+impl IntoEndpoint for String {
     type Output = ();
     type Endpoint = MatchSegment;
 
@@ -108,7 +108,7 @@ impl<'a> IntoEndpoint<'a> for String {
     }
 }
 
-impl<'a, 's> IntoEndpoint<'a> for Cow<'s, str> {
+impl<'s> IntoEndpoint for Cow<'s, str> {
     type Output = ();
     type Endpoint = MatchSegment;
 
@@ -132,7 +132,7 @@ pub struct MatchEos {
     _priv: (),
 }
 
-impl<'a> Endpoint<'a> for MatchEos {
+impl Endpoint for MatchEos {
     type Output = ();
     type Future = Matched;
 
@@ -181,7 +181,7 @@ impl<T> fmt::Debug for Param<T> {
     }
 }
 
-impl<'a, T> Endpoint<'a> for Param<T>
+impl<T> Endpoint for Param<T>
 where
     T: FromEncodedStr,
 {
@@ -232,7 +232,7 @@ impl<T> fmt::Debug for Remains<T> {
     }
 }
 
-impl<'a, T> Endpoint<'a> for Remains<T>
+impl<T> Endpoint for Remains<T>
 where
     T: FromEncodedStr,
 {

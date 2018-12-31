@@ -6,8 +6,8 @@ use finchers::test;
 #[test]
 fn test_or_1() {
     let mut runner = test::runner({
-        let e1 = syntax::segment("foo").and(endpoint::cloned("foo"));
-        let e2 = syntax::segment("bar").and(endpoint::cloned("bar"));
+        let e1 = syntax::segment("foo").and(endpoint::value("foo"));
+        let e2 = syntax::segment("bar").and(endpoint::value("bar"));
         e1.or(e2)
     });
 
@@ -19,10 +19,10 @@ fn test_or_1() {
 #[test]
 fn test_or_choose_longer_segments() {
     let mut runner = test::runner({
-        let e1 = syntax::segment("foo").and(endpoint::cloned("foo"));
+        let e1 = syntax::segment("foo").and(endpoint::value("foo"));
         let e2 = syntax::segment("foo")
             .and("bar")
-            .and(endpoint::cloned("foobar"));
+            .and(endpoint::value("foobar"));
         e1.or(e2)
     });
 

@@ -18,15 +18,15 @@ pub struct Lazy<F> {
     f: F,
 }
 
-impl<'a, F, R> Endpoint<'a> for Lazy<F>
+impl<F, R> Endpoint for Lazy<F>
 where
-    F: Fn() -> R + 'a,
-    R: IntoFuture<Error = Error> + 'a,
+    F: Fn() -> R,
+    R: IntoFuture<Error = Error>,
 {
     type Output = (R::Item,);
     type Future = LazyFuture<R::Future>;
 
-    fn apply(&'a self, _: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+    fn apply(&self, _: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         Ok(LazyFuture {
             future: (self.f)().into_future(),
         })

@@ -98,7 +98,7 @@ fn or_insert(headers: &mut HeaderMap, name: HeaderName, value: &'static str) {
 /// A helper function for creating a new `TestRunner` from the specified endpoint.
 pub fn runner<E>(endpoint: E) -> TestRunner<E>
 where
-    for<'a> E: Endpoint<'a>,
+    E: Endpoint,
 {
     TestRunner::new(endpoint).expect("failed to start the runtime")
 }
@@ -118,7 +118,7 @@ impl<E> TestRunner<E> {
     /// Create a `TestRunner` from the specified endpoint.
     pub fn new(endpoint: E) -> io::Result<TestRunner<E>>
     where
-        for<'e> E: Endpoint<'e>,
+        E: Endpoint,
     {
         Runtime::new().map(|rt| TestRunner::with_runtime(endpoint, rt))
     }
@@ -126,7 +126,7 @@ impl<E> TestRunner<E> {
     /// Create a `TestRunner` from the specified endpoint with a Tokio runtime.
     pub fn with_runtime(endpoint: E, rt: Runtime) -> TestRunner<E>
     where
-        for<'e> E: Endpoint<'e>,
+        E: Endpoint,
     {
         TestRunner {
             endpoint,
@@ -184,8 +184,8 @@ impl<E> TestRunner<E> {
 
     fn apply_inner<'a, F, R>(&'a mut self, request: impl TestRequest, f: F) -> R
     where
-        E: Endpoint<'a>,
-        F: FnOnce(AppFuture<'a, E>, &mut AnnotatedRuntime<'_>) -> R,
+        E: Endpoint,
+        F: FnOnce(AppFuture<&E>, &mut AnnotatedRuntime<'_>) -> R,
     {
         let request = self
             .prepare_request(request)
@@ -201,18 +201,18 @@ impl<E> TestRunner<E> {
     /// This method is available only if the output of endpoint is a tuple with a single element.
     /// If the output type is an unit or the tuple contains more than one element, use `apply_raw` instead.
     #[inline]
-    pub fn apply<'a, T>(&'a mut self, request: impl TestRequest) -> error::Result<T>
+    pub fn apply<T>(&mut self, request: impl TestRequest) -> error::Result<T>
     where
-        E: Endpoint<'a, Output = (T,)>,
+        E: Endpoint<Output = (T,)>,
     {
         self.apply_raw(request).map(|(x,)| x)
     }
 
     /// Applies the given request to the inner endpoint and retrieves the result of returned future
     /// *without peeling tuples*.
-    pub fn apply_raw<'a>(&'a mut self, request: impl TestRequest) -> error::Result<E::Output>
+    pub fn apply_raw(&mut self, request: impl TestRequest) -> error::Result<E::Output>
     where
-        E: Endpoint<'a>,
+        E: Endpoint,
     {
         self.apply_inner(request, |mut future, rt| {
             rt.block_on(future::poll_fn(|| future.poll_apply()))
@@ -221,12 +221,12 @@ impl<E> TestRunner<E> {
 
     /// Applies the given request to the endpoint and convert the result
     /// into an HTTP response sent to the client.
-    pub fn perform<'a>(
-        &'a mut self,
+    pub fn perform(
+        &mut self,
         request: impl TestRequest,
     ) -> Result<Response<TestResult>, Box<dyn StdError + Send + Sync + 'static>>
     where
-        E: Endpoint<'a>,
+        E: Endpoint,
         E::Output: Output,
     {
         self.apply_inner(request, |mut future, rt| {
@@ -564,7 +564,7 @@ mod tests {
 
     #[test]
     fn test_apply_all() {
-        let mut runner = runner({ endpoint::cloned("Hello") });
+        let mut runner = runner({ endpoint::value("Hello") });
         let response: Response<TestResult> = runner.perform("/").unwrap();
 
         assert_eq!(response.status().as_u16(), 200);

@@ -23,11 +23,11 @@ pub struct Recover<F> {
     f: F,
 }
 
-impl<'a, E, F, R> Wrapper<'a, E> for Recover<F>
+impl<E, F, R> Wrapper<E> for Recover<F>
 where
-    E: Endpoint<'a>,
-    F: Fn(Error) -> R + 'a,
-    R: Future<Error = Error> + 'a,
+    E: Endpoint,
+    F: Fn(Error) -> R + Clone,
+    R: Future<Error = Error>,
 {
     type Output = (Recovered<E::Output, R::Item>,);
     type Endpoint = RecoverEndpoint<E, F>;
@@ -46,19 +46,19 @@ pub struct RecoverEndpoint<E, F> {
     f: F,
 }
 
-impl<'a, E, F, R> Endpoint<'a> for RecoverEndpoint<E, F>
+impl<E, F, R> Endpoint for RecoverEndpoint<E, F>
 where
-    E: Endpoint<'a>,
-    F: Fn(Error) -> R + 'a,
-    R: Future<Error = Error> + 'a,
+    E: Endpoint,
+    F: Fn(Error) -> R + Clone,
+    R: Future<Error = Error>,
 {
     type Output = (Recovered<E::Output, R::Item>,);
-    type Future = RecoverFuture<E::Future, R, &'a F>;
+    type Future = RecoverFuture<E::Future, R, F>;
 
-    fn apply(&'a self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         let f1 = self.endpoint.apply(ecx)?;
         Ok(RecoverFuture {
-            try_chain: TryChain::new(f1, &self.f),
+            try_chain: TryChain::new(f1, self.f.clone()),
         })
     }
 }

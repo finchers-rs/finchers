@@ -10,15 +10,15 @@ pub struct OrStrict<E1, E2> {
     pub(super) e2: E2,
 }
 
-impl<'a, E1, E2> Endpoint<'a> for OrStrict<E1, E2>
+impl<E1, E2> Endpoint for OrStrict<E1, E2>
 where
-    E1: Endpoint<'a>,
-    E2: Endpoint<'a, Output = E1::Output>,
+    E1: Endpoint,
+    E2: Endpoint<Output = E1::Output>,
 {
     type Output = E1::Output;
     type Future = OrStrictFuture<E1::Future, E2::Future>;
 
-    fn apply(&'a self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         let orig_cursor = ecx.cursor().clone();
         match self.e1.apply(ecx) {
             Ok(future1) => {

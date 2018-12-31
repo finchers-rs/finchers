@@ -105,7 +105,7 @@ mod tests {
     #[test]
     #[ignore]
     fn compiletest_error_handler() {
-        let endpoint = endpoint::cloned("message");
+        let endpoint = endpoint::value("message");
         server::start(endpoint)
             .with_middleware(error_handler(|err| {
                 let body = serde_json::to_string_pretty(&err).unwrap();

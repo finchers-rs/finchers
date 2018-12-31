@@ -16,10 +16,10 @@ pub struct AfterApply<F> {
     f: F,
 }
 
-impl<'a, E, F> Wrapper<'a, E> for AfterApply<F>
+impl<E, F> Wrapper<E> for AfterApply<F>
 where
-    E: Endpoint<'a>,
-    F: Fn(&mut ApplyContext<'_>) -> ApplyResult<()> + 'a,
+    E: Endpoint,
+    F: Fn(&mut ApplyContext<'_>) -> ApplyResult<()>,
 {
     type Output = E::Output;
     type Endpoint = AfterApplyEndpoint<E, F>;
@@ -39,16 +39,16 @@ pub struct AfterApplyEndpoint<E, F> {
     pub(super) f: F,
 }
 
-impl<'a, E, F> Endpoint<'a> for AfterApplyEndpoint<E, F>
+impl<E, F> Endpoint for AfterApplyEndpoint<E, F>
 where
-    E: Endpoint<'a>,
-    F: Fn(&mut ApplyContext<'_>) -> ApplyResult<()> + 'a,
+    E: Endpoint,
+    F: Fn(&mut ApplyContext<'_>) -> ApplyResult<()>,
 {
     type Output = E::Output;
     type Future = E::Future;
 
     #[inline]
-    fn apply(&'a self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+    fn apply(&self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         let future = self.endpoint.apply(cx)?;
         (self.f)(cx)?;
         Ok(future)

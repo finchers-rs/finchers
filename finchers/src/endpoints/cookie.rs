@@ -106,7 +106,7 @@ impl Required {
 }
 
 #[allow(deprecated)]
-impl<'a> Endpoint<'a> for Required {
+impl Endpoint for Required {
     type Output = (Cookie<'static>,);
     type Future = future::FutureResult<Self::Output, Error>;
 
@@ -182,7 +182,7 @@ impl Optional {
 }
 
 #[allow(deprecated)]
-impl<'a> Endpoint<'a> for Optional {
+impl Endpoint for Optional {
     type Output = (Option<Cookie<'static>>,);
     type Future = future::FutureResult<Self::Output, Error>;
 
@@ -228,11 +228,11 @@ pub struct CookiesEndpoint {
     _priv: (),
 }
 
-impl<'a> Endpoint<'a> for CookiesEndpoint {
+impl Endpoint for CookiesEndpoint {
     type Output = (Cookies,);
     type Future = future::FutureResult<Self::Output, Error>;
 
-    fn apply(&'a self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+    fn apply(&self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
         Ok(future::result(
             cx.input().cookies2().map(|cookies| (cookies,)),
         ))
