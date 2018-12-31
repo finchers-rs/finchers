@@ -3,7 +3,6 @@
 mod builder;
 mod error;
 mod http_server;
-pub mod middleware;
 
 pub use self::builder::ServiceBuilder;
 pub use self::error::{ServerError, ServerResult};

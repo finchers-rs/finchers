@@ -47,8 +47,6 @@ tokio-threadpool = "0.1.7"
 tower-service = "0.1.0"
 url = "1.7.1"
 
-tower-web = { version = "0.3.0", optional = true, default-features = false }
-
 [build-dependencies]
 version_check = "0.1.5"
 

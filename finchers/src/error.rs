@@ -167,12 +167,6 @@ pub(crate) struct ErrorPayload {
     err: Error,
 }
 
-impl ErrorPayload {
-    pub(crate) fn into_inner(self) -> Error {
-        self.err
-    }
-}
-
 impl Payload for ErrorPayload {
     type Data = io::Cursor<String>;
     type Error = Never;

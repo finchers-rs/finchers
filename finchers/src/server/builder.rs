@@ -5,14 +5,9 @@ use http::{Request, Response};
 use hyper::body::{Body, Payload};
 use tower_service;
 use tower_service::NewService;
-#[cfg(feature = "tower-web")]
-use tower_web;
 
 use super::error::{ServerError, ServerResult};
 use super::http_server::ServerConfig;
-#[cfg(feature = "tower-web")]
-use super::middleware::TowerWebMiddleware;
-use super::middleware::{Chain, Middleware};
 
 /// A builder of HTTP service.
 #[derive(Debug)]
@@ -27,30 +22,6 @@ where
     /// Creates a new `ServerBuilder` from the specified NewService.
     pub fn new(new_service: S) -> Self {
         ServiceBuilder { new_service }
-    }
-
-    /// Wraps the inner service into the specified middleware.
-    pub fn with_middleware<M>(self, middleware: M) -> ServiceBuilder<Chain<S, M>>
-    where
-        M: Middleware<S::Service> + Clone,
-    {
-        ServiceBuilder {
-            new_service: Chain::new(self.new_service, middleware),
-        }
-    }
-
-    /// Wraps the inner service into the specified Tower-web middleware.
-    #[cfg(feature = "tower-web")]
-    pub fn with_tower_middleware<M>(
-        self,
-        middleware: M,
-    ) -> ServiceBuilder<Chain<S, TowerWebMiddleware<M>>>
-    where
-        M: tower_web::middleware::Middleware<S::Service>,
-    {
-        ServiceBuilder {
-            new_service: Chain::new(self.new_service, TowerWebMiddleware::new(middleware)),
-        }
     }
 }
 
