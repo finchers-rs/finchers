@@ -151,6 +151,7 @@ pub fn unit() -> impl Endpoint<
 /// ```
 /// # #[macro_use]
 /// # extern crate finchers;
+/// # extern crate futures;
 /// # use finchers::prelude::*;
 /// # use finchers::endpoint::value;
 /// #
@@ -171,7 +172,7 @@ pub fn unit() -> impl Endpoint<
 ///     .and_then(|id: u32, conn: Conn| {
 ///         // ...
 /// #       drop(id);
-/// #       Ok(conn)
+/// #       futures::future::ok::<_, finchers::error::Never>(conn)
 ///     });
 /// # drop(endpoint);
 /// # }

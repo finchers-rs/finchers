@@ -8,9 +8,7 @@ use {
     },
     futures::Future,
     std::{
-        cell::Cell, //
-        marker::PhantomData,
-        ptr::NonNull,
+        marker::PhantomData, //
         rc::Rc,
     },
 };
@@ -30,8 +28,8 @@ where
 {
     type Output = F::Item;
 
-    fn poll_endpoint(&mut self, cx: &mut Context<'_>) -> Poll<Self::Output, Error> {
-        with_set_cx(cx, || self.poll()).map_err(Into::into)
+    fn poll_endpoint(&mut self, _: &mut Context<'_>) -> Poll<Self::Output, Error> {
+        self.poll().map_err(Into::into)
     }
 }
 
@@ -97,47 +95,6 @@ impl<'a> std::ops::DerefMut for Context<'a> {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.input()
-    }
-}
-
-thread_local!(static CX: Cell<Option<NonNull<Context<'static>>>> = Cell::new(None));
-
-struct SetOnDrop(Option<NonNull<Context<'static>>>);
-
-impl Drop for SetOnDrop {
-    fn drop(&mut self) {
-        CX.with(|cx| cx.set(self.0));
-    }
-}
-
-#[allow(clippy::cast_ptr_alignment)]
-fn with_set_cx<R>(current: &mut Context<'_>, f: impl FnOnce() -> R) -> R {
-    CX.with(|cx| {
-        cx.set(Some(unsafe {
-            NonNull::new_unchecked(current as *mut Context<'_> as *mut () as *mut Context<'static>)
-        }))
-    });
-    let _reset = SetOnDrop(None);
-    f()
-}
-
-/// Acquires a mutable reference to `Context` from the current task context
-/// and executes the provided function using its value.
-///
-/// This function is usually used to access the value of `Input` within the `Future`
-/// returned by the `Endpoint`.
-///
-/// # Panics
-///
-/// A panic will occur if you call this function inside the provided closure `f`, since the
-/// reference to `Context` on the task context is invalidated while executing `f`.
-#[deprecated]
-pub fn with_get_cx<R>(f: impl FnOnce(&mut Context<'_>) -> R) -> R {
-    let prev = CX.with(|cx| cx.replace(None));
-    let _reset = SetOnDrop(prev);
-    match prev {
-        Some(mut ptr) => unsafe { f(ptr.as_mut()) },
-        None => panic!("The reference to Context is not set at the current context."),
     }
 }
 
