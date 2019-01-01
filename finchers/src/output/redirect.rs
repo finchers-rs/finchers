@@ -2,7 +2,6 @@ use http::header::{HeaderValue, LOCATION};
 use http::{Request, Response, StatusCode};
 
 use super::IntoResponse;
-use crate::error::Never;
 
 /// An instance of `Output` representing redirect responses.
 #[derive(Debug, Clone)]
@@ -57,14 +56,13 @@ impl Redirect {
 
 impl IntoResponse for Redirect {
     type Body = ();
-    type Error = Never;
 
-    fn into_response(self, _: &Request<()>) -> Result<Response<Self::Body>, Self::Error> {
+    fn into_response(self, _: &Request<()>) -> Response<Self::Body> {
         let mut response = Response::new(());
         *response.status_mut() = self.status;
         if let Some(location) = self.location {
             response.headers_mut().insert(LOCATION, location);
         }
-        Ok(response)
+        response
     }
 }

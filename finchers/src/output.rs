@@ -12,9 +12,6 @@ mod text;
 
 use either::Either;
 use http::{Request, Response, StatusCode};
-use std::fmt;
-
-use crate::error::{Error, HttpError, Never};
 
 pub use self::debug::Debug;
 pub use self::fs::NamedFile;
@@ -26,88 +23,35 @@ pub trait IntoResponse {
     /// The type of response body.
     type Body;
 
-    /// The error type of `respond()`.
-    type Error: Into<Error>;
-
     /// Converts `self` into an HTTP response.
-    fn into_response(self, request: &Request<()>) -> Result<Response<Self::Body>, Self::Error>;
+    fn into_response(self, request: &Request<()>) -> Response<Self::Body>;
 }
 
 impl<T> IntoResponse for Response<T> {
     type Body = T;
-    type Error = Never;
 
     #[inline]
-    fn into_response(self, _: &Request<()>) -> Result<Response<Self::Body>, Self::Error> {
-        Ok(self)
+    fn into_response(self, _: &Request<()>) -> Response<Self::Body> {
+        self
     }
 }
 
 impl IntoResponse for () {
     type Body = ();
-    type Error = Never;
 
-    fn into_response(self, _: &Request<()>) -> Result<Response<Self::Body>, Self::Error> {
-        Ok(Response::builder()
-            .status(StatusCode::NO_CONTENT)
-            .body(())
-            .unwrap())
+    fn into_response(self, _: &Request<()>) -> Response<Self::Body> {
+        let mut response = Response::new(());
+        *response.status_mut() = StatusCode::NO_CONTENT;
+        response
     }
 }
 
 impl<T: IntoResponse> IntoResponse for (T,) {
     type Body = T::Body;
-    type Error = T::Error;
 
     #[inline]
-    fn into_response(self, request: &Request<()>) -> Result<Response<Self::Body>, Self::Error> {
+    fn into_response(self, request: &Request<()>) -> Response<Self::Body> {
         self.0.into_response(request)
-    }
-}
-
-impl<T: IntoResponse> IntoResponse for Option<T> {
-    type Body = T::Body;
-    type Error = Error;
-
-    #[inline]
-    fn into_response(self, request: &Request<()>) -> Result<Response<Self::Body>, Self::Error> {
-        self.ok_or_else(|| NoRoute { _priv: () })?
-            .into_response(request)
-            .map_err(Into::into)
-    }
-}
-
-#[doc(hidden)]
-#[derive(Debug)]
-pub struct NoRoute {
-    _priv: (),
-}
-
-impl fmt::Display for NoRoute {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("no route")
-    }
-}
-
-impl HttpError for NoRoute {
-    fn status_code(&self) -> StatusCode {
-        StatusCode::NOT_FOUND
-    }
-}
-
-impl<T, E> IntoResponse for Result<T, E>
-where
-    T: IntoResponse,
-    E: Into<Error>,
-{
-    type Body = T::Body;
-    type Error = Error;
-
-    #[inline]
-    fn into_response(self, request: &Request<()>) -> Result<Response<Self::Body>, Self::Error> {
-        self.map_err(Into::into)?
-            .into_response(request)
-            .map_err(Into::into)
     }
 }
 
@@ -117,18 +61,11 @@ where
     R: IntoResponse,
 {
     type Body = Either<L::Body, R::Body>;
-    type Error = Error;
 
-    fn into_response(self, request: &Request<()>) -> Result<Response<Self::Body>, Self::Error> {
+    fn into_response(self, request: &Request<()>) -> Response<Self::Body> {
         match self {
-            Either::Left(l) => l
-                .into_response(request)
-                .map(|res| res.map(Either::Left))
-                .map_err(Into::into),
-            Either::Right(r) => r
-                .into_response(request)
-                .map(|res| res.map(Either::Right))
-                .map_err(Into::into),
+            Either::Left(l) => l.into_response(request).map(Either::Left),
+            Either::Right(r) => r.into_response(request).map(Either::Right),
         }
     }
 }

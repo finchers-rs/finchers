@@ -72,10 +72,9 @@ where
     R: IntoResponse,
 {
     type Body = Either<L::Body, R::Body>;
-    type Error = Error;
 
     #[inline]
-    fn into_response(self, request: &Request<()>) -> Result<Response<Self::Body>, Self::Error> {
+    fn into_response(self, request: &Request<()>) -> Response<Self::Body> {
         self.0.into_response(request)
     }
 }

@@ -199,8 +199,7 @@ where
 
         match mem::replace(&mut self.state, State::Gone) {
             State::Done(input) => {
-                let output = output
-                    .and_then(|output| output.into_response(input.request()).map_err(Into::into));
+                let output = output.map(|output| output.into_response(input.request()));
 
                 let response = input.finalize(output);
                 let mut response = response.map(|payload| match payload {
