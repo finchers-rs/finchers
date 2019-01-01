@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use crate::common::{Func, Tuple};
 use crate::endpoint::{ApplyContext, ApplyResult, Endpoint};
 use crate::error::Error;
-use crate::future::{EndpointFuture, Poll, TaskContext, TryChain, TryChainAction};
+use crate::future::{Context, EndpointFuture, Poll, TryChain, TryChainAction};
 
 use super::Wrapper;
 
@@ -89,7 +89,7 @@ where
 {
     type Output = (F2::Output,);
 
-    fn poll_endpoint(&mut self, cx: &mut TaskContext<'_>) -> Poll<Self::Output, Error> {
+    fn poll_endpoint(&mut self, cx: &mut Context<'_>) -> Poll<Self::Output, Error> {
         self.try_chain
             .try_poll(cx, |result, f| match result {
                 Ok(ok) => TryChainAction::Future(f.call(ok)),

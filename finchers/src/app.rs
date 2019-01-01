@@ -21,7 +21,7 @@ use crate::endpoint::context::ApplyContext;
 use crate::endpoint::{Cursor, Endpoint};
 use crate::error::Error;
 use crate::error::Never;
-use crate::future::{EndpointFuture, TaskContext};
+use crate::future::{Context, EndpointFuture};
 use crate::input::Input;
 use crate::output::body::{Payload as PayloadWrapper, ResBody};
 use crate::output::{Output, OutputContext};
@@ -151,7 +151,7 @@ where
             let result = match self.state {
                 State::Start(..) => None,
                 State::InFlight(ref mut input, ref mut f, ref mut cursor) => {
-                    let mut tcx = TaskContext::new(input, cursor);
+                    let mut tcx = Context::new(input, cursor);
                     match f.poll_endpoint(&mut tcx) {
                         Ok(Async::NotReady) => return Ok(Async::NotReady),
                         Ok(Async::Ready(ok)) => Some(Ok(ok)),

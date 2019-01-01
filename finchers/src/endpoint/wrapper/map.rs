@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use crate::common::{Func, Tuple};
 use crate::endpoint::{ApplyContext, ApplyResult, Endpoint};
 use crate::error::Error;
-use crate::future::{EndpointFuture, Poll, TaskContext};
+use crate::future::{Context, EndpointFuture, Poll};
 
 use super::Wrapper;
 
@@ -80,7 +80,7 @@ where
 {
     type Output = (F::Out,);
 
-    fn poll_endpoint(&mut self, cx: &mut TaskContext<'_>) -> Poll<Self::Output, Error> {
+    fn poll_endpoint(&mut self, cx: &mut Context<'_>) -> Poll<Self::Output, Error> {
         let item = futures::try_ready!(self.future.poll_endpoint(cx));
         let f = self.f.take().expect("this future has already polled.");
         Ok((f.call(item),).into())

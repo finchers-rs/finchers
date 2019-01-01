@@ -3,7 +3,7 @@ use std::fmt;
 use crate::common::Tuple;
 use crate::endpoint::{ApplyContext, ApplyResult, Endpoint};
 use crate::error::Error;
-use crate::future::{EndpointFuture, Poll, TaskContext};
+use crate::future::{Context, EndpointFuture, Poll};
 
 #[allow(missing_debug_implementations)]
 pub struct EndpointFutureObj<T>(Box<dyn EndpointFuture<Output = T> + Send + 'static>);
@@ -12,7 +12,7 @@ impl<T> EndpointFuture for EndpointFutureObj<T> {
     type Output = T;
 
     #[inline]
-    fn poll_endpoint(&mut self, cx: &mut TaskContext<'_>) -> Poll<Self::Output, Error> {
+    fn poll_endpoint(&mut self, cx: &mut Context<'_>) -> Poll<Self::Output, Error> {
         self.0.poll_endpoint(cx)
     }
 }
@@ -83,7 +83,7 @@ impl<T> EndpointFuture for LocalEndpointFutureObj<T> {
     type Output = T;
 
     #[inline]
-    fn poll_endpoint(&mut self, cx: &mut TaskContext<'_>) -> Poll<Self::Output, Error> {
+    fn poll_endpoint(&mut self, cx: &mut Context<'_>) -> Poll<Self::Output, Error> {
         self.0.poll_endpoint(cx)
     }
 }

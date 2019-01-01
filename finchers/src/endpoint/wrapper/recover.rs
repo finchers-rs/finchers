@@ -3,7 +3,7 @@ use http::Response;
 
 use crate::endpoint::{ApplyContext, ApplyResult, Endpoint};
 use crate::error::Error;
-use crate::future::{Async, EndpointFuture, Poll, TaskContext};
+use crate::future::{Async, Context, EndpointFuture, Poll};
 use crate::output::{Output, OutputContext};
 
 use super::Wrapper;
@@ -95,7 +95,7 @@ where
 {
     type Output = (Recovered<F1::Output, F2::Output>,);
 
-    fn poll_endpoint(&mut self, cx: &mut TaskContext<'_>) -> Poll<Self::Output, Error> {
+    fn poll_endpoint(&mut self, cx: &mut Context<'_>) -> Poll<Self::Output, Error> {
         self.try_chain
             .try_poll(cx, |result, f| match result {
                 Ok(ok) => TryChainAction::Output(Ok(Either::Left(ok))),
@@ -133,7 +133,7 @@ where
     #[cfg_attr(feature = "lint", allow(clippy::type_complexity))]
     pub(super) fn try_poll<F>(
         &mut self,
-        cx: &mut TaskContext<'_>,
+        cx: &mut Context<'_>,
         f: F,
     ) -> Poll<Either<F1::Output, F2::Output>, Error>
     where

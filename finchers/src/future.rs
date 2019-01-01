@@ -20,7 +20,7 @@ pub use futures::{try_ready, Async, Poll};
 pub trait EndpointFuture {
     type Output;
 
-    fn poll_endpoint(&mut self, cx: &mut TaskContext<'_>) -> Poll<Self::Output, Error>;
+    fn poll_endpoint(&mut self, cx: &mut Context<'_>) -> Poll<Self::Output, Error>;
 }
 
 impl<F> EndpointFuture for F
@@ -30,13 +30,13 @@ where
 {
     type Output = F::Item;
 
-    fn poll_endpoint(&mut self, cx: &mut TaskContext<'_>) -> Poll<Self::Output, Error> {
+    fn poll_endpoint(&mut self, cx: &mut Context<'_>) -> Poll<Self::Output, Error> {
         with_set_cx(cx, || self.poll()).map_err(Into::into)
     }
 }
 
 pub fn poll_fn<T, E>(
-    f: impl FnMut(&mut TaskContext<'_>) -> Poll<T, E>,
+    f: impl FnMut(&mut Context<'_>) -> Poll<T, E>,
 ) -> impl EndpointFuture<Output = T>
 where
     E: Into<Error>,
@@ -46,12 +46,12 @@ where
 
     impl<F, T, E> EndpointFuture for PollFn<F>
     where
-        F: FnMut(&mut TaskContext<'_>) -> Poll<T, E>,
+        F: FnMut(&mut Context<'_>) -> Poll<T, E>,
         E: Into<Error>,
     {
         type Output = T;
 
-        fn poll_endpoint(&mut self, cx: &mut TaskContext<'_>) -> Poll<Self::Output, Error> {
+        fn poll_endpoint(&mut self, cx: &mut Context<'_>) -> Poll<Self::Output, Error> {
             (self.0)(cx).map_err(Into::into)
         }
     }
@@ -63,15 +63,15 @@ where
 ///
 /// The value of this context can be indirectly access by calling `with_get_cx()`.
 #[derive(Debug)]
-pub struct TaskContext<'a> {
+pub struct Context<'a> {
     input: &'a mut Input,
     cursor: &'a Cursor,
     _marker: PhantomData<Rc<()>>,
 }
 
-impl<'a> TaskContext<'a> {
-    pub(crate) fn new(input: &'a mut Input, cursor: &'a Cursor) -> TaskContext<'a> {
-        TaskContext {
+impl<'a> Context<'a> {
+    pub(crate) fn new(input: &'a mut Input, cursor: &'a Cursor) -> Context<'a> {
+        Context {
             input,
             cursor,
             _marker: PhantomData,
@@ -84,7 +84,7 @@ impl<'a> TaskContext<'a> {
     }
 }
 
-impl<'a> std::ops::Deref for TaskContext<'a> {
+impl<'a> std::ops::Deref for Context<'a> {
     type Target = Input;
 
     #[inline]
@@ -93,16 +93,16 @@ impl<'a> std::ops::Deref for TaskContext<'a> {
     }
 }
 
-impl<'a> std::ops::DerefMut for TaskContext<'a> {
+impl<'a> std::ops::DerefMut for Context<'a> {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.input()
     }
 }
 
-thread_local!(static CX: Cell<Option<NonNull<TaskContext<'static>>>> = Cell::new(None));
+thread_local!(static CX: Cell<Option<NonNull<Context<'static>>>> = Cell::new(None));
 
-struct SetOnDrop(Option<NonNull<TaskContext<'static>>>);
+struct SetOnDrop(Option<NonNull<Context<'static>>>);
 
 impl Drop for SetOnDrop {
     fn drop(&mut self) {
@@ -111,19 +111,17 @@ impl Drop for SetOnDrop {
 }
 
 #[allow(clippy::cast_ptr_alignment)]
-fn with_set_cx<R>(current: &mut TaskContext<'_>, f: impl FnOnce() -> R) -> R {
+fn with_set_cx<R>(current: &mut Context<'_>, f: impl FnOnce() -> R) -> R {
     CX.with(|cx| {
         cx.set(Some(unsafe {
-            NonNull::new_unchecked(
-                current as *mut TaskContext<'_> as *mut () as *mut TaskContext<'static>,
-            )
+            NonNull::new_unchecked(current as *mut Context<'_> as *mut () as *mut Context<'static>)
         }))
     });
     let _reset = SetOnDrop(None);
     f()
 }
 
-/// Acquires a mutable reference to `TaskContext` from the current task context
+/// Acquires a mutable reference to `Context` from the current task context
 /// and executes the provided function using its value.
 ///
 /// This function is usually used to access the value of `Input` within the `Future`
@@ -132,14 +130,14 @@ fn with_set_cx<R>(current: &mut TaskContext<'_>, f: impl FnOnce() -> R) -> R {
 /// # Panics
 ///
 /// A panic will occur if you call this function inside the provided closure `f`, since the
-/// reference to `TaskContext` on the task context is invalidated while executing `f`.
+/// reference to `Context` on the task context is invalidated while executing `f`.
 #[deprecated]
-pub fn with_get_cx<R>(f: impl FnOnce(&mut TaskContext<'_>) -> R) -> R {
+pub fn with_get_cx<R>(f: impl FnOnce(&mut Context<'_>) -> R) -> R {
     let prev = CX.with(|cx| cx.replace(None));
     let _reset = SetOnDrop(prev);
     match prev {
         Some(mut ptr) => unsafe { f(ptr.as_mut()) },
-        None => panic!("The reference to TaskContext is not set at the current context."),
+        None => panic!("The reference to Context is not set at the current context."),
     }
 }
 
@@ -163,7 +161,7 @@ impl<F: EndpointFuture> MaybeDone<F> {
 impl<F: EndpointFuture> EndpointFuture for MaybeDone<F> {
     type Output = ();
 
-    fn poll_endpoint(&mut self, cx: &mut TaskContext<'_>) -> Poll<Self::Output, Error> {
+    fn poll_endpoint(&mut self, cx: &mut Context<'_>) -> Poll<Self::Output, Error> {
         let polled = match self {
             MaybeDone::Ready(..) => return Ok(Async::Ready(())),
             MaybeDone::Pending(ref mut future) => future.poll_endpoint(cx)?,
@@ -204,7 +202,7 @@ where
         TryChain::First(f1, Some(data))
     }
 
-    pub(super) fn try_poll<F>(&mut self, cx: &mut TaskContext<'_>, f: F) -> Poll<F2::Output, Error>
+    pub(super) fn try_poll<F>(&mut self, cx: &mut Context<'_>, f: F) -> Poll<F2::Output, Error>
     where
         F: FnOnce(Result<F1::Output, Error>, T) -> TryChainAction<F2>,
     {

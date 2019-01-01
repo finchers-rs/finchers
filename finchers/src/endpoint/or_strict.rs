@@ -2,7 +2,7 @@ use either::Either;
 
 use crate::endpoint::{ApplyContext, ApplyResult, Endpoint};
 use crate::error::Error;
-use crate::future::{EndpointFuture, Poll, TaskContext};
+use crate::future::{Context, EndpointFuture, Poll};
 
 #[allow(missing_docs)]
 #[derive(Debug, Copy, Clone)]
@@ -62,7 +62,7 @@ where
     type Output = L::Output;
 
     #[inline]
-    fn poll_endpoint(&mut self, cx: &mut TaskContext<'_>) -> Poll<Self::Output, Error> {
+    fn poll_endpoint(&mut self, cx: &mut Context<'_>) -> Poll<Self::Output, Error> {
         match self.inner {
             Either::Left(ref mut t) => t.poll_endpoint(cx),
             Either::Right(ref mut t) => t.poll_endpoint(cx),

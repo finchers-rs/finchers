@@ -5,7 +5,7 @@ use std::mem;
 
 use crate::endpoint::{ApplyContext, ApplyResult, Endpoint};
 use crate::error::Error;
-use crate::future::{EndpointFuture, Poll, TaskContext};
+use crate::future::{Context, EndpointFuture, Poll};
 use crate::output::{Output, OutputContext};
 
 #[allow(missing_docs)]
@@ -97,7 +97,7 @@ where
     type Output = (Wrapped<L::Output, R::Output>,);
 
     #[inline]
-    fn poll_endpoint(&mut self, cx: &mut TaskContext<'_>) -> Poll<Self::Output, Error> {
+    fn poll_endpoint(&mut self, cx: &mut Context<'_>) -> Poll<Self::Output, Error> {
         match self.inner {
             Left(ref mut t) => t.poll_endpoint(cx).map(|t| t.map(|t| (Wrapped(Left(t)),))),
             Right(ref mut t) => t.poll_endpoint(cx).map(|t| t.map(|t| (Wrapped(Right(t)),))),

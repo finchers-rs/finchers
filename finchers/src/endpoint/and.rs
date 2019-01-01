@@ -3,7 +3,7 @@
 use crate::common::{Combine, Tuple};
 use crate::endpoint::{ApplyContext, ApplyResult, Endpoint, IntoEndpoint};
 use crate::error::Error;
-use crate::future::{EndpointFuture, MaybeDone, Poll, TaskContext};
+use crate::future::{Context, EndpointFuture, MaybeDone, Poll};
 
 #[allow(missing_docs)]
 #[derive(Copy, Clone, Debug)]
@@ -48,7 +48,7 @@ where
 {
     type Output = <F1::Output as Combine<F2::Output>>::Out;
 
-    fn poll_endpoint(&mut self, cx: &mut TaskContext<'_>) -> Poll<Self::Output, Error> {
+    fn poll_endpoint(&mut self, cx: &mut Context<'_>) -> Poll<Self::Output, Error> {
         futures::try_ready!(self.f1.poll_endpoint(cx));
         futures::try_ready!(self.f2.poll_endpoint(cx));
         let v1 = self

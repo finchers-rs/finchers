@@ -1,6 +1,6 @@
 use crate::endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint};
 use crate::error::Error;
-use crate::future::{EndpointFuture, Poll, TaskContext};
+use crate::future::{Context, EndpointFuture, Poll};
 
 use super::Wrapper;
 
@@ -58,7 +58,7 @@ where
 {
     type Output = F::Output;
 
-    fn poll_endpoint(&mut self, cx: &mut TaskContext<'_>) -> Poll<Self::Output, Error> {
+    fn poll_endpoint(&mut self, cx: &mut Context<'_>) -> Poll<Self::Output, Error> {
         match self.inner {
             Ok(ref mut f) => f.poll_endpoint(cx),
             Err(ref mut err) => Err(err.take().unwrap()),

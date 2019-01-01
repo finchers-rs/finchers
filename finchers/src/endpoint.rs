@@ -189,7 +189,7 @@ pub fn value<T: Clone>(
 mod value {
     use crate::{
         error::Error,
-        future::{EndpointFuture, Poll, TaskContext},
+        future::{Context, EndpointFuture, Poll},
     };
 
     // not a public API.
@@ -201,7 +201,7 @@ mod value {
     impl<T> EndpointFuture for ValueFuture<T> {
         type Output = (T,);
 
-        fn poll_endpoint(&mut self, _: &mut TaskContext<'_>) -> Poll<Self::Output, Error> {
+        fn poll_endpoint(&mut self, _: &mut Context<'_>) -> Poll<Self::Output, Error> {
             Ok((self.x.take().expect("The value has already taken."),).into())
         }
     }
@@ -229,7 +229,7 @@ mod lazy {
     use {
         crate::{
             error::Error,
-            future::{EndpointFuture, Poll, TaskContext},
+            future::{Context, EndpointFuture, Poll},
         },
         futures::Future,
     };
@@ -246,7 +246,7 @@ mod lazy {
         type Output = (F::Item,);
 
         #[inline]
-        fn poll_endpoint(&mut self, _: &mut TaskContext<'_>) -> Poll<Self::Output, Error> {
+        fn poll_endpoint(&mut self, _: &mut Context<'_>) -> Poll<Self::Output, Error> {
             self.future.poll().map(|x| x.map(|ok| (ok,)))
         }
     }
