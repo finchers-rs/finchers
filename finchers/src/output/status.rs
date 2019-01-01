@@ -1,47 +1,43 @@
 #![allow(missing_docs)]
 
-use http::{Response, StatusCode};
+use http::{Request, Response, StatusCode};
 
-use super::{Output, OutputContext};
-use crate::error::Never;
+use super::IntoResponse;
 
-impl Output for StatusCode {
+impl IntoResponse for StatusCode {
     type Body = ();
-    type Error = Never;
 
     #[inline]
-    fn respond(self, _: &mut OutputContext<'_>) -> Result<Response<Self::Body>, Self::Error> {
+    fn into_response(self, _: &Request<()>) -> Response<Self::Body> {
         let mut response = Response::new(());
         *response.status_mut() = self;
-        Ok(response)
+        response
     }
 }
 
 #[derive(Debug)]
 pub struct Created<T>(pub T);
 
-impl<T: Output> Output for Created<T> {
+impl<T: IntoResponse> IntoResponse for Created<T> {
     type Body = T::Body;
-    type Error = T::Error;
 
-    fn respond(self, cx: &mut OutputContext<'_>) -> Result<Response<Self::Body>, Self::Error> {
-        let mut response = self.0.respond(cx)?;
+    fn into_response(self, request: &Request<()>) -> Response<Self::Body> {
+        let mut response = self.0.into_response(request);
         *response.status_mut() = StatusCode::CREATED;
-        Ok(response)
+        response
     }
 }
 
 #[derive(Debug)]
 pub struct NoContent;
 
-impl Output for NoContent {
+impl IntoResponse for NoContent {
     type Body = ();
-    type Error = Never;
 
-    fn respond(self, _: &mut OutputContext<'_>) -> Result<Response<Self::Body>, Self::Error> {
+    fn into_response(self, _: &Request<()>) -> Response<Self::Body> {
         let mut response = Response::new(());
         *response.status_mut() = StatusCode::NO_CONTENT;
-        Ok(response)
+        response
     }
 }
 
@@ -51,13 +47,12 @@ pub struct Status<T> {
     pub status: StatusCode,
 }
 
-impl<T: Output> Output for Status<T> {
+impl<T: IntoResponse> IntoResponse for Status<T> {
     type Body = T::Body;
-    type Error = T::Error;
 
-    fn respond(self, cx: &mut OutputContext<'_>) -> Result<Response<Self::Body>, Self::Error> {
-        let mut response = self.value.respond(cx)?;
+    fn into_response(self, request: &Request<()>) -> Response<Self::Body> {
+        let mut response = self.value.into_response(request);
         *response.status_mut() = self.status;
-        Ok(response)
+        response
     }
 }

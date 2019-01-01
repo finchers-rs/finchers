@@ -53,11 +53,11 @@ use http::{Request, Response};
 use hyper::body::Payload;
 use tokio::runtime::current_thread::Runtime;
 
+use crate::app::{AppFuture, AppService};
 use crate::endpoint::Endpoint;
 use crate::error;
-use crate::output::Output;
-
-use crate::app::{AppFuture, AppService};
+use crate::output::body::ResBody;
+use crate::output::IntoResponse;
 use crate::rt::{with_set_runtime_mode, RuntimeMode};
 
 pub use self::request::{IntoReqBody, TestRequest};
@@ -214,7 +214,8 @@ impl<E> TestRunner<E> {
     ) -> Result<Response<TestResult>, Box<dyn StdError + Send + Sync + 'static>>
     where
         E: Endpoint,
-        E::Output: Output,
+        E::Output: IntoResponse,
+        <E::Output as IntoResponse>::Body: ResBody,
     {
         self.apply_inner(request, |mut future, rt| {
             let response = rt
