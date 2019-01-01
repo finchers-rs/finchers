@@ -24,7 +24,7 @@ use crate::error::Never;
 use crate::future::{Context, EndpointFuture};
 use crate::input::Input;
 use crate::output::body::{Payload as PayloadWrapper, ResBody};
-use crate::output::{Output, OutputContext};
+use crate::output::IntoResponse;
 
 // ==== App ====
 
@@ -41,11 +41,7 @@ pub struct App<E> {
     endpoint: Arc<E>,
 }
 
-impl<E> App<E>
-where
-    E: Endpoint,
-    E::Output: Output,
-{
+impl<E> App<E> {
     /// Create a new `App` from the specified endpoint.
     pub fn new(endpoint: E) -> App<E> {
         App {
@@ -57,7 +53,8 @@ where
 impl<E> NewService for App<E>
 where
     E: Endpoint,
-    E::Output: Output,
+    E::Output: IntoResponse,
+    <E::Output as IntoResponse>::Body: ResBody,
 {
     type Request = Request<Body>;
     type Response = Response<AppPayload>;
@@ -86,7 +83,10 @@ where
         AppService { endpoint }
     }
 
-    pub(crate) fn dispatch(&self, request: Request<Body>) -> AppFuture<E> {
+    pub(crate) fn dispatch(&self, request: Request<Body>) -> AppFuture<E>
+    where
+        E: Endpoint,
+    {
         AppFuture {
             endpoint: self.endpoint.clone(),
             state: State::Start(request),
@@ -97,7 +97,8 @@ where
 impl<E> Service for AppService<E>
 where
     E: Endpoint + Clone,
-    E::Output: Output,
+    E::Output: IntoResponse,
+    <E::Output as IntoResponse>::Body: ResBody,
 {
     type Request = Request<Body>;
     type Response = Response<AppPayload>;
@@ -187,7 +188,8 @@ where
 
     pub(crate) fn poll_all(&mut self) -> Poll<Response<AppPayload>, io::Error>
     where
-        E::Output: Output,
+        E::Output: IntoResponse,
+        <E::Output as IntoResponse>::Body: ResBody,
     {
         let output = match self.poll_apply() {
             Ok(Async::NotReady) => return Ok(Async::NotReady),
@@ -196,12 +198,9 @@ where
         };
 
         match mem::replace(&mut self.state, State::Gone) {
-            State::Done(mut input) => {
-                let output = output.and_then(|output| {
-                    output
-                        .respond(&mut OutputContext::new(&mut input))
-                        .map_err(Into::into)
-                });
+            State::Done(input) => {
+                let output = output
+                    .and_then(|output| output.into_response(input.request()).map_err(Into::into));
 
                 let response = input.finalize(output);
                 let mut response = response.map(|payload| match payload {
@@ -251,7 +250,8 @@ where
 impl<E> Future for AppFuture<E>
 where
     E: Endpoint,
-    E::Output: Output,
+    E::Output: IntoResponse,
+    <E::Output as IntoResponse>::Body: ResBody,
 {
     type Item = Response<AppPayload>;
     type Error = io::Error;

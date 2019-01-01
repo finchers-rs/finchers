@@ -13,10 +13,10 @@ use tokio::io::AsyncRead;
 use tokio::fs::file::{File, MetadataFuture, OpenFuture};
 
 use bytes::{BufMut, Bytes, BytesMut};
-use http::{header, Response};
+use http::{header, Request, Response};
 use mime_guess::guess_mime_type;
 
-use super::{Output, OutputContext};
+use super::IntoResponse;
 use crate::error::Never;
 
 /// An instance of `Output` representing a file on the file system.
@@ -86,11 +86,11 @@ impl Future for OpenNamedFile {
     }
 }
 
-impl Output for NamedFile {
+impl IntoResponse for NamedFile {
     type Body = super::body::Payload<FileStream>;
     type Error = Never;
 
-    fn respond(self, _: &mut OutputContext<'_>) -> Result<Response<Self::Body>, Self::Error> {
+    fn into_response(self, _: &Request<()>) -> Result<Response<Self::Body>, Self::Error> {
         let NamedFile { file, meta, path } = self;
 
         let body = FileStream::new(file, &meta);

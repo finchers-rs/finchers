@@ -1,12 +1,12 @@
 use either::Either;
 use either::Either::*;
-use http::Response;
+use http::{Request, Response};
 use std::mem;
 
 use crate::endpoint::{ApplyContext, ApplyResult, Endpoint};
 use crate::error::Error;
 use crate::future::{Context, EndpointFuture, Poll};
-use crate::output::{Output, OutputContext};
+use crate::output::IntoResponse;
 
 #[allow(missing_docs)]
 #[derive(Debug, Copy, Clone)]
@@ -59,13 +59,17 @@ where
 #[derive(Debug)]
 pub struct Wrapped<L, R>(Either<L, R>);
 
-impl<L: Output, R: Output> Output for Wrapped<L, R> {
+impl<L, R> IntoResponse for Wrapped<L, R>
+where
+    L: IntoResponse,
+    R: IntoResponse,
+{
     type Body = Either<L::Body, R::Body>;
     type Error = Error;
 
-    #[inline(always)]
-    fn respond(self, cx: &mut OutputContext<'_>) -> Result<Response<Self::Body>, Self::Error> {
-        self.0.respond(cx)
+    #[inline]
+    fn into_response(self, request: &Request<()>) -> Result<Response<Self::Body>, Self::Error> {
+        self.0.into_response(request)
     }
 }
 

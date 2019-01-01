@@ -37,6 +37,10 @@ impl Input {
         }
     }
 
+    pub(crate) fn request(&self) -> &Request<()> {
+        &self.request
+    }
+
     /// Returns a reference to the HTTP method of the request.
     pub fn method(&self) -> &http::Method {
         self.request.method()

@@ -1,7 +1,7 @@
-use http::Response;
+use http::{Request, Response};
 use std::fmt;
 
-use super::{Output, OutputContext};
+use super::IntoResponse;
 use crate::error::Never;
 
 /// An instance of `Output` representing text responses with debug output.
@@ -10,16 +10,12 @@ use crate::error::Never;
 #[derive(Debug)]
 pub struct Debug<T>(pub T);
 
-impl<T: fmt::Debug> Output for Debug<T> {
+impl<T: fmt::Debug> IntoResponse for Debug<T> {
     type Body = String;
     type Error = Never;
 
-    fn respond(self, cx: &mut OutputContext<'_>) -> Result<Response<Self::Body>, Self::Error> {
-        let body = if cx.is_pretty() {
-            format!("{:#?}", self.0)
-        } else {
-            format!("{:?}", self.0)
-        };
+    fn into_response(self, _: &Request<()>) -> Result<Response<Self::Body>, Self::Error> {
+        let body = format!("{:?}", self.0);
         Ok(Response::builder()
             .header("content-type", "text/plain; charset=utf-8")
             .body(body)
