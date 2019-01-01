@@ -1,7 +1,6 @@
-use futures::{Future, Poll};
-
 use crate::endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint};
 use crate::error::Error;
+use crate::future::{Context, EndpointFuture, Poll};
 
 use super::Wrapper;
 
@@ -53,16 +52,15 @@ pub struct OrRejectFuture<F> {
     inner: Result<F, Option<Error>>,
 }
 
-impl<F> Future for OrRejectFuture<F>
+impl<F> EndpointFuture for OrRejectFuture<F>
 where
-    F: Future<Error = Error>,
+    F: EndpointFuture,
 {
-    type Item = F::Item;
-    type Error = Error;
+    type Output = F::Output;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+    fn poll_endpoint(&mut self, cx: &mut Context<'_>) -> Poll<Self::Output, Error> {
         match self.inner {
-            Ok(ref mut f) => f.poll(),
+            Ok(ref mut f) => f.poll_endpoint(cx),
             Err(ref mut err) => Err(err.take().unwrap()),
         }
     }

@@ -3,51 +3,38 @@
 use futures::{Future, Poll};
 use std::path::PathBuf;
 
-use crate::endpoint::{ApplyContext, ApplyResult, Endpoint};
+use crate::endpoint::Endpoint;
 use crate::error::{bad_request, Error};
+use crate::future::EndpointFuture;
 use crate::output::fs::OpenNamedFile;
 use crate::output::NamedFile;
 
 /// Create an endpoint which serves a specified file on the file system.
 #[inline]
-pub fn file(path: impl Into<PathBuf>) -> File {
-    (File { path: path.into() }).with_output::<(NamedFile,)>()
-}
-
-#[allow(missing_docs)]
-#[derive(Debug, Clone)]
-pub struct File {
-    path: PathBuf,
-}
-
-impl Endpoint for File {
-    type Output = (NamedFile,);
-    type Future = FileFuture;
-
-    fn apply(&self, _: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+pub fn file(
+    path: impl Into<PathBuf>,
+) -> impl Endpoint<
+    Output = (NamedFile,),
+    Future = impl EndpointFuture<Output = (NamedFile,)> + Send + 'static,
+> {
+    let path = path.into();
+    crate::endpoint::apply_fn(move |_| {
         Ok(FileFuture {
-            state: State::Opening(NamedFile::open(self.path.clone())),
+            state: State::Opening(NamedFile::open(path.clone())),
         })
-    }
+    })
 }
 
 /// Create an endpoint which serves files in the specified directory.
 #[inline]
-pub fn dir(root: impl Into<PathBuf>) -> Dir {
-    (Dir { root: root.into() }).with_output::<(NamedFile,)>()
-}
-
-#[allow(missing_docs)]
-#[derive(Debug, Clone)]
-pub struct Dir {
-    root: PathBuf,
-}
-
-impl Endpoint for Dir {
-    type Output = (NamedFile,);
-    type Future = FileFuture;
-
-    fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+pub fn dir(
+    root: impl Into<PathBuf>,
+) -> impl Endpoint<
+    Output = (NamedFile,),
+    Future = impl EndpointFuture<Output = (NamedFile,)> + Send + 'static, //
+> {
+    let root = root.into();
+    crate::endpoint::apply_fn(move |ecx| {
         let path = {
             match ecx.remaining_path().percent_decode() {
                 Ok(path) => Ok(PathBuf::from(path.into_owned())),
@@ -65,7 +52,7 @@ impl Endpoint for Dir {
             }
         };
 
-        let mut path = self.root.join(path);
+        let mut path = root.join(path);
         if path.is_dir() {
             path = path.join("index.html");
         }
@@ -73,7 +60,7 @@ impl Endpoint for Dir {
         Ok(FileFuture {
             state: State::Opening(NamedFile::open(path)),
         })
-    }
+    })
 }
 
 #[doc(hidden)]

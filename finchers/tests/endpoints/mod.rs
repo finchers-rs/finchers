@@ -1,5 +1,5 @@
 mod body;
-mod cookie;
+//mod cookie;
 mod header;
 mod query;
 mod upgrade;

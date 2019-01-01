@@ -1,17 +1,27 @@
-use futures::Future;
 use std::fmt;
 
 use crate::common::Tuple;
 use crate::endpoint::{ApplyContext, ApplyResult, Endpoint};
 use crate::error::Error;
+use crate::future::{Context, EndpointFuture, Poll};
+
+#[allow(missing_debug_implementations)]
+pub struct EndpointFutureObj<T>(Box<dyn EndpointFuture<Output = T> + Send + 'static>);
+
+impl<T> EndpointFuture for EndpointFutureObj<T> {
+    type Output = T;
+
+    #[inline]
+    fn poll_endpoint(&mut self, cx: &mut Context<'_>) -> Poll<Self::Output, Error> {
+        self.0.poll_endpoint(cx)
+    }
+}
 
 trait FutureObjEndpoint {
     type Output: Tuple;
 
-    fn apply_obj(
-        &self,
-        ecx: &mut ApplyContext<'_>,
-    ) -> ApplyResult<Box<dyn Future<Item = Self::Output, Error = Error> + Send + 'static>>;
+    fn apply_obj(&self, ecx: &mut ApplyContext<'_>)
+        -> ApplyResult<EndpointFutureObj<Self::Output>>;
 }
 
 impl<E> FutureObjEndpoint for E
@@ -25,9 +35,9 @@ where
     fn apply_obj(
         &self,
         ecx: &mut ApplyContext<'_>,
-    ) -> ApplyResult<Box<dyn Future<Item = Self::Output, Error = Error> + Send + 'static>> {
+    ) -> ApplyResult<EndpointFutureObj<Self::Output>> {
         let future = self.apply(ecx)?;
-        Ok(Box::new(future))
+        Ok(EndpointFutureObj(Box::new(future)))
     }
 }
 
@@ -57,7 +67,7 @@ impl<T: Tuple + 'static> fmt::Debug for EndpointObj<T> {
 
 impl<T: Tuple + 'static> Endpoint for EndpointObj<T> {
     type Output = T;
-    type Future = Box<dyn Future<Item = Self::Output, Error = Error> + Send + 'static>;
+    type Future = EndpointFutureObj<T>;
 
     #[inline(always)]
     fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
@@ -66,6 +76,17 @@ impl<T: Tuple + 'static> Endpoint for EndpointObj<T> {
 }
 
 // ==== BoxedLocal ====
+#[allow(missing_debug_implementations)]
+pub struct LocalEndpointFutureObj<T>(Box<dyn EndpointFuture<Output = T> + 'static>);
+
+impl<T> EndpointFuture for LocalEndpointFutureObj<T> {
+    type Output = T;
+
+    #[inline]
+    fn poll_endpoint(&mut self, cx: &mut Context<'_>) -> Poll<Self::Output, Error> {
+        self.0.poll_endpoint(cx)
+    }
+}
 
 trait LocalFutureObjEndpoint {
     type Output: Tuple;
@@ -73,7 +94,7 @@ trait LocalFutureObjEndpoint {
     fn apply_local_obj(
         &self,
         ecx: &mut ApplyContext<'_>,
-    ) -> ApplyResult<Box<dyn Future<Item = Self::Output, Error = Error> + 'static>>;
+    ) -> ApplyResult<LocalEndpointFutureObj<Self::Output>>;
 }
 
 impl<E: Endpoint> LocalFutureObjEndpoint for E
@@ -86,9 +107,9 @@ where
     fn apply_local_obj(
         &self,
         ecx: &mut ApplyContext<'_>,
-    ) -> ApplyResult<Box<dyn Future<Item = Self::Output, Error = Error> + 'static>> {
+    ) -> ApplyResult<LocalEndpointFutureObj<Self::Output>> {
         let future = self.apply(ecx)?;
-        Ok(Box::new(future))
+        Ok(LocalEndpointFutureObj(Box::new(future)))
     }
 }
 
@@ -117,7 +138,7 @@ impl<T: Tuple + 'static> fmt::Debug for LocalEndpointObj<T> {
 
 impl<T: Tuple + 'static> Endpoint for LocalEndpointObj<T> {
     type Output = T;
-    type Future = Box<dyn Future<Item = Self::Output, Error = Error> + 'static>;
+    type Future = LocalEndpointFutureObj<T>;
 
     #[inline(always)]
     fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {

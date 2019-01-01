@@ -6,7 +6,6 @@ mod before_apply;
 mod map;
 mod or_reject;
 mod recover;
-mod try_chain;
 
 pub use self::after_apply::{after_apply, AfterApply};
 pub use self::and_then::{and_then, AndThen};
@@ -17,9 +16,7 @@ pub use self::recover::{recover, Recover};
 
 use crate::common::{Func, Tuple};
 use crate::endpoint::Endpoint;
-use crate::error::Error;
-
-use futures::IntoFuture;
+use crate::future::EndpointFuture;
 
 /// A trait representing the conversion of an endpoint to another endpoint.
 pub trait Wrapper<E: Endpoint> {
@@ -47,7 +44,7 @@ pub trait EndpointWrapExt: Endpoint + Sized {
     fn and_then<F>(self, f: F) -> <AndThen<Self::Output, F> as Wrapper<Self>>::Endpoint
     where
         F: Func<Self::Output> + Clone,
-        F::Out: IntoFuture<Error = Error>,
+        F::Out: EndpointFuture,
     {
         self.wrap(and_then(f))
     }

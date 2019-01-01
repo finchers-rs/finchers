@@ -1,22 +1,19 @@
 //! Components for parsing the incoming HTTP request.
 
-mod cookie;
 mod encoded;
 mod header;
 
-pub use self::cookie::Cookies;
 pub use self::encoded::{EncodedStr, FromEncodedStr};
 pub use self::header::FromHeaderValue;
 
 // ====
 
 use http;
-use http::header::{HeaderMap, HeaderValue};
+use http::header::HeaderMap;
 use http::Request;
 use http::Response;
 use mime::Mime;
 
-use self::cookie::CookieManager;
 use crate::error::{bad_request, Error};
 
 /// The contextual information with an incoming HTTP request.
@@ -26,7 +23,6 @@ pub struct Input {
     body: Option<hyper::Body>,
     #[allow(clippy::option_option)]
     media_type: Option<Option<Mime>>,
-    cookie_manager: CookieManager,
     response_headers: Option<HeaderMap>,
 }
 
@@ -37,7 +33,6 @@ impl Input {
             request: Request::from_parts(parts, ()),
             body: Some(body),
             media_type: None,
-            cookie_manager: Default::default(),
             response_headers: None,
         }
     }
@@ -94,12 +89,6 @@ impl Input {
         }
     }
 
-    /// Returns a `Cookies` or initialize the internal Cookie jar.
-    pub fn cookies(&mut self) -> Result<Cookies, Error> {
-        self.cookie_manager
-            .ensure_initialized(self.request.headers())
-    }
-
     /// Returns a mutable reference to a `HeaderMap` which contains the entries of response headers.
     ///
     /// The values inserted in this header map are automatically added to the actual response.
@@ -116,13 +105,6 @@ impl Input {
             Ok(response) => response.map(|bd| Ok(Some(bd))),
             Err(err) => err.into_response().map(Err),
         };
-
-        if let Some(jar) = self.cookie_manager.into_inner() {
-            for cookie in jar.delta() {
-                let val = HeaderValue::from_str(&cookie.encoded().to_string()).unwrap();
-                response.headers_mut().append(http::header::SET_COOKIE, val);
-            }
-        }
 
         if let Some(headers) = self.response_headers {
             response.headers_mut().extend(headers);

@@ -2,6 +2,7 @@ use either::Either;
 
 use crate::endpoint::{ApplyContext, ApplyResult, Endpoint};
 use crate::error::Error;
+use crate::future::{Context, EndpointFuture, Poll};
 
 #[allow(missing_docs)]
 #[derive(Debug, Copy, Clone)]
@@ -53,19 +54,18 @@ impl<L, R> OrStrictFuture<L, R> {
     }
 }
 
-impl<L, R> ::futures::Future for OrStrictFuture<L, R>
+impl<L, R> EndpointFuture for OrStrictFuture<L, R>
 where
-    L: ::futures::Future<Error = Error>,
-    R: ::futures::Future<Item = L::Item, Error = Error>,
+    L: EndpointFuture,
+    R: EndpointFuture<Output = L::Output>,
 {
-    type Item = L::Item;
-    type Error = Error;
+    type Output = L::Output;
 
-    #[inline(always)]
-    fn poll(&mut self) -> ::futures::Poll<Self::Item, Self::Error> {
+    #[inline]
+    fn poll_endpoint(&mut self, cx: &mut Context<'_>) -> Poll<Self::Output, Error> {
         match self.inner {
-            Either::Left(ref mut t) => t.poll(),
-            Either::Right(ref mut t) => t.poll(),
+            Either::Left(ref mut t) => t.poll_endpoint(cx),
+            Either::Right(ref mut t) => t.poll_endpoint(cx),
         }
     }
 }
