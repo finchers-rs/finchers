@@ -45,7 +45,7 @@ use std::error::Error as StdError;
 use std::io;
 
 use bytes::Buf;
-use futures::{future, stream, Async, Future, Stream};
+use futures::{future, stream, Async, Future, Poll, Stream};
 use http;
 use http::header;
 use http::header::{HeaderMap, HeaderName, HeaderValue};
@@ -82,10 +82,41 @@ fn or_insert(headers: &mut HeaderMap, name: HeaderName, value: &'static str) {
         .or_insert_with(|| HeaderValue::from_static(value));
 }
 
+// ==== ReqBody ====
+
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct ReqBody(hyper::Body);
+
+impl Payload for ReqBody {
+    type Data = hyper::Chunk;
+    type Error = hyper::Error;
+
+    #[inline]
+    fn poll_data(&mut self) -> Poll<Option<Self::Data>, Self::Error> {
+        self.0.poll_data()
+    }
+
+    #[inline]
+    fn poll_trailers(&mut self) -> Poll<Option<HeaderMap>, Self::Error> {
+        self.0.poll_trailers()
+    }
+
+    #[inline]
+    fn is_end_stream(&self) -> bool {
+        self.0.is_end_stream()
+    }
+
+    #[inline]
+    fn content_length(&self) -> Option<u64> {
+        self.0.content_length()
+    }
+}
+
 /// A helper function for creating a new `TestRunner` from the specified endpoint.
 pub fn runner<E>(endpoint: E) -> TestRunner<E>
 where
-    E: Endpoint,
+    E: Endpoint<ReqBody>,
 {
     TestRunner::new(endpoint).expect("failed to start the runtime")
 }
@@ -101,20 +132,17 @@ pub struct TestRunner<E> {
     default_headers: Option<HeaderMap>,
 }
 
-impl<E> TestRunner<E> {
+impl<E> TestRunner<E>
+where
+    E: Endpoint<ReqBody>,
+{
     /// Create a `TestRunner` from the specified endpoint.
-    pub fn new(endpoint: E) -> io::Result<TestRunner<E>>
-    where
-        E: Endpoint,
-    {
+    pub fn new(endpoint: E) -> io::Result<TestRunner<E>> {
         Runtime::new().map(|rt| TestRunner::with_runtime(endpoint, rt))
     }
 
     /// Create a `TestRunner` from the specified endpoint with a Tokio runtime.
-    pub fn with_runtime(endpoint: E, rt: Runtime) -> TestRunner<E>
-    where
-        E: Endpoint,
-    {
+    pub fn with_runtime(endpoint: E, rt: Runtime) -> TestRunner<E> {
         TestRunner {
             endpoint,
             rt,
@@ -138,7 +166,7 @@ impl<E> TestRunner<E> {
         &mut self.rt
     }
 
-    fn prepare_request(&self, request: impl TestRequest) -> http::Result<Request<hyper::Body>> {
+    fn prepare_request(&self, request: impl TestRequest) -> http::Result<Request<ReqBody>> {
         let mut request = request.into_request()?;
 
         if let Some(ref default_headers) = self.default_headers {
@@ -166,13 +194,12 @@ impl<E> TestRunner<E> {
             concat!("finchers/", env!("CARGO_PKG_VERSION")),
         );
 
-        Ok(request)
+        Ok(request.map(ReqBody))
     }
 
     fn apply_inner<'a, F, R>(&'a mut self, request: impl TestRequest, f: F) -> R
     where
-        E: Endpoint,
-        F: FnOnce(AppFuture<&E>, &mut AnnotatedRuntime<'_>) -> R,
+        F: FnOnce(AppFuture<ReqBody, &E>, &mut AnnotatedRuntime<'_>) -> R,
     {
         let request = self
             .prepare_request(request)
@@ -190,17 +217,14 @@ impl<E> TestRunner<E> {
     #[inline]
     pub fn apply<T>(&mut self, request: impl TestRequest) -> error::Result<T>
     where
-        E: Endpoint<Output = (T,)>,
+        E: Endpoint<ReqBody, Output = (T,)>,
     {
         self.apply_raw(request).map(|(x,)| x)
     }
 
     /// Applies the given request to the inner endpoint and retrieves the result of returned future
     /// *without peeling tuples*.
-    pub fn apply_raw(&mut self, request: impl TestRequest) -> error::Result<E::Output>
-    where
-        E: Endpoint,
-    {
+    pub fn apply_raw(&mut self, request: impl TestRequest) -> error::Result<E::Output> {
         self.apply_inner(request, |mut future, rt| {
             rt.block_on(future::poll_fn(|| future.poll_apply()))
         })
@@ -213,7 +237,6 @@ impl<E> TestRunner<E> {
         request: impl TestRequest,
     ) -> Result<Response<TestResult>, Box<dyn StdError + Send + Sync + 'static>>
     where
-        E: Endpoint,
         E::Output: IntoResponse,
         <E::Output as IntoResponse>::Body: ResBody,
     {

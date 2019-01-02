@@ -1,12 +1,13 @@
 use finchers::endpoint::ApplyError;
-use finchers::endpoint::Endpoint;
 use finchers::endpoints::query;
 use finchers::test;
 use matches::assert_matches;
 
 #[test]
 fn test_query_raw() {
-    let mut runner = test::runner({ query::raw().with_output::<(Option<String>,)>() });
+    let mut runner = test::runner(
+        query::raw(), //
+    );
 
     assert_matches!(
         runner.apply("/?foo=bar"),

@@ -1,88 +1,124 @@
 //! Endpoints for serving static contents on the file system.
 
-use futures::{Future, Poll};
 use std::path::PathBuf;
 
-use crate::endpoint::Endpoint;
+use crate::endpoint::{ApplyContext, ApplyResult, Endpoint};
 use crate::error::{bad_request, Error};
-use crate::future::EndpointFuture;
+use crate::future::{Context, EndpointFuture, Poll};
 use crate::output::fs::OpenNamedFile;
 use crate::output::NamedFile;
 
 /// Create an endpoint which serves a specified file on the file system.
 #[inline]
-pub fn file(
-    path: impl Into<PathBuf>,
-) -> impl Endpoint<
-    Output = (NamedFile,),
-    Future = impl EndpointFuture<Output = (NamedFile,)> + Send + 'static,
-> {
-    let path = path.into();
-    crate::endpoint::apply_fn(move |_| {
-        Ok(FileFuture {
-            state: State::Opening(NamedFile::open(path.clone())),
-        })
-    })
+pub fn file(path: impl Into<PathBuf>) -> File {
+    File { path: path.into() }
+}
+
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct File {
+    path: PathBuf,
+}
+
+mod file {
+    use super::*;
+    use futures::Future as _Future;
+
+    impl<Bd> Endpoint<Bd> for File {
+        type Output = (NamedFile,);
+        type Future = FileFuture;
+
+        fn apply(&self, _: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
+            Ok(FileFuture {
+                opening: NamedFile::open(self.path.clone()),
+            })
+        }
+    }
+
+    #[allow(missing_debug_implementations)]
+    pub struct FileFuture {
+        opening: OpenNamedFile,
+    }
+
+    impl<Bd> EndpointFuture<Bd> for FileFuture {
+        type Output = (NamedFile,);
+
+        fn poll_endpoint(&mut self, _: &mut Context<'_, Bd>) -> Poll<Self::Output, Error> {
+            self.opening
+                .poll()
+                .map(|x| x.map(|x| (x,)))
+                .map_err(Into::into)
+        }
+    }
 }
 
 /// Create an endpoint which serves files in the specified directory.
 #[inline]
-pub fn dir(
-    root: impl Into<PathBuf>,
-) -> impl Endpoint<
-    Output = (NamedFile,),
-    Future = impl EndpointFuture<Output = (NamedFile,)> + Send + 'static, //
-> {
-    let root = root.into();
-    crate::endpoint::apply_fn(move |ecx| {
-        let path = {
-            match ecx.remaining_path().percent_decode() {
-                Ok(path) => Ok(PathBuf::from(path.into_owned())),
-                Err(e) => Err(e),
-            }
-        };
-        while let Some(..) = ecx.next_segment() {}
+pub fn dir(root: impl Into<PathBuf>) -> Dir {
+    Dir { root: root.into() }
+}
 
-        let path = match path {
-            Ok(path) => path,
-            Err(e) => {
-                return Ok(FileFuture {
-                    state: State::Err(Some(bad_request(e))),
-                })
-            }
-        };
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct Dir {
+    root: PathBuf,
+}
 
-        let mut path = root.join(path);
-        if path.is_dir() {
-            path = path.join("index.html");
+mod dir {
+    use super::*;
+    use futures::Future as _Future;
+
+    impl<Bd> Endpoint<Bd> for Dir {
+        type Output = (NamedFile,);
+        type Future = DirFuture;
+
+        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
+            let path = {
+                match cx.remaining_path().percent_decode() {
+                    Ok(path) => Ok(PathBuf::from(path.into_owned())),
+                    Err(e) => Err(e),
+                }
+            };
+            while let Some(..) = cx.next_segment() {}
+
+            let path = match path {
+                Ok(path) => path,
+                Err(e) => {
+                    return Ok(DirFuture {
+                        state: State::Err(Some(bad_request(e))),
+                    })
+                }
+            };
+
+            let mut path = self.root.join(path);
+            if path.is_dir() {
+                path = path.join("index.html");
+            }
+
+            Ok(DirFuture {
+                state: State::Opening(NamedFile::open(path)),
+            })
         }
+    }
 
-        Ok(FileFuture {
-            state: State::Opening(NamedFile::open(path)),
-        })
-    })
-}
+    #[allow(missing_debug_implementations)]
+    pub struct DirFuture {
+        state: State,
+    }
 
-#[doc(hidden)]
-#[derive(Debug)]
-pub struct FileFuture {
-    state: State,
-}
+    enum State {
+        Err(Option<Error>),
+        Opening(OpenNamedFile),
+    }
 
-#[derive(Debug)]
-enum State {
-    Err(Option<Error>),
-    Opening(OpenNamedFile),
-}
+    impl<Bd> EndpointFuture<Bd> for DirFuture {
+        type Output = (NamedFile,);
 
-impl Future for FileFuture {
-    type Item = (NamedFile,);
-    type Error = Error;
-
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        match self.state {
-            State::Err(ref mut err) => Err(err.take().unwrap()),
-            State::Opening(ref mut f) => f.poll().map(|x| x.map(|x| (x,))).map_err(Into::into),
+        fn poll_endpoint(&mut self, _: &mut Context<'_, Bd>) -> Poll<Self::Output, Error> {
+            match self.state {
+                State::Err(ref mut err) => Err(err.take().unwrap()),
+                State::Opening(ref mut f) => f.poll().map(|x| x.map(|x| (x,))).map_err(Into::into),
+            }
         }
     }
 }

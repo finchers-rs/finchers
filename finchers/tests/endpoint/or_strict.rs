@@ -1,5 +1,4 @@
 use finchers::endpoint::syntax;
-use finchers::endpoint::EndpointExt;
 use finchers::endpoints::{body, query};
 use finchers::test;
 
@@ -61,6 +60,8 @@ fn test_or_strict() {
     let query_str = "query=rustlang&count=42&tags=tokio,hyper";
 
     let mut runner = test::runner({
+        use finchers::endpoint::EndpointExt;
+
         let query = syntax::verb::get().and(query::required::<Param>());
         let form = syntax::verb::post().and(body::urlencoded::<Param>());
         query.or_strict(form)

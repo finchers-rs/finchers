@@ -1,7 +1,6 @@
 //! The definition of contextual information during applying endpoints.
 
 use std::marker::PhantomData;
-use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
 use crate::input::{EncodedStr, Input};
@@ -28,15 +27,15 @@ impl Cursor {
 ///
 /// This type behaves an iterator over the remaining path segments.
 #[derive(Debug)]
-pub struct ApplyContext<'a> {
-    input: &'a mut Input,
+pub struct ApplyContext<'a, Bd> {
+    input: &'a mut Input<Bd>,
     cursor: &'a mut Cursor,
     _marker: PhantomData<Rc<()>>,
 }
 
-impl<'a> ApplyContext<'a> {
+impl<'a, Bd> ApplyContext<'a, Bd> {
     #[inline]
-    pub(crate) fn new(input: &'a mut Input, cursor: &'a mut Cursor) -> ApplyContext<'a> {
+    pub(crate) fn new(input: &'a mut Input<Bd>, cursor: &'a mut Cursor) -> Self {
         ApplyContext {
             input,
             cursor,
@@ -46,7 +45,7 @@ impl<'a> ApplyContext<'a> {
 
     /// Returns a mutable reference to the value of `Input`.
     #[inline]
-    pub fn input(&mut self) -> &mut Input {
+    pub fn input(&mut self) -> &mut Input<Bd> {
         &mut *self.input
     }
 
@@ -84,8 +83,8 @@ impl<'a> ApplyContext<'a> {
     }
 }
 
-impl<'a> Deref for ApplyContext<'a> {
-    type Target = Input;
+impl<'a, Bd> std::ops::Deref for ApplyContext<'a, Bd> {
+    type Target = Input<Bd>;
 
     #[inline]
     fn deref(&self) -> &Self::Target {
@@ -93,7 +92,7 @@ impl<'a> Deref for ApplyContext<'a> {
     }
 }
 
-impl<'a> DerefMut for ApplyContext<'a> {
+impl<'a, Bd> std::ops::DerefMut for ApplyContext<'a, Bd> {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.input()
@@ -107,9 +106,7 @@ mod tests {
 
     #[test]
     fn test_segments() {
-        let request = Request::get("/foo/bar.txt")
-            .body(Default::default())
-            .unwrap();
+        let request = Request::get("/foo/bar.txt").body(()).unwrap();
         let mut input = Input::new(request);
         let mut cursor = Cursor::default();
         let mut ecx = ApplyContext::new(&mut input, &mut cursor);
@@ -129,7 +126,7 @@ mod tests {
 
     #[test]
     fn test_segments_from_root_path() {
-        let request = Request::get("/").body(Default::default()).unwrap();
+        let request = Request::get("/").body(()).unwrap();
         let mut input = Input::new(request);
         let mut cursor = Cursor::default();
         let mut ecx = ApplyContext::new(&mut input, &mut cursor);

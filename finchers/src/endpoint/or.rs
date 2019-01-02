@@ -15,15 +15,15 @@ pub struct Or<E1, E2> {
     pub(super) e2: E2,
 }
 
-impl<E1, E2> Endpoint for Or<E1, E2>
+impl<E1, E2, Bd> Endpoint<Bd> for Or<E1, E2>
 where
-    E1: Endpoint,
-    E2: Endpoint,
+    E1: Endpoint<Bd>,
+    E2: Endpoint<Bd>,
 {
     type Output = (Wrapped<E1::Output, E2::Output>,);
     type Future = OrFuture<E1::Future, E2::Future>;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
         let orig_cursor = ecx.cursor().clone();
         match self.e1.apply(ecx) {
             Ok(future1) => {
@@ -92,15 +92,15 @@ impl<L, R> OrFuture<L, R> {
     }
 }
 
-impl<L, R> EndpointFuture for OrFuture<L, R>
+impl<L, R, Bd> EndpointFuture<Bd> for OrFuture<L, R>
 where
-    L: EndpointFuture,
-    R: EndpointFuture,
+    L: EndpointFuture<Bd>,
+    R: EndpointFuture<Bd>,
 {
     type Output = (Wrapped<L::Output, R::Output>,);
 
     #[inline]
-    fn poll_endpoint(&mut self, cx: &mut Context<'_>) -> Poll<Self::Output, Error> {
+    fn poll_endpoint(&mut self, cx: &mut Context<'_, Bd>) -> Poll<Self::Output, Error> {
         match self.inner {
             Left(ref mut t) => t.poll_endpoint(cx).map(|t| t.map(|t| (Wrapped(Left(t)),))),
             Right(ref mut t) => t.poll_endpoint(cx).map(|t| t.map(|t| (Wrapped(Right(t)),))),

@@ -61,10 +61,9 @@ percent_encoding::define_encode_set! {
 pub fn segment(s: impl AsRef<str>) -> MatchSegment {
     let s = s.as_ref();
     debug_assert!(!s.is_empty());
-    (MatchSegment {
+    MatchSegment {
         encoded: percent_encode(s.as_bytes(), SEGMENT_ENCODE_SET).to_string(),
-    })
-    .with_output::<()>()
+    }
 }
 
 #[allow(missing_docs)]
@@ -73,11 +72,11 @@ pub struct MatchSegment {
     encoded: String,
 }
 
-impl Endpoint for MatchSegment {
+impl<Bd> Endpoint<Bd> for MatchSegment {
     type Output = ();
     type Future = Matched;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
         let s = ecx.next_segment().ok_or_else(ApplyError::not_matched)?;
         if s == self.encoded {
             Ok(Matched { _priv: () })
@@ -92,7 +91,7 @@ impl Endpoint for MatchSegment {
 /// Create an endpoint which checks if the current context is reached the end of segments.
 #[inline]
 pub fn eos() -> MatchEos {
-    (MatchEos { _priv: () }).with_output::<()>()
+    MatchEos { _priv: () }
 }
 
 #[allow(missing_docs)]
@@ -101,11 +100,11 @@ pub struct MatchEos {
     _priv: (),
 }
 
-impl Endpoint for MatchEos {
+impl<Bd> Endpoint<Bd> for MatchEos {
     type Output = ();
     type Future = Matched;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
         match ecx.next_segment() {
             None => Ok(Matched { _priv: () }),
             Some(..) => Err(ApplyError::not_matched()),
@@ -124,10 +123,9 @@ pub fn param<T>() -> Param<T>
 where
     T: FromEncodedStr,
 {
-    (Param {
+    Param {
         _marker: PhantomData,
-    })
-    .with_output::<(T,)>()
+    }
 }
 
 #[allow(missing_docs)]
@@ -150,14 +148,14 @@ impl<T> fmt::Debug for Param<T> {
     }
 }
 
-impl<T> Endpoint for Param<T>
+impl<T, Bd> Endpoint<Bd> for Param<T>
 where
     T: FromEncodedStr,
 {
     type Output = (T,);
     type Future = Extracted<T>;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
         let s = ecx.next_segment().ok_or_else(ApplyError::not_matched)?;
         let x =
             T::from_encoded_str(s).map_err(|err| ApplyError::custom(error::bad_request(err)))?;
@@ -175,10 +173,9 @@ pub fn remains<T>() -> Remains<T>
 where
     T: FromEncodedStr,
 {
-    (Remains {
+    Remains {
         _marker: PhantomData,
-    })
-    .with_output::<(T,)>()
+    }
 }
 
 #[allow(missing_docs)]
@@ -201,14 +198,14 @@ impl<T> fmt::Debug for Remains<T> {
     }
 }
 
-impl<T> Endpoint for Remains<T>
+impl<T, Bd> Endpoint<Bd> for Remains<T>
 where
     T: FromEncodedStr,
 {
     type Output = (T,);
     type Future = Extracted<T>;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
         let result = T::from_encoded_str(ecx.remaining_path())
             .map_err(|err| ApplyError::custom(error::bad_request(err)));
         while let Some(..) = ecx.next_segment() {}

@@ -4,6 +4,7 @@ use std::any::TypeId;
 use std::error;
 use std::fmt;
 use std::io;
+use std::marker::PhantomData;
 use std::mem;
 use std::sync::Arc;
 
@@ -14,7 +15,7 @@ use http::header;
 use http::header::HeaderMap;
 use http::header::HeaderValue;
 use http::{Request, Response};
-use hyper::body::{Body, Payload};
+use hyper::body::Payload;
 use tower_service::{NewService, Service};
 
 use crate::endpoint::context::ApplyContext;
@@ -29,64 +30,61 @@ use crate::output::IntoResponse;
 // ==== App ====
 
 /// A wrapper struct for lifting the instance of `Endpoint` to an HTTP service.
-///
-/// # Safety
-///
-/// The implementation of `NewService` for this type internally uses unsafe block
-/// with an assumption that `self` always outlives the returned future.
-/// Ensure that the all of spawned tasks are terminated and their instance
-/// are destroyed before `Self::drop`.
 #[derive(Debug)]
-pub struct App<E> {
+pub struct App<Bd, E: Endpoint<Bd>> {
     endpoint: Arc<E>,
+    _marker: PhantomData<fn(Bd)>,
 }
 
-impl<E> App<E> {
+impl<Bd, E> App<Bd, E>
+where
+    E: Endpoint<Bd>,
+{
     /// Create a new `App` from the specified endpoint.
-    pub fn new(endpoint: E) -> App<E> {
+    pub fn new(endpoint: E) -> Self {
         App {
             endpoint: Arc::new(endpoint),
+            _marker: PhantomData,
         }
     }
 }
 
-impl<E> NewService for App<E>
+impl<Bd, E> NewService for App<Bd, E>
 where
-    E: Endpoint,
+    E: Endpoint<Bd>,
     E::Output: IntoResponse,
     <E::Output as IntoResponse>::Body: ResBody,
 {
-    type Request = Request<Body>;
+    type Request = Request<Bd>;
     type Response = Response<AppPayload>;
     type Error = io::Error;
-    type Service = AppService<Arc<E>>;
+    type Service = AppService<Bd, Arc<E>>;
     type InitError = Never;
     type Future = future::FutureResult<Self::Service, Self::InitError>;
 
     fn new_service(&self) -> Self::Future {
-        future::ok(AppService {
-            endpoint: self.endpoint.clone(),
-        })
+        future::ok(AppService::new(self.endpoint.clone()))
     }
 }
 
 #[derive(Debug)]
-pub struct AppService<E> {
+pub struct AppService<Bd, E: Endpoint<Bd>> {
     pub(super) endpoint: E,
+    _marker: PhantomData<fn(Bd)>,
 }
 
-impl<E> AppService<E>
+impl<Bd, E> AppService<Bd, E>
 where
-    E: Endpoint + Clone,
+    E: Endpoint<Bd> + Clone,
 {
-    pub(crate) fn new(endpoint: E) -> AppService<E> {
-        AppService { endpoint }
+    pub(crate) fn new(endpoint: E) -> Self {
+        AppService {
+            endpoint,
+            _marker: PhantomData,
+        }
     }
 
-    pub(crate) fn dispatch(&self, request: Request<Body>) -> AppFuture<E>
-    where
-        E: Endpoint,
-    {
+    pub(crate) fn dispatch(&self, request: Request<Bd>) -> AppFuture<Bd, E> {
         AppFuture {
             endpoint: self.endpoint.clone(),
             state: State::Start(request),
@@ -94,16 +92,16 @@ where
     }
 }
 
-impl<E> Service for AppService<E>
+impl<Bd, E> Service for AppService<Bd, E>
 where
-    E: Endpoint + Clone,
+    E: Endpoint<Bd> + Clone,
     E::Output: IntoResponse,
     <E::Output as IntoResponse>::Body: ResBody,
 {
-    type Request = Request<Body>;
+    type Request = Request<Bd>;
     type Response = Response<AppPayload>;
     type Error = io::Error;
-    type Future = AppFuture<E>;
+    type Future = AppFuture<Bd, E>;
 
     fn poll_ready(&mut self) -> Poll<(), Self::Error> {
         Ok(Async::Ready(()))
@@ -115,20 +113,24 @@ where
 }
 
 #[derive(Debug)]
-pub struct AppFuture<E: Endpoint> {
+pub struct AppFuture<Bd, E: Endpoint<Bd>> {
     endpoint: E,
-    state: State<E>,
+    state: State<Bd, E>,
 }
 
 #[allow(clippy::large_enum_variant)]
-enum State<E: Endpoint> {
-    Start(Request<Body>),
-    InFlight(Input, E::Future, Cursor),
-    Done(Input),
+enum State<Bd, E: Endpoint<Bd>> {
+    Start(Request<Bd>),
+    InFlight(Input<Bd>, E::Future, Cursor),
+    Done(Input<Bd>),
     Gone,
 }
 
-impl<E: Endpoint> fmt::Debug for State<E> {
+impl<Bd, E> fmt::Debug for State<Bd, E>
+where
+    Bd: fmt::Debug,
+    E: Endpoint<Bd>,
+{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             State::Start(ref request) => f.debug_struct("Start").field("request", request).finish(),
@@ -143,9 +145,9 @@ impl<E: Endpoint> fmt::Debug for State<E> {
     }
 }
 
-impl<E> AppFuture<E>
+impl<Bd, E> AppFuture<Bd, E>
 where
-    E: Endpoint,
+    E: Endpoint<Bd>,
 {
     pub(crate) fn poll_apply(&mut self) -> Poll<E::Output, Error> {
         loop {
@@ -246,9 +248,9 @@ where
     }
 }
 
-impl<E> Future for AppFuture<E>
+impl<Bd, E> Future for AppFuture<Bd, E>
 where
-    E: Endpoint,
+    E: Endpoint<Bd>,
     E::Output: IntoResponse,
     <E::Output as IntoResponse>::Body: ResBody,
 {

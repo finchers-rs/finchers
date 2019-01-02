@@ -23,8 +23,9 @@ fn test_header_raw() {
 
 #[test]
 fn test_header_parse() {
-    let mut runner =
-        test::runner({ endpoints::header::parse::<Mime>("content-type").with_output::<(Mime,)>() });
+    let mut runner = test::runner(
+        endpoints::header::parse::<Mime>("content-type"), //
+    );
 
     assert_matches!(
         runner.apply(Request::post("/")
@@ -40,13 +41,13 @@ fn test_header_parse() {
 
 #[test]
 fn test_header_parse_required() {
-    let mut runner = test::runner({
-        endpoints::header::parse::<Mime>("content-type")
+    let mut runner = test::runner(
+        endpoints::header::parse::<Mime>("content-type") //
             .wrap(endpoint::wrapper::or_reject_with(|_, _| {
                 error::bad_request("missing content-type")
             }))
-            .with_output::<(Mime,)>()
-    });
+            .with_output::<(Mime,)>(),
+    );
 
     assert_matches!(
         runner.apply(Request::post("/")
@@ -63,9 +64,9 @@ fn test_header_parse_required() {
 
 #[test]
 fn test_header_optional() {
-    let mut runner = test::runner({
-        endpoints::header::optional::<Mime>("content-type").with_output::<(Option<Mime>,)>()
-    });
+    let mut runner = test::runner(
+        endpoints::header::optional::<Mime>("content-type"), //
+    );
 
     assert_matches!(
         runner.apply(Request::post("/")

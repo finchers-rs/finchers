@@ -3,9 +3,9 @@ use crate::endpoint::{ApplyContext, ApplyResult, Endpoint};
 
 /// Creates a wrapper for creating an endpoint which runs the provided function
 /// after calling `Endpoint::apply()`.
-pub fn after_apply<F>(f: F) -> AfterApply<F>
+pub fn after_apply<F, Bd>(f: F) -> AfterApply<F>
 where
-    F: Fn(&mut ApplyContext<'_>) -> ApplyResult<()>,
+    F: Fn(&mut ApplyContext<'_, Bd>) -> ApplyResult<()>,
 {
     AfterApply { f }
 }
@@ -16,10 +16,10 @@ pub struct AfterApply<F> {
     f: F,
 }
 
-impl<E, F> Wrapper<E> for AfterApply<F>
+impl<E, F, Bd> Wrapper<Bd, E> for AfterApply<F>
 where
-    E: Endpoint,
-    F: Fn(&mut ApplyContext<'_>) -> ApplyResult<()>,
+    E: Endpoint<Bd>,
+    F: Fn(&mut ApplyContext<'_, Bd>) -> ApplyResult<()>,
 {
     type Output = E::Output;
     type Endpoint = AfterApplyEndpoint<E, F>;
@@ -39,16 +39,16 @@ pub struct AfterApplyEndpoint<E, F> {
     pub(super) f: F,
 }
 
-impl<E, F> Endpoint for AfterApplyEndpoint<E, F>
+impl<E, F, Bd> Endpoint<Bd> for AfterApplyEndpoint<E, F>
 where
-    E: Endpoint,
-    F: Fn(&mut ApplyContext<'_>) -> ApplyResult<()>,
+    E: Endpoint<Bd>,
+    F: Fn(&mut ApplyContext<'_, Bd>) -> ApplyResult<()>,
 {
     type Output = E::Output;
     type Future = E::Future;
 
     #[inline]
-    fn apply(&self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+    fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
         let future = self.endpoint.apply(cx)?;
         (self.f)(cx)?;
         Ok(future)

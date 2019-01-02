@@ -10,16 +10,16 @@ pub struct And<E1, E2> {
     pub(super) e2: E2,
 }
 
-impl<E1, E2> Endpoint for And<E1, E2>
+impl<E1, E2, Bd> Endpoint<Bd> for And<E1, E2>
 where
-    E1: Endpoint,
-    E2: Endpoint,
+    E1: Endpoint<Bd>,
+    E2: Endpoint<Bd>,
     E1::Output: Combine<E2::Output>,
 {
     type Output = <E1::Output as Combine<E2::Output>>::Out;
-    type Future = AndFuture<E1::Future, E2::Future>;
+    type Future = AndFuture<Bd, E1::Future, E2::Future>;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
         Ok(AndFuture {
             f1: self.e1.apply(ecx).map(MaybeDone::Pending)?,
             f2: self.e2.apply(ecx).map(MaybeDone::Pending)?,
@@ -28,25 +28,25 @@ where
 }
 
 #[allow(missing_debug_implementations)]
-pub struct AndFuture<F1, F2>
+pub struct AndFuture<Bd, F1, F2>
 where
-    F1: EndpointFuture,
-    F2: EndpointFuture,
+    F1: EndpointFuture<Bd>,
+    F2: EndpointFuture<Bd>,
 {
-    f1: MaybeDone<F1>,
-    f2: MaybeDone<F2>,
+    f1: MaybeDone<Bd, F1>,
+    f2: MaybeDone<Bd, F2>,
 }
 
-impl<F1, F2> EndpointFuture for AndFuture<F1, F2>
+impl<F1, F2, Bd> EndpointFuture<Bd> for AndFuture<Bd, F1, F2>
 where
-    F1: EndpointFuture,
-    F2: EndpointFuture,
+    F1: EndpointFuture<Bd>,
+    F2: EndpointFuture<Bd>,
     F1::Output: Combine<F2::Output>,
     F2::Output: Tuple,
 {
     type Output = <F1::Output as Combine<F2::Output>>::Out;
 
-    fn poll_endpoint(&mut self, cx: &mut Context<'_>) -> Poll<Self::Output, Error> {
+    fn poll_endpoint(&mut self, cx: &mut Context<'_, Bd>) -> Poll<Self::Output, Error> {
         futures::try_ready!(self.f1.poll_endpoint(cx));
         futures::try_ready!(self.f2.poll_endpoint(cx));
         let v1 = self
