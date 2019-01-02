@@ -253,42 +253,20 @@ mod lazy {
     }
 }
 
-/// Trait representing the transformation into an `Endpoint`.
-pub trait IntoEndpoint {
-    /// The inner type of associated `Endpoint`.
-    type Output: Tuple;
-
-    /// The type of transformed `Endpoint`.
-    type Endpoint: Endpoint<Output = Self::Output>;
-
-    /// Consume itself and transform into an `Endpoint`.
-    fn into_endpoint(self) -> Self::Endpoint;
-}
-
-impl<E: Endpoint> IntoEndpoint for E {
-    type Output = E::Output;
-    type Endpoint = E;
-
-    #[inline]
-    fn into_endpoint(self) -> Self::Endpoint {
-        self
-    }
-}
-
 /// A set of extension methods for composing multiple endpoints.
-pub trait IntoEndpointExt: IntoEndpoint + Sized {
+pub trait EndpointExt: Endpoint + Sized {
     /// Create an endpoint which evaluates `self` and `e` and returns a pair of their tasks.
     ///
     /// The returned future from this endpoint contains both futures from
     /// `self` and `e` and resolved as a pair of values returned from theirs.
-    fn and<E>(self, other: E) -> And<Self::Endpoint, E::Endpoint>
+    fn and<E>(self, other: E) -> And<Self, E>
     where
-        E: IntoEndpoint,
+        E: Endpoint,
         Self::Output: Combine<E::Output>,
     {
         (And {
-            e1: self.into_endpoint(),
-            e2: other.into_endpoint(),
+            e1: self,
+            e2: other,
         })
         .with_output::<<Self::Output as Combine<E::Output>>::Out>()
     }
@@ -297,13 +275,13 @@ pub trait IntoEndpointExt: IntoEndpoint + Sized {
     ///
     /// The returned future from this endpoint contains the one returned
     /// from either `self` or `e` matched "better" to the input.
-    fn or<E>(self, other: E) -> Or<Self::Endpoint, E::Endpoint>
+    fn or<E>(self, other: E) -> Or<Self, E>
     where
-        E: IntoEndpoint,
+        E: Endpoint,
     {
         (Or {
-            e1: self.into_endpoint(),
-            e2: other.into_endpoint(),
+            e1: self,
+            e2: other,
         })
         .with_output::<(self::or::Wrapped<Self::Output, E::Output>,)>()
     }
@@ -318,16 +296,16 @@ pub trait IntoEndpointExt: IntoEndpoint + Sized {
     /// * If `self` is matched to the request, `other.apply(cx)`
     ///   is not called and the future returned from `self.apply(cx)` is
     ///   immediately returned.
-    fn or_strict<E>(self, other: E) -> OrStrict<Self::Endpoint, E::Endpoint>
+    fn or_strict<E>(self, other: E) -> OrStrict<Self, E>
     where
-        E: IntoEndpoint<Output = Self::Output>,
+        E: Endpoint<Output = Self::Output>,
     {
         (OrStrict {
-            e1: self.into_endpoint(),
-            e2: other.into_endpoint(),
+            e1: self,
+            e2: other,
         })
         .with_output::<Self::Output>()
     }
 }
 
-impl<E: IntoEndpoint> IntoEndpointExt for E {}
+impl<E: Endpoint> EndpointExt for E {}

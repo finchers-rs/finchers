@@ -61,7 +61,7 @@ pub mod test;
 pub mod prelude {
     pub use crate::endpoint;
     pub use crate::endpoint::wrapper::{EndpointWrapExt, Wrapper};
-    pub use crate::endpoint::{Endpoint, IntoEndpoint, IntoEndpointExt};
+    pub use crate::endpoint::{Endpoint, EndpointExt};
     pub use crate::endpoints;
     pub use crate::error::HttpError;
 }

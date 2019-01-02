@@ -1,5 +1,6 @@
 use finchers::prelude::*;
 use finchers::test;
+use matches::assert_matches;
 
 #[test]
 fn test_map() {

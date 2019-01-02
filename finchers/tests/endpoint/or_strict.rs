@@ -1,9 +1,10 @@
 use finchers::endpoint::syntax;
-use finchers::endpoint::IntoEndpointExt;
+use finchers::endpoint::EndpointExt;
 use finchers::endpoints::{body, query};
 use finchers::test;
 
 use http::Request;
+use matches::assert_matches;
 use serde::de;
 use serde::de::IntoDeserializer;
 use std::fmt;
@@ -47,7 +48,7 @@ where
     })
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, serde::Deserialize, PartialEq)]
 struct Param {
     query: String,
     count: Option<u32>,

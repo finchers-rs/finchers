@@ -4,6 +4,7 @@ use finchers::test;
 
 use http::header::CONTENT_TYPE;
 use http::Request;
+use matches::assert_matches;
 use mime;
 use mime::Mime;
 

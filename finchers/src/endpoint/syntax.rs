@@ -3,13 +3,12 @@
 #[allow(missing_docs)]
 pub mod verb;
 
-use std::borrow::Cow;
 use std::fmt;
 use std::marker::PhantomData;
 
 use percent_encoding::{percent_encode, DEFAULT_ENCODE_SET};
 
-use crate::endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint, IntoEndpoint};
+use crate::endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint};
 use crate::error;
 use crate::error::Error;
 use crate::input::FromEncodedStr;
@@ -85,36 +84,6 @@ impl Endpoint for MatchSegment {
         } else {
             Err(ApplyError::not_matched())
         }
-    }
-}
-
-impl<'s> IntoEndpoint for &'s str {
-    type Output = ();
-    type Endpoint = MatchSegment;
-
-    #[inline(always)]
-    fn into_endpoint(self) -> Self::Endpoint {
-        segment(self)
-    }
-}
-
-impl IntoEndpoint for String {
-    type Output = ();
-    type Endpoint = MatchSegment;
-
-    #[inline(always)]
-    fn into_endpoint(self) -> Self::Endpoint {
-        segment(self)
-    }
-}
-
-impl<'s> IntoEndpoint for Cow<'s, str> {
-    type Output = ();
-    type Endpoint = MatchSegment;
-
-    #[inline(always)]
-    fn into_endpoint(self) -> Self::Endpoint {
-        segment(self)
     }
 }
 
@@ -247,69 +216,69 @@ where
     }
 }
 
-/// A helper macro for creating an endpoint which matches to the specified HTTP path.
-///
-/// # Example
-///
-/// The following macro call
-///
-/// ```
-/// # #[macro_use]
-/// # extern crate finchers;
-/// # fn main() {
-/// # drop(|| {
-/// path!(@get / "api" / "v1" / "posts" / i32)
-/// # });
-/// # }
-/// ```
-///
-/// will be expanded to the following code:
-///
-/// ```
-/// # use finchers::prelude::*;
-/// use finchers::endpoint::syntax;
-/// # fn main() {
-/// # drop(|| {
-/// syntax::verb::get()
-///     .and("api")
-///     .and("v1")
-///     .and("posts")
-///     .and(syntax::param::<i32>())
-/// # });
-/// # }
-/// ```
-#[macro_export(local_inner_macros)]
-macro_rules! path {
-    // with method
-    (@$method:ident $($t:tt)*) => (
-        $crate::endpoint::IntoEndpointExt::and(
-            $crate::endpoint::syntax::verb::$method(),
-            path_impl!(@start $($t)*)
-        )
-    );
+// /// A helper macro for creating an endpoint which matches to the specified HTTP path.
+// ///
+// /// # Example
+// ///
+// /// The following macro call
+// ///
+// /// ```
+// /// # #[macro_use]
+// /// # extern crate finchers;
+// /// # fn main() {
+// /// # drop(|| {
+// /// path!(@get / "api" / "v1" / "posts" / i32)
+// /// # });
+// /// # }
+// /// ```
+// ///
+// /// will be expanded to the following code:
+// ///
+// /// ```
+// /// # use finchers::prelude::*;
+// /// use finchers::endpoint::syntax;
+// /// # fn main() {
+// /// # drop(|| {
+// /// syntax::verb::get()
+// ///     .and("api")
+// ///     .and("v1")
+// ///     .and("posts")
+// ///     .and(syntax::param::<i32>())
+// /// # });
+// /// # }
+// /// ```
+// #[macro_export(local_inner_macros)]
+// macro_rules! path {
+//     // with method
+//     (@$method:ident $($t:tt)*) => (
+//         $crate::endpoint::IntoEndpointExt::and(
+//             $crate::endpoint::syntax::verb::$method(),
+//             path_impl!(@start $($t)*)
+//         )
+//     );
 
-    // without method
-    (/ $($t:tt)*) => ( path_impl!(@start / $($t)*) );
-}
+//     // without method
+//     (/ $($t:tt)*) => ( path_impl!(@start / $($t)*) );
+// }
 
-#[doc(hidden)]
-#[macro_export(local_inner_macros)]
-macro_rules! path_impl {
-    (@start / $head:tt $(/ $tail:tt)*) => {{
-        let __p = path_impl!(@segment $head);
-        $(
-            let __p = $crate::endpoint::IntoEndpointExt::and(__p, path_impl!(@segment $tail));
-        )*
-        __p
-    }};
-    (@start / $head:tt $(/ $tail:tt)* /) => {
-        $crate::endpoint::IntoEndpointExt::and(
-            path_impl!(@start / $head $(/ $tail)*),
-            $crate::endpoint::syntax::eos(),
-        )
-    };
-    (@start /) => ( $crate::endpoint::syntax::eos() );
+// #[doc(hidden)]
+// #[macro_export(local_inner_macros)]
+// macro_rules! path_impl {
+//     (@start / $head:tt $(/ $tail:tt)*) => {{
+//         let __p = path_impl!(@segment $head);
+//         $(
+//             let __p = $crate::endpoint::IntoEndpointExt::and(__p, path_impl!(@segment $tail));
+//         )*
+//         __p
+//     }};
+//     (@start / $head:tt $(/ $tail:tt)* /) => {
+//         $crate::endpoint::IntoEndpointExt::and(
+//             path_impl!(@start / $head $(/ $tail)*),
+//             $crate::endpoint::syntax::eos(),
+//         )
+//     };
+//     (@start /) => ( $crate::endpoint::syntax::eos() );
 
-    (@segment $t:ty) => ( $crate::endpoint::syntax::param::<$t>() );
-    (@segment $s:expr) => ( $crate::endpoint::IntoEndpoint::into_endpoint($s) );
-}
+//     (@segment $t:ty) => ( $crate::endpoint::syntax::param::<$t>() );
+//     (@segment $s:expr) => ( $crate::endpoint::IntoEndpoint::into_endpoint($s) );
+// }

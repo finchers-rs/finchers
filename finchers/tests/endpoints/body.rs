@@ -1,6 +1,7 @@
 use finchers::endpoints::body;
 use finchers::test;
 use http::Request;
+use matches::assert_matches;
 
 #[test]
 fn test_body_text() {
@@ -18,7 +19,7 @@ fn test_body_text() {
 
 #[test]
 fn test_body_json() {
-    #[derive(Debug, Deserialize, PartialEq)]
+    #[derive(Debug, PartialEq, serde::Deserialize)]
     struct Param {
         text: String,
     }
@@ -58,7 +59,7 @@ fn test_body_json() {
 
 #[test]
 fn test_body_urlencoded() {
-    #[derive(Debug, PartialEq, Deserialize)]
+    #[derive(Debug, PartialEq, serde::Deserialize)]
     struct AccessTokenRequest {
         grant_type: String,
         code: String,

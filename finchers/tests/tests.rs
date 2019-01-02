@@ -1,19 +1,3 @@
-extern crate bytes;
-extern crate cookie;
-#[macro_use]
-extern crate failure;
-#[macro_use]
-extern crate finchers;
-extern crate futures;
-extern crate http;
-#[macro_use]
-extern crate matches;
-extern crate mime;
-#[macro_use]
-extern crate serde;
-#[cfg(feature = "tower-web")]
-extern crate tower_web;
-
 mod endpoint;
 mod endpoints;
 
@@ -54,3 +38,15 @@ fn test_perform_on_error_response() {
     let response = runner.perform("/").unwrap();
     assert_eq!(response.status().as_u16(), 400);
 }
+
+// #[test]
+// fn test_path_macro() {
+//     let _ = path!(@get /);
+//     let _ = path!(@get / "foo" / u32);
+//     let _ = path!(@get / "foo" / { syntax::remains::<String>() });
+// }
+
+// #[test]
+// fn test_routes_macro() {
+//     let _ = routes![endpoint::unit(), endpoint::value(42),];
+// }
