@@ -16,7 +16,7 @@ use crate::future::{Context, EndpointFuture, Poll};
 ///
 /// # Example
 ///
-/// ```
+/// ```ignore
 /// # extern crate finchers;
 /// # #[macro_use]
 /// # extern crate serde;
@@ -106,7 +106,7 @@ mod required {
 ///
 /// # Example
 ///
-/// ```
+/// ```ignore
 /// # extern crate finchers;
 /// # #[macro_use]
 /// # extern crate serde;

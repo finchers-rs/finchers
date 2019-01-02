@@ -166,7 +166,7 @@ pub fn unit<Bd: 'static>() -> impl Endpoint<
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// # #[macro_use]
 /// # extern crate finchers;
 /// # extern crate futures;

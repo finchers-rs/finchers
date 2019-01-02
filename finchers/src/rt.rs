@@ -63,7 +63,7 @@ pub fn blocking<R>(f: impl FnOnce() -> R) -> Poll<R, BlockingError> {
 ///
 /// # Example
 ///
-/// ```
+/// ```ignore
 /// # #[macro_use]
 /// # extern crate finchers;
 /// # extern crate failure;

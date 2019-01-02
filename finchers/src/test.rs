@@ -2,7 +2,7 @@
 //!
 //! # Example
 //!
-//! ```
+//! ```ignore
 //! # #[macro_use]
 //! # extern crate finchers;
 //! # use finchers::test;

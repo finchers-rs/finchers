@@ -26,7 +26,7 @@ use crate::input::FromHeaderValue;
 /// name of header does not exist. In order to trait the missing header as an
 /// error, use `or_reject_with` as follows:
 ///
-/// ```
+/// ```ignore
 /// # use finchers::prelude::*;
 /// # use finchers::endpoints::header;
 /// use finchers::endpoint::wrapper::or_reject_with;
@@ -192,7 +192,7 @@ mod optional {
 /// # drop(endpoint);
 /// ```
 ///
-/// ```
+/// ```ignore
 /// # use finchers::prelude::*;
 /// # use finchers::endpoints::header;
 /// use finchers::error;

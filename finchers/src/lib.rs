@@ -10,7 +10,7 @@
 //!
 //! # Example
 //!
-//! ```no_run
+//! ```ignore
 //! #[macro_use]
 //! extern crate finchers;
 //!
