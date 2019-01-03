@@ -7,7 +7,7 @@ use {
         future::{Context, EndpointFuture, Poll},
     },
     http::StatusCode,
-    hyper::body::Payload,
+    izanami_service::http::BufStream,
     serde::de::DeserializeOwned,
     std::{cell::UnsafeCell, marker::PhantomData},
 };
@@ -15,7 +15,7 @@ use {
 fn stolen_payload() -> Error {
     crate::error::err_msg(
         StatusCode::INTERNAL_SERVER_ERROR,
-        "The instance of Payload has already been stolen by another endpoint.",
+        "The instance of BufStream has already been stolen by another endpoint.",
     )
 }
 
@@ -65,7 +65,7 @@ mod raw {
 
 /// Creates an endpoint which receives all of request body.
 ///
-/// If the instance of `Payload` has already been stolen by another endpoint, it will
+/// If the instance of `BufStream` has already been stolen by another endpoint, it will
 /// return an error.
 #[inline]
 pub fn receive_all() -> ReceiveAll {
@@ -82,7 +82,8 @@ mod receive_all {
 
     impl<Bd> Endpoint<Bd> for ReceiveAll
     where
-        Bd: Payload,
+        Bd: BufStream,
+        Bd::Error: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
     {
         type Output = (Vec<u8>,);
         type Future = ReceiveAllFuture<Bd>;
@@ -105,7 +106,8 @@ mod receive_all {
 
     impl<Bd> EndpointFuture<Bd> for ReceiveAllFuture<Bd>
     where
-        Bd: Payload,
+        Bd: BufStream,
+        Bd::Error: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
     {
         type Output = (Vec<u8>,);
 
@@ -118,7 +120,7 @@ mod receive_all {
                     }
                     State::Receiving(ref mut body, ref mut buf) => {
                         while let Some(data) = futures::try_ready!(body
-                            .poll_data()
+                            .poll_buf()
                             .map_err(|e| failure::Error::from_boxed_compat(e.into())))
                         {
                             buf.extend_from_slice(data.bytes());
@@ -133,7 +135,7 @@ mod receive_all {
 
     pub(super) fn future<Bd>() -> ReceiveAllFuture<Bd>
     where
-        Bd: Payload,
+        Bd: BufStream,
     {
         ReceiveAllFuture {
             state: State::Start,
@@ -162,7 +164,8 @@ mod text {
 
     impl<Bd> Endpoint<Bd> for Text
     where
-        Bd: Payload,
+        Bd: BufStream,
+        Bd::Error: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
     {
         type Output = (String,);
         type Future = TextFuture<Bd>;
@@ -188,14 +191,16 @@ mod text {
     #[allow(missing_debug_implementations)]
     pub struct TextFuture<Bd>
     where
-        Bd: Payload,
+        Bd: BufStream,
+        Bd::Error: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
     {
         receive_all: <ReceiveAll as Endpoint<Bd>>::Future,
     }
 
     impl<Bd> EndpointFuture<Bd> for TextFuture<Bd>
     where
-        Bd: Payload,
+        Bd: BufStream,
+        Bd::Error: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
     {
         type Output = (String,);
 
@@ -238,7 +243,8 @@ mod json {
 
     impl<T, Bd> Endpoint<Bd> for Json<T>
     where
-        Bd: Payload,
+        Bd: BufStream,
+        Bd::Error: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
         T: DeserializeOwned,
     {
         type Output = (T,);
@@ -265,7 +271,8 @@ mod json {
     #[allow(missing_debug_implementations)]
     pub struct JsonFuture<Bd, T>
     where
-        Bd: Payload,
+        Bd: BufStream,
+        Bd::Error: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
     {
         receive_all: <ReceiveAll as Endpoint<Bd>>::Future,
         _marker: PhantomData<fn() -> T>,
@@ -273,7 +280,8 @@ mod json {
 
     impl<Bd, T> EndpointFuture<Bd> for JsonFuture<Bd, T>
     where
-        Bd: Payload,
+        Bd: BufStream,
+        Bd::Error: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
         T: DeserializeOwned,
     {
         type Output = (T,);
@@ -319,7 +327,8 @@ mod urlencoded {
 
     impl<T, Bd> Endpoint<Bd> for Urlencoded<T>
     where
-        Bd: Payload,
+        Bd: BufStream,
+        Bd::Error: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
         T: DeserializeOwned,
     {
         type Output = (T,);
@@ -346,7 +355,8 @@ mod urlencoded {
     #[allow(missing_debug_implementations)]
     pub struct UrlencodedFuture<Bd, T>
     where
-        Bd: Payload,
+        Bd: BufStream,
+        Bd::Error: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
     {
         receive_all: <ReceiveAll as Endpoint<Bd>>::Future,
         _marker: PhantomData<fn() -> T>,
@@ -354,7 +364,8 @@ mod urlencoded {
 
     impl<Bd, T> EndpointFuture<Bd> for UrlencodedFuture<Bd, T>
     where
-        Bd: Payload,
+        Bd: BufStream,
+        Bd::Error: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
         T: DeserializeOwned,
     {
         type Output = (T,);

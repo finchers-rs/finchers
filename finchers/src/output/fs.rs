@@ -7,10 +7,9 @@ use std::mem;
 use std::path::PathBuf;
 
 use futures::{try_ready, Async, Future, Poll};
-use hyper::body::Payload;
-use tokio::io::AsyncRead;
-
+use izanami_service::http::BufStream;
 use tokio::fs::file::{File, MetadataFuture, OpenFuture};
+use tokio::io::AsyncRead;
 
 use bytes::{BufMut, Bytes, BytesMut};
 use http::{header, Request, Response};
@@ -125,11 +124,11 @@ impl FileStream {
     }
 }
 
-impl Payload for FileStream {
-    type Data = io::Cursor<Bytes>;
+impl BufStream for FileStream {
+    type Item = io::Cursor<Bytes>;
     type Error = io::Error;
 
-    fn poll_data(&mut self) -> Result<Async<Option<Self::Data>>, Self::Error> {
+    fn poll_buf(&mut self) -> Result<Async<Option<Self::Item>>, Self::Error> {
         if self.len == 0 {
             return Ok(Async::Ready(None));
         }
@@ -152,6 +151,10 @@ impl Payload for FileStream {
         }
 
         Ok(Async::Ready(Some(io::Cursor::new(chunk))))
+    }
+
+    fn is_end_stream(&self) -> bool {
+        false
     }
 }
 

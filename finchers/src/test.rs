@@ -53,7 +53,7 @@ use {
         header::{self, HeaderMap, HeaderName, HeaderValue},
         Request, Uri,
     },
-    hyper::body::Payload,
+    izanami_service::http::BufStream,
     mime::Mime,
     std::io,
     tokio::runtime::current_thread::Runtime,
@@ -84,28 +84,18 @@ pub trait IntoReqBody: self::imp::IntoReqBodyImpl {}
 #[derive(Debug)]
 pub struct ReqBody(Option<Bytes>);
 
-impl Payload for ReqBody {
-    type Data = io::Cursor<Bytes>;
+impl BufStream for ReqBody {
+    type Item = io::Cursor<Bytes>;
     type Error = io::Error;
 
     #[inline]
-    fn poll_data(&mut self) -> Poll<Option<Self::Data>, Self::Error> {
+    fn poll_buf(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
         Ok(self.0.take().map(io::Cursor::new).into())
-    }
-
-    #[inline]
-    fn poll_trailers(&mut self) -> Poll<Option<HeaderMap>, Self::Error> {
-        Ok(None.into())
     }
 
     #[inline]
     fn is_end_stream(&self) -> bool {
         self.0.is_none()
-    }
-
-    #[inline]
-    fn content_length(&self) -> Option<u64> {
-        self.0.as_ref().map(|x| x.len() as u64)
     }
 }
 
@@ -169,18 +159,6 @@ where
             for (k, v) in default_headers {
                 request.headers_mut().append(k, v.clone());
             }
-        }
-
-        if let Some(len) = request.body().content_length() {
-            request
-                .headers_mut()
-                .entry(header::CONTENT_LENGTH)
-                .unwrap()
-                .or_insert_with(|| {
-                    len.to_string()
-                        .parse()
-                        .expect("should be a valid header value")
-                });
         }
 
         or_insert(request.headers_mut(), header::HOST, "localhost");

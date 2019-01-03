@@ -14,7 +14,7 @@ use futures::{Async, Future, Poll};
 use http::header;
 use http::header::HeaderValue;
 use http::{Request, Response};
-use tower_service::{NewService, Service};
+use izanami_service::{MakeService, Service};
 
 use crate::endpoint::context::ApplyContext;
 use crate::endpoint::{Cursor, Endpoint};
@@ -25,15 +25,12 @@ use crate::input::Input;
 use crate::output::body::ResBody;
 use crate::output::IntoResponse;
 
-pub trait EndpointServiceExt<Bd>: Endpoint<Bd> + Sized {
-    fn into_service(self) -> App<Bd, Self>;
+pub trait EndpointServiceExt: Sized {
+    fn into_service(self) -> App<Self>;
 }
 
-impl<E, Bd> EndpointServiceExt<Bd> for E
-where
-    E: Endpoint<Bd>,
-{
-    fn into_service(self) -> App<Bd, Self> {
+impl<E> EndpointServiceExt for E {
+    fn into_service(self) -> App<Self> {
         App::new(self)
     }
 }
@@ -45,45 +42,39 @@ pub type ResponseBody<Bd, E> = Either<
 
 /// A wrapper struct for lifting the instance of `Endpoint` to an HTTP service.
 #[derive(Debug)]
-pub struct App<Bd, E: Endpoint<Bd>> {
+pub struct App<E> {
     endpoint: Arc<E>,
-    _marker: PhantomData<fn(Bd)>,
 }
 
-impl<Bd, E> App<Bd, E>
-where
-    E: Endpoint<Bd>,
-{
+impl<E> App<E> {
     /// Create a new `App` from the specified endpoint.
     pub fn new(endpoint: E) -> Self {
         App {
             endpoint: Arc::new(endpoint),
-            _marker: PhantomData,
         }
     }
 }
 
-impl<Bd, E> NewService for App<Bd, E>
+impl<E, Ctx, Bd> MakeService<Ctx, Request<Bd>> for App<E>
 where
     E: Endpoint<Bd>,
     E::Output: IntoResponse,
     <E::Output as IntoResponse>::Body: ResBody,
 {
-    type Request = Request<Bd>;
     type Response = Response<ResponseBody<Bd, E>>;
     type Error = io::Error;
     type Service = AppService<Bd, Arc<E>>;
-    type InitError = Never;
-    type Future = future::FutureResult<Self::Service, Self::InitError>;
+    type MakeError = Never;
+    type Future = future::FutureResult<Self::Service, Self::MakeError>;
 
-    fn new_service(&self) -> Self::Future {
+    fn make_service(&self, _: Ctx) -> Self::Future {
         future::ok(AppService::new(self.endpoint.clone()))
     }
 }
 
 #[derive(Debug)]
 pub struct AppService<Bd, E: Endpoint<Bd>> {
-    pub(super) endpoint: E,
+    endpoint: E,
     _marker: PhantomData<fn(Bd)>,
 }
 
@@ -106,13 +97,12 @@ where
     }
 }
 
-impl<Bd, E> Service for AppService<Bd, E>
+impl<Bd, E> Service<Request<Bd>> for AppService<Bd, E>
 where
     E: Endpoint<Bd> + Clone,
     E::Output: IntoResponse,
     <E::Output as IntoResponse>::Body: ResBody,
 {
-    type Request = Request<Bd>;
     type Response = Response<ResponseBody<Bd, E>>;
     type Error = io::Error;
     type Future = AppFuture<Bd, E>;
@@ -121,7 +111,7 @@ where
         Ok(Async::Ready(()))
     }
 
-    fn call(&mut self, request: Self::Request) -> Self::Future {
+    fn call(&mut self, request: Request<Bd>) -> Self::Future {
         self.dispatch(request)
     }
 }

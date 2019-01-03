@@ -34,7 +34,6 @@ either = "1.5.0"
 failure = "0.1.2"
 futures = "0.1.23"
 http = "0.1.10"
-hyper = "0.12.7"
 log = "0.4.3"
 mime = "0.3.8"
 mime_guess = "2.0.0-alpha.6"
@@ -43,9 +42,9 @@ serde = { version = "1.0.71", features = ["derive"] }
 serde_json = "1.0.24"
 serde_qs = "0.4.1"
 tokio = "0.1.8"
-tokio-threadpool = "0.1.7"
-tower-service = "0.1.0"
 url = "1.7.1"
+
+izanami-service = "0.1.0-preview.1"
 
 [build-dependencies]
 version_check = "0.1.5"
