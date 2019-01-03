@@ -17,16 +17,3 @@ fn test_boxed_local() {
     let mut runner = test::runner(LocalEndpointObj::new(endpoint));
     assert_matches!(runner.apply_raw("/foo"), Ok(..));
 }
-
-#[test]
-#[ignore]
-fn compiletest() {
-    let endpoint = EndpointObj::new(
-        syntax::verb::get()
-            .and(syntax::segment("foo"))
-            .map(|| "foo"),
-    );
-    finchers::server::start(endpoint)
-        .serve("127.0.0.1:4000")
-        .expect("failed to start the server");
-}

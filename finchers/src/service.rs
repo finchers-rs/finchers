@@ -27,7 +27,18 @@ use crate::input::Input;
 use crate::output::body::{Payload as PayloadWrapper, ResBody};
 use crate::output::IntoResponse;
 
-// ==== App ====
+pub trait EndpointServiceExt<Bd>: Endpoint<Bd> + Sized {
+    fn into_service(self) -> App<Bd, Self>;
+}
+
+impl<E, Bd> EndpointServiceExt<Bd> for E
+where
+    E: Endpoint<Bd>,
+{
+    fn into_service(self) -> App<Bd, Self> {
+        App::new(self)
+    }
+}
 
 /// A wrapper struct for lifting the instance of `Endpoint` to an HTTP service.
 #[derive(Debug)]

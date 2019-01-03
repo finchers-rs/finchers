@@ -45,7 +45,7 @@ use std::error::Error as StdError;
 use std::io;
 
 use bytes::Buf;
-use futures::{future, stream, Async, Future, Poll, Stream};
+use futures::{future, stream, Async, Poll, Stream};
 use http;
 use http::header;
 use http::header::{HeaderMap, HeaderName, HeaderValue};
@@ -53,27 +53,16 @@ use http::{Request, Response};
 use hyper::body::Payload;
 use tokio::runtime::current_thread::Runtime;
 
-use crate::app::{AppFuture, AppService};
 use crate::endpoint::Endpoint;
 use crate::error;
 use crate::output::body::ResBody;
 use crate::output::IntoResponse;
-use crate::rt::{with_set_runtime_mode, RuntimeMode};
+use crate::service::{AppFuture, AppService};
 
 pub use self::request::{IntoReqBody, TestRequest};
 pub use self::response::TestResult;
 
 // ====
-
-struct AnnotatedRuntime<'a>(&'a mut Runtime);
-
-impl<'a> AnnotatedRuntime<'a> {
-    fn block_on<F: Future>(&mut self, mut future: F) -> Result<F::Item, F::Error> {
-        self.0.block_on(future::poll_fn(move || {
-            with_set_runtime_mode(RuntimeMode::CurrentThread, || future.poll())
-        }))
-    }
-}
 
 fn or_insert(headers: &mut HeaderMap, name: HeaderName, value: &'static str) {
     headers
@@ -199,7 +188,7 @@ where
 
     fn apply_inner<'a, F, R>(&'a mut self, request: impl TestRequest, f: F) -> R
     where
-        F: FnOnce(AppFuture<ReqBody, &E>, &mut AnnotatedRuntime<'_>) -> R,
+        F: FnOnce(AppFuture<ReqBody, &E>, &mut Runtime) -> R,
     {
         let request = self
             .prepare_request(request)
@@ -207,7 +196,7 @@ where
 
         let future = AppService::new(&self.endpoint).dispatch(request);
 
-        f(future, &mut AnnotatedRuntime(&mut self.rt))
+        f(future, &mut self.rt)
     }
 
     /// Applies the given request to the inner endpoint and retrieves the result of returned future.

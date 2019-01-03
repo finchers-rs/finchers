@@ -44,7 +44,6 @@
 #![forbid(clippy::unimplemented)]
 #![doc(test(attr(deny(warnings))))]
 
-mod app;
 mod common;
 
 pub mod endpoint;
@@ -53,8 +52,7 @@ pub mod error;
 pub mod future;
 pub mod input;
 pub mod output;
-pub mod rt;
-pub mod server;
+pub mod service;
 pub mod test;
 
 /// A prelude for crates using the `finchers` crate.
@@ -64,4 +62,5 @@ pub mod prelude {
     pub use crate::endpoint::{Endpoint, EndpointExt};
     pub use crate::endpoints;
     pub use crate::error::HttpError;
+    pub use crate::service::EndpointServiceExt;
 }
