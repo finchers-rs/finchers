@@ -11,7 +11,6 @@ pub use self::header::FromHeaderValue;
 use http;
 use http::header::HeaderMap;
 use http::Request;
-use http::Response;
 use mime::Mime;
 
 use crate::error::{bad_request, Error};
@@ -23,7 +22,7 @@ pub struct Input<Bd> {
     body: Option<Bd>,
     #[allow(clippy::option_option)]
     media_type: Option<Option<Mime>>,
-    response_headers: Option<HeaderMap>,
+    pub(crate) response_headers: Option<HeaderMap>,
 }
 
 impl<Bd> Input<Bd> {
@@ -98,22 +97,5 @@ impl<Bd> Input<Bd> {
     /// The values inserted in this header map are automatically added to the actual response.
     pub fn response_headers(&mut self) -> &mut HeaderMap {
         self.response_headers.get_or_insert_with(Default::default)
-    }
-
-    #[allow(clippy::type_complexity)]
-    pub(crate) fn finalize<T>(
-        self,
-        output: Result<Response<T>, Error>,
-    ) -> Response<Result<Option<T>, Error>> {
-        let mut response = match output {
-            Ok(response) => response.map(|bd| Ok(Some(bd))),
-            Err(err) => err.into_response().map(Err),
-        };
-
-        if let Some(headers) = self.response_headers {
-            response.headers_mut().extend(headers);
-        }
-
-        response
     }
 }

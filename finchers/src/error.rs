@@ -8,10 +8,8 @@ use std::io;
 
 use failure;
 use failure::Fail;
-use futures::Poll;
 use http::header::{HeaderMap, HeaderValue};
 use http::{header, Response, StatusCode};
-use hyper::body::Payload;
 use serde::ser::{Serialize, SerializeMap, Serializer};
 
 /// Trait representing error values from endpoints.
@@ -129,22 +127,16 @@ impl Error {
         self.0.cause()
     }
 
-    pub(crate) fn into_response(self) -> Response<Error> {
-        let mut response = Response::new(());
+    pub(crate) fn into_response(self) -> Response<String> {
+        let mut response = Response::new(self.to_string());
         *response.status_mut() = self.status_code();
         response.headers_mut().insert(
             header::CONTENT_TYPE,
             HeaderValue::from_static("text/plain; charset=utf-8"),
         );
         self.headers(response.headers_mut());
-        response.map(|_| self)
-    }
-
-    pub(crate) fn into_payload(self) -> ErrorPayload {
-        ErrorPayload {
-            body: Some(self.to_string()),
-            err: self,
-        }
+        response.extensions_mut().insert(self);
+        response
     }
 }
 
@@ -158,33 +150,6 @@ impl Serialize for Error {
         map.serialize_entry("description", &self.to_string())?;
         // TODO: causes
         map.end()
-    }
-}
-
-#[derive(Debug)]
-pub(crate) struct ErrorPayload {
-    body: Option<String>,
-    err: Error,
-}
-
-impl Payload for ErrorPayload {
-    type Data = io::Cursor<String>;
-    type Error = Never;
-
-    fn poll_data(&mut self) -> Poll<Option<Self::Data>, Self::Error> {
-        Ok(self.body.take().map(io::Cursor::new).into())
-    }
-
-    fn poll_trailers(&mut self) -> Poll<Option<HeaderMap>, Self::Error> {
-        Ok(None.into())
-    }
-
-    fn is_end_stream(&self) -> bool {
-        self.body.is_none()
-    }
-
-    fn content_length(&self) -> Option<u64> {
-        self.body.as_ref().map(|body| body.len() as u64)
     }
 }
 

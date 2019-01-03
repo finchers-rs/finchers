@@ -1,21 +1,19 @@
 //! The components for using the implementor of `Endpoint` as an HTTP `Service`.
 
-use std::any::TypeId;
-use std::error;
+#![allow(missing_docs)]
+
 use std::fmt;
 use std::io;
 use std::marker::PhantomData;
 use std::mem;
 use std::sync::Arc;
 
-use bytes::Buf;
+use either::Either;
 use futures::future;
-use futures::{Async, Future, Poll, Stream};
+use futures::{Async, Future, Poll};
 use http::header;
-use http::header::HeaderMap;
 use http::header::HeaderValue;
 use http::{Request, Response};
-use hyper::body::Payload;
 use tower_service::{NewService, Service};
 
 use crate::endpoint::context::ApplyContext;
@@ -24,7 +22,7 @@ use crate::error::Error;
 use crate::error::Never;
 use crate::future::{Context, EndpointFuture};
 use crate::input::Input;
-use crate::output::body::{Payload as PayloadWrapper, ResBody};
+use crate::output::body::ResBody;
 use crate::output::IntoResponse;
 
 pub trait EndpointServiceExt<Bd>: Endpoint<Bd> + Sized {
@@ -39,6 +37,11 @@ where
         App::new(self)
     }
 }
+
+pub type ResponseBody<Bd, E> = Either<
+    String, //
+    <<<E as Endpoint<Bd>>::Output as IntoResponse>::Body as ResBody>::Payload,
+>;
 
 /// A wrapper struct for lifting the instance of `Endpoint` to an HTTP service.
 #[derive(Debug)]
@@ -67,7 +70,7 @@ where
     <E::Output as IntoResponse>::Body: ResBody,
 {
     type Request = Request<Bd>;
-    type Response = Response<AppPayload>;
+    type Response = Response<ResponseBody<Bd, E>>;
     type Error = io::Error;
     type Service = AppService<Bd, Arc<E>>;
     type InitError = Never;
@@ -110,7 +113,7 @@ where
     <E::Output as IntoResponse>::Body: ResBody,
 {
     type Request = Request<Bd>;
-    type Response = Response<AppPayload>;
+    type Response = Response<ResponseBody<Bd, E>>;
     type Error = io::Error;
     type Future = AppFuture<Bd, E>;
 
@@ -199,7 +202,7 @@ where
         }
     }
 
-    pub(crate) fn poll_all(&mut self) -> Poll<Response<AppPayload>, io::Error>
+    pub(crate) fn poll_all(&mut self) -> Poll<Response<ResponseBody<Bd, E>>, io::Error>
     where
         E::Output: IntoResponse,
         <E::Output as IntoResponse>::Body: ResBody,
@@ -212,37 +215,15 @@ where
 
         match mem::replace(&mut self.state, State::Gone) {
             State::Done(input) => {
-                let output = output.map(|output| output.into_response(input.request()));
+                let mut response = match output {
+                    Ok(output) => output
+                        .into_response(input.request())
+                        .map(|bd| Either::Right(bd.into_payload())),
+                    Err(err) => err.into_response().map(Either::Left),
+                };
 
-                let response = input.finalize(output);
-                let mut response = response.map(|payload| match payload {
-                    Ok(payload) => AppPayload::new(payload),
-                    Err(err) => AppPayload::new(PayloadWrapper::from(err.into_payload())),
-                });
-
-                // The `content-length` header is automatically insterted by Hyper
-                // by using `Payload::content_length()`.
-                // However, the instance of `AppPayload` may be convert to another type
-                // by middleware and the implementation of `content_length()` does not
-                // propagate appropriately.
-                // Here is a workaround that presets the value of `content_length()`
-                // in advance to prevent the above situation.
-                if let Some(len) = response.body().content_length() {
-                    response
-                        .headers_mut()
-                        .entry(header::CONTENT_LENGTH)
-                        .expect("should be a valid header name")
-                        .or_insert_with(|| {
-                            len.to_string()
-                                .parse()
-                                .expect("should be a valid header value")
-                        });
-                } else {
-                    response
-                        .headers_mut()
-                        .entry(header::TRANSFER_ENCODING)
-                        .expect("should be a valid header name")
-                        .or_insert_with(|| HeaderValue::from_static("chunked"));
+                if let Some(hdrs) = input.response_headers {
+                    response.headers_mut().extend(hdrs);
                 }
 
                 response
@@ -265,143 +246,10 @@ where
     E::Output: IntoResponse,
     <E::Output as IntoResponse>::Body: ResBody,
 {
-    type Item = Response<AppPayload>;
+    type Item = Response<ResponseBody<Bd, E>>;
     type Error = io::Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         self.poll_all()
-    }
-}
-
-// ==== AppPayload ====
-
-type BoxedData = Box<dyn Buf + Send + 'static>;
-type BoxedError = Box<dyn error::Error + Send + Sync + 'static>;
-
-trait BoxedPayload: Send + 'static {
-    fn poll_data_boxed(&mut self) -> Poll<Option<BoxedData>, BoxedError>;
-    fn poll_trailers_boxed(&mut self) -> Poll<Option<HeaderMap>, BoxedError>;
-    fn is_end_stream_boxed(&self) -> bool;
-    fn content_length_boxed(&self) -> Option<u64>;
-
-    // never become a public API.
-    #[doc(hidden)]
-    fn __private_type_id__(&self) -> TypeId {
-        TypeId::of::<Self>()
-    }
-}
-
-impl<T: Payload> BoxedPayload for T {
-    fn poll_data_boxed(&mut self) -> Poll<Option<BoxedData>, BoxedError> {
-        self.poll_data()
-            .map(|x| x.map(|data_opt| data_opt.map(|data| Box::new(data) as BoxedData)))
-            .map_err(Into::into)
-    }
-
-    fn poll_trailers_boxed(&mut self) -> Poll<Option<HeaderMap>, BoxedError> {
-        self.poll_trailers().map_err(Into::into)
-    }
-
-    fn is_end_stream_boxed(&self) -> bool {
-        self.is_end_stream()
-    }
-
-    fn content_length_boxed(&self) -> Option<u64> {
-        self.content_length()
-    }
-}
-
-/// A payload which will be returned from services generated by `App`.
-pub struct AppPayload {
-    inner: Box<dyn BoxedPayload>,
-}
-
-impl fmt::Debug for AppPayload {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("AppPayload").finish()
-    }
-}
-
-impl AppPayload {
-    pub(super) fn new<T>(body: T) -> Self
-    where
-        T: ResBody,
-    {
-        AppPayload {
-            inner: Box::new(body.into_payload()),
-        }
-    }
-
-    pub fn is<T: Payload>(&self) -> bool {
-        self.inner.__private_type_id__() == TypeId::of::<T>()
-    }
-
-    pub fn downcast<T: Payload>(self) -> Result<T, AppPayload> {
-        if self.is::<T>() {
-            unsafe {
-                Ok(*Box::from_raw(
-                    Box::into_raw(self.inner) as *mut dyn BoxedPayload as *mut T,
-                ))
-            }
-        } else {
-            Err(self)
-        }
-    }
-}
-
-impl Payload for AppPayload {
-    type Data = BoxedData;
-    type Error = BoxedError;
-
-    #[inline]
-    fn poll_data(&mut self) -> Poll<Option<Self::Data>, Self::Error> {
-        self.inner.poll_data_boxed()
-    }
-
-    #[inline]
-    fn poll_trailers(&mut self) -> Poll<Option<HeaderMap>, Self::Error> {
-        self.inner.poll_trailers_boxed()
-    }
-
-    #[inline]
-    fn is_end_stream(&self) -> bool {
-        self.inner.is_end_stream_boxed()
-    }
-
-    #[inline]
-    fn content_length(&self) -> Option<u64> {
-        self.inner.content_length_boxed()
-    }
-}
-
-impl Stream for AppPayload {
-    type Item = BoxedData;
-    type Error = BoxedError;
-
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
-        self.poll_data()
-    }
-}
-
-#[cfg(feature = "tower-web")]
-impl BufStream for AppPayload {
-    type Item = BoxedData;
-    type Error = BoxedError;
-
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
-        self.poll_data()
-    }
-
-    fn size_hint(&self) -> size_hint::SizeHint {
-        let mut builder = size_hint::Builder::new();
-        if let Some(length) = self.content_length() {
-            if length < usize::max_value() as u64 {
-                let length = length as usize;
-                builder.lower(length).upper(length);
-            } else {
-                builder.lower(usize::max_value());
-            }
-        }
-        builder.build()
     }
 }
