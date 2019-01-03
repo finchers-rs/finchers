@@ -29,7 +29,7 @@ finchers = "0.13.5"
 
 # Example
 
-```rust,no_run
+```rust,ignore
 #[macro_use]
 extern crate finchers;
 use finchers::prelude::*;

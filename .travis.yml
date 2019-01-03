@@ -33,7 +33,9 @@ matrix:
       script: >-
         rm -rf target/doc &&
         cargo update &&
-        cargo doc --no-deps &&
+        cargo doc --no-deps -p izanami-service &&
+        cargo doc --no-deps -p izanami --all-features &&
+        cargo doc --no-deps -p finchers --all-features &&
         rm -f target/doc/.lock &&
         (echo '<meta http-equiv="refresh" content="0;URL=finchers/index.html">' > target/doc/index.html)
       deploy:
