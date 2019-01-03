@@ -1,5 +1,5 @@
 use super::Wrapper;
-use crate::endpoint::{ApplyContext, ApplyResult, Endpoint};
+use crate::endpoint::{ApplyContext, ApplyResult, Endpoint, IsEndpoint};
 
 /// Creates a wrapper for creating an endpoint which runs the provided function
 /// after calling `Endpoint::apply()`.
@@ -38,6 +38,8 @@ pub struct AfterApplyEndpoint<E, F> {
     pub(super) endpoint: E,
     pub(super) f: F,
 }
+
+impl<E, F> IsEndpoint for AfterApplyEndpoint<E, F> {}
 
 impl<E, F, Bd> Endpoint<Bd> for AfterApplyEndpoint<E, F>
 where

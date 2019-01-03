@@ -1,5 +1,5 @@
 use crate::common::{Combine, Tuple};
-use crate::endpoint::{ApplyContext, ApplyResult, Endpoint};
+use crate::endpoint::{ApplyContext, ApplyResult, Endpoint, IsEndpoint};
 use crate::error::Error;
 use crate::future::{Context, EndpointFuture, MaybeDone, Poll};
 
@@ -9,6 +9,8 @@ pub struct And<E1, E2> {
     pub(super) e1: E1,
     pub(super) e2: E2,
 }
+
+impl<E1: IsEndpoint, E2: IsEndpoint> IsEndpoint for And<E1, E2> {}
 
 impl<E1, E2, Bd> Endpoint<Bd> for And<E1, E2>
 where

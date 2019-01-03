@@ -8,7 +8,7 @@ use std::marker::PhantomData;
 
 use percent_encoding::{percent_encode, DEFAULT_ENCODE_SET};
 
-use crate::endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint};
+use crate::endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint, IsEndpoint};
 use crate::error;
 use crate::error::Error;
 use crate::input::FromEncodedStr;
@@ -72,6 +72,8 @@ pub struct MatchSegment {
     encoded: String,
 }
 
+impl IsEndpoint for MatchSegment {}
+
 impl<Bd> Endpoint<Bd> for MatchSegment {
     type Output = ();
     type Future = Matched;
@@ -99,6 +101,8 @@ pub fn eos() -> MatchEos {
 pub struct MatchEos {
     _priv: (),
 }
+
+impl IsEndpoint for MatchEos {}
 
 impl<Bd> Endpoint<Bd> for MatchEos {
     type Output = ();
@@ -147,6 +151,8 @@ impl<T> fmt::Debug for Param<T> {
         f.debug_struct("Param").finish()
     }
 }
+
+impl<T: FromEncodedStr> IsEndpoint for Param<T> {}
 
 impl<T, Bd> Endpoint<Bd> for Param<T>
 where
@@ -197,6 +203,8 @@ impl<T> fmt::Debug for Remains<T> {
         f.debug_struct("Remains").finish()
     }
 }
+
+impl<T: FromEncodedStr> IsEndpoint for Remains<T> {}
 
 impl<T, Bd> Endpoint<Bd> for Remains<T>
 where

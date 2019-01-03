@@ -1,6 +1,6 @@
 use either::Either;
 
-use crate::endpoint::{ApplyContext, ApplyResult, Endpoint};
+use crate::endpoint::{ApplyContext, ApplyResult, Endpoint, IsEndpoint};
 use crate::error::Error;
 use crate::future::{Context, EndpointFuture, Poll};
 
@@ -10,6 +10,8 @@ pub struct OrStrict<E1, E2> {
     pub(super) e1: E1,
     pub(super) e2: E2,
 }
+
+impl<E1: IsEndpoint, E2: IsEndpoint> IsEndpoint for OrStrict<E1, E2> {}
 
 impl<E1, E2, Bd> Endpoint<Bd> for OrStrict<E1, E2>
 where

@@ -2,7 +2,7 @@
 
 use {
     crate::{
-        endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint},
+        endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint, IsEndpoint},
         error::Error,
         future::{Context, EndpointFuture, Poll},
     },
@@ -34,6 +34,8 @@ pub struct Raw(());
 
 mod raw {
     use super::*;
+
+    impl IsEndpoint for Raw {}
 
     impl<Bd> Endpoint<Bd> for Raw {
         type Output = (Bd,);
@@ -79,6 +81,8 @@ pub struct ReceiveAll(());
 mod receive_all {
     use super::*;
     use bytes::Buf;
+
+    impl IsEndpoint for ReceiveAll {}
 
     impl<Bd> Endpoint<Bd> for ReceiveAll
     where
@@ -162,6 +166,8 @@ pub struct Text {
 mod text {
     use super::*;
 
+    impl IsEndpoint for Text {}
+
     impl<Bd> Endpoint<Bd> for Text
     where
         Bd: BufStream,
@@ -240,6 +246,8 @@ mod json {
             f.debug_struct("Json").finish()
         }
     }
+
+    impl<T: DeserializeOwned> IsEndpoint for Json<T> {}
 
     impl<T, Bd> Endpoint<Bd> for Json<T>
     where
@@ -324,6 +332,8 @@ mod urlencoded {
             f.debug_struct("Json").finish()
         }
     }
+
+    impl<T: DeserializeOwned> IsEndpoint for Urlencoded<T> {}
 
     impl<T, Bd> Endpoint<Bd> for Urlencoded<T>
     where

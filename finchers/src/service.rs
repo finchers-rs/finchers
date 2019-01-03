@@ -17,7 +17,7 @@ use http::{Request, Response};
 use izanami_service::{MakeService, Service};
 
 use crate::endpoint::context::ApplyContext;
-use crate::endpoint::{Cursor, Endpoint};
+use crate::endpoint::{Cursor, Endpoint, IsEndpoint};
 use crate::error::Error;
 use crate::error::Never;
 use crate::future::{Context, EndpointFuture};
@@ -25,11 +25,11 @@ use crate::input::Input;
 use crate::output::body::ResBody;
 use crate::output::IntoResponse;
 
-pub trait EndpointServiceExt: Sized {
+pub trait EndpointServiceExt: IsEndpoint + Sized {
     fn into_service(self) -> App<Self>;
 }
 
-impl<E> EndpointServiceExt for E {
+impl<E: IsEndpoint> EndpointServiceExt for E {
     fn into_service(self) -> App<Self> {
         App::new(self)
     }

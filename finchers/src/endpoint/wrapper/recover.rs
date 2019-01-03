@@ -1,7 +1,7 @@
 use either::Either;
 use http::{Request, Response};
 
-use crate::endpoint::{ApplyContext, ApplyResult, Endpoint};
+use crate::endpoint::{ApplyContext, ApplyResult, Endpoint, IsEndpoint};
 use crate::error::Error;
 use crate::future::{Async, Context, EndpointFuture, Poll};
 use crate::output::IntoResponse;
@@ -45,6 +45,8 @@ pub struct RecoverEndpoint<E, F> {
     endpoint: E,
     f: F,
 }
+
+impl<E, F> IsEndpoint for RecoverEndpoint<E, F> {}
 
 impl<E, F, R, Bd> Endpoint<Bd> for RecoverEndpoint<E, F>
 where

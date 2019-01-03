@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use crate::endpoint::{ApplyContext, ApplyResult, Endpoint};
+use crate::endpoint::{ApplyContext, ApplyResult, Endpoint, IsEndpoint};
 use crate::error::{bad_request, Error};
 use crate::future::{Context, EndpointFuture, Poll};
 use crate::output::fs::OpenNamedFile;
@@ -23,6 +23,8 @@ pub struct File {
 mod file {
     use super::*;
     use futures::Future as _Future;
+
+    impl IsEndpoint for File {}
 
     impl<Bd> Endpoint<Bd> for File {
         type Output = (NamedFile,);
@@ -67,6 +69,8 @@ pub struct Dir {
 mod dir {
     use super::*;
     use futures::Future as _Future;
+
+    impl IsEndpoint for Dir {}
 
     impl<Bd> Endpoint<Bd> for Dir {
         type Output = (NamedFile,);

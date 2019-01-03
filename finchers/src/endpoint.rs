@@ -36,8 +36,16 @@ use crate::common::Tuple;
 use crate::error::Error;
 use crate::future::EndpointFuture;
 
+/// A marker trait indicating that the implementor has an implementation of `Endpoint<Bd>`.
+pub trait IsEndpoint {}
+
+impl<'a, E: IsEndpoint + ?Sized> IsEndpoint for &'a E {}
+impl<E: IsEndpoint + ?Sized> IsEndpoint for Box<E> {}
+impl<E: IsEndpoint + ?Sized> IsEndpoint for Rc<E> {}
+impl<E: IsEndpoint + ?Sized> IsEndpoint for Arc<E> {}
+
 /// Trait representing an endpoint.
-pub trait Endpoint<Bd> {
+pub trait Endpoint<Bd>: IsEndpoint {
     /// The inner type associated with this endpoint.
     type Output: Tuple;
 
@@ -129,6 +137,8 @@ where
 {
     #[allow(missing_debug_implementations)]
     struct ApplyEndpoint<F>(F);
+
+    impl<F> IsEndpoint for ApplyEndpoint<F> {}
 
     impl<F, Bd, R> Endpoint<Bd> for ApplyEndpoint<F>
     where
@@ -273,7 +283,7 @@ mod lazy {
 }
 
 /// A set of extension methods for composing multiple endpoints.
-pub trait EndpointExt: Sized {
+pub trait EndpointExt: IsEndpoint + Sized {
     /// Create an endpoint which evaluates `self` and `e` and returns a pair of their tasks.
     ///
     /// The returned future from this endpoint contains both futures from
@@ -324,4 +334,4 @@ pub trait EndpointExt: Sized {
     }
 }
 
-impl<E> EndpointExt for E {}
+impl<E: IsEndpoint> EndpointExt for E {}

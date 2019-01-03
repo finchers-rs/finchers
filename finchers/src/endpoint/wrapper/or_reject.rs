@@ -1,4 +1,4 @@
-use crate::endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint};
+use crate::endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint, IsEndpoint};
 use crate::error::Error;
 use crate::future::{Context, EndpointFuture, Poll};
 
@@ -29,6 +29,8 @@ impl<Bd, E: Endpoint<Bd>> Wrapper<Bd, E> for OrReject {
 pub struct OrRejectEndpoint<E> {
     endpoint: E,
 }
+
+impl<E> IsEndpoint for OrRejectEndpoint<E> {}
 
 impl<Bd, E: Endpoint<Bd>> Endpoint<Bd> for OrRejectEndpoint<E> {
     type Output = E::Output;
@@ -107,6 +109,8 @@ pub struct OrRejectWithEndpoint<E, F> {
     endpoint: E,
     f: F,
 }
+
+impl<E, F> IsEndpoint for OrRejectWithEndpoint<E, F> {}
 
 impl<E, F, Bd, R> Endpoint<Bd> for OrRejectWithEndpoint<E, F>
 where

@@ -4,7 +4,7 @@ use failure::SyncFailure;
 use serde::de::DeserializeOwned;
 use std::marker::PhantomData;
 
-use crate::endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint};
+use crate::endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint, IsEndpoint};
 use crate::error::{self, bad_request, Error};
 use crate::future::{Context, EndpointFuture, Poll};
 
@@ -55,6 +55,8 @@ pub struct Required<T> {
 
 mod required {
     use super::*;
+
+    impl<T: DeserializeOwned> IsEndpoint for Required<T> {}
 
     impl<T, Bd> Endpoint<Bd> for Required<T>
     where
@@ -146,6 +148,8 @@ pub struct Optional<T> {
 mod optional {
     use super::*;
 
+    impl<T: DeserializeOwned> IsEndpoint for Optional<T> {}
+
     impl<T, Bd> Endpoint<Bd> for Optional<T>
     where
         T: DeserializeOwned,
@@ -194,6 +198,8 @@ pub struct Raw(());
 
 mod raw {
     use super::*;
+
+    impl IsEndpoint for Raw {}
 
     impl<Bd> Endpoint<Bd> for Raw {
         type Output = (Option<String>,);

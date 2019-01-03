@@ -5,7 +5,7 @@ use http::HttpTryFrom;
 use std::fmt;
 use std::marker::PhantomData;
 
-use crate::endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint};
+use crate::endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint, IsEndpoint};
 use crate::error::{self, Error};
 use crate::future::{Context, EndpointFuture, Poll};
 use crate::input::FromHeaderValue;
@@ -56,6 +56,8 @@ pub struct Parse<T> {
 
 mod parse {
     use super::*;
+
+    impl<T: FromHeaderValue> IsEndpoint for Parse<T> {}
 
     impl<T, Bd> Endpoint<Bd> for Parse<T>
     where
@@ -137,6 +139,8 @@ pub struct Optional<T> {
 
 mod optional {
     use super::*;
+
+    impl<T: FromHeaderValue> IsEndpoint for Optional<T> {}
 
     impl<T, Bd> Endpoint<Bd> for Optional<T>
     where
@@ -224,6 +228,8 @@ pub struct Matches<T> {
 mod matches {
     use super::*;
 
+    impl<T: PartialEq<HeaderValue>> IsEndpoint for Matches<T> {}
+
     impl<T, Bd> Endpoint<Bd> for Matches<T>
     where
         T: PartialEq<HeaderValue>,
@@ -262,6 +268,8 @@ pub struct Raw {
 
 mod raw {
     use super::*;
+
+    impl IsEndpoint for Raw {}
 
     impl<Bd> Endpoint<Bd> for Raw {
         type Output = (Option<HeaderValue>,);

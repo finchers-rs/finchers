@@ -1,7 +1,7 @@
 use std::fmt;
 
 use crate::common::Tuple;
-use crate::endpoint::{ApplyContext, ApplyResult, Endpoint};
+use crate::endpoint::{ApplyContext, ApplyResult, Endpoint, IsEndpoint};
 use crate::error::Error;
 use crate::future::{Context, EndpointFuture, Poll};
 
@@ -67,6 +67,8 @@ impl<Bd, T: Tuple + 'static> fmt::Debug for EndpointObj<Bd, T> {
     }
 }
 
+impl<Bd, T: Tuple + 'static> IsEndpoint for EndpointObj<Bd, T> {}
+
 impl<Bd, T: Tuple + 'static> Endpoint<Bd> for EndpointObj<Bd, T> {
     type Output = T;
     type Future = EndpointFutureObj<Bd, T>;
@@ -124,7 +126,7 @@ impl<Bd, T: Tuple + 'static> LocalEndpointObj<Bd, T> {
     #[allow(missing_docs)]
     pub fn new<E>(endpoint: E) -> Self
     where
-        E: Endpoint<Bd, Output = T> + Send + Sync + 'static,
+        E: Endpoint<Bd, Output = T> + 'static,
         E::Future: 'static,
     {
         LocalEndpointObj {
@@ -138,6 +140,8 @@ impl<Bd, T: Tuple + 'static> fmt::Debug for LocalEndpointObj<Bd, T> {
         formatter.debug_struct("LocalEndpointObj").finish()
     }
 }
+
+impl<Bd, T: Tuple + 'static> IsEndpoint for LocalEndpointObj<Bd, T> {}
 
 impl<Bd, T: Tuple + 'static> Endpoint<Bd> for LocalEndpointObj<Bd, T> {
     type Output = T;

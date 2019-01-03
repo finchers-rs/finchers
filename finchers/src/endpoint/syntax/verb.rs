@@ -3,7 +3,7 @@ use std::ops::{BitOr, BitOrAssign};
 use http::Method;
 
 use super::Matched;
-use crate::endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint};
+use crate::endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint, IsEndpoint};
 
 /// Create an endpoint which checks if the verb of current request
 /// is equal to the specified value.
@@ -16,6 +16,8 @@ pub fn verbs(allowed: Verbs) -> MatchVerbs {
 pub struct MatchVerbs {
     allowed: Verbs,
 }
+
+impl IsEndpoint for MatchVerbs {}
 
 impl<Bd> Endpoint<Bd> for MatchVerbs {
     type Output = ();
@@ -48,6 +50,8 @@ macro_rules! define_verbs {
         pub struct $Endpoint {
             _priv: (),
         }
+
+        impl IsEndpoint for $Endpoint {}
 
         impl<Bd> Endpoint<Bd> for $Endpoint {
             type Output = ();
