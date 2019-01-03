@@ -1,11 +1,13 @@
 use finchers::endpoint::ApplyError;
-use finchers::endpoint::Endpoint;
 use finchers::endpoints::query;
 use finchers::test;
+use matches::assert_matches;
 
 #[test]
 fn test_query_raw() {
-    let mut runner = test::runner({ query::raw().with_output::<(Option<String>,)>() });
+    let mut runner = test::runner(
+        query::raw(), //
+    );
 
     assert_matches!(
         runner.apply("/?foo=bar"),
@@ -17,7 +19,7 @@ fn test_query_raw() {
 
 #[test]
 fn test_query_parse() {
-    #[derive(Debug, Deserialize)]
+    #[derive(Debug, serde::Deserialize)]
     struct Query {
         param: String,
         count: Option<u32>,
@@ -38,7 +40,7 @@ fn test_query_parse() {
 
 #[test]
 fn test_query_optional() {
-    #[derive(Debug, Deserialize)]
+    #[derive(Debug, serde::Deserialize)]
     struct Query {
         param: String,
         count: Option<u32>,

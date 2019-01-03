@@ -2,6 +2,7 @@ use finchers::endpoint::syntax;
 use finchers::error::bad_request;
 use finchers::prelude::*;
 use finchers::test;
+use matches::assert_matches;
 
 #[test]
 fn test_or_1() {
@@ -19,9 +20,10 @@ fn test_or_1() {
 #[test]
 fn test_or_choose_longer_segments() {
     let mut runner = test::runner({
-        let e1 = syntax::segment("foo").and(endpoint::value("foo"));
+        let e1 = syntax::segment("foo") //
+            .and(endpoint::value("foo"));
         let e2 = syntax::segment("foo")
-            .and("bar")
+            .and(syntax::segment("bar"))
             .and(endpoint::value("foobar"));
         e1.or(e2)
     });
@@ -36,7 +38,7 @@ fn test_or_with_rejection() {
         syntax::segment("foo")
             .or(syntax::segment("bar"))
             .wrap(endpoint::wrapper::or_reject_with(|_err, _cx| {
-                bad_request(format_err!("custom rejection"))
+                bad_request(failure::format_err!("custom rejection"))
             }))
     });
 

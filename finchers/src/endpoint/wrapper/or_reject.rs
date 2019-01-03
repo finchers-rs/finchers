@@ -16,7 +16,7 @@ pub struct OrReject {
     _priv: (),
 }
 
-impl<E: Endpoint> Wrapper<E> for OrReject {
+impl<Bd, E: Endpoint<Bd>> Wrapper<Bd, E> for OrReject {
     type Output = E::Output;
     type Endpoint = OrRejectEndpoint<E>;
 
@@ -30,11 +30,11 @@ pub struct OrRejectEndpoint<E> {
     endpoint: E,
 }
 
-impl<E: Endpoint> Endpoint for OrRejectEndpoint<E> {
+impl<Bd, E: Endpoint<Bd>> Endpoint<Bd> for OrRejectEndpoint<E> {
     type Output = E::Output;
     type Future = OrRejectFuture<E::Future>;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
         match self.endpoint.apply(ecx) {
             Ok(future) => Ok(OrRejectFuture { inner: Ok(future) }),
             Err(err) => {
@@ -52,13 +52,13 @@ pub struct OrRejectFuture<F> {
     inner: Result<F, Option<Error>>,
 }
 
-impl<F> EndpointFuture for OrRejectFuture<F>
+impl<F, Bd> EndpointFuture<Bd> for OrRejectFuture<F>
 where
-    F: EndpointFuture,
+    F: EndpointFuture<Bd>,
 {
     type Output = F::Output;
 
-    fn poll_endpoint(&mut self, cx: &mut Context<'_>) -> Poll<Self::Output, Error> {
+    fn poll_endpoint(&mut self, cx: &mut Context<'_, Bd>) -> Poll<Self::Output, Error> {
         match self.inner {
             Ok(ref mut f) => f.poll_endpoint(cx),
             Err(ref mut err) => Err(err.take().unwrap()),
@@ -71,9 +71,9 @@ where
 /// Creates a `Wrapper` for creating an endpoint which converts the error value
 /// returned from `Endpoint::apply()` to the specified type and returns it as
 /// the return value from the associated `Future`.
-pub fn or_reject_with<F, R>(f: F) -> OrRejectWith<F>
+pub fn or_reject_with<F, Bd, R>(f: F) -> OrRejectWith<F>
 where
-    F: Fn(ApplyError, &mut ApplyContext<'_>) -> R,
+    F: Fn(ApplyError, &mut ApplyContext<'_, Bd>) -> R,
     R: Into<Error>,
 {
     OrRejectWith { f }
@@ -85,10 +85,10 @@ pub struct OrRejectWith<F> {
     f: F,
 }
 
-impl<E, F, R> Wrapper<E> for OrRejectWith<F>
+impl<E, F, Bd, R> Wrapper<Bd, E> for OrRejectWith<F>
 where
-    E: Endpoint,
-    F: Fn(ApplyError, &mut ApplyContext<'_>) -> R,
+    E: Endpoint<Bd>,
+    F: Fn(ApplyError, &mut ApplyContext<'_, Bd>) -> R,
     R: Into<Error>,
 {
     type Output = E::Output;
@@ -108,16 +108,16 @@ pub struct OrRejectWithEndpoint<E, F> {
     f: F,
 }
 
-impl<E, F, R> Endpoint for OrRejectWithEndpoint<E, F>
+impl<E, F, Bd, R> Endpoint<Bd> for OrRejectWithEndpoint<E, F>
 where
-    E: Endpoint,
-    F: Fn(ApplyError, &mut ApplyContext<'_>) -> R,
+    E: Endpoint<Bd>,
+    F: Fn(ApplyError, &mut ApplyContext<'_, Bd>) -> R,
     R: Into<Error>,
 {
     type Output = E::Output;
     type Future = OrRejectFuture<E::Future>;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
         match self.endpoint.apply(ecx) {
             Ok(future) => Ok(OrRejectFuture { inner: Ok(future) }),
             Err(err) => {

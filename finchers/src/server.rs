@@ -16,9 +16,9 @@ use crate::output::body::ResBody;
 use crate::output::IntoResponse;
 
 /// Create an instance of `ServiceBuilder` from the specified endpoint.
-pub fn start<E>(endpoint: E) -> ServiceBuilder<App<E>>
+pub fn start<E>(endpoint: E) -> ServiceBuilder<App<hyper::Body, E>>
 where
-    E: Endpoint,
+    E: Endpoint<hyper::Body>,
     E::Output: IntoResponse,
     <E::Output as IntoResponse>::Body: ResBody,
 {

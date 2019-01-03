@@ -3,6 +3,7 @@ use finchers::endpoint::ApplyError;
 use finchers::prelude::*;
 use finchers::test;
 use http::StatusCode;
+use matches::assert_matches;
 
 #[test]
 fn test_match_single_segment() {
@@ -64,15 +65,15 @@ fn test_extract_strings() {
     );
 }
 
-#[test]
-fn test_path_macro() {
-    let mut runner = test::runner(
-        path!(@get / "posts" / u32 / "stars" /)
-            .map(|id: u32| format!("id={}", id))
-            .with_output::<(String,)>(),
-    );
-    assert_matches!(
-        runner.apply("/posts/42/stars"),
-        Ok(ref s) if s == "id=42"
-    );
-}
+// #[test]
+// fn test_path_macro() {
+//     let mut runner = test::runner(
+//         path!(@get / "posts" / u32 / "stars" /)
+//             .map(|id: u32| format!("id={}", id))
+//             .with_output::<(String,)>(),
+//     );
+//     assert_matches!(
+//         runner.apply("/posts/42/stars"),
+//         Ok(ref s) if s == "id=42"
+//     );
+// }

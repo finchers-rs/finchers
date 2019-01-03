@@ -7,6 +7,8 @@ pub mod syntax;
 pub mod wrapper;
 
 mod and;
+mod and_then;
+mod map;
 mod or;
 mod or_strict;
 
@@ -15,9 +17,11 @@ pub use self::boxed::{EndpointObj, LocalEndpointObj};
 pub use self::context::ApplyContext;
 pub(crate) use self::context::Cursor;
 pub use self::error::{ApplyError, ApplyResult};
-pub use self::wrapper::{EndpointWrapExt, Wrapper};
+pub use self::wrapper::Wrapper;
 
 pub use self::and::And;
+pub use self::and_then::AndThen;
+pub use self::map::Map;
 pub use self::or::Or;
 pub use self::or_strict::OrStrict;
 
@@ -28,27 +32,27 @@ use std::sync::Arc;
 
 use futures::IntoFuture;
 
-use crate::common::{Combine, Tuple};
+use crate::common::Tuple;
 use crate::error::Error;
 use crate::future::EndpointFuture;
 
 /// Trait representing an endpoint.
-pub trait Endpoint {
+pub trait Endpoint<Bd> {
     /// The inner type associated with this endpoint.
     type Output: Tuple;
 
     /// The type of value which will be returned from `apply`.
-    type Future: EndpointFuture<Output = Self::Output>;
+    type Future: EndpointFuture<Bd, Output = Self::Output>;
 
     /// Perform checking the incoming HTTP request and returns
     /// an instance of the associated Future if matched.
-    fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future>;
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future>;
 
     /// Add an annotation that the associated type `Output` is fixed to `T`.
     #[inline(always)]
     fn with_output<T: Tuple>(self) -> Self
     where
-        Self: Endpoint<Output = T> + Sized,
+        Self: Endpoint<Bd, Output = T> + Sized,
     {
         self
     }
@@ -57,44 +61,56 @@ pub trait Endpoint {
     fn wrap<W>(self, wrapper: W) -> W::Endpoint
     where
         Self: Sized,
-        W: Wrapper<Self>,
+        W: Wrapper<Bd, Self>,
     {
         (wrapper.wrap(self)).with_output::<W::Output>()
     }
 }
 
-impl<'a, E: Endpoint> Endpoint for &'a E {
+impl<'a, E, Bd> Endpoint<Bd> for &'a E
+where
+    E: Endpoint<Bd>,
+{
     type Output = E::Output;
     type Future = E::Future;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
         (**self).apply(ecx)
     }
 }
 
-impl<E: Endpoint> Endpoint for Box<E> {
+impl<E, Bd> Endpoint<Bd> for Box<E>
+where
+    E: Endpoint<Bd>,
+{
     type Output = E::Output;
     type Future = E::Future;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
         (**self).apply(ecx)
     }
 }
 
-impl<E: Endpoint> Endpoint for Rc<E> {
+impl<E, Bd> Endpoint<Bd> for Rc<E>
+where
+    E: Endpoint<Bd>,
+{
     type Output = E::Output;
     type Future = E::Future;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
         (**self).apply(ecx)
     }
 }
 
-impl<E: Endpoint> Endpoint for Arc<E> {
+impl<E, Bd> Endpoint<Bd> for Arc<E>
+where
+    E: Endpoint<Bd>,
+{
     type Output = E::Output;
     type Future = E::Future;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
         (**self).apply(ecx)
     }
 }
@@ -104,26 +120,27 @@ impl<E: Endpoint> Endpoint for Arc<E> {
 ///
 /// The endpoint created by this function will wrap the result of future into a tuple.
 /// If you want to return the result without wrapping, use `apply_raw` instead.
-pub fn apply_fn<F, R>(f: F) -> impl Endpoint<Output = R::Output, Future = R>
+pub fn apply_fn<Bd, R>(
+    f: impl Fn(&mut ApplyContext<'_, Bd>) -> ApplyResult<R>,
+) -> impl Endpoint<Bd, Output = R::Output, Future = R>
 where
-    F: Fn(&mut ApplyContext<'_>) -> ApplyResult<R>,
-    R: EndpointFuture,
+    R: EndpointFuture<Bd>,
     R::Output: Tuple,
 {
     #[allow(missing_debug_implementations)]
     struct ApplyEndpoint<F>(F);
 
-    impl<F, R> Endpoint for ApplyEndpoint<F>
+    impl<F, Bd, R> Endpoint<Bd> for ApplyEndpoint<F>
     where
-        F: Fn(&mut ApplyContext<'_>) -> ApplyResult<R>,
-        R: EndpointFuture,
+        F: Fn(&mut ApplyContext<'_, Bd>) -> ApplyResult<R>,
+        R: EndpointFuture<Bd>,
         R::Output: Tuple,
     {
         type Output = R::Output;
         type Future = R;
 
         #[inline]
-        fn apply(&self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
             (self.0)(cx)
         }
     }
@@ -133,9 +150,10 @@ where
 
 /// Create an endpoint which simply returns an unit (`()`).
 #[inline]
-pub fn unit() -> impl Endpoint<
-    Output = (), //
-    Future = impl EndpointFuture<Output = ()> + Send + 'static,
+pub fn unit<Bd: 'static>() -> impl Endpoint<
+    Bd, //
+    Output = (),
+    Future = impl EndpointFuture<Bd, Output = ()> + Send + 'static,
 > {
     apply_fn(|_| {
         Ok(crate::future::poll_fn(|_| {
@@ -148,7 +166,7 @@ pub fn unit() -> impl Endpoint<
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// # #[macro_use]
 /// # extern crate finchers;
 /// # extern crate futures;
@@ -178,9 +196,10 @@ pub fn unit() -> impl Endpoint<
 /// # }
 /// ```
 #[inline]
-pub fn value<T: Clone>(
+pub fn value<Bd, T: Clone>(
     x: T,
 ) -> impl Endpoint<
+    Bd,
     Output = (T,),
     Future = self::value::ValueFuture<T>, // private
 > {
@@ -199,24 +218,24 @@ mod value {
         pub(super) x: Option<T>,
     }
 
-    impl<T> EndpointFuture for ValueFuture<T> {
+    impl<T, Bd> EndpointFuture<Bd> for ValueFuture<T> {
         type Output = (T,);
 
-        fn poll_endpoint(&mut self, _: &mut Context<'_>) -> Poll<Self::Output, Error> {
+        fn poll_endpoint(&mut self, _: &mut Context<'_, Bd>) -> Poll<Self::Output, Error> {
             Ok((self.x.take().expect("The value has already taken."),).into())
         }
     }
 }
 
 /// Create an endpoint from the specified function which returns a `Future`.
-pub fn lazy<F, R>(
-    f: F,
+pub fn lazy<Bd, R>(
+    f: impl Fn() -> R,
 ) -> impl Endpoint<
+    Bd,
     Output = (R::Item,),
     Future = self::lazy::LazyFuture<R::Future>, // private
 >
 where
-    F: Fn() -> R,
     R: IntoFuture<Error = Error>,
 {
     apply_fn(move |_| {
@@ -240,72 +259,41 @@ mod lazy {
         pub(super) future: F,
     }
 
-    impl<F> EndpointFuture for LazyFuture<F>
+    impl<F, Bd> EndpointFuture<Bd> for LazyFuture<F>
     where
         F: Future<Error = Error>,
     {
         type Output = (F::Item,);
 
         #[inline]
-        fn poll_endpoint(&mut self, _: &mut Context<'_>) -> Poll<Self::Output, Error> {
+        fn poll_endpoint(&mut self, _: &mut Context<'_, Bd>) -> Poll<Self::Output, Error> {
             self.future.poll().map(|x| x.map(|ok| (ok,)))
         }
     }
 }
 
-/// Trait representing the transformation into an `Endpoint`.
-pub trait IntoEndpoint {
-    /// The inner type of associated `Endpoint`.
-    type Output: Tuple;
-
-    /// The type of transformed `Endpoint`.
-    type Endpoint: Endpoint<Output = Self::Output>;
-
-    /// Consume itself and transform into an `Endpoint`.
-    fn into_endpoint(self) -> Self::Endpoint;
-}
-
-impl<E: Endpoint> IntoEndpoint for E {
-    type Output = E::Output;
-    type Endpoint = E;
-
-    #[inline]
-    fn into_endpoint(self) -> Self::Endpoint {
-        self
-    }
-}
-
 /// A set of extension methods for composing multiple endpoints.
-pub trait IntoEndpointExt: IntoEndpoint + Sized {
+pub trait EndpointExt: Sized {
     /// Create an endpoint which evaluates `self` and `e` and returns a pair of their tasks.
     ///
     /// The returned future from this endpoint contains both futures from
     /// `self` and `e` and resolved as a pair of values returned from theirs.
-    fn and<E>(self, other: E) -> And<Self::Endpoint, E::Endpoint>
-    where
-        E: IntoEndpoint,
-        Self::Output: Combine<E::Output>,
-    {
-        (And {
-            e1: self.into_endpoint(),
-            e2: other.into_endpoint(),
-        })
-        .with_output::<<Self::Output as Combine<E::Output>>::Out>()
+    fn and<E>(self, other: E) -> And<Self, E> {
+        And {
+            e1: self,
+            e2: other,
+        }
     }
 
     /// Create an endpoint which evaluates `self` and `e` sequentially.
     ///
     /// The returned future from this endpoint contains the one returned
     /// from either `self` or `e` matched "better" to the input.
-    fn or<E>(self, other: E) -> Or<Self::Endpoint, E::Endpoint>
-    where
-        E: IntoEndpoint,
-    {
-        (Or {
-            e1: self.into_endpoint(),
-            e2: other.into_endpoint(),
-        })
-        .with_output::<(self::or::Wrapped<Self::Output, E::Output>,)>()
+    fn or<E>(self, other: E) -> Or<Self, E> {
+        Or {
+            e1: self,
+            e2: other,
+        }
     }
 
     /// Create an endpoint which evaluates `self` and `e` sequentially.
@@ -318,16 +306,22 @@ pub trait IntoEndpointExt: IntoEndpoint + Sized {
     /// * If `self` is matched to the request, `other.apply(cx)`
     ///   is not called and the future returned from `self.apply(cx)` is
     ///   immediately returned.
-    fn or_strict<E>(self, other: E) -> OrStrict<Self::Endpoint, E::Endpoint>
-    where
-        E: IntoEndpoint<Output = Self::Output>,
-    {
-        (OrStrict {
-            e1: self.into_endpoint(),
-            e2: other.into_endpoint(),
-        })
-        .with_output::<Self::Output>()
+    fn or_strict<E>(self, other: E) -> OrStrict<Self, E> {
+        OrStrict {
+            e1: self,
+            e2: other,
+        }
+    }
+
+    #[allow(missing_docs)]
+    fn map<F>(self, f: F) -> Map<Self, F> {
+        Map { endpoint: self, f }
+    }
+
+    #[allow(missing_docs)]
+    fn and_then<F>(self, f: F) -> AndThen<Self, F> {
+        AndThen { endpoint: self, f }
     }
 }
 
-impl<E: IntoEndpoint> IntoEndpointExt for E {}
+impl<E> EndpointExt for E {}

@@ -11,15 +11,15 @@ pub struct OrStrict<E1, E2> {
     pub(super) e2: E2,
 }
 
-impl<E1, E2> Endpoint for OrStrict<E1, E2>
+impl<E1, E2, Bd> Endpoint<Bd> for OrStrict<E1, E2>
 where
-    E1: Endpoint,
-    E2: Endpoint<Output = E1::Output>,
+    E1: Endpoint<Bd>,
+    E2: Endpoint<Bd, Output = E1::Output>,
 {
     type Output = E1::Output;
     type Future = OrStrictFuture<E1::Future, E2::Future>;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
         let orig_cursor = ecx.cursor().clone();
         match self.e1.apply(ecx) {
             Ok(future1) => {
@@ -54,15 +54,15 @@ impl<L, R> OrStrictFuture<L, R> {
     }
 }
 
-impl<L, R> EndpointFuture for OrStrictFuture<L, R>
+impl<L, R, Bd> EndpointFuture<Bd> for OrStrictFuture<L, R>
 where
-    L: EndpointFuture,
-    R: EndpointFuture<Output = L::Output>,
+    L: EndpointFuture<Bd>,
+    R: EndpointFuture<Bd, Output = L::Output>,
 {
     type Output = L::Output;
 
     #[inline]
-    fn poll_endpoint(&mut self, cx: &mut Context<'_>) -> Poll<Self::Output, Error> {
+    fn poll_endpoint(&mut self, cx: &mut Context<'_, Bd>) -> Poll<Self::Output, Error> {
         match self.inner {
             Either::Left(ref mut t) => t.poll_endpoint(cx),
             Either::Right(ref mut t) => t.poll_endpoint(cx),

@@ -18,16 +18,16 @@ use crate::error::{bad_request, Error};
 
 /// The contextual information with an incoming HTTP request.
 #[derive(Debug)]
-pub struct Input {
+pub struct Input<Bd> {
     request: Request<()>,
-    body: Option<hyper::Body>,
+    body: Option<Bd>,
     #[allow(clippy::option_option)]
     media_type: Option<Option<Mime>>,
     response_headers: Option<HeaderMap>,
 }
 
-impl Input {
-    pub(crate) fn new(request: Request<hyper::Body>) -> Input {
+impl<Bd> Input<Bd> {
+    pub(crate) fn new(request: Request<Bd>) -> Self {
         let (parts, body) = request.into_parts();
         Input {
             request: Request::from_parts(parts, ()),
@@ -68,7 +68,7 @@ impl Input {
     }
 
     /// Returns a mutable reference to the message body in the request.
-    pub fn body(&mut self) -> &mut Option<hyper::Body> {
+    pub fn body(&mut self) -> &mut Option<Bd> {
         &mut self.body
     }
 

@@ -8,7 +8,7 @@ use crate::endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint};
 /// Create an endpoint which checks if the verb of current request
 /// is equal to the specified value.
 pub fn verbs(allowed: Verbs) -> MatchVerbs {
-    (MatchVerbs { allowed }).with_output::<()>()
+    MatchVerbs { allowed }
 }
 
 #[allow(missing_docs)]
@@ -17,11 +17,11 @@ pub struct MatchVerbs {
     allowed: Verbs,
 }
 
-impl Endpoint for MatchVerbs {
+impl<Bd> Endpoint<Bd> for MatchVerbs {
     type Output = ();
     type Future = Matched;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
         if self.allowed.contains(ecx.input().method()) {
             Ok(Matched { _priv: () })
         } else {
@@ -49,12 +49,12 @@ macro_rules! define_verbs {
             _priv: (),
         }
 
-        impl Endpoint for $Endpoint {
+        impl<Bd> Endpoint<Bd> for $Endpoint {
             type Output = ();
             type Future = Matched;
 
             #[inline]
-            fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+            fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
                 if *ecx.input().method() == Method::$METHOD {
                     Ok(Matched { _priv: () })
                 } else {

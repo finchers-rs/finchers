@@ -1,5 +1,6 @@
-use finchers::endpoint::{unit, value, IntoEndpointExt};
+use finchers::endpoint::{unit, value, EndpointExt};
 use finchers::test;
+use matches::assert_matches;
 
 #[test]
 fn test_and_all_ok() {

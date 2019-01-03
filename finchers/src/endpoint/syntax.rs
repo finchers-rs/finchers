@@ -3,13 +3,12 @@
 #[allow(missing_docs)]
 pub mod verb;
 
-use std::borrow::Cow;
 use std::fmt;
 use std::marker::PhantomData;
 
 use percent_encoding::{percent_encode, DEFAULT_ENCODE_SET};
 
-use crate::endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint, IntoEndpoint};
+use crate::endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint};
 use crate::error;
 use crate::error::Error;
 use crate::input::FromEncodedStr;
@@ -62,10 +61,9 @@ percent_encoding::define_encode_set! {
 pub fn segment(s: impl AsRef<str>) -> MatchSegment {
     let s = s.as_ref();
     debug_assert!(!s.is_empty());
-    (MatchSegment {
+    MatchSegment {
         encoded: percent_encode(s.as_bytes(), SEGMENT_ENCODE_SET).to_string(),
-    })
-    .with_output::<()>()
+    }
 }
 
 #[allow(missing_docs)]
@@ -74,11 +72,11 @@ pub struct MatchSegment {
     encoded: String,
 }
 
-impl Endpoint for MatchSegment {
+impl<Bd> Endpoint<Bd> for MatchSegment {
     type Output = ();
     type Future = Matched;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
         let s = ecx.next_segment().ok_or_else(ApplyError::not_matched)?;
         if s == self.encoded {
             Ok(Matched { _priv: () })
@@ -88,42 +86,12 @@ impl Endpoint for MatchSegment {
     }
 }
 
-impl<'s> IntoEndpoint for &'s str {
-    type Output = ();
-    type Endpoint = MatchSegment;
-
-    #[inline(always)]
-    fn into_endpoint(self) -> Self::Endpoint {
-        segment(self)
-    }
-}
-
-impl IntoEndpoint for String {
-    type Output = ();
-    type Endpoint = MatchSegment;
-
-    #[inline(always)]
-    fn into_endpoint(self) -> Self::Endpoint {
-        segment(self)
-    }
-}
-
-impl<'s> IntoEndpoint for Cow<'s, str> {
-    type Output = ();
-    type Endpoint = MatchSegment;
-
-    #[inline(always)]
-    fn into_endpoint(self) -> Self::Endpoint {
-        segment(self)
-    }
-}
-
 // ==== MatchEos ====
 
 /// Create an endpoint which checks if the current context is reached the end of segments.
 #[inline]
 pub fn eos() -> MatchEos {
-    (MatchEos { _priv: () }).with_output::<()>()
+    MatchEos { _priv: () }
 }
 
 #[allow(missing_docs)]
@@ -132,11 +100,11 @@ pub struct MatchEos {
     _priv: (),
 }
 
-impl Endpoint for MatchEos {
+impl<Bd> Endpoint<Bd> for MatchEos {
     type Output = ();
     type Future = Matched;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
         match ecx.next_segment() {
             None => Ok(Matched { _priv: () }),
             Some(..) => Err(ApplyError::not_matched()),
@@ -155,10 +123,9 @@ pub fn param<T>() -> Param<T>
 where
     T: FromEncodedStr,
 {
-    (Param {
+    Param {
         _marker: PhantomData,
-    })
-    .with_output::<(T,)>()
+    }
 }
 
 #[allow(missing_docs)]
@@ -181,14 +148,14 @@ impl<T> fmt::Debug for Param<T> {
     }
 }
 
-impl<T> Endpoint for Param<T>
+impl<T, Bd> Endpoint<Bd> for Param<T>
 where
     T: FromEncodedStr,
 {
     type Output = (T,);
     type Future = Extracted<T>;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
         let s = ecx.next_segment().ok_or_else(ApplyError::not_matched)?;
         let x =
             T::from_encoded_str(s).map_err(|err| ApplyError::custom(error::bad_request(err)))?;
@@ -206,10 +173,9 @@ pub fn remains<T>() -> Remains<T>
 where
     T: FromEncodedStr,
 {
-    (Remains {
+    Remains {
         _marker: PhantomData,
-    })
-    .with_output::<(T,)>()
+    }
 }
 
 #[allow(missing_docs)]
@@ -232,14 +198,14 @@ impl<T> fmt::Debug for Remains<T> {
     }
 }
 
-impl<T> Endpoint for Remains<T>
+impl<T, Bd> Endpoint<Bd> for Remains<T>
 where
     T: FromEncodedStr,
 {
     type Output = (T,);
     type Future = Extracted<T>;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
         let result = T::from_encoded_str(ecx.remaining_path())
             .map_err(|err| ApplyError::custom(error::bad_request(err)));
         while let Some(..) = ecx.next_segment() {}
@@ -247,69 +213,69 @@ where
     }
 }
 
-/// A helper macro for creating an endpoint which matches to the specified HTTP path.
-///
-/// # Example
-///
-/// The following macro call
-///
-/// ```
-/// # #[macro_use]
-/// # extern crate finchers;
-/// # fn main() {
-/// # drop(|| {
-/// path!(@get / "api" / "v1" / "posts" / i32)
-/// # });
-/// # }
-/// ```
-///
-/// will be expanded to the following code:
-///
-/// ```
-/// # use finchers::prelude::*;
-/// use finchers::endpoint::syntax;
-/// # fn main() {
-/// # drop(|| {
-/// syntax::verb::get()
-///     .and("api")
-///     .and("v1")
-///     .and("posts")
-///     .and(syntax::param::<i32>())
-/// # });
-/// # }
-/// ```
-#[macro_export(local_inner_macros)]
-macro_rules! path {
-    // with method
-    (@$method:ident $($t:tt)*) => (
-        $crate::endpoint::IntoEndpointExt::and(
-            $crate::endpoint::syntax::verb::$method(),
-            path_impl!(@start $($t)*)
-        )
-    );
+// /// A helper macro for creating an endpoint which matches to the specified HTTP path.
+// ///
+// /// # Example
+// ///
+// /// The following macro call
+// ///
+// /// ```
+// /// # #[macro_use]
+// /// # extern crate finchers;
+// /// # fn main() {
+// /// # drop(|| {
+// /// path!(@get / "api" / "v1" / "posts" / i32)
+// /// # });
+// /// # }
+// /// ```
+// ///
+// /// will be expanded to the following code:
+// ///
+// /// ```
+// /// # use finchers::prelude::*;
+// /// use finchers::endpoint::syntax;
+// /// # fn main() {
+// /// # drop(|| {
+// /// syntax::verb::get()
+// ///     .and("api")
+// ///     .and("v1")
+// ///     .and("posts")
+// ///     .and(syntax::param::<i32>())
+// /// # });
+// /// # }
+// /// ```
+// #[macro_export(local_inner_macros)]
+// macro_rules! path {
+//     // with method
+//     (@$method:ident $($t:tt)*) => (
+//         $crate::endpoint::IntoEndpointExt::and(
+//             $crate::endpoint::syntax::verb::$method(),
+//             path_impl!(@start $($t)*)
+//         )
+//     );
 
-    // without method
-    (/ $($t:tt)*) => ( path_impl!(@start / $($t)*) );
-}
+//     // without method
+//     (/ $($t:tt)*) => ( path_impl!(@start / $($t)*) );
+// }
 
-#[doc(hidden)]
-#[macro_export(local_inner_macros)]
-macro_rules! path_impl {
-    (@start / $head:tt $(/ $tail:tt)*) => {{
-        let __p = path_impl!(@segment $head);
-        $(
-            let __p = $crate::endpoint::IntoEndpointExt::and(__p, path_impl!(@segment $tail));
-        )*
-        __p
-    }};
-    (@start / $head:tt $(/ $tail:tt)* /) => {
-        $crate::endpoint::IntoEndpointExt::and(
-            path_impl!(@start / $head $(/ $tail)*),
-            $crate::endpoint::syntax::eos(),
-        )
-    };
-    (@start /) => ( $crate::endpoint::syntax::eos() );
+// #[doc(hidden)]
+// #[macro_export(local_inner_macros)]
+// macro_rules! path_impl {
+//     (@start / $head:tt $(/ $tail:tt)*) => {{
+//         let __p = path_impl!(@segment $head);
+//         $(
+//             let __p = $crate::endpoint::IntoEndpointExt::and(__p, path_impl!(@segment $tail));
+//         )*
+//         __p
+//     }};
+//     (@start / $head:tt $(/ $tail:tt)* /) => {
+//         $crate::endpoint::IntoEndpointExt::and(
+//             path_impl!(@start / $head $(/ $tail)*),
+//             $crate::endpoint::syntax::eos(),
+//         )
+//     };
+//     (@start /) => ( $crate::endpoint::syntax::eos() );
 
-    (@segment $t:ty) => ( $crate::endpoint::syntax::param::<$t>() );
-    (@segment $s:expr) => ( $crate::endpoint::IntoEndpoint::into_endpoint($s) );
-}
+//     (@segment $t:ty) => ( $crate::endpoint::syntax::param::<$t>() );
+//     (@segment $s:expr) => ( $crate::endpoint::IntoEndpoint::into_endpoint($s) );
+// }

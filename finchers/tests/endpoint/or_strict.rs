@@ -1,9 +1,9 @@
 use finchers::endpoint::syntax;
-use finchers::endpoint::IntoEndpointExt;
 use finchers::endpoints::{body, query};
 use finchers::test;
 
 use http::Request;
+use matches::assert_matches;
 use serde::de;
 use serde::de::IntoDeserializer;
 use std::fmt;
@@ -47,7 +47,7 @@ where
     })
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, serde::Deserialize, PartialEq)]
 struct Param {
     query: String,
     count: Option<u32>,
@@ -60,6 +60,8 @@ fn test_or_strict() {
     let query_str = "query=rustlang&count=42&tags=tokio,hyper";
 
     let mut runner = test::runner({
+        use finchers::endpoint::EndpointExt;
+
         let query = syntax::verb::get().and(query::required::<Param>());
         let form = syntax::verb::post().and(body::urlencoded::<Param>());
         query.or_strict(form)

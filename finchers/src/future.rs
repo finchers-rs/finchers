@@ -15,41 +15,41 @@ use {
 
 pub use futures::{try_ready, Async, Poll};
 
-pub trait EndpointFuture {
+pub trait EndpointFuture<Bd> {
     type Output;
 
-    fn poll_endpoint(&mut self, cx: &mut Context<'_>) -> Poll<Self::Output, Error>;
+    fn poll_endpoint(&mut self, cx: &mut Context<'_, Bd>) -> Poll<Self::Output, Error>;
 }
 
-impl<F> EndpointFuture for F
+impl<F, Bd> EndpointFuture<Bd> for F
 where
     F: Future,
     F::Error: Into<Error>,
 {
     type Output = F::Item;
 
-    fn poll_endpoint(&mut self, _: &mut Context<'_>) -> Poll<Self::Output, Error> {
+    fn poll_endpoint(&mut self, _: &mut Context<'_, Bd>) -> Poll<Self::Output, Error> {
         self.poll().map_err(Into::into)
     }
 }
 
-pub fn poll_fn<T, E>(
-    f: impl FnMut(&mut Context<'_>) -> Poll<T, E>,
-) -> impl EndpointFuture<Output = T>
+pub fn poll_fn<Bd, T, E>(
+    f: impl FnMut(&mut Context<'_, Bd>) -> Poll<T, E>,
+) -> impl EndpointFuture<Bd, Output = T>
 where
     E: Into<Error>,
 {
     #[allow(missing_debug_implementations)]
     struct PollFn<F>(F);
 
-    impl<F, T, E> EndpointFuture for PollFn<F>
+    impl<F, Bd, T, E> EndpointFuture<Bd> for PollFn<F>
     where
-        F: FnMut(&mut Context<'_>) -> Poll<T, E>,
+        F: FnMut(&mut Context<'_, Bd>) -> Poll<T, E>,
         E: Into<Error>,
     {
         type Output = T;
 
-        fn poll_endpoint(&mut self, cx: &mut Context<'_>) -> Poll<Self::Output, Error> {
+        fn poll_endpoint(&mut self, cx: &mut Context<'_, Bd>) -> Poll<Self::Output, Error> {
             (self.0)(cx).map_err(Into::into)
         }
     }
@@ -61,14 +61,14 @@ where
 ///
 /// The value of this context can be indirectly access by calling `with_get_cx()`.
 #[derive(Debug)]
-pub struct Context<'a> {
-    input: &'a mut Input,
+pub struct Context<'a, Bd> {
+    input: &'a mut Input<Bd>,
     cursor: &'a Cursor,
     _marker: PhantomData<Rc<()>>,
 }
 
-impl<'a> Context<'a> {
-    pub(crate) fn new(input: &'a mut Input, cursor: &'a Cursor) -> Context<'a> {
+impl<'a, Bd> Context<'a, Bd> {
+    pub(crate) fn new(input: &'a mut Input<Bd>, cursor: &'a Cursor) -> Self {
         Context {
             input,
             cursor,
@@ -77,13 +77,13 @@ impl<'a> Context<'a> {
     }
 
     #[allow(missing_docs)]
-    pub fn input(&mut self) -> &mut Input {
+    pub fn input(&mut self) -> &mut Input<Bd> {
         &mut *self.input
     }
 }
 
-impl<'a> std::ops::Deref for Context<'a> {
-    type Target = Input;
+impl<'a, Bd> std::ops::Deref for Context<'a, Bd> {
+    type Target = Input<Bd>;
 
     #[inline]
     fn deref(&self) -> &Self::Target {
@@ -91,7 +91,7 @@ impl<'a> std::ops::Deref for Context<'a> {
     }
 }
 
-impl<'a> std::ops::DerefMut for Context<'a> {
+impl<'a, Bd> std::ops::DerefMut for Context<'a, Bd> {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.input()
@@ -100,13 +100,13 @@ impl<'a> std::ops::DerefMut for Context<'a> {
 
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled."]
-pub enum MaybeDone<F: EndpointFuture> {
+pub enum MaybeDone<Bd, F: EndpointFuture<Bd>> {
     Ready(F::Output),
     Pending(F),
     Gone,
 }
 
-impl<F: EndpointFuture> MaybeDone<F> {
+impl<Bd, F: EndpointFuture<Bd>> MaybeDone<Bd, F> {
     pub fn take_item(&mut self) -> Option<F::Output> {
         match std::mem::replace(self, MaybeDone::Gone) {
             MaybeDone::Ready(output) => Some(output),
@@ -115,10 +115,10 @@ impl<F: EndpointFuture> MaybeDone<F> {
     }
 }
 
-impl<F: EndpointFuture> EndpointFuture for MaybeDone<F> {
+impl<Bd, F: EndpointFuture<Bd>> EndpointFuture<Bd> for MaybeDone<Bd, F> {
     type Output = ();
 
-    fn poll_endpoint(&mut self, cx: &mut Context<'_>) -> Poll<Self::Output, Error> {
+    fn poll_endpoint(&mut self, cx: &mut Context<'_, Bd>) -> Poll<Self::Output, Error> {
         let polled = match self {
             MaybeDone::Ready(..) => return Ok(Async::Ready(())),
             MaybeDone::Pending(ref mut future) => future.poll_endpoint(cx)?,
@@ -135,33 +135,38 @@ impl<F: EndpointFuture> EndpointFuture for MaybeDone<F> {
 }
 
 #[derive(Debug)]
-pub enum TryChain<F1, F2, T> {
+pub enum TryChain<Bd, F1, F2, T>
+where
+    F1: EndpointFuture<Bd>,
+    F2: EndpointFuture<Bd>,
+{
     First(F1, Option<T>),
     Second(F2),
     Empty,
+    _Marker(PhantomData<fn(&mut Bd)>),
 }
 
 #[allow(missing_debug_implementations)]
-pub enum TryChainAction<F2>
+pub enum TryChainAction<Bd, F2>
 where
-    F2: EndpointFuture,
+    F2: EndpointFuture<Bd>,
 {
     Future(F2),
     Output(Result<F2::Output, Error>),
 }
 
-impl<F1, F2, T> TryChain<F1, F2, T>
+impl<Bd, F1, F2, T> TryChain<Bd, F1, F2, T>
 where
-    F1: EndpointFuture,
-    F2: EndpointFuture,
+    F1: EndpointFuture<Bd>,
+    F2: EndpointFuture<Bd>,
 {
-    pub(super) fn new(f1: F1, data: T) -> TryChain<F1, F2, T> {
+    pub(super) fn new(f1: F1, data: T) -> Self {
         TryChain::First(f1, Some(data))
     }
 
-    pub(super) fn try_poll<F>(&mut self, cx: &mut Context<'_>, f: F) -> Poll<F2::Output, Error>
+    pub(super) fn try_poll<F>(&mut self, cx: &mut Context<'_, Bd>, f: F) -> Poll<F2::Output, Error>
     where
-        F: FnOnce(Result<F1::Output, Error>, T) -> TryChainAction<F2>,
+        F: FnOnce(Result<F1::Output, Error>, T) -> TryChainAction<Bd, F2>,
     {
         let mut f = Some(f);
         loop {
@@ -173,6 +178,7 @@ where
                 },
                 TryChain::Second(ref mut f2) => return f2.poll_endpoint(cx),
                 TryChain::Empty => panic!("This future has already polled."),
+                TryChain::_Marker(..) => unreachable!(),
             };
 
             let f = f.take().unwrap();

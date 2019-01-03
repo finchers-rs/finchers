@@ -9,10 +9,10 @@ use crate::output::IntoResponse;
 use super::Wrapper;
 
 #[allow(missing_docs)]
-pub fn recover<F, R>(f: F) -> Recover<F>
+pub fn recover<F, R, Bd>(f: F) -> Recover<F>
 where
     F: Fn(Error) -> R,
-    R: EndpointFuture,
+    R: EndpointFuture<Bd>,
 {
     Recover { f }
 }
@@ -23,11 +23,11 @@ pub struct Recover<F> {
     f: F,
 }
 
-impl<E, F, R> Wrapper<E> for Recover<F>
+impl<E, F, Bd, R> Wrapper<Bd, E> for Recover<F>
 where
-    E: Endpoint,
+    E: Endpoint<Bd>,
     F: Fn(Error) -> R + Clone,
-    R: EndpointFuture,
+    R: EndpointFuture<Bd>,
 {
     type Output = (Recovered<E::Output, R::Output>,);
     type Endpoint = RecoverEndpoint<E, F>;
@@ -46,16 +46,16 @@ pub struct RecoverEndpoint<E, F> {
     f: F,
 }
 
-impl<E, F, R> Endpoint for RecoverEndpoint<E, F>
+impl<E, F, R, Bd> Endpoint<Bd> for RecoverEndpoint<E, F>
 where
-    E: Endpoint,
+    E: Endpoint<Bd>,
     F: Fn(Error) -> R + Clone,
-    R: EndpointFuture,
+    R: EndpointFuture<Bd>,
 {
     type Output = (Recovered<E::Output, R::Output>,);
-    type Future = RecoverFuture<E::Future, R, F>;
+    type Future = RecoverFuture<Bd, E::Future, R, F>;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
         let f1 = self.endpoint.apply(ecx)?;
         Ok(RecoverFuture {
             try_chain: TryChain::new(f1, self.f.clone()),
@@ -81,24 +81,24 @@ where
 
 #[allow(missing_docs)]
 #[derive(Debug)]
-pub struct RecoverFuture<F1, F2, F>
+pub struct RecoverFuture<Bd, F1, F2, F>
 where
-    F1: EndpointFuture,
-    F2: EndpointFuture,
+    F1: EndpointFuture<Bd>,
+    F2: EndpointFuture<Bd>,
     F: FnOnce(Error) -> F2,
 {
-    try_chain: TryChain<F1, F2, F>,
+    try_chain: TryChain<Bd, F1, F2, F>,
 }
 
-impl<F1, F2, F> EndpointFuture for RecoverFuture<F1, F2, F>
+impl<Bd, F1, F2, F> EndpointFuture<Bd> for RecoverFuture<Bd, F1, F2, F>
 where
-    F1: EndpointFuture,
-    F2: EndpointFuture,
+    F1: EndpointFuture<Bd>,
+    F2: EndpointFuture<Bd>,
     F: FnOnce(Error) -> F2,
 {
     type Output = (Recovered<F1::Output, F2::Output>,);
 
-    fn poll_endpoint(&mut self, cx: &mut Context<'_>) -> Poll<Self::Output, Error> {
+    fn poll_endpoint(&mut self, cx: &mut Context<'_, Bd>) -> Poll<Self::Output, Error> {
         self.try_chain
             .try_poll(cx, |result, f| match result {
                 Ok(ok) => TryChainAction::Output(Ok(Either::Left(ok))),
@@ -109,39 +109,41 @@ where
 }
 
 #[derive(Debug)]
-enum TryChain<F1, F2, T> {
+enum TryChain<Bd, F1, F2, T>
+where
+    F1: EndpointFuture<Bd>,
+    F2: EndpointFuture<Bd>,
+{
     First(F1, Option<T>),
     Second(F2),
     Empty,
+    _Marker(std::marker::PhantomData<fn(&mut Bd)>),
 }
 
-enum TryChainAction<F1, F2>
+enum TryChainAction<Bd, F1, F2>
 where
-    F1: EndpointFuture,
-    F2: EndpointFuture,
+    F1: EndpointFuture<Bd>,
+    F2: EndpointFuture<Bd>,
 {
     Future(F2),
     Output(Result<Either<F1::Output, F2::Output>, Error>),
 }
 
-impl<F1, F2, T> TryChain<F1, F2, T>
+impl<Bd, F1, F2, T> TryChain<Bd, F1, F2, T>
 where
-    F1: EndpointFuture,
-    F2: EndpointFuture,
+    F1: EndpointFuture<Bd>,
+    F2: EndpointFuture<Bd>,
 {
-    pub(super) fn new(f1: F1, data: T) -> TryChain<F1, F2, T> {
+    pub(super) fn new(f1: F1, data: T) -> Self {
         TryChain::First(f1, Some(data))
     }
 
     #[cfg_attr(feature = "lint", allow(clippy::type_complexity))]
-    pub(super) fn try_poll<F>(
+    pub(super) fn try_poll(
         &mut self,
-        cx: &mut Context<'_>,
-        f: F,
-    ) -> Poll<Either<F1::Output, F2::Output>, Error>
-    where
-        F: FnOnce(Result<F1::Output, Error>, T) -> TryChainAction<F1, F2>,
-    {
+        cx: &mut Context<'_, Bd>,
+        f: impl FnOnce(Result<F1::Output, Error>, T) -> TryChainAction<Bd, F1, F2>,
+    ) -> Poll<Either<F1::Output, F2::Output>, Error> {
         let mut f = Some(f);
 
         loop {
@@ -153,6 +155,7 @@ where
                 },
                 TryChain::Second(f2) => return f2.poll_endpoint(cx).map(|x| x.map(Either::Right)),
                 TryChain::Empty => panic!("This future has already polled."),
+                TryChain::_Marker(..) => unreachable!(),
             };
 
             let f = f.take().unwrap();
