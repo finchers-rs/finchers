@@ -3,8 +3,8 @@ use {
         common::{Combine, Tuple},
         endpoint::{
             ActionContext, //
+            Apply,
             ApplyContext,
-            ApplyResult,
             Endpoint,
             EndpointAction,
             IsEndpoint,
@@ -30,12 +30,21 @@ where
     E1::Output: Combine<E2::Output>,
 {
     type Output = <E1::Output as Combine<E2::Output>>::Out;
+    type Error = Error;
     type Action = AndAction<Bd, E1::Action, E2::Action>;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
         Ok(AndAction {
-            f1: self.e1.apply(ecx).map(MaybeDone::Pending)?,
-            f2: self.e2.apply(ecx).map(MaybeDone::Pending)?,
+            f1: self
+                .e1
+                .apply(ecx)
+                .map(MaybeDone::Pending)
+                .map_err(Into::into)?,
+            f2: self
+                .e2
+                .apply(ecx)
+                .map(MaybeDone::Pending)
+                .map_err(Into::into)?,
         })
     }
 }
@@ -58,10 +67,11 @@ where
     F2::Output: Tuple,
 {
     type Output = <F1::Output as Combine<F2::Output>>::Out;
+    type Error = Error;
 
     fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
-        futures::try_ready!(self.f1.poll_action(cx));
-        futures::try_ready!(self.f2.poll_action(cx));
+        futures::try_ready!(self.f1.poll_action(cx).map_err(Into::into));
+        futures::try_ready!(self.f2.poll_action(cx).map_err(Into::into));
         let v1 = self
             .f1
             .take_item()
@@ -93,8 +103,9 @@ impl<Bd, F: EndpointAction<Bd>> MaybeDone<Bd, F> {
 
 impl<Bd, F: EndpointAction<Bd>> EndpointAction<Bd> for MaybeDone<Bd, F> {
     type Output = ();
+    type Error = F::Error;
 
-    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
+    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error> {
         let polled = match self {
             MaybeDone::Ready(..) => return Ok(Async::Ready(())),
             MaybeDone::Pending(ref mut future) => future.poll_action(cx)?,

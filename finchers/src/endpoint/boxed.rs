@@ -2,7 +2,12 @@ use {
     crate::{
         common::Tuple,
         endpoint::{
-            ActionContext, ApplyContext, ApplyResult, Endpoint, EndpointAction, IsEndpoint,
+            ActionContext, //
+            Apply,
+            ApplyContext,
+            Endpoint,
+            EndpointAction,
+            IsEndpoint,
         },
         error::Error,
     },
@@ -10,41 +15,29 @@ use {
     std::fmt,
 };
 
-#[allow(missing_debug_implementations)]
-pub struct EndpointActionObj<Bd, T: Tuple> {
-    inner: Box<dyn EndpointAction<Bd, Output = T> + Send + 'static>,
-}
-
-impl<Bd, T: Tuple> EndpointAction<Bd> for EndpointActionObj<Bd, T> {
-    type Output = T;
-
-    #[inline]
-    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
-        self.inner.poll_action(cx)
-    }
-}
-
-trait ActionObjEndpoint<Bd> {
+trait BoxedEndpoint<Bd> {
     type Output: Tuple;
+    type Error: Into<Error>;
 
     fn apply_obj(
         &self,
         ecx: &mut ApplyContext<'_, Bd>,
-    ) -> ApplyResult<EndpointActionObj<Bd, Self::Output>>;
+    ) -> Result<EndpointActionObj<Bd, Self::Output, Self::Error>, Self::Error>;
 }
 
-impl<Bd, E> ActionObjEndpoint<Bd> for E
+impl<Bd, E> BoxedEndpoint<Bd> for E
 where
     E: Endpoint<Bd>,
     E::Action: Send + 'static,
 {
     type Output = E::Output;
+    type Error = E::Error;
 
-    #[inline(always)]
+    #[inline]
     fn apply_obj(
         &self,
         ecx: &mut ApplyContext<'_, Bd>,
-    ) -> ApplyResult<EndpointActionObj<Bd, Self::Output>> {
+    ) -> Result<EndpointActionObj<Bd, Self::Output, Self::Error>, Self::Error> {
         let future = self.apply(ecx)?;
         Ok(EndpointActionObj {
             inner: Box::new(future),
@@ -53,76 +46,116 @@ where
 }
 
 #[allow(missing_docs)]
-pub struct EndpointObj<Bd, T: Tuple + 'static> {
-    inner: Box<dyn ActionObjEndpoint<Bd, Output = T> + Send + Sync + 'static>,
+pub struct EndpointObj<Bd, T, E>
+where
+    T: Tuple,
+    E: Into<Error>,
+{
+    inner: Box<dyn BoxedEndpoint<Bd, Output = T, Error = E> + Send + Sync + 'static>,
 }
 
-impl<Bd, T: Tuple + 'static> EndpointObj<Bd, T> {
+impl<Bd, T, E> EndpointObj<Bd, T, E>
+where
+    T: Tuple,
+    E: Into<Error>,
+{
     #[allow(missing_docs)]
-    pub fn new<E>(endpoint: E) -> EndpointObj<Bd, T>
-    where
-        E: Endpoint<Bd, Output = T> + Send + Sync + 'static,
-        E::Action: Send + 'static,
-    {
+    pub fn new(
+        endpoint: impl Endpoint<
+                Bd,
+                Output = T,
+                Error = E,
+                Action = impl EndpointAction<Bd, Output = T, Error = E> + Send + 'static,
+            > + Send
+            + Sync
+            + 'static,
+    ) -> Self {
         EndpointObj {
             inner: Box::new(endpoint),
         }
     }
 }
 
-impl<Bd, T: Tuple + 'static> fmt::Debug for EndpointObj<Bd, T> {
+impl<Bd, T, E> fmt::Debug for EndpointObj<Bd, T, E>
+where
+    T: Tuple,
+    E: Into<Error>,
+{
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.debug_struct("EndpointObj").finish()
     }
 }
 
-impl<Bd, T: Tuple + 'static> IsEndpoint for EndpointObj<Bd, T> {}
+impl<Bd, T, E> IsEndpoint for EndpointObj<Bd, T, E>
+where
+    T: Tuple,
+    E: Into<Error>,
+{
+}
 
-impl<Bd, T: Tuple + 'static> Endpoint<Bd> for EndpointObj<Bd, T> {
+impl<Bd, T, E> Endpoint<Bd> for EndpointObj<Bd, T, E>
+where
+    T: Tuple,
+    E: Into<Error>,
+{
     type Output = T;
-    type Action = EndpointActionObj<Bd, T>;
+    type Error = E;
+    type Action = EndpointActionObj<Bd, T, E>;
 
     #[inline]
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
         self.inner.apply_obj(ecx)
     }
 }
 
-// ==== BoxedLocal ====
 #[allow(missing_debug_implementations)]
-pub struct LocalEndpointActionObj<Bd, T: Tuple> {
-    inner: Box<dyn EndpointAction<Bd, Output = T> + 'static>,
+pub struct EndpointActionObj<Bd, T, E>
+where
+    T: Tuple,
+    E: Into<Error>,
+{
+    inner: Box<dyn EndpointAction<Bd, Output = T, Error = E> + Send + 'static>,
 }
 
-impl<Bd, T: Tuple> EndpointAction<Bd> for LocalEndpointActionObj<Bd, T> {
+impl<Bd, T, E> EndpointAction<Bd> for EndpointActionObj<Bd, T, E>
+where
+    T: Tuple,
+    E: Into<Error>,
+{
     type Output = T;
+    type Error = E;
 
     #[inline]
-    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
+    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error> {
         self.inner.poll_action(cx)
     }
 }
 
-trait LocalActionObjEndpoint<Bd> {
+// ==== BoxedLocal ====
+
+trait LocalBoxedEndpoint<Bd> {
     type Output: Tuple;
+    type Error: Into<Error>;
 
     fn apply_local_obj(
         &self,
         ecx: &mut ApplyContext<'_, Bd>,
-    ) -> ApplyResult<LocalEndpointActionObj<Bd, Self::Output>>;
+    ) -> Result<LocalEndpointActionObj<Bd, Self::Output, Self::Error>, Self::Error>;
 }
 
-impl<Bd, E: Endpoint<Bd>> LocalActionObjEndpoint<Bd> for E
+impl<Bd, E> LocalBoxedEndpoint<Bd> for E
 where
+    E: Endpoint<Bd>,
     E::Action: 'static,
 {
     type Output = E::Output;
+    type Error = E::Error;
 
     #[inline(always)]
     fn apply_local_obj(
         &self,
         ecx: &mut ApplyContext<'_, Bd>,
-    ) -> ApplyResult<LocalEndpointActionObj<Bd, Self::Output>> {
+    ) -> Result<LocalEndpointActionObj<Bd, Self::Output, Self::Error>, Self::Error> {
         let future = self.apply(ecx)?;
         Ok(LocalEndpointActionObj {
             inner: Box::new(future),
@@ -131,37 +164,85 @@ where
 }
 
 #[allow(missing_docs)]
-pub struct LocalEndpointObj<Bd, T: Tuple + 'static> {
-    inner: Box<dyn LocalActionObjEndpoint<Bd, Output = T> + 'static>,
+pub struct LocalEndpointObj<Bd, T, E>
+where
+    T: Tuple,
+    E: Into<Error>,
+{
+    inner: Box<dyn LocalBoxedEndpoint<Bd, Output = T, Error = E> + 'static>,
 }
 
-impl<Bd, T: Tuple + 'static> LocalEndpointObj<Bd, T> {
+impl<Bd, T, E> LocalEndpointObj<Bd, T, E>
+where
+    T: Tuple,
+    E: Into<Error>,
+{
     #[allow(missing_docs)]
-    pub fn new<E>(endpoint: E) -> Self
-    where
-        E: Endpoint<Bd, Output = T> + 'static,
-        E::Action: 'static,
-    {
+    pub fn new(
+        endpoint: impl Endpoint<
+                Bd,
+                Output = T,
+                Error = E,
+                Action = impl EndpointAction<Bd, Output = T, Error = E> + 'static,
+            > + 'static,
+    ) -> Self {
         LocalEndpointObj {
             inner: Box::new(endpoint),
         }
     }
 }
 
-impl<Bd, T: Tuple + 'static> fmt::Debug for LocalEndpointObj<Bd, T> {
+impl<Bd, T, E> fmt::Debug for LocalEndpointObj<Bd, T, E>
+where
+    T: Tuple,
+    E: Into<Error>,
+{
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.debug_struct("LocalEndpointObj").finish()
     }
 }
 
-impl<Bd, T: Tuple + 'static> IsEndpoint for LocalEndpointObj<Bd, T> {}
+impl<Bd, T, E> IsEndpoint for LocalEndpointObj<Bd, T, E>
+where
+    T: Tuple,
+    E: Into<Error>,
+{
+}
 
-impl<Bd, T: Tuple + 'static> Endpoint<Bd> for LocalEndpointObj<Bd, T> {
+impl<Bd, T, E> Endpoint<Bd> for LocalEndpointObj<Bd, T, E>
+where
+    T: Tuple,
+    E: Into<Error>,
+{
     type Output = T;
-    type Action = LocalEndpointActionObj<Bd, T>;
+    type Error = E;
+    type Action = LocalEndpointActionObj<Bd, T, E>;
 
     #[inline(always)]
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
         self.inner.apply_local_obj(ecx)
+    }
+}
+
+#[allow(missing_debug_implementations)]
+pub struct LocalEndpointActionObj<Bd, T, E>
+where
+    T: Tuple,
+    E: Into<Error>,
+{
+    inner: Box<dyn EndpointAction<Bd, Output = T, Error = E> + 'static>,
+}
+
+impl<Bd, T, E> EndpointAction<Bd> for LocalEndpointActionObj<Bd, T, E>
+where
+    T: Tuple,
+    E: Into<Error>,
+{
+    type Output = T;
+    type Error = E;
+
+    #[inline]
+    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error> {
+        self.inner.poll_action(cx)
     }
 }

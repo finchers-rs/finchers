@@ -1,6 +1,5 @@
 use {
     crate::{
-        common::Func,
         endpoint::{
             ActionContext, //
             Apply,
@@ -9,54 +8,55 @@ use {
             EndpointAction,
             IsEndpoint,
         },
+        error::Error,
     },
     futures::Poll,
 };
 
 #[allow(missing_docs)]
 #[derive(Debug, Copy, Clone)]
-pub struct Map<E, F> {
+pub struct MapErr<E, F> {
     pub(super) endpoint: E,
     pub(super) f: F,
 }
 
-impl<E: IsEndpoint, F> IsEndpoint for Map<E, F> {}
+impl<E: IsEndpoint, F> IsEndpoint for MapErr<E, F> {}
 
-impl<E, F, Bd> Endpoint<Bd> for Map<E, F>
+impl<E, F, Bd, U> Endpoint<Bd> for MapErr<E, F>
 where
     E: Endpoint<Bd>,
-    F: Func<E::Output> + Clone,
+    F: Fn(E::Error) -> U + Clone,
+    U: Into<Error>,
 {
-    type Output = (F::Out,);
-    type Error = E::Error;
-    type Action = MapAction<E::Action, F>;
+    type Output = E::Output;
+    type Error = U;
+    type Action = MapErrAction<E::Action, F>;
 
     #[inline]
     fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
-        Ok(MapAction {
-            action: self.endpoint.apply(ecx)?,
+        Ok(MapErrAction {
+            action: self.endpoint.apply(ecx).map_err(|e| (self.f)(e))?,
             f: self.f.clone(),
         })
     }
 }
 
 #[derive(Debug)]
-pub struct MapAction<A, F> {
+pub struct MapErrAction<A, F> {
     action: A,
     f: F,
 }
 
-impl<A, F, Bd> EndpointAction<Bd> for MapAction<A, F>
+impl<A, F, Bd, U> EndpointAction<Bd> for MapErrAction<A, F>
 where
     A: EndpointAction<Bd>,
-    F: Func<A::Output>,
+    F: Fn(A::Error) -> U,
+    U: Into<Error>,
 {
-    type Output = (F::Out,);
-    type Error = A::Error;
+    type Output = A::Output;
+    type Error = U;
 
     fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error> {
-        self.action
-            .poll_action(cx)
-            .map(|x| x.map(|args| (self.f.call(args),)))
+        self.action.poll_action(cx).map_err(|e| (self.f)(e))
     }
 }

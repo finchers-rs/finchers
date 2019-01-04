@@ -3,7 +3,12 @@
 use {
     crate::{
         endpoint::{
-            ActionContext, ApplyContext, ApplyResult, Endpoint, EndpointAction, IsEndpoint,
+            ActionContext, //
+            Apply,
+            ApplyContext,
+            Endpoint,
+            EndpointAction,
+            IsEndpoint,
         },
         error::{BadRequest, Error},
         output::fs::{NamedFile, OpenNamedFile},
@@ -32,9 +37,10 @@ mod file {
 
     impl<Bd> Endpoint<Bd> for File {
         type Output = (NamedFile,);
+        type Error = Error;
         type Action = FileAction;
 
-        fn apply(&self, _: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
+        fn apply(&self, _: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
             Ok(FileAction {
                 opening: NamedFile::open(self.path.clone()),
             })
@@ -48,8 +54,12 @@ mod file {
 
     impl<Bd> EndpointAction<Bd> for FileAction {
         type Output = (NamedFile,);
+        type Error = Error;
 
-        fn poll_action(&mut self, _: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
+        fn poll_action(
+            &mut self,
+            _: &mut ActionContext<'_, Bd>,
+        ) -> Poll<Self::Output, Self::Error> {
             self.opening
                 .poll()
                 .map(|x| x.map(|x| (x,)))
@@ -78,9 +88,10 @@ mod dir {
 
     impl<Bd> Endpoint<Bd> for Dir {
         type Output = (NamedFile,);
+        type Error = Error;
         type Action = DirAction;
 
-        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
+        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
             let path = {
                 match cx.remaining_path().percent_decode() {
                     Ok(path) => Ok(PathBuf::from(path.into_owned())),
@@ -121,8 +132,12 @@ mod dir {
 
     impl<Bd> EndpointAction<Bd> for DirAction {
         type Output = (NamedFile,);
+        type Error = Error;
 
-        fn poll_action(&mut self, _: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
+        fn poll_action(
+            &mut self,
+            _: &mut ActionContext<'_, Bd>,
+        ) -> Poll<Self::Output, Self::Error> {
             match self.state {
                 State::Err(ref mut err) => Err(err.take().unwrap()),
                 State::Opening(ref mut f) => f.poll().map(|x| x.map(|x| (x,))).map_err(Into::into),

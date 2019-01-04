@@ -2,8 +2,8 @@ use {
     crate::{
         endpoint::{
             ActionContext, //
+            Apply,
             ApplyContext,
-            ApplyResult,
             Endpoint,
             EndpointAction,
             IsEndpoint,
@@ -29,18 +29,20 @@ where
     E2: Endpoint<Bd, Output = E1::Output>,
 {
     type Output = E1::Output;
+    type Error = Error;
     type Action = OrStrictAction<E1::Action, E2::Action>;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
         let orig_cursor = ecx.cursor().clone();
         match self.e1.apply(ecx) {
             Ok(future1) => {
                 *ecx.cursor() = orig_cursor;
                 Ok(OrStrictAction::left(future1))
             }
-            Err(err1) => match self.e2.apply(ecx) {
+            Err(..) => match self.e2.apply(ecx) {
                 Ok(future) => Ok(OrStrictAction::right(future)),
-                Err(err2) => Err(err1.merge(err2)),
+                // FIXME: appropriate error handling.
+                Err(..) => Err(http::StatusCode::NOT_FOUND.into()),
             },
         }
     }
@@ -72,12 +74,13 @@ where
     R: EndpointAction<Bd, Output = L::Output>,
 {
     type Output = L::Output;
+    type Error = Error;
 
     #[inline]
-    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
+    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error> {
         match self.inner {
-            Either::Left(ref mut t) => t.poll_action(cx),
-            Either::Right(ref mut t) => t.poll_action(cx),
+            Either::Left(ref mut t) => t.poll_action(cx).map_err(Into::into),
+            Either::Right(ref mut t) => t.poll_action(cx).map_err(Into::into),
         }
     }
 }

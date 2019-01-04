@@ -4,9 +4,8 @@ use {
     crate::{
         endpoint::{
             ActionContext, //
+            Apply,
             ApplyContext,
-            ApplyError,
-            ApplyResult,
             Endpoint,
             EndpointAction,
             IsEndpoint,
@@ -46,9 +45,10 @@ mod raw {
 
     impl<Bd> Endpoint<Bd> for Raw {
         type Output = (Bd,);
+        type Error = Error;
         type Action = RawAction;
 
-        fn apply(&self, _: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
+        fn apply(&self, _: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
             Ok(RawAction {
                 _anchor: PhantomData,
             })
@@ -62,8 +62,12 @@ mod raw {
 
     impl<Bd> EndpointAction<Bd> for RawAction {
         type Output = (Bd,);
+        type Error = Error;
 
-        fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
+        fn poll_action(
+            &mut self,
+            cx: &mut ActionContext<'_, Bd>,
+        ) -> Poll<Self::Output, Self::Error> {
             cx.body()
                 .take()
                 .map(|x| (x,).into())
@@ -97,9 +101,10 @@ mod receive_all {
         Bd::Error: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
     {
         type Output = (Vec<u8>,);
+        type Error = Error;
         type Action = ReceiveAllAction<Bd>;
 
-        fn apply(&self, _: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
+        fn apply(&self, _: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
             Ok(future())
         }
     }
@@ -121,8 +126,12 @@ mod receive_all {
         Bd::Error: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
     {
         type Output = (Vec<u8>,);
+        type Error = Error;
 
-        fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
+        fn poll_action(
+            &mut self,
+            cx: &mut ActionContext<'_, Bd>,
+        ) -> Poll<Self::Output, Self::Error> {
             loop {
                 self.state = match self.state {
                     State::Start => {
@@ -181,16 +190,15 @@ mod text {
         Bd::Error: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
     {
         type Output = (String,);
+        type Error = Error;
         type Action = TextAction<Bd>;
 
-        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
-            let content_type = cx.content_type().map_err(ApplyError::custom)?;
+        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
+            let content_type = cx.content_type()?;
             match content_type.and_then(|m| m.get_param("charset")) {
                 Some(ref val) if *val == "utf-8" => {}
                 Some(_val) => {
-                    return Err(ApplyError::custom(BadRequest::from(
-                        "Only the UTF-8 charset is supported.",
-                    )))
+                    return Err(BadRequest::from("Only the UTF-8 charset is supported.").into());
                 }
                 None => {}
             }
@@ -216,8 +224,12 @@ mod text {
         Bd::Error: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
     {
         type Output = (String,);
+        type Error = Error;
 
-        fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
+        fn poll_action(
+            &mut self,
+            cx: &mut ActionContext<'_, Bd>,
+        ) -> Poll<Self::Output, Self::Error> {
             let (data,) = futures::try_ready!(self.receive_all.poll_action(cx));
             String::from_utf8(data.to_vec())
                 .map(|x| (x,).into())
@@ -264,16 +276,17 @@ mod json {
         T: DeserializeOwned,
     {
         type Output = (T,);
+        type Error = Error;
         type Action = JsonAction<Bd, T>;
 
-        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
-            let content_type = cx.content_type().map_err(ApplyError::custom)?;
-            let m = content_type
-                .ok_or_else(|| ApplyError::custom(BadRequest::from("missing content type")))?;
+        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
+            let content_type = cx.content_type()?;
+            let m = content_type.ok_or_else(|| BadRequest::from("missing content type"))?;
             if *m != mime::APPLICATION_JSON {
-                return Err(ApplyError::custom(BadRequest::from(
+                return Err(BadRequest::from(
                     "The value of `Content-type` must be `application/json`.",
-                )));
+                )
+                .into());
             }
 
             Ok(JsonAction {
@@ -300,8 +313,12 @@ mod json {
         T: DeserializeOwned,
     {
         type Output = (T,);
+        type Error = Error;
 
-        fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
+        fn poll_action(
+            &mut self,
+            cx: &mut ActionContext<'_, Bd>,
+        ) -> Poll<Self::Output, Self::Error> {
             let (data,) = futures::try_ready!(self.receive_all.poll_action(cx));
             serde_json::from_slice(&*data)
                 .map(|x| (x,).into())
@@ -350,16 +367,17 @@ mod urlencoded {
         T: DeserializeOwned,
     {
         type Output = (T,);
+        type Error = Error;
         type Action = UrlencodedAction<Bd, T>;
 
-        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
-            let content_type = cx.content_type().map_err(ApplyError::custom)?;
-            let m = content_type
-                .ok_or_else(|| ApplyError::custom(BadRequest::from("missing content type")))?;
+        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
+            let content_type = cx.content_type()?;
+            let m = content_type.ok_or_else(|| BadRequest::from("missing content type"))?;
             if *m != mime::APPLICATION_WWW_FORM_URLENCODED {
-                return Err(ApplyError::custom(BadRequest::from(
+                return Err(BadRequest::from(
                     "The value of `Content-type` must be `application-x-www-form-urlencoded`.",
-                )));
+                )
+                .into());
             }
 
             Ok(UrlencodedAction {
@@ -386,8 +404,12 @@ mod urlencoded {
         T: DeserializeOwned,
     {
         type Output = (T,);
+        type Error = Error;
 
-        fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
+        fn poll_action(
+            &mut self,
+            cx: &mut ActionContext<'_, Bd>,
+        ) -> Poll<Self::Output, Self::Error> {
             let (data,) = futures::try_ready!(self.receive_all.poll_action(cx));
             let s = std::str::from_utf8(&*data).map_err(BadRequest::from)?;
             serde_qs::from_str(s)

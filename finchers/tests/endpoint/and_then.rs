@@ -6,8 +6,7 @@ use matches::assert_matches;
 
 #[test]
 fn test_and_then_1() {
-    let mut runner =
-        test::runner(endpoint::value("Foo").and_then(|_| future::ok::<_, Error>("Bar")));
+    let mut runner = test::runner(endpoint::value("Foo").and_then(|_| future::ok("Bar")));
     assert_matches!(
         runner.apply("/"),
         Ok(s) if s == "Bar"
@@ -17,10 +16,9 @@ fn test_and_then_1() {
 #[test]
 fn test_and_then_2() {
     let mut runner = test::runner(
-        endpoint::value("Foo").and_then(|_| future::err::<(), _>(BadRequest::from("Bar"))),
+        endpoint::value("Foo")
+            .err_into::<Error>()
+            .and_then(|_| future::err::<(), _>(BadRequest::from("Bar").into())),
     );
-    assert_matches!(
-        runner.apply("/"),
-        Err(ref e) if e.is::<BadRequest<&str>>()
-    )
+    assert_matches!(runner.apply("/"), Err(..))
 }

@@ -7,9 +7,8 @@ use {
     crate::{
         endpoint::{
             ActionContext, //
+            Apply,
             ApplyContext,
-            ApplyError,
-            ApplyResult,
             Endpoint,
             EndpointAction,
             IsEndpoint,
@@ -18,6 +17,7 @@ use {
         input::FromEncodedStr,
     },
     futures::Poll,
+    http::StatusCode,
     percent_encoding::{percent_encode, DEFAULT_ENCODE_SET},
     std::{fmt, marker::PhantomData},
 };
@@ -31,9 +31,10 @@ pub struct Matched {
 
 impl<Bd> EndpointAction<Bd> for Matched {
     type Output = ();
+    type Error = Error;
 
     #[inline]
-    fn poll_action(&mut self, _: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
+    fn poll_action(&mut self, _: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error> {
         Ok(().into())
     }
 }
@@ -45,9 +46,10 @@ pub struct Extracted<T>(Option<T>);
 
 impl<T, Bd> EndpointAction<Bd> for Extracted<T> {
     type Output = (T,);
+    type Error = Error;
 
     #[inline]
-    fn poll_action(&mut self, _: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
+    fn poll_action(&mut self, _: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error> {
         let x = self.0.take().expect("This future has already polled");
         Ok((x,).into())
     }
@@ -83,14 +85,15 @@ impl IsEndpoint for MatchSegment {}
 
 impl<Bd> Endpoint<Bd> for MatchSegment {
     type Output = ();
+    type Error = Error;
     type Action = Matched;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
-        let s = ecx.next_segment().ok_or_else(ApplyError::not_matched)?;
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
+        let s = ecx.next_segment().ok_or_else(|| StatusCode::NOT_FOUND)?;
         if s == self.encoded {
             Ok(Matched { _priv: () })
         } else {
-            Err(ApplyError::not_matched())
+            Err(StatusCode::NOT_FOUND.into())
         }
     }
 }
@@ -113,12 +116,13 @@ impl IsEndpoint for MatchEos {}
 
 impl<Bd> Endpoint<Bd> for MatchEos {
     type Output = ();
+    type Error = Error;
     type Action = Matched;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
         match ecx.next_segment() {
             None => Ok(Matched { _priv: () }),
-            Some(..) => Err(ApplyError::not_matched()),
+            Some(..) => Err(StatusCode::NOT_FOUND.into()),
         }
     }
 }
@@ -166,11 +170,12 @@ where
     T: FromEncodedStr,
 {
     type Output = (T,);
+    type Error = Error;
     type Action = Extracted<T>;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
-        let s = ecx.next_segment().ok_or_else(ApplyError::not_matched)?;
-        let x = T::from_encoded_str(s).map_err(|err| ApplyError::custom(BadRequest::from(err)))?;
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
+        let s = ecx.next_segment().ok_or_else(|| StatusCode::NOT_FOUND)?;
+        let x = T::from_encoded_str(s).map_err(BadRequest::from)?;
         Ok(Extracted(Some(x)))
     }
 }
@@ -217,11 +222,13 @@ where
     T: FromEncodedStr,
 {
     type Output = (T,);
+    type Error = Error;
     type Action = Extracted<T>;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
         let result = T::from_encoded_str(ecx.remaining_path())
-            .map_err(|err| ApplyError::custom(BadRequest::from(err)));
+            .map_err(BadRequest::from)
+            .map_err(Into::into);
         while let Some(..) = ecx.next_segment() {}
         result.map(|x| Extracted(Some(x)))
     }

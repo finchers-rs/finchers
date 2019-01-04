@@ -4,9 +4,8 @@ use {
     crate::{
         endpoint::{
             ActionContext, //
+            Apply,
             ApplyContext,
-            ApplyError,
-            ApplyResult,
             Endpoint,
             EndpointAction,
             IsEndpoint,
@@ -74,15 +73,16 @@ mod required {
         T: DeserializeOwned,
     {
         type Output = (T,);
+        type Error = Error;
         type Action = RequiredAction<T>;
 
-        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
+        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
             if cx.uri().query().is_some() {
                 Ok(RequiredAction {
                     _marker: PhantomData,
                 })
             } else {
-                Err(ApplyError::custom(BadRequest::from("missing query")))
+                Err(BadRequest::from("missing query").into())
             }
         }
     }
@@ -97,8 +97,12 @@ mod required {
         T: DeserializeOwned,
     {
         type Output = (T,);
+        type Error = Error;
 
-        fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
+        fn poll_action(
+            &mut self,
+            cx: &mut ActionContext<'_, Bd>,
+        ) -> Poll<Self::Output, Self::Error> {
             let query = cx
                 .uri()
                 .query()
@@ -167,9 +171,10 @@ mod optional {
         T: DeserializeOwned,
     {
         type Output = (Option<T>,);
+        type Error = Error;
         type Action = OptionalAction<T>;
 
-        fn apply(&self, _: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
+        fn apply(&self, _: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
             Ok(OptionalAction {
                 _marker: PhantomData,
             })
@@ -186,8 +191,12 @@ mod optional {
         T: DeserializeOwned,
     {
         type Output = (Option<T>,);
+        type Error = Error;
 
-        fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
+        fn poll_action(
+            &mut self,
+            cx: &mut ActionContext<'_, Bd>,
+        ) -> Poll<Self::Output, Self::Error> {
             match cx.uri().query() {
                 Some(query) => serde_qs::from_str(query)
                     .map(|x| (Some(x),).into())
@@ -216,9 +225,10 @@ mod raw {
 
     impl<Bd> Endpoint<Bd> for Raw {
         type Output = (Option<String>,);
+        type Error = Error;
         type Action = RawAction;
 
-        fn apply(&self, _: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
+        fn apply(&self, _: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
             Ok(RawAction(()))
         }
     }
@@ -228,8 +238,12 @@ mod raw {
 
     impl<Bd> EndpointAction<Bd> for RawAction {
         type Output = (Option<String>,);
+        type Error = Error;
 
-        fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
+        fn poll_action(
+            &mut self,
+            cx: &mut ActionContext<'_, Bd>,
+        ) -> Poll<Self::Output, Self::Error> {
             let raw = cx.uri().query().map(ToOwned::to_owned);
             Ok((raw,).into())
         }

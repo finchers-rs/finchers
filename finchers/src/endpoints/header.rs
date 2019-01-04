@@ -4,9 +4,8 @@ use {
     crate::{
         endpoint::{
             ActionContext, //
+            Apply,
             ApplyContext,
-            ApplyError,
-            ApplyResult,
             Endpoint,
             EndpointAction,
             IsEndpoint,
@@ -76,19 +75,17 @@ mod parse {
         T: FromHeaderValue,
     {
         type Output = (T,);
+        type Error = Error;
         type Action = ParseAction<T>;
 
-        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
+        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
             if cx.input().headers().contains_key(&self.name) {
                 Ok(ParseAction {
                     name: self.name.clone(),
                     _marker: PhantomData,
                 })
             } else {
-                Err(ApplyError::custom(BadRequest::from(format!(
-                    "missing header: `{}'",
-                    self.name.as_str()
-                ))))
+                Err(BadRequest::from(format!("missing header: `{}'", self.name.as_str())).into())
             }
         }
     }
@@ -104,8 +101,12 @@ mod parse {
         T: FromHeaderValue,
     {
         type Output = (T,);
+        type Error = Error;
 
-        fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
+        fn poll_action(
+            &mut self,
+            cx: &mut ActionContext<'_, Bd>,
+        ) -> Poll<Self::Output, Self::Error> {
             let h = cx
                 .headers()
                 .get(&self.name)
@@ -160,9 +161,10 @@ mod optional {
         T: FromHeaderValue,
     {
         type Output = (Option<T>,);
+        type Error = Error;
         type Action = OptionalAction<T>;
 
-        fn apply(&self, _: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
+        fn apply(&self, _: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
             Ok(OptionalAction {
                 name: self.name.clone(),
                 _marker: PhantomData,
@@ -181,8 +183,12 @@ mod optional {
         T: FromHeaderValue,
     {
         type Output = (Option<T>,);
+        type Error = Error;
 
-        fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
+        fn poll_action(
+            &mut self,
+            cx: &mut ActionContext<'_, Bd>,
+        ) -> Poll<Self::Output, Self::Error> {
             match cx.headers().get(&self.name) {
                 Some(h) => T::from_header_value(h)
                     .map(|parsed| (Some(parsed),).into())
@@ -249,12 +255,13 @@ mod matches {
         T: PartialEq<HeaderValue>,
     {
         type Output = ();
+        type Error = Error;
         type Action = futures::future::FutureResult<(), Error>;
 
-        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
+        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
             match cx.headers().get(&self.name) {
                 Some(v) if self.value == *v => Ok(futures::future::ok(())),
-                _ => Err(ApplyError::not_matched()),
+                _ => Err(http::StatusCode::NOT_FOUND.into()),
             }
         }
     }
@@ -287,9 +294,10 @@ mod raw {
 
     impl<Bd> Endpoint<Bd> for Raw {
         type Output = (Option<HeaderValue>,);
+        type Error = Error;
         type Action = RawAction;
 
-        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
+        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
             Ok(RawAction {
                 value: cx.headers().get(&self.name).cloned(),
             })
@@ -303,8 +311,12 @@ mod raw {
 
     impl<Bd> EndpointAction<Bd> for RawAction {
         type Output = (Option<HeaderValue>,);
+        type Error = Error;
 
-        fn poll_action(&mut self, _: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
+        fn poll_action(
+            &mut self,
+            _: &mut ActionContext<'_, Bd>,
+        ) -> Poll<Self::Output, Self::Error> {
             Ok((self.value.take(),).into())
         }
     }

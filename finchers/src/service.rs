@@ -174,7 +174,7 @@ where
                 }
                 (State::InFlight(input, ..), Some(result)) => {
                     self.state = State::Done(input);
-                    return result.map(Async::Ready);
+                    return result.map(Async::Ready).map_err(Into::into);
                 }
                 _ => unreachable!("unexpected state"),
             }

@@ -1,13 +1,15 @@
 //! Components for constructing `Endpoint`.
 
-mod boxed;
-pub mod error;
 pub mod syntax;
 
 mod and;
 mod and_then;
+mod boxed;
+mod err_into;
 mod map;
+mod map_err;
 mod or;
+mod or_else;
 mod or_strict;
 
 // re-exports
@@ -15,9 +17,11 @@ pub use self::{
     and::And,
     and_then::AndThen,
     boxed::{EndpointObj, LocalEndpointObj},
-    error::{ApplyError, ApplyResult},
+    err_into::ErrInto,
     map::Map,
+    map_err::MapErr,
     or::Or,
+    or_else::OrElse,
     or_strict::OrStrict,
 };
 
@@ -59,16 +63,20 @@ impl<E: IsEndpoint + ?Sized> IsEndpoint for Box<E> {}
 impl<E: IsEndpoint + ?Sized> IsEndpoint for Rc<E> {}
 impl<E: IsEndpoint + ?Sized> IsEndpoint for Arc<E> {}
 
+pub type Apply<Bd, E> = Result<<E as Endpoint<Bd>>::Action, <E as Endpoint<Bd>>::Error>;
+
 /// Trait representing an endpoint.
 pub trait Endpoint<Bd>: IsEndpoint {
     /// The inner type associated with this endpoint.
     type Output: Tuple;
 
+    type Error: Into<Error>;
+
     /// The type of `Action` which will be returned from `Self::apply`.
-    type Action: EndpointAction<Bd, Output = Self::Output>;
+    type Action: EndpointAction<Bd, Output = Self::Output, Error = Self::Error>;
 
     /// Validates the incoming HTTP request and returns an instance of associated `Action` if available.
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action>;
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self>;
 
     /// Add an annotation that the associated type `Output` is fixed to `T`.
     #[inline(always)]
@@ -159,9 +167,10 @@ where
     E: Endpoint<Bd>,
 {
     type Output = E::Output;
+    type Error = E::Error;
     type Action = E::Action;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
         (**self).apply(ecx)
     }
 }
@@ -171,9 +180,10 @@ where
     E: Endpoint<Bd>,
 {
     type Output = E::Output;
+    type Error = E::Error;
     type Action = E::Action;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
         (**self).apply(ecx)
     }
 }
@@ -183,9 +193,10 @@ where
     E: Endpoint<Bd>,
 {
     type Output = E::Output;
+    type Error = E::Error;
     type Action = E::Action;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
         (**self).apply(ecx)
     }
 }
@@ -195,9 +206,10 @@ where
     E: Endpoint<Bd>,
 {
     type Output = E::Output;
+    type Error = E::Error;
     type Action = E::Action;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
         (**self).apply(ecx)
     }
 }
@@ -208,15 +220,15 @@ where
 /// The endpoint created by this function will wrap the result of future into a tuple.
 /// If you want to return the result without wrapping, use `apply_raw` instead.
 pub fn apply_fn<Bd, R>(
-    f: impl Fn(&mut ApplyContext<'_, Bd>) -> ApplyResult<R>,
+    f: impl Fn(&mut ApplyContext<'_, Bd>) -> Result<R, R::Error>,
 ) -> impl Endpoint<
     Bd, //
     Output = R::Output,
+    Error = R::Error,
     Action = R,
 >
 where
     R: EndpointAction<Bd>,
-    R::Output: Tuple,
 {
     #[allow(missing_debug_implementations)]
     struct ApplyEndpoint<F>(F);
@@ -225,15 +237,15 @@ where
 
     impl<F, Bd, R> Endpoint<Bd> for ApplyEndpoint<F>
     where
-        F: Fn(&mut ApplyContext<'_, Bd>) -> ApplyResult<R>,
+        F: Fn(&mut ApplyContext<'_, Bd>) -> Result<R, R::Error>,
         R: EndpointAction<Bd>,
-        R::Output: Tuple,
     {
         type Output = R::Output;
+        type Error = R::Error;
         type Action = R;
 
         #[inline]
-        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
+        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
             (self.0)(cx)
         }
     }
@@ -246,9 +258,10 @@ where
 pub fn unit<Bd: 'static>() -> impl Endpoint<
     Bd, //
     Output = (),
-    Action = impl EndpointAction<Bd, Output = ()> + Send + 'static,
+    Error = crate::util::Never,
+    Action = impl EndpointAction<Bd, Output = (), Error = crate::util::Never> + Send + 'static,
 > {
-    apply_fn(|_| Ok(action(|_| Ok::<_, crate::util::Never>(().into()))))
+    apply_fn(|_| Ok(action(|_| Ok(().into()))))
 }
 
 /// Create an endpoint which simply clones the specified value.
@@ -290,6 +303,7 @@ pub fn value<Bd, T: Clone>(
 ) -> impl Endpoint<
     Bd,
     Output = (T,),
+    Error = crate::util::Never,
     Action = self::value::ValueAction<T>, // private
 > {
     apply_fn(move |_| Ok(self::value::ValueAction { x: Some(x.clone()) }))
@@ -306,8 +320,12 @@ mod value {
 
     impl<T, Bd> EndpointAction<Bd> for ValueAction<T> {
         type Output = (T,);
+        type Error = crate::util::Never;
 
-        fn poll_action(&mut self, _: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
+        fn poll_action(
+            &mut self,
+            _: &mut ActionContext<'_, Bd>,
+        ) -> Poll<Self::Output, Self::Error> {
             Ok((self.x.take().expect("The value has already taken."),).into())
         }
     }
@@ -319,10 +337,12 @@ pub fn lazy<Bd, R>(
 ) -> impl Endpoint<
     Bd,
     Output = (R::Item,),
+    Error = R::Error,
     Action = self::lazy::LazyAction<R::Future>, // private
 >
 where
-    R: IntoFuture<Error = Error>,
+    R: IntoFuture,
+    R::Error: Into<Error>,
 {
     apply_fn(move |_| {
         Ok(self::lazy::LazyAction {
@@ -341,12 +361,17 @@ mod lazy {
 
     impl<F, Bd> EndpointAction<Bd> for LazyAction<F>
     where
-        F: Future<Error = Error>,
+        F: Future,
+        F::Error: Into<Error>,
     {
         type Output = (F::Item,);
+        type Error = F::Error;
 
         #[inline]
-        fn poll_action(&mut self, _: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
+        fn poll_action(
+            &mut self,
+            _: &mut ActionContext<'_, Bd>,
+        ) -> Poll<Self::Output, Self::Error> {
             self.future.poll().map(|x| x.map(|ok| (ok,)))
         }
     }
@@ -359,8 +384,10 @@ pub trait EndpointAction<Bd> {
     /// The type returned from this action.
     type Output: Tuple;
 
+    type Error: Into<Error>;
+
     /// Progress this action and returns the result if ready.
-    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error>;
+    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error>;
 }
 
 impl<F, Bd> EndpointAction<Bd> for F
@@ -370,16 +397,17 @@ where
     F::Error: Into<Error>,
 {
     type Output = F::Item;
+    type Error = F::Error;
 
-    fn poll_action(&mut self, _: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
-        self.poll().map_err(Into::into)
+    fn poll_action(&mut self, _: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error> {
+        self.poll()
     }
 }
 
 /// A function to create an instance of `EndpointAction` from the specified closure.
 pub fn action<Bd, T, E>(
     f: impl FnMut(&mut ActionContext<'_, Bd>) -> Poll<T, E>,
-) -> impl EndpointAction<Bd, Output = T>
+) -> impl EndpointAction<Bd, Output = T, Error = E>
 where
     T: Tuple,
     E: Into<Error>,
@@ -394,9 +422,13 @@ where
         E: Into<Error>,
     {
         type Output = T;
+        type Error = E;
 
-        fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
-            (self.0)(cx).map_err(Into::into)
+        fn poll_action(
+            &mut self,
+            cx: &mut ActionContext<'_, Bd>,
+        ) -> Poll<Self::Output, Self::Error> {
+            (self.0)(cx)
         }
     }
 
@@ -493,6 +525,22 @@ pub trait EndpointExt: IsEndpoint + Sized {
     #[allow(missing_docs)]
     fn and_then<F>(self, f: F) -> AndThen<Self, F> {
         AndThen { endpoint: self, f }
+    }
+
+    #[allow(missing_docs)]
+    fn or_else<F>(self, f: F) -> OrElse<Self, F> {
+        OrElse { endpoint: self, f }
+    }
+
+    #[allow(missing_docs)]
+    fn err_into<E>(self) -> ErrInto<Self, E>
+    where
+        E: Into<Error>,
+    {
+        ErrInto {
+            endpoint: self,
+            _marker: std::marker::PhantomData,
+        }
     }
 }
 

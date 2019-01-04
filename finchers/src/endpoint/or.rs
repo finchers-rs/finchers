@@ -2,8 +2,8 @@ use {
     crate::{
         endpoint::{
             ActionContext, //
+            Apply,
             ApplyContext,
-            ApplyResult,
             Endpoint,
             EndpointAction,
             IsEndpoint,
@@ -32,9 +32,10 @@ where
     E2: Endpoint<Bd>,
 {
     type Output = (Wrapped<E1::Output, E2::Output>,);
+    type Error = Error;
     type Action = OrAction<E1::Action, E2::Action>;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
         let orig_cursor = ecx.cursor().clone();
         match self.e1.apply(ecx) {
             Ok(future1) => {
@@ -56,11 +57,12 @@ where
                     }
                 }
             }
-            Err(err1) => {
+            Err(..) => {
                 let _ = mem::replace(ecx.cursor(), orig_cursor);
                 match self.e2.apply(ecx) {
                     Ok(future) => Ok(OrAction::right(future)),
-                    Err(err2) => Err(err1.merge(err2)),
+                    // FIXME: appropriate error handling
+                    Err(..) => Err(http::StatusCode::NOT_FOUND.into()),
                 }
             }
         }
@@ -109,12 +111,19 @@ where
     R: EndpointAction<Bd>,
 {
     type Output = (Wrapped<L::Output, R::Output>,);
+    type Error = Error;
 
     #[inline]
-    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
+    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error> {
         match self.inner {
-            Left(ref mut t) => t.poll_action(cx).map(|t| t.map(|t| (Wrapped(Left(t)),))),
-            Right(ref mut t) => t.poll_action(cx).map(|t| t.map(|t| (Wrapped(Right(t)),))),
+            Left(ref mut t) => t
+                .poll_action(cx)
+                .map(|t| t.map(|t| (Wrapped(Left(t)),)))
+                .map_err(Into::into),
+            Right(ref mut t) => t
+                .poll_action(cx)
+                .map(|t| t.map(|t| (Wrapped(Right(t)),)))
+                .map_err(Into::into),
         }
     }
 }

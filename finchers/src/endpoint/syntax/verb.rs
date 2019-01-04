@@ -3,7 +3,10 @@ use std::ops::{BitOr, BitOrAssign};
 use http::Method;
 
 use super::Matched;
-use crate::endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint, IsEndpoint};
+use crate::{
+    endpoint::{Apply, ApplyContext, Endpoint, IsEndpoint},
+    error::Error,
+};
 
 /// Create an endpoint which checks if the verb of current request
 /// is equal to the specified value.
@@ -21,13 +24,14 @@ impl IsEndpoint for MatchVerbs {}
 
 impl<Bd> Endpoint<Bd> for MatchVerbs {
     type Output = ();
+    type Error = Error;
     type Action = Matched;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
         if self.allowed.contains(ecx.input().method()) {
             Ok(Matched { _priv: () })
         } else {
-            Err(ApplyError::method_not_allowed(self.allowed))
+            Err(http::StatusCode::METHOD_NOT_ALLOWED.into())
         }
     }
 }
@@ -55,14 +59,15 @@ macro_rules! define_verbs {
 
         impl<Bd> Endpoint<Bd> for $Endpoint {
             type Output = ();
+            type Error = Error;
             type Action = Matched;
 
             #[inline]
-            fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
+            fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
                 if *ecx.input().method() == Method::$METHOD {
                     Ok(Matched { _priv: () })
                 } else {
-                    Err(ApplyError::method_not_allowed(Verbs::$METHOD))
+                    Err(http::StatusCode::METHOD_NOT_ALLOWED.into())
                 }
             }
         }
