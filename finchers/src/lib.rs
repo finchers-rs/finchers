@@ -54,6 +54,7 @@ pub mod input;
 pub mod output;
 pub mod service;
 pub mod test;
+pub mod util;
 
 /// A prelude for crates using the `finchers` crate.
 pub mod prelude {

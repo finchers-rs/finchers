@@ -13,7 +13,7 @@ use http::header::HeaderMap;
 use http::Request;
 use mime::Mime;
 
-use crate::error::{bad_request, Error};
+use crate::error::{BadRequest, Error};
 
 /// The contextual information with an incoming HTTP request.
 #[derive(Debug)]
@@ -81,8 +81,8 @@ impl<Bd> Input<Bd> {
             None => {
                 let mime = match self.request.headers().get(http::header::CONTENT_TYPE) {
                     Some(raw) => {
-                        let raw_str = raw.to_str().map_err(bad_request)?;
-                        let mime = raw_str.parse().map_err(bad_request)?;
+                        let raw_str = raw.to_str().map_err(BadRequest::from)?;
+                        let mime = raw_str.parse().map_err(BadRequest::from)?;
                         Some(mime)
                     }
                     None => None,

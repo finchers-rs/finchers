@@ -1,4 +1,4 @@
-use finchers::error::{bad_request, Error};
+use finchers::error::{BadRequest, Error};
 use finchers::prelude::*;
 use finchers::test;
 use futures::future;
@@ -16,10 +16,11 @@ fn test_and_then_1() {
 
 #[test]
 fn test_and_then_2() {
-    let mut runner =
-        test::runner(endpoint::value("Foo").and_then(|_| future::err::<(), _>(bad_request("Bar"))));
+    let mut runner = test::runner(
+        endpoint::value("Foo").and_then(|_| future::err::<(), _>(BadRequest::from("Bar"))),
+    );
     assert_matches!(
         runner.apply("/"),
-        Err(ref e) if e.status_code().as_u16() == 400
+        Err(ref e) if e.is::<BadRequest<&str>>()
     )
 }

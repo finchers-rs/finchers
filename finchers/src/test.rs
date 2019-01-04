@@ -419,7 +419,7 @@ mod tests {
         let mut runner = runner({
             endpoint::apply_fn(|cx| {
                 assert!(cx.headers().contains_key(header::ORIGIN));
-                Ok(futures::future::ok::<_, crate::error::Never>(()))
+                Ok(futures::future::ok::<_, crate::util::Never>(()))
             })
         });
         runner

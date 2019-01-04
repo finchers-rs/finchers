@@ -1,43 +1,53 @@
 //! Error primitives.
 
-use std::any::TypeId;
-use std::error;
-use std::fmt;
-use std::fmt::{Debug, Display};
-use std::io;
-
-use failure;
-use failure::Fail;
-use http::header::{HeaderMap, HeaderValue};
-use http::{header, Response, StatusCode};
-use serde::ser::{Serialize, SerializeMap, Serializer};
+use {
+    crate::{output::IntoResponse, util::Never},
+    bytes::Bytes,
+    http::{Request, Response, StatusCode},
+    std::{any::Any, fmt, io},
+};
 
 /// Trait representing error values from endpoints.
 ///
 /// The types which implements this trait will be implicitly converted to an HTTP response
 /// by the runtime.
-pub trait HttpError: Debug + Display + Send + Sync + 'static {
-    /// Return the HTTP status code associated with this error type.
+pub trait HttpError: fmt::Debug + fmt::Display + Send + Sync + 'static {
+    type Body: Into<Bytes>;
+
+    fn status_code(&self) -> StatusCode;
+
+    fn to_response(&self, _: &Request<()>) -> Response<Self::Body>;
+}
+
+impl HttpError for Never {
+    type Body = Bytes;
+
     fn status_code(&self) -> StatusCode {
-        StatusCode::INTERNAL_SERVER_ERROR
+        match *self {}
     }
 
-    /// Append a set of header values to the header map.
-    #[allow(unused_variables)]
-    fn headers(&self, headers: &mut HeaderMap) {}
+    fn to_response(&self, _: &Request<()>) -> Response<Self::Body> {
+        match *self {}
+    }
+}
 
-    #[allow(missing_docs)]
-    fn cause(&self) -> Option<&dyn Fail> {
-        None
+impl HttpError for StatusCode {
+    type Body = Bytes;
+
+    fn status_code(&self) -> StatusCode {
+        *self
     }
 
-    #[doc(hidden)]
-    fn __private_type_id__(&self) -> TypeId {
-        TypeId::of::<Self>()
+    fn to_response(&self, _: &Request<()>) -> Response<Self::Body> {
+        let mut response = Response::new(Bytes::new());
+        *response.status_mut() = *self;
+        response
     }
 }
 
 impl HttpError for io::Error {
+    type Body = String;
+
     fn status_code(&self) -> StatusCode {
         match self.kind() {
             io::ErrorKind::NotFound => StatusCode::NOT_FOUND,
@@ -45,214 +55,286 @@ impl HttpError for io::Error {
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
+
+    fn to_response(&self, _: &Request<()>) -> Response<Self::Body> {
+        let mut response = Response::new(format!("I/O error: {}", self));
+        *response.status_mut() = self.status_code();
+        response
+    }
 }
 
 impl HttpError for failure::Error {
-    fn cause(&self) -> Option<&dyn Fail> {
-        self.as_fail().cause()
+    type Body = String;
+
+    fn status_code(&self) -> StatusCode {
+        StatusCode::INTERNAL_SERVER_ERROR
+    }
+
+    fn to_response(&self, _: &Request<()>) -> Response<Self::Body> {
+        let mut response = Response::new(self.to_string());
+        *response.status_mut() = self.status_code();
+        response
     }
 }
 
-/// A type which holds a value of `HttpError` in a type-erased form.
+impl<E> HttpError for failure::SyncFailure<E>
+where
+    E: std::error::Error + Send + 'static,
+{
+    type Body = String;
+
+    fn status_code(&self) -> StatusCode {
+        StatusCode::INTERNAL_SERVER_ERROR
+    }
+
+    fn to_response(&self, _: &Request<()>) -> Response<Self::Body> {
+        let mut response = Response::new(self.to_string());
+        *response.status_mut() = self.status_code();
+        response
+    }
+}
+
+/// A wrapper for providing an implementation of `HttpError` with the status code `400 Bad Request`.
 #[derive(Debug)]
-pub struct Error(Box<dyn HttpError>);
+pub struct BadRequest<E>(E);
+
+impl<E> BadRequest<E>
+where
+    E: fmt::Display + fmt::Debug + Send + Sync + 'static,
+{
+    #[inline]
+    pub fn into_inner(self) -> E {
+        self.0
+    }
+}
+
+impl<E> From<E> for BadRequest<E>
+where
+    E: fmt::Display + fmt::Debug + Send + Sync + 'static,
+{
+    fn from(err: E) -> Self {
+        BadRequest(err)
+    }
+}
+
+impl<E> fmt::Display for BadRequest<E>
+where
+    E: fmt::Display + fmt::Debug + Send + Sync + 'static,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.0, f)
+    }
+}
+
+impl<E> HttpError for BadRequest<E>
+where
+    E: fmt::Display + fmt::Debug + Send + Sync + 'static,
+{
+    type Body = String;
+
+    fn status_code(&self) -> StatusCode {
+        StatusCode::BAD_REQUEST
+    }
+
+    fn to_response(&self, _: &Request<()>) -> Response<Self::Body> {
+        let mut response = Response::new(self.to_string());
+        *response.status_mut() = self.status_code();
+        response
+    }
+}
+
+/// A wrapper for providing an implementation of `HttpError` for `Display`able types.
+#[derive(Debug)]
+pub struct InternalServerError<E>(E);
+
+impl<E> InternalServerError<E>
+where
+    E: fmt::Display + fmt::Debug + Send + Sync + 'static,
+{
+    #[inline]
+    pub fn into_inner(self) -> E {
+        self.0
+    }
+}
+
+impl<E> From<E> for InternalServerError<E>
+where
+    E: fmt::Display + fmt::Debug + Send + Sync + 'static,
+{
+    fn from(err: E) -> Self {
+        InternalServerError(err)
+    }
+}
+
+impl<E> fmt::Display for InternalServerError<E>
+where
+    E: fmt::Display + fmt::Debug + Send + Sync + 'static,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.0, f)
+    }
+}
+
+impl<E> HttpError for InternalServerError<E>
+where
+    E: fmt::Display + fmt::Debug + Send + Sync + 'static,
+{
+    type Body = String;
+
+    fn status_code(&self) -> StatusCode {
+        StatusCode::INTERNAL_SERVER_ERROR
+    }
+
+    fn to_response(&self, _: &Request<()>) -> Response<Self::Body> {
+        let mut response = Response::new(self.to_string());
+        *response.status_mut() = self.status_code();
+        response
+    }
+}
+
+// ==== Error ====
+
+type AnyObj = dyn Any + Send + Sync + 'static;
+
+/// A type which holds a value of `HttpError` in a type-erased form.
+pub struct Error {
+    inner: Box<AnyObj>,
+    fmt_debug_fn: fn(&AnyObj, &mut fmt::Formatter<'_>) -> fmt::Result,
+    fmt_display_fn: fn(&AnyObj, &mut fmt::Formatter<'_>) -> fmt::Result,
+    status_code_fn: fn(&AnyObj) -> StatusCode,
+    to_response_fn: fn(&AnyObj, &Request<()>) -> Response<Bytes>,
+}
 
 impl<E: HttpError> From<E> for Error {
     fn from(err: E) -> Self {
-        Error(Box::new(err))
+        Self::new(err)
     }
 }
 
-impl AsRef<dyn HttpError> for Error {
-    fn as_ref(&self) -> &dyn HttpError {
-        &*self.0
-    }
-}
+impl fmt::Debug for Error {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        struct DebugInner<'a>(&'a Error);
 
-impl Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        Display::fmt(&*self.0, f)
-    }
-}
-
-impl Error {
-    /// Returns `true` if the type of contained value is the same as `T`.
-    pub fn is<T: HttpError>(&self) -> bool {
-        self.0.__private_type_id__() == TypeId::of::<T>()
-    }
-
-    /// Attempts to downcast the boxed value to a conrete type by reference.
-    pub fn downcast_ref<T: HttpError>(&self) -> Option<&T> {
-        if self.is::<T>() {
-            unsafe { Some(&*(&*self.0 as *const dyn HttpError as *const T)) }
-        } else {
-            None
-        }
-    }
-
-    /// Attempts to downcast the boxed value to a conrete type by mutable reference.
-    pub fn downcast_mut<T: HttpError>(&mut self) -> Option<&mut T> {
-        if self.is::<T>() {
-            unsafe { Some(&mut *(&mut *self.0 as *mut dyn HttpError as *mut T)) }
-        } else {
-            None
-        }
-    }
-
-    /// Attempts to downcast the boxed value to a conrete type.
-    pub fn downcast<T: HttpError>(self) -> Result<T> {
-        if self.is::<T>() {
-            unsafe {
-                Ok(*Box::from_raw(
-                    Box::into_raw(self.0) as *mut dyn HttpError as *mut T
-                ))
+        impl<'a> fmt::Debug for DebugInner<'a> {
+            #[inline]
+            fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+                (self.0.fmt_debug_fn)(&*self.0.inner, formatter)
             }
-        } else {
-            Err(self)
         }
-    }
 
-    /// Return the HTTP status code associated with contained value.
-    pub fn status_code(&self) -> StatusCode {
-        self.0.status_code()
+        formatter
+            .debug_struct("Error")
+            .field("inner", &DebugInner(self))
+            .field("fmt_debug_fn", &"<fn>")
+            .field("fmt_display_fn", &"<fn>")
+            .field("into_response_fn", &"<fn>")
+            .finish()
     }
+}
 
-    /// Append a set of header values to the header map.
-    pub fn headers(&self, headers: &mut HeaderMap) {
-        self.0.headers(headers)
+impl fmt::Display for Error {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        (self.fmt_display_fn)(&*self.inner, formatter)
     }
+}
 
-    /// Returns a reference to the underlying cause of contained error value.
-    pub fn cause(&self) -> Option<&dyn Fail> {
-        self.0.cause()
-    }
+impl IntoResponse for Error {
+    type Body = Bytes;
 
-    pub(crate) fn into_response(self) -> Response<String> {
-        let mut response = Response::new(self.to_string());
-        *response.status_mut() = self.status_code();
-        response.headers_mut().insert(
-            header::CONTENT_TYPE,
-            HeaderValue::from_static("text/plain; charset=utf-8"),
-        );
-        self.headers(response.headers_mut());
+    fn into_response(self, request: &Request<()>) -> Response<Self::Body> {
+        let mut response = (self.to_response_fn)(&*self.inner, request);
         response.extensions_mut().insert(self);
         response
     }
 }
 
-impl Serialize for Error {
-    fn serialize<S>(&self, ser: S) -> ::std::result::Result<S::Ok, S::Error>
+impl Error {
+    pub fn new<E>(err: E) -> Self
     where
-        S: Serializer,
+        E: HttpError,
     {
-        let mut map = ser.serialize_map(None)?;
-        map.serialize_entry("code", &self.status_code().as_u16())?;
-        map.serialize_entry("description", &self.to_string())?;
-        // TODO: causes
-        map.end()
+        fn fmt_debug<E>(this: &AnyObj, f: &mut fmt::Formatter<'_>) -> fmt::Result
+        where
+            E: HttpError,
+        {
+            let this = this.downcast_ref::<E>().expect("invalid type id");
+            fmt::Debug::fmt(this, f)
+        }
+
+        fn fmt_display<E>(this: &AnyObj, f: &mut fmt::Formatter<'_>) -> fmt::Result
+        where
+            E: HttpError,
+        {
+            let this = this.downcast_ref::<E>().expect("invalid type id");
+            fmt::Display::fmt(this, f)
+        }
+
+        fn stauts_code<E>(this: &AnyObj) -> StatusCode
+        where
+            E: HttpError,
+        {
+            let this = this.downcast_ref::<E>().expect("invalid type id");
+            this.status_code()
+        }
+
+        fn to_response<E>(this: &AnyObj, request: &Request<()>) -> Response<Bytes>
+        where
+            E: HttpError,
+        {
+            match this.downcast_ref::<E>() {
+                Some(err) => err.to_response(request).map(Into::into),
+                None => {
+                    let msg = Bytes::from_static(b"failed to retrive the original error response");
+                    let mut response = Response::new(msg);
+                    *response.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
+                    response
+                }
+            }
+        }
+
+        Self {
+            inner: Box::new(err),
+            fmt_debug_fn: fmt_debug::<E>,
+            fmt_display_fn: fmt_display::<E>,
+            status_code_fn: stauts_code::<E>,
+            to_response_fn: to_response::<E>,
+        }
+    }
+
+    /// Returns `true` if the type of contained value is the same as `T`.
+    pub fn is<T: HttpError>(&self) -> bool {
+        self.inner.is::<T>()
+    }
+
+    /// Attempts to downcast the boxed value to a conrete type by reference.
+    pub fn downcast_ref<T: HttpError>(&self) -> Option<&T> {
+        self.inner.downcast_ref()
+    }
+
+    /// Attempts to downcast the boxed value to a conrete type by mutable reference.
+    pub fn downcast_mut<T: HttpError>(&mut self) -> Option<&mut T> {
+        self.inner.downcast_mut()
+    }
+
+    /// Attempts to downcast the boxed value to a conrete type.
+    pub fn downcast<T: HttpError>(self) -> Result<T> {
+        match <Box<dyn Any>>::downcast::<T>(self.inner) {
+            Ok(err) => Ok(*err),
+            Err(inner) => Err(Self {
+                inner: unsafe {
+                    Box::from_raw(
+                        Box::into_raw(inner) as *mut AnyObj, // reapply Send + Sync marker
+                    )
+                },
+                ..self
+            }),
+        }
+    }
+
+    pub fn status_code(&self) -> StatusCode {
+        (self.status_code_fn)(&*self.inner)
     }
 }
 
 /// A type alias of `Result<T, E>` whose error type is restricted to `Error`.
-pub type Result<T> = ::std::result::Result<T, Error>;
-
-// ==== Failure ====
-
-#[derive(Debug)]
-struct Failure<F: Fail>(F);
-
-impl<F: Fail> Display for Failure<F> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        Display::fmt(&self.0, f)
-    }
-}
-
-impl<F: Fail> HttpError for Failure<F> {
-    fn cause(&self) -> Option<&dyn Fail> {
-        self.0.cause()
-    }
-}
-
-#[allow(missing_docs)]
-pub fn fail(err: impl Fail) -> Error {
-    Failure(err).into()
-}
-
-// ==== err_msg ====
-
-#[allow(missing_docs)]
-pub fn bad_request(msg: impl Debug + Display + Send + Sync + 'static) -> Error {
-    err_msg(StatusCode::BAD_REQUEST, msg)
-}
-
-#[allow(missing_docs)]
-pub fn forbidden(msg: impl Debug + Display + Send + Sync + 'static) -> Error {
-    err_msg(StatusCode::FORBIDDEN, msg)
-}
-
-#[allow(missing_docs)]
-pub fn not_found() -> Error {
-    err_msg(StatusCode::NOT_FOUND, "not found")
-}
-
-#[allow(missing_docs)]
-pub fn err_msg(status: StatusCode, msg: impl Debug + Display + Send + Sync + 'static) -> Error {
-    ErrorMessage { status, msg }.into()
-}
-
-#[derive(Debug)]
-struct ErrorMessage<D: fmt::Debug + fmt::Display + Send + 'static> {
-    status: StatusCode,
-    msg: D,
-}
-
-impl<D> fmt::Display for ErrorMessage<D>
-where
-    D: fmt::Debug + fmt::Display + Send + 'static,
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(&self.msg, f)
-    }
-}
-
-impl<D> HttpError for ErrorMessage<D>
-where
-    D: fmt::Debug + fmt::Display + Send + Sync + 'static,
-{
-    fn status_code(&self) -> StatusCode {
-        self.status
-    }
-}
-
-// ==== Never ====
-
-/// A type which has no possible values.
-#[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Ord, Eq)]
-pub enum Never {}
-
-impl Never {
-    /// Consume itself and transform into an arbitrary type.
-    ///
-    /// NOTE: This function has never been actually called because the possible values don't exist.
-    pub fn never_into<T>(self) -> T {
-        match self {}
-    }
-}
-
-impl fmt::Display for Never {
-    fn fmt(&self, _: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match *self {}
-    }
-}
-
-impl error::Error for Never {
-    fn description(&self) -> &str {
-        match *self {}
-    }
-
-    fn cause(&self) -> Option<&dyn error::Error> {
-        match *self {}
-    }
-}
-
-impl HttpError for Never {}
+pub type Result<T> = std::result::Result<T, Error>;

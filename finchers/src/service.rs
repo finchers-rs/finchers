@@ -8,6 +8,7 @@ use std::marker::PhantomData;
 use std::mem;
 use std::sync::Arc;
 
+use bytes::Bytes;
 use either::Either;
 use futures::future;
 use futures::{Async, Future, Poll};
@@ -19,10 +20,8 @@ use izanami_service::{MakeService, Service};
 use crate::endpoint::context::ApplyContext;
 use crate::endpoint::{Cursor, Endpoint, IsEndpoint};
 use crate::error::Error;
-use crate::error::Never;
 use crate::future::{Context, EndpointFuture};
 use crate::input::Input;
-use crate::output::body::ResBody;
 use crate::output::IntoResponse;
 
 pub trait EndpointServiceExt: IsEndpoint + Sized {
@@ -34,11 +33,6 @@ impl<E: IsEndpoint> EndpointServiceExt for E {
         App::new(self)
     }
 }
-
-pub type ResponseBody<Bd, E> = Either<
-    String, //
-    <<<E as Endpoint<Bd>>::Output as IntoResponse>::Body as ResBody>::Payload,
->;
 
 /// A wrapper struct for lifting the instance of `Endpoint` to an HTTP service.
 #[derive(Debug)]
@@ -59,12 +53,11 @@ impl<E, Ctx, Bd> MakeService<Ctx, Request<Bd>> for App<E>
 where
     E: Endpoint<Bd>,
     E::Output: IntoResponse,
-    <E::Output as IntoResponse>::Body: ResBody,
 {
     type Response = Response<ResponseBody<Bd, E>>;
     type Error = io::Error;
     type Service = AppService<Bd, Arc<E>>;
-    type MakeError = Never;
+    type MakeError = io::Error;
     type Future = future::FutureResult<Self::Service, Self::MakeError>;
 
     fn make_service(&self, _: Ctx) -> Self::Future {
@@ -101,7 +94,6 @@ impl<Bd, E> Service<Request<Bd>> for AppService<Bd, E>
 where
     E: Endpoint<Bd> + Clone,
     E::Output: IntoResponse,
-    <E::Output as IntoResponse>::Body: ResBody,
 {
     type Response = Response<ResponseBody<Bd, E>>;
     type Error = io::Error;
@@ -195,7 +187,6 @@ where
     pub(crate) fn poll_all(&mut self) -> Poll<Response<ResponseBody<Bd, E>>, io::Error>
     where
         E::Output: IntoResponse,
-        <E::Output as IntoResponse>::Body: ResBody,
     {
         let output = match self.poll_apply() {
             Ok(Async::NotReady) => return Ok(Async::NotReady),
@@ -206,10 +197,8 @@ where
         match mem::replace(&mut self.state, State::Gone) {
             State::Done(input) => {
                 let mut response = match output {
-                    Ok(output) => output
-                        .into_response(input.request())
-                        .map(|bd| Either::Right(bd.into_payload())),
-                    Err(err) => err.into_response().map(Either::Left),
+                    Ok(output) => output.into_response(input.request()).map(Either::Right),
+                    Err(err) => err.into_response(input.request()).map(Either::Left),
                 };
 
                 if let Some(hdrs) = input.response_headers {
@@ -234,7 +223,6 @@ impl<Bd, E> Future for AppFuture<Bd, E>
 where
     E: Endpoint<Bd>,
     E::Output: IntoResponse,
-    <E::Output as IntoResponse>::Body: ResBody,
 {
     type Item = Response<ResponseBody<Bd, E>>;
     type Error = io::Error;
@@ -243,3 +231,5 @@ where
         self.poll_all()
     }
 }
+
+pub type ResponseBody<Bd, E> = Either<Bytes, <<E as Endpoint<Bd>>::Output as IntoResponse>::Body>;

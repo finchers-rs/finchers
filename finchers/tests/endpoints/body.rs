@@ -35,25 +35,28 @@ fn test_body_json() {
 
     // missing Content-type
     assert_matches!(
-        runner.apply(Request::post("/")
-            .body(r#"{ "text": "TRPL2" }"#)),
-        Err(ref e) if e.status_code().as_u16() == 400
+        runner.apply(Request::post("/").body(r#"{ "text": "TRPL2" }"#)),
+        Err(..)
     );
 
     // invalid content-type
     assert_matches!(
-        runner.apply(Request::post("/")
-            .header("content-type", "text/plain")
-            .body(r#"{ "text": "TRPL2" }"#)),
-        Err(ref e) if e.status_code().as_u16() == 400
+        runner.apply(
+            Request::post("/")
+                .header("content-type", "text/plain")
+                .body(r#"{ "text": "TRPL2" }"#)
+        ),
+        Err(..)
     );
 
     // invalid data
     assert_matches!(
-        runner.apply(Request::post("/")
-            .header("content-type", "application/json")
-            .body(r#"invalid JSON data"#)),
-        Err(ref e) if e.status_code().as_u16() == 400
+        runner.apply(
+            Request::post("/")
+                .header("content-type", "application/json")
+                .body(r#"invalid JSON data"#)
+        ),
+        Err(..)
     );
 }
 
@@ -82,25 +85,25 @@ fn test_body_urlencoded() {
     );
 
     // missing Content-type
-    assert_matches!(
-        runner.apply(Request::post("/")
-            .body(form_str)),
-        Err(ref e) if e.status_code().as_u16() == 400
-    );
+    assert_matches!(runner.apply(Request::post("/").body(form_str)), Err(..));
 
     // invalid content-type
     assert_matches!(
-        runner.apply(Request::post("/")
-            .header("content-type", "text/plain")
-            .body(form_str)),
-        Err(ref e) if e.status_code().as_u16() == 400
+        runner.apply(
+            Request::post("/")
+                .header("content-type", "text/plain")
+                .body(form_str)
+        ),
+        Err(..)
     );
 
     // invalid data
     assert_matches!(
-        runner.apply(Request::post("/")
-            .header("content-type", "application/x-www-form-urlencoded")
-            .body(r#"{ "graht_code": "authorization_code" }"#)),
-        Err(ref e) if e.status_code().as_u16() == 400
+        runner.apply(
+            Request::post("/")
+                .header("content-type", "application/x-www-form-urlencoded")
+                .body(r#"{ "graht_code": "authorization_code" }"#)
+        ),
+        Err(..)
     );
 }

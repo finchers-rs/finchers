@@ -9,8 +9,7 @@ use std::marker::PhantomData;
 use percent_encoding::{percent_encode, DEFAULT_ENCODE_SET};
 
 use crate::endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint, IsEndpoint};
-use crate::error;
-use crate::error::Error;
+use crate::error::{BadRequest, Error};
 use crate::input::FromEncodedStr;
 
 #[doc(hidden)]
@@ -163,8 +162,7 @@ where
 
     fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
         let s = ecx.next_segment().ok_or_else(ApplyError::not_matched)?;
-        let x =
-            T::from_encoded_str(s).map_err(|err| ApplyError::custom(error::bad_request(err)))?;
+        let x = T::from_encoded_str(s).map_err(|err| ApplyError::custom(BadRequest::from(err)))?;
         Ok(Extracted(Some(x)))
     }
 }
@@ -215,7 +213,7 @@ where
 
     fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
         let result = T::from_encoded_str(ecx.remaining_path())
-            .map_err(|err| ApplyError::custom(error::bad_request(err)));
+            .map_err(|err| ApplyError::custom(BadRequest::from(err)));
         while let Some(..) = ecx.next_segment() {}
         result.map(|x| Extracted(Some(x)))
     }

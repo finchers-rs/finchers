@@ -3,20 +3,19 @@
 use {
     crate::{
         endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint, IsEndpoint},
-        error::Error,
+        error::{BadRequest, Error, InternalServerError},
         future::{Context, EndpointFuture, Poll},
     },
-    http::StatusCode,
     izanami_service::http::BufStream,
     serde::de::DeserializeOwned,
     std::{cell::UnsafeCell, marker::PhantomData},
 };
 
 fn stolen_payload() -> Error {
-    crate::error::err_msg(
-        StatusCode::INTERNAL_SERVER_ERROR,
-        "The instance of BufStream has already been stolen by another endpoint.",
+    InternalServerError::from(
+        "The instance of request body has already been stolen by another endpoint.",
     )
+    .into()
 }
 
 /// Creates an endpoint which takes the instance of request body from the context.
@@ -181,7 +180,7 @@ mod text {
             match content_type.and_then(|m| m.get_param("charset")) {
                 Some(ref val) if *val == "utf-8" => {}
                 Some(_val) => {
-                    return Err(ApplyError::custom(crate::error::bad_request(
+                    return Err(ApplyError::custom(BadRequest::from(
                         "Only the UTF-8 charset is supported.",
                     )))
                 }
@@ -214,7 +213,8 @@ mod text {
             let (data,) = futures::try_ready!(self.receive_all.poll_endpoint(cx));
             String::from_utf8(data.to_vec())
                 .map(|x| (x,).into())
-                .map_err(crate::error::bad_request)
+                .map_err(BadRequest::from)
+                .map_err(Into::into)
         }
     }
 }
@@ -260,11 +260,10 @@ mod json {
 
         fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
             let content_type = cx.content_type().map_err(ApplyError::custom)?;
-            let m = content_type.ok_or_else(|| {
-                ApplyError::custom(crate::error::bad_request("missing content type"))
-            })?;
+            let m = content_type
+                .ok_or_else(|| ApplyError::custom(BadRequest::from("missing content type")))?;
             if *m != mime::APPLICATION_JSON {
-                return Err(ApplyError::custom(crate::error::bad_request(
+                return Err(ApplyError::custom(BadRequest::from(
                     "The value of `Content-type` must be `application/json`.",
                 )));
             }
@@ -298,7 +297,8 @@ mod json {
             let (data,) = futures::try_ready!(self.receive_all.poll_endpoint(cx));
             serde_json::from_slice(&*data)
                 .map(|x| (x,).into())
-                .map_err(crate::error::bad_request)
+                .map_err(BadRequest::from)
+                .map_err(Into::into)
         }
     }
 }
@@ -346,11 +346,10 @@ mod urlencoded {
 
         fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
             let content_type = cx.content_type().map_err(ApplyError::custom)?;
-            let m = content_type.ok_or_else(|| {
-                ApplyError::custom(crate::error::bad_request("missing content type"))
-            })?;
+            let m = content_type
+                .ok_or_else(|| ApplyError::custom(BadRequest::from("missing content type")))?;
             if *m != mime::APPLICATION_WWW_FORM_URLENCODED {
-                return Err(ApplyError::custom(crate::error::bad_request(
+                return Err(ApplyError::custom(BadRequest::from(
                     "The value of `Content-type` must be `application-x-www-form-urlencoded`.",
                 )));
             }
@@ -382,10 +381,10 @@ mod urlencoded {
 
         fn poll_endpoint(&mut self, cx: &mut Context<'_, Bd>) -> Poll<Self::Output, Error> {
             let (data,) = futures::try_ready!(self.receive_all.poll_endpoint(cx));
-            let s = std::str::from_utf8(&*data).map_err(crate::error::bad_request)?;
+            let s = std::str::from_utf8(&*data).map_err(BadRequest::from)?;
             serde_qs::from_str(s)
                 .map(|x| (x,).into())
-                .map_err(|err| crate::error::bad_request(SyncFailure::new(err)))
+                .map_err(|err| BadRequest::from(SyncFailure::new(err)).into())
         }
     }
 }

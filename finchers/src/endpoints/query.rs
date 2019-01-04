@@ -5,7 +5,7 @@ use serde::de::DeserializeOwned;
 use std::marker::PhantomData;
 
 use crate::endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint, IsEndpoint};
-use crate::error::{self, bad_request, Error};
+use crate::error::{BadRequest, Error};
 use crate::future::{Context, EndpointFuture, Poll};
 
 // ==== Required ====
@@ -71,7 +71,7 @@ mod required {
                     _marker: PhantomData,
                 })
             } else {
-                Err(ApplyError::custom(error::bad_request("missing query")))
+                Err(ApplyError::custom(BadRequest::from("missing query")))
             }
         }
     }
@@ -95,7 +95,8 @@ mod required {
             serde_qs::from_str(query)
                 .map(|x| (x,).into())
                 .map_err(SyncFailure::new)
-                .map_err(bad_request)
+                .map_err(BadRequest::from)
+                .map_err(Into::into)
         }
     }
 }
@@ -179,7 +180,8 @@ mod optional {
             match cx.uri().query() {
                 Some(query) => serde_qs::from_str(query)
                     .map(|x| (Some(x),).into())
-                    .map_err(|err| bad_request(SyncFailure::new(err))),
+                    .map_err(|err| BadRequest::from(SyncFailure::new(err)))
+                    .map_err(Into::into),
                 None => Ok((None,).into()),
             }
         }

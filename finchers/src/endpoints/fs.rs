@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 
 use crate::endpoint::{ApplyContext, ApplyResult, Endpoint, IsEndpoint};
-use crate::error::{bad_request, Error};
+use crate::error::{BadRequest, Error};
 use crate::future::{Context, EndpointFuture, Poll};
 use crate::output::fs::OpenNamedFile;
 use crate::output::NamedFile;
@@ -89,7 +89,7 @@ mod dir {
                 Ok(path) => path,
                 Err(e) => {
                     return Ok(DirFuture {
-                        state: State::Err(Some(bad_request(e))),
+                        state: State::Err(Some(BadRequest::from(e).into())),
                     })
                 }
             };

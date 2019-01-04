@@ -6,7 +6,7 @@ use std::fmt;
 use std::marker::PhantomData;
 
 use crate::endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint, IsEndpoint};
-use crate::error::{self, Error};
+use crate::error::{BadRequest, Error};
 use crate::future::{Context, EndpointFuture, Poll};
 use crate::input::FromHeaderValue;
 
@@ -73,7 +73,7 @@ mod parse {
                     _marker: PhantomData,
                 })
             } else {
-                Err(ApplyError::custom(error::bad_request(format!(
+                Err(ApplyError::custom(BadRequest::from(format!(
                     "missing header: `{}'",
                     self.name.as_str()
                 ))))
@@ -100,7 +100,8 @@ mod parse {
                 .expect("The header value should be always available inside of this Future.");
             T::from_header_value(h)
                 .map(|parsed| (parsed,).into())
-                .map_err(error::bad_request)
+                .map_err(BadRequest::from)
+                .map_err(Into::into)
         }
     }
 }
@@ -173,7 +174,8 @@ mod optional {
             match cx.headers().get(&self.name) {
                 Some(h) => T::from_header_value(h)
                     .map(|parsed| (Some(parsed),).into())
-                    .map_err(error::bad_request),
+                    .map_err(BadRequest::from)
+                    .map_err(Into::into),
                 None => Ok((None,).into()),
             }
         }

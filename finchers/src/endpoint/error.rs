@@ -1,11 +1,10 @@
 //! Definition of `ApplyError` and supplemental components.
 
-use failure::Fail;
 use http::StatusCode;
 use std::fmt;
 
 use crate::endpoint::syntax::verb::Verbs;
-use crate::error::{Error, HttpError};
+use crate::error::Error;
 
 /// A type alias of `Result<T, E>` with the error type fixed at `ApplyError`.
 pub type ApplyResult<T> = Result<T, ApplyError>;
@@ -85,20 +84,13 @@ impl fmt::Display for ApplyError {
     }
 }
 
-impl HttpError for ApplyError {
-    fn status_code(&self) -> StatusCode {
+impl Into<Error> for ApplyError {
+    fn into(self) -> Error {
         use self::ApplyErrorKind::*;
         match self.0 {
-            NotMatched => StatusCode::NOT_FOUND,
-            MethodNotAllowed(..) => StatusCode::METHOD_NOT_ALLOWED,
-            Custom(ref err) => err.status_code(),
-        }
-    }
-
-    fn cause(&self) -> Option<&dyn Fail> {
-        match self.0 {
-            ApplyErrorKind::Custom(ref err) => err.cause(),
-            _ => None,
+            NotMatched => StatusCode::NOT_FOUND.into(),
+            MethodNotAllowed(..) => StatusCode::METHOD_NOT_ALLOWED.into(),
+            Custom(err) => err,
         }
     }
 }

@@ -32,10 +32,7 @@ fn test_header_parse() {
         Ok(ref m) if *m == mime::APPLICATION_JSON
     );
 
-    assert_matches!(
-        runner.apply(Request::new(())),
-        Err(ref e) if e.status_code().as_u16() == 400
-    );
+    assert_matches!(runner.apply(Request::new(())), Err(..));
 }
 
 #[test]

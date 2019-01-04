@@ -1,4 +1,3 @@
-use finchers::endpoint::ApplyError;
 use finchers::endpoints::query;
 use finchers::test;
 use matches::assert_matches;
@@ -32,10 +31,7 @@ fn test_query_parse() {
         Ok(ref query) if query.param == "rustlang" && query.count == Some(20)
     );
 
-    assert_matches!(
-        runner.apply("/"),
-        Err(ref err) if err.is::<ApplyError>() && err.status_code().as_u16() == 400
-    );
+    assert_matches!(runner.apply("/"), Err(..));
 }
 
 #[test]

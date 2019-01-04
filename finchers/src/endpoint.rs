@@ -156,7 +156,7 @@ pub fn unit<Bd: 'static>() -> impl Endpoint<
 > {
     apply_fn(|_| {
         Ok(crate::future::poll_fn(|_| {
-            Ok::<_, crate::error::Never>(().into())
+            Ok::<_, crate::util::Never>(().into())
         }))
     })
 }
