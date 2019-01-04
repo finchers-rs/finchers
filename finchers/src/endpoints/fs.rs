@@ -1,12 +1,16 @@
 //! Endpoints for serving static contents on the file system.
 
-use std::path::PathBuf;
-
-use crate::endpoint::{ApplyContext, ApplyResult, Endpoint, IsEndpoint};
-use crate::error::{BadRequest, Error};
-use crate::future::{Context, EndpointFuture, Poll};
-use crate::output::fs::OpenNamedFile;
-use crate::output::NamedFile;
+use {
+    crate::{
+        endpoint::{
+            ActionContext, ApplyContext, ApplyResult, Endpoint, EndpointAction, IsEndpoint,
+        },
+        error::{BadRequest, Error},
+        output::fs::{NamedFile, OpenNamedFile},
+    },
+    futures::Poll,
+    std::path::PathBuf,
+};
 
 /// Create an endpoint which serves a specified file on the file system.
 #[inline]
@@ -28,24 +32,24 @@ mod file {
 
     impl<Bd> Endpoint<Bd> for File {
         type Output = (NamedFile,);
-        type Future = FileFuture;
+        type Action = FileAction;
 
-        fn apply(&self, _: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
-            Ok(FileFuture {
+        fn apply(&self, _: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
+            Ok(FileAction {
                 opening: NamedFile::open(self.path.clone()),
             })
         }
     }
 
     #[allow(missing_debug_implementations)]
-    pub struct FileFuture {
+    pub struct FileAction {
         opening: OpenNamedFile,
     }
 
-    impl<Bd> EndpointFuture<Bd> for FileFuture {
+    impl<Bd> EndpointAction<Bd> for FileAction {
         type Output = (NamedFile,);
 
-        fn poll_endpoint(&mut self, _: &mut Context<'_, Bd>) -> Poll<Self::Output, Error> {
+        fn poll_action(&mut self, _: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
             self.opening
                 .poll()
                 .map(|x| x.map(|x| (x,)))
@@ -74,9 +78,9 @@ mod dir {
 
     impl<Bd> Endpoint<Bd> for Dir {
         type Output = (NamedFile,);
-        type Future = DirFuture;
+        type Action = DirAction;
 
-        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
+        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
             let path = {
                 match cx.remaining_path().percent_decode() {
                     Ok(path) => Ok(PathBuf::from(path.into_owned())),
@@ -88,7 +92,7 @@ mod dir {
             let path = match path {
                 Ok(path) => path,
                 Err(e) => {
-                    return Ok(DirFuture {
+                    return Ok(DirAction {
                         state: State::Err(Some(BadRequest::from(e).into())),
                     })
                 }
@@ -99,14 +103,14 @@ mod dir {
                 path = path.join("index.html");
             }
 
-            Ok(DirFuture {
+            Ok(DirAction {
                 state: State::Opening(NamedFile::open(path)),
             })
         }
     }
 
     #[allow(missing_debug_implementations)]
-    pub struct DirFuture {
+    pub struct DirAction {
         state: State,
     }
 
@@ -115,10 +119,10 @@ mod dir {
         Opening(OpenNamedFile),
     }
 
-    impl<Bd> EndpointFuture<Bd> for DirFuture {
+    impl<Bd> EndpointAction<Bd> for DirAction {
         type Output = (NamedFile,);
 
-        fn poll_endpoint(&mut self, _: &mut Context<'_, Bd>) -> Poll<Self::Output, Error> {
+        fn poll_action(&mut self, _: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
             match self.state {
                 State::Err(ref mut err) => Err(err.take().unwrap()),
                 State::Opening(ref mut f) => f.poll().map(|x| x.map(|x| (x,))).map_err(Into::into),

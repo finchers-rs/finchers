@@ -2,10 +2,18 @@
 
 use {
     crate::{
-        endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint, IsEndpoint},
+        endpoint::{
+            ActionContext, //
+            ApplyContext,
+            ApplyError,
+            ApplyResult,
+            Endpoint,
+            EndpointAction,
+            IsEndpoint,
+        },
         error::{BadRequest, Error, InternalServerError},
-        future::{Context, EndpointFuture, Poll},
     },
+    futures::Poll,
     izanami_service::http::BufStream,
     serde::de::DeserializeOwned,
     std::{cell::UnsafeCell, marker::PhantomData},
@@ -38,24 +46,24 @@ mod raw {
 
     impl<Bd> Endpoint<Bd> for Raw {
         type Output = (Bd,);
-        type Future = RawFuture;
+        type Action = RawAction;
 
-        fn apply(&self, _: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
-            Ok(RawFuture {
+        fn apply(&self, _: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
+            Ok(RawAction {
                 _anchor: PhantomData,
             })
         }
     }
 
     #[allow(missing_debug_implementations)]
-    pub struct RawFuture {
+    pub struct RawAction {
         _anchor: PhantomData<UnsafeCell<()>>,
     }
 
-    impl<Bd> EndpointFuture<Bd> for RawFuture {
+    impl<Bd> EndpointAction<Bd> for RawAction {
         type Output = (Bd,);
 
-        fn poll_endpoint(&mut self, cx: &mut Context<'_, Bd>) -> Poll<Self::Output, Error> {
+        fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
             cx.body()
                 .take()
                 .map(|x| (x,).into())
@@ -89,15 +97,15 @@ mod receive_all {
         Bd::Error: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
     {
         type Output = (Vec<u8>,);
-        type Future = ReceiveAllFuture<Bd>;
+        type Action = ReceiveAllAction<Bd>;
 
-        fn apply(&self, _: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
+        fn apply(&self, _: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
             Ok(future())
         }
     }
 
     #[allow(missing_debug_implementations)]
-    pub struct ReceiveAllFuture<Bd> {
+    pub struct ReceiveAllAction<Bd> {
         state: State<Bd>,
     }
 
@@ -107,14 +115,14 @@ mod receive_all {
         Receiving(Bd, Vec<u8>),
     }
 
-    impl<Bd> EndpointFuture<Bd> for ReceiveAllFuture<Bd>
+    impl<Bd> EndpointAction<Bd> for ReceiveAllAction<Bd>
     where
         Bd: BufStream,
         Bd::Error: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
     {
         type Output = (Vec<u8>,);
 
-        fn poll_endpoint(&mut self, cx: &mut Context<'_, Bd>) -> Poll<Self::Output, Error> {
+        fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
             loop {
                 self.state = match self.state {
                     State::Start => {
@@ -136,11 +144,11 @@ mod receive_all {
         }
     }
 
-    pub(super) fn future<Bd>() -> ReceiveAllFuture<Bd>
+    pub(super) fn future<Bd>() -> ReceiveAllAction<Bd>
     where
         Bd: BufStream,
     {
-        ReceiveAllFuture {
+        ReceiveAllAction {
             state: State::Start,
         }
     }
@@ -173,9 +181,9 @@ mod text {
         Bd::Error: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
     {
         type Output = (String,);
-        type Future = TextFuture<Bd>;
+        type Action = TextAction<Bd>;
 
-        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
+        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
             let content_type = cx.content_type().map_err(ApplyError::custom)?;
             match content_type.and_then(|m| m.get_param("charset")) {
                 Some(ref val) if *val == "utf-8" => {}
@@ -187,30 +195,30 @@ mod text {
                 None => {}
             }
 
-            Ok(TextFuture {
+            Ok(TextAction {
                 receive_all: self.receive_all.apply(cx)?,
             })
         }
     }
 
     #[allow(missing_debug_implementations)]
-    pub struct TextFuture<Bd>
+    pub struct TextAction<Bd>
     where
         Bd: BufStream,
         Bd::Error: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
     {
-        receive_all: <ReceiveAll as Endpoint<Bd>>::Future,
+        receive_all: <ReceiveAll as Endpoint<Bd>>::Action,
     }
 
-    impl<Bd> EndpointFuture<Bd> for TextFuture<Bd>
+    impl<Bd> EndpointAction<Bd> for TextAction<Bd>
     where
         Bd: BufStream,
         Bd::Error: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
     {
         type Output = (String,);
 
-        fn poll_endpoint(&mut self, cx: &mut Context<'_, Bd>) -> Poll<Self::Output, Error> {
-            let (data,) = futures::try_ready!(self.receive_all.poll_endpoint(cx));
+        fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
+            let (data,) = futures::try_ready!(self.receive_all.poll_action(cx));
             String::from_utf8(data.to_vec())
                 .map(|x| (x,).into())
                 .map_err(BadRequest::from)
@@ -256,9 +264,9 @@ mod json {
         T: DeserializeOwned,
     {
         type Output = (T,);
-        type Future = JsonFuture<Bd, T>;
+        type Action = JsonAction<Bd, T>;
 
-        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
+        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
             let content_type = cx.content_type().map_err(ApplyError::custom)?;
             let m = content_type
                 .ok_or_else(|| ApplyError::custom(BadRequest::from("missing content type")))?;
@@ -268,7 +276,7 @@ mod json {
                 )));
             }
 
-            Ok(JsonFuture {
+            Ok(JsonAction {
                 receive_all: self.receive_all.apply(cx)?,
                 _marker: PhantomData,
             })
@@ -276,16 +284,16 @@ mod json {
     }
 
     #[allow(missing_debug_implementations)]
-    pub struct JsonFuture<Bd, T>
+    pub struct JsonAction<Bd, T>
     where
         Bd: BufStream,
         Bd::Error: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
     {
-        receive_all: <ReceiveAll as Endpoint<Bd>>::Future,
+        receive_all: <ReceiveAll as Endpoint<Bd>>::Action,
         _marker: PhantomData<fn() -> T>,
     }
 
-    impl<Bd, T> EndpointFuture<Bd> for JsonFuture<Bd, T>
+    impl<Bd, T> EndpointAction<Bd> for JsonAction<Bd, T>
     where
         Bd: BufStream,
         Bd::Error: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
@@ -293,8 +301,8 @@ mod json {
     {
         type Output = (T,);
 
-        fn poll_endpoint(&mut self, cx: &mut Context<'_, Bd>) -> Poll<Self::Output, Error> {
-            let (data,) = futures::try_ready!(self.receive_all.poll_endpoint(cx));
+        fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
+            let (data,) = futures::try_ready!(self.receive_all.poll_action(cx));
             serde_json::from_slice(&*data)
                 .map(|x| (x,).into())
                 .map_err(BadRequest::from)
@@ -342,9 +350,9 @@ mod urlencoded {
         T: DeserializeOwned,
     {
         type Output = (T,);
-        type Future = UrlencodedFuture<Bd, T>;
+        type Action = UrlencodedAction<Bd, T>;
 
-        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
+        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
             let content_type = cx.content_type().map_err(ApplyError::custom)?;
             let m = content_type
                 .ok_or_else(|| ApplyError::custom(BadRequest::from("missing content type")))?;
@@ -354,7 +362,7 @@ mod urlencoded {
                 )));
             }
 
-            Ok(UrlencodedFuture {
+            Ok(UrlencodedAction {
                 receive_all: self.receive_all.apply(cx)?,
                 _marker: PhantomData,
             })
@@ -362,16 +370,16 @@ mod urlencoded {
     }
 
     #[allow(missing_debug_implementations)]
-    pub struct UrlencodedFuture<Bd, T>
+    pub struct UrlencodedAction<Bd, T>
     where
         Bd: BufStream,
         Bd::Error: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
     {
-        receive_all: <ReceiveAll as Endpoint<Bd>>::Future,
+        receive_all: <ReceiveAll as Endpoint<Bd>>::Action,
         _marker: PhantomData<fn() -> T>,
     }
 
-    impl<Bd, T> EndpointFuture<Bd> for UrlencodedFuture<Bd, T>
+    impl<Bd, T> EndpointAction<Bd> for UrlencodedAction<Bd, T>
     where
         Bd: BufStream,
         Bd::Error: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
@@ -379,8 +387,8 @@ mod urlencoded {
     {
         type Output = (T,);
 
-        fn poll_endpoint(&mut self, cx: &mut Context<'_, Bd>) -> Poll<Self::Output, Error> {
-            let (data,) = futures::try_ready!(self.receive_all.poll_endpoint(cx));
+        fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
+            let (data,) = futures::try_ready!(self.receive_all.poll_action(cx));
             let s = std::str::from_utf8(&*data).map_err(BadRequest::from)?;
             serde_qs::from_str(s)
                 .map(|x| (x,).into())

@@ -1,7 +1,18 @@
-use crate::common::{Func, Tuple};
-use crate::endpoint::{ApplyContext, ApplyResult, Endpoint, IsEndpoint};
-use crate::error::Error;
-use crate::future::{Context, EndpointFuture, Poll};
+use {
+    crate::{
+        common::{Func, Tuple},
+        endpoint::{
+            ActionContext, //
+            ApplyContext,
+            ApplyResult,
+            Endpoint,
+            EndpointAction,
+            IsEndpoint,
+        },
+        error::Error,
+    },
+    futures::Poll,
+};
 
 #[allow(missing_docs)]
 #[derive(Debug, Copy, Clone)]
@@ -18,11 +29,11 @@ where
     F: Func<E::Output> + Clone,
 {
     type Output = (F::Out,);
-    type Future = MapFuture<E::Future, F>;
+    type Action = MapAction<E::Action, F>;
 
     #[inline]
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
-        Ok(MapFuture {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
+        Ok(MapAction {
             future: self.endpoint.apply(ecx)?,
             f: Some(self.f.clone()),
         })
@@ -30,21 +41,21 @@ where
 }
 
 #[derive(Debug)]
-pub struct MapFuture<T, F> {
+pub struct MapAction<T, F> {
     future: T,
     f: Option<F>,
 }
 
-impl<T, F, Bd> EndpointFuture<Bd> for MapFuture<T, F>
+impl<T, F, Bd> EndpointAction<Bd> for MapAction<T, F>
 where
-    T: EndpointFuture<Bd>,
+    T: EndpointAction<Bd>,
     F: Func<T::Output>,
     T::Output: Tuple,
 {
     type Output = (F::Out,);
 
-    fn poll_endpoint(&mut self, cx: &mut Context<'_, Bd>) -> Poll<Self::Output, Error> {
-        let item = futures::try_ready!(self.future.poll_endpoint(cx));
+    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
+        let item = futures::try_ready!(self.future.poll_action(cx));
         let f = self.f.take().expect("this future has already polled.");
         Ok((f.call(item),).into())
     }

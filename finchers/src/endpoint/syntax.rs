@@ -3,14 +3,24 @@
 #[allow(missing_docs)]
 pub mod verb;
 
-use std::fmt;
-use std::marker::PhantomData;
-
-use percent_encoding::{percent_encode, DEFAULT_ENCODE_SET};
-
-use crate::endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint, IsEndpoint};
-use crate::error::{BadRequest, Error};
-use crate::input::FromEncodedStr;
+use {
+    crate::{
+        endpoint::{
+            ActionContext, //
+            ApplyContext,
+            ApplyError,
+            ApplyResult,
+            Endpoint,
+            EndpointAction,
+            IsEndpoint,
+        },
+        error::{BadRequest, Error},
+        input::FromEncodedStr,
+    },
+    futures::Poll,
+    percent_encoding::{percent_encode, DEFAULT_ENCODE_SET},
+    std::{fmt, marker::PhantomData},
+};
 
 #[doc(hidden)]
 #[derive(Debug)]
@@ -19,12 +29,11 @@ pub struct Matched {
     _priv: (),
 }
 
-impl ::futures::Future for Matched {
-    type Item = ();
-    type Error = Error;
+impl<Bd> EndpointAction<Bd> for Matched {
+    type Output = ();
 
     #[inline]
-    fn poll(&mut self) -> ::futures::Poll<Self::Item, Self::Error> {
+    fn poll_action(&mut self, _: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
         Ok(().into())
     }
 }
@@ -34,12 +43,11 @@ impl ::futures::Future for Matched {
 #[must_use = "futures does not anything unless polled."]
 pub struct Extracted<T>(Option<T>);
 
-impl<T> ::futures::Future for Extracted<T> {
-    type Item = (T,);
-    type Error = Error;
+impl<T, Bd> EndpointAction<Bd> for Extracted<T> {
+    type Output = (T,);
 
     #[inline]
-    fn poll(&mut self) -> ::futures::Poll<Self::Item, Self::Error> {
+    fn poll_action(&mut self, _: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
         let x = self.0.take().expect("This future has already polled");
         Ok((x,).into())
     }
@@ -75,9 +83,9 @@ impl IsEndpoint for MatchSegment {}
 
 impl<Bd> Endpoint<Bd> for MatchSegment {
     type Output = ();
-    type Future = Matched;
+    type Action = Matched;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
         let s = ecx.next_segment().ok_or_else(ApplyError::not_matched)?;
         if s == self.encoded {
             Ok(Matched { _priv: () })
@@ -105,9 +113,9 @@ impl IsEndpoint for MatchEos {}
 
 impl<Bd> Endpoint<Bd> for MatchEos {
     type Output = ();
-    type Future = Matched;
+    type Action = Matched;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
         match ecx.next_segment() {
             None => Ok(Matched { _priv: () }),
             Some(..) => Err(ApplyError::not_matched()),
@@ -158,9 +166,9 @@ where
     T: FromEncodedStr,
 {
     type Output = (T,);
-    type Future = Extracted<T>;
+    type Action = Extracted<T>;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
         let s = ecx.next_segment().ok_or_else(ApplyError::not_matched)?;
         let x = T::from_encoded_str(s).map_err(|err| ApplyError::custom(BadRequest::from(err)))?;
         Ok(Extracted(Some(x)))
@@ -209,9 +217,9 @@ where
     T: FromEncodedStr,
 {
     type Output = (T,);
-    type Future = Extracted<T>;
+    type Action = Extracted<T>;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
         let result = T::from_encoded_str(ecx.remaining_path())
             .map_err(|err| ApplyError::custom(BadRequest::from(err)));
         while let Some(..) = ecx.next_segment() {}

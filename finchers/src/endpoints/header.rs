@@ -1,14 +1,26 @@
 //! Components for parsing the HTTP headers.
 
-use http::header::{HeaderName, HeaderValue};
-use http::HttpTryFrom;
-use std::fmt;
-use std::marker::PhantomData;
-
-use crate::endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint, IsEndpoint};
-use crate::error::{BadRequest, Error};
-use crate::future::{Context, EndpointFuture, Poll};
-use crate::input::FromHeaderValue;
+use {
+    crate::{
+        endpoint::{
+            ActionContext, //
+            ApplyContext,
+            ApplyError,
+            ApplyResult,
+            Endpoint,
+            EndpointAction,
+            IsEndpoint,
+        },
+        error::{BadRequest, Error},
+        input::FromHeaderValue,
+    },
+    futures::Poll,
+    http::{
+        header::{HeaderName, HeaderValue},
+        HttpTryFrom,
+    },
+    std::{fmt, marker::PhantomData},
+};
 
 // ==== Parse ====
 
@@ -64,11 +76,11 @@ mod parse {
         T: FromHeaderValue,
     {
         type Output = (T,);
-        type Future = ParseFuture<T>;
+        type Action = ParseAction<T>;
 
-        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
+        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
             if cx.input().headers().contains_key(&self.name) {
-                Ok(ParseFuture {
+                Ok(ParseAction {
                     name: self.name.clone(),
                     _marker: PhantomData,
                 })
@@ -82,22 +94,22 @@ mod parse {
     }
 
     #[allow(missing_debug_implementations)]
-    pub struct ParseFuture<T> {
+    pub struct ParseAction<T> {
         name: HeaderName,
         _marker: PhantomData<fn() -> T>,
     }
 
-    impl<T, Bd> EndpointFuture<Bd> for ParseFuture<T>
+    impl<T, Bd> EndpointAction<Bd> for ParseAction<T>
     where
         T: FromHeaderValue,
     {
         type Output = (T,);
 
-        fn poll_endpoint(&mut self, cx: &mut Context<'_, Bd>) -> Poll<Self::Output, Error> {
+        fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
             let h = cx
                 .headers()
                 .get(&self.name)
-                .expect("The header value should be always available inside of this Future.");
+                .expect("The header value should be always available inside of this Action.");
             T::from_header_value(h)
                 .map(|parsed| (parsed,).into())
                 .map_err(BadRequest::from)
@@ -148,10 +160,10 @@ mod optional {
         T: FromHeaderValue,
     {
         type Output = (Option<T>,);
-        type Future = OptionalFuture<T>;
+        type Action = OptionalAction<T>;
 
-        fn apply(&self, _: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
-            Ok(OptionalFuture {
+        fn apply(&self, _: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
+            Ok(OptionalAction {
                 name: self.name.clone(),
                 _marker: PhantomData,
             })
@@ -159,18 +171,18 @@ mod optional {
     }
 
     #[allow(missing_debug_implementations)]
-    pub struct OptionalFuture<T> {
+    pub struct OptionalAction<T> {
         name: HeaderName,
         _marker: PhantomData<fn() -> T>,
     }
 
-    impl<T, Bd> EndpointFuture<Bd> for OptionalFuture<T>
+    impl<T, Bd> EndpointAction<Bd> for OptionalAction<T>
     where
         T: FromHeaderValue,
     {
         type Output = (Option<T>,);
 
-        fn poll_endpoint(&mut self, cx: &mut Context<'_, Bd>) -> Poll<Self::Output, Error> {
+        fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
             match cx.headers().get(&self.name) {
                 Some(h) => T::from_header_value(h)
                     .map(|parsed| (Some(parsed),).into())
@@ -237,9 +249,9 @@ mod matches {
         T: PartialEq<HeaderValue>,
     {
         type Output = ();
-        type Future = futures::future::FutureResult<(), Error>;
+        type Action = futures::future::FutureResult<(), Error>;
 
-        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
+        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
             match cx.headers().get(&self.name) {
                 Some(v) if self.value == *v => Ok(futures::future::ok(())),
                 _ => Err(ApplyError::not_matched()),
@@ -275,24 +287,24 @@ mod raw {
 
     impl<Bd> Endpoint<Bd> for Raw {
         type Output = (Option<HeaderValue>,);
-        type Future = RawFuture;
+        type Action = RawAction;
 
-        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
-            Ok(RawFuture {
+        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
+            Ok(RawAction {
                 value: cx.headers().get(&self.name).cloned(),
             })
         }
     }
 
     #[allow(missing_debug_implementations)]
-    pub struct RawFuture {
+    pub struct RawAction {
         value: Option<HeaderValue>,
     }
 
-    impl<Bd> EndpointFuture<Bd> for RawFuture {
+    impl<Bd> EndpointAction<Bd> for RawAction {
         type Output = (Option<HeaderValue>,);
 
-        fn poll_endpoint(&mut self, _: &mut Context<'_, Bd>) -> Poll<Self::Output, Error> {
+        fn poll_action(&mut self, _: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
             Ok((self.value.take(),).into())
         }
     }

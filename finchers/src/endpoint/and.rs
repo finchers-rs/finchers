@@ -1,7 +1,18 @@
-use crate::common::{Combine, Tuple};
-use crate::endpoint::{ApplyContext, ApplyResult, Endpoint, IsEndpoint};
-use crate::error::Error;
-use crate::future::{Context, EndpointFuture, MaybeDone, Poll};
+use {
+    crate::{
+        common::{Combine, Tuple},
+        endpoint::{
+            ActionContext, //
+            ApplyContext,
+            ApplyResult,
+            Endpoint,
+            EndpointAction,
+            IsEndpoint,
+        },
+        error::Error,
+    },
+    futures::{Async, Poll},
+};
 
 #[allow(missing_docs)]
 #[derive(Copy, Clone, Debug)]
@@ -19,10 +30,10 @@ where
     E1::Output: Combine<E2::Output>,
 {
     type Output = <E1::Output as Combine<E2::Output>>::Out;
-    type Future = AndFuture<Bd, E1::Future, E2::Future>;
+    type Action = AndAction<Bd, E1::Action, E2::Action>;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
-        Ok(AndFuture {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
+        Ok(AndAction {
             f1: self.e1.apply(ecx).map(MaybeDone::Pending)?,
             f2: self.e2.apply(ecx).map(MaybeDone::Pending)?,
         })
@@ -30,27 +41,27 @@ where
 }
 
 #[allow(missing_debug_implementations)]
-pub struct AndFuture<Bd, F1, F2>
+pub struct AndAction<Bd, F1, F2>
 where
-    F1: EndpointFuture<Bd>,
-    F2: EndpointFuture<Bd>,
+    F1: EndpointAction<Bd>,
+    F2: EndpointAction<Bd>,
 {
     f1: MaybeDone<Bd, F1>,
     f2: MaybeDone<Bd, F2>,
 }
 
-impl<F1, F2, Bd> EndpointFuture<Bd> for AndFuture<Bd, F1, F2>
+impl<F1, F2, Bd> EndpointAction<Bd> for AndAction<Bd, F1, F2>
 where
-    F1: EndpointFuture<Bd>,
-    F2: EndpointFuture<Bd>,
+    F1: EndpointAction<Bd>,
+    F2: EndpointAction<Bd>,
     F1::Output: Combine<F2::Output>,
     F2::Output: Tuple,
 {
     type Output = <F1::Output as Combine<F2::Output>>::Out;
 
-    fn poll_endpoint(&mut self, cx: &mut Context<'_, Bd>) -> Poll<Self::Output, Error> {
-        futures::try_ready!(self.f1.poll_endpoint(cx));
-        futures::try_ready!(self.f2.poll_endpoint(cx));
+    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
+        futures::try_ready!(self.f1.poll_action(cx));
+        futures::try_ready!(self.f2.poll_action(cx));
         let v1 = self
             .f1
             .take_item()
@@ -60,5 +71,41 @@ where
             .take_item()
             .expect("the future has already been polled.");
         Ok(Combine::combine(v1, v2).into())
+    }
+}
+
+#[derive(Debug)]
+#[must_use = "futures do nothing unless polled."]
+pub enum MaybeDone<Bd, F: EndpointAction<Bd>> {
+    Ready(F::Output),
+    Pending(F),
+    Gone,
+}
+
+impl<Bd, F: EndpointAction<Bd>> MaybeDone<Bd, F> {
+    pub fn take_item(&mut self) -> Option<F::Output> {
+        match std::mem::replace(self, MaybeDone::Gone) {
+            MaybeDone::Ready(output) => Some(output),
+            _ => None,
+        }
+    }
+}
+
+impl<Bd, F: EndpointAction<Bd>> EndpointAction<Bd> for MaybeDone<Bd, F> {
+    type Output = ();
+
+    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
+        let polled = match self {
+            MaybeDone::Ready(..) => return Ok(Async::Ready(())),
+            MaybeDone::Pending(ref mut future) => future.poll_action(cx)?,
+            MaybeDone::Gone => panic!("This future has already polled"),
+        };
+        match polled {
+            Async::Ready(output) => {
+                *self = MaybeDone::Ready(output);
+                Ok(Async::Ready(()))
+            }
+            Async::NotReady => Ok(Async::NotReady),
+        }
     }
 }

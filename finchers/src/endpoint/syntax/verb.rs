@@ -21,9 +21,9 @@ impl IsEndpoint for MatchVerbs {}
 
 impl<Bd> Endpoint<Bd> for MatchVerbs {
     type Output = ();
-    type Future = Matched;
+    type Action = Matched;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
         if self.allowed.contains(ecx.input().method()) {
             Ok(Matched { _priv: () })
         } else {
@@ -55,10 +55,10 @@ macro_rules! define_verbs {
 
         impl<Bd> Endpoint<Bd> for $Endpoint {
             type Output = ();
-            type Future = Matched;
+            type Action = Matched;
 
             #[inline]
-            fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
+            fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
                 if *ecx.input().method() == Method::$METHOD {
                     Ok(Matched { _priv: () })
                 } else {

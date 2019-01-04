@@ -1,12 +1,23 @@
 //! Endpoints for parsing query strings.
 
-use failure::SyncFailure;
-use serde::de::DeserializeOwned;
-use std::marker::PhantomData;
-
-use crate::endpoint::{ApplyContext, ApplyError, ApplyResult, Endpoint, IsEndpoint};
-use crate::error::{BadRequest, Error};
-use crate::future::{Context, EndpointFuture, Poll};
+use {
+    crate::{
+        endpoint::{
+            ActionContext, //
+            ApplyContext,
+            ApplyError,
+            ApplyResult,
+            Endpoint,
+            EndpointAction,
+            IsEndpoint,
+        },
+        error::{BadRequest, Error},
+    },
+    failure::SyncFailure,
+    futures::Poll,
+    serde::de::DeserializeOwned,
+    std::marker::PhantomData,
+};
 
 // ==== Required ====
 
@@ -63,11 +74,11 @@ mod required {
         T: DeserializeOwned,
     {
         type Output = (T,);
-        type Future = RequiredFuture<T>;
+        type Action = RequiredAction<T>;
 
-        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
+        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
             if cx.uri().query().is_some() {
-                Ok(RequiredFuture {
+                Ok(RequiredAction {
                     _marker: PhantomData,
                 })
             } else {
@@ -77,17 +88,17 @@ mod required {
     }
 
     #[allow(missing_debug_implementations)]
-    pub struct RequiredFuture<T> {
+    pub struct RequiredAction<T> {
         _marker: PhantomData<fn() -> T>,
     }
 
-    impl<T, Bd> EndpointFuture<Bd> for RequiredFuture<T>
+    impl<T, Bd> EndpointAction<Bd> for RequiredAction<T>
     where
         T: DeserializeOwned,
     {
         type Output = (T,);
 
-        fn poll_endpoint(&mut self, cx: &mut Context<'_, Bd>) -> Poll<Self::Output, Error> {
+        fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
             let query = cx
                 .uri()
                 .query()
@@ -156,27 +167,27 @@ mod optional {
         T: DeserializeOwned,
     {
         type Output = (Option<T>,);
-        type Future = OptionalFuture<T>;
+        type Action = OptionalAction<T>;
 
-        fn apply(&self, _: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
-            Ok(OptionalFuture {
+        fn apply(&self, _: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
+            Ok(OptionalAction {
                 _marker: PhantomData,
             })
         }
     }
 
     #[allow(missing_debug_implementations)]
-    pub struct OptionalFuture<T> {
+    pub struct OptionalAction<T> {
         _marker: PhantomData<fn() -> T>,
     }
 
-    impl<T, Bd> EndpointFuture<Bd> for OptionalFuture<T>
+    impl<T, Bd> EndpointAction<Bd> for OptionalAction<T>
     where
         T: DeserializeOwned,
     {
         type Output = (Option<T>,);
 
-        fn poll_endpoint(&mut self, cx: &mut Context<'_, Bd>) -> Poll<Self::Output, Error> {
+        fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
             match cx.uri().query() {
                 Some(query) => serde_qs::from_str(query)
                     .map(|x| (Some(x),).into())
@@ -205,20 +216,20 @@ mod raw {
 
     impl<Bd> Endpoint<Bd> for Raw {
         type Output = (Option<String>,);
-        type Future = RawFuture;
+        type Action = RawAction;
 
-        fn apply(&self, _: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
-            Ok(RawFuture(()))
+        fn apply(&self, _: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
+            Ok(RawAction(()))
         }
     }
 
     #[allow(missing_debug_implementations)]
-    pub struct RawFuture(());
+    pub struct RawAction(());
 
-    impl<Bd> EndpointFuture<Bd> for RawFuture {
+    impl<Bd> EndpointAction<Bd> for RawAction {
         type Output = (Option<String>,);
 
-        fn poll_endpoint(&mut self, cx: &mut Context<'_, Bd>) -> Poll<Self::Output, Error> {
+        fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
             let raw = cx.uri().query().map(ToOwned::to_owned);
             Ok((raw,).into())
         }

@@ -1,7 +1,6 @@
 //! Components for constructing `Endpoint`.
 
 mod boxed;
-pub mod context;
 pub mod error;
 pub mod syntax;
 
@@ -12,27 +11,45 @@ mod or;
 mod or_strict;
 
 // re-exports
-pub use self::boxed::{EndpointObj, LocalEndpointObj};
-pub use self::context::ApplyContext;
-pub(crate) use self::context::Cursor;
-pub use self::error::{ApplyError, ApplyResult};
-
-pub use self::and::And;
-pub use self::and_then::AndThen;
-pub use self::map::Map;
-pub use self::or::Or;
-pub use self::or_strict::OrStrict;
+pub use self::{
+    and::And,
+    and_then::AndThen,
+    boxed::{EndpointObj, LocalEndpointObj},
+    error::{ApplyError, ApplyResult},
+    map::Map,
+    or::Or,
+    or_strict::OrStrict,
+};
 
 // ====
 
-use std::rc::Rc;
-use std::sync::Arc;
+use {
+    crate::{
+        common::Tuple,
+        error::Error,
+        input::{EncodedStr, Input},
+    },
+    futures::{Future, IntoFuture, Poll},
+    std::{marker::PhantomData, rc::Rc, sync::Arc},
+};
 
-use futures::IntoFuture;
+#[derive(Debug, Clone)]
+pub(crate) struct Cursor {
+    pos: usize,
+    popped: usize,
+}
 
-use crate::common::Tuple;
-use crate::error::Error;
-use crate::future::EndpointFuture;
+impl Default for Cursor {
+    fn default() -> Self {
+        Cursor { pos: 1, popped: 0 }
+    }
+}
+
+impl Cursor {
+    pub(crate) fn popped(&self) -> usize {
+        self.popped
+    }
+}
 
 /// A marker trait indicating that the implementor has an implementation of `Endpoint<Bd>`.
 pub trait IsEndpoint {}
@@ -47,12 +64,11 @@ pub trait Endpoint<Bd>: IsEndpoint {
     /// The inner type associated with this endpoint.
     type Output: Tuple;
 
-    /// The type of value which will be returned from `apply`.
-    type Future: EndpointFuture<Bd, Output = Self::Output>;
+    /// The type of `Action` which will be returned from `Self::apply`.
+    type Action: EndpointAction<Bd, Output = Self::Output>;
 
-    /// Perform checking the incoming HTTP request and returns
-    /// an instance of the associated Future if matched.
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future>;
+    /// Validates the incoming HTTP request and returns an instance of associated `Action` if available.
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action>;
 
     /// Add an annotation that the associated type `Output` is fixed to `T`.
     #[inline(always)]
@@ -64,14 +80,88 @@ pub trait Endpoint<Bd>: IsEndpoint {
     }
 }
 
+/// The contextual information during calling `Endpoint::apply`.
+#[derive(Debug)]
+pub struct ApplyContext<'a, Bd> {
+    input: &'a mut Input<Bd>,
+    cursor: &'a mut Cursor,
+    _marker: PhantomData<Rc<()>>,
+}
+
+impl<'a, Bd> ApplyContext<'a, Bd> {
+    #[inline]
+    pub(crate) fn new(input: &'a mut Input<Bd>, cursor: &'a mut Cursor) -> Self {
+        ApplyContext {
+            input,
+            cursor,
+            _marker: PhantomData,
+        }
+    }
+
+    /// Returns a mutable reference to the value of `Input`.
+    #[inline]
+    pub fn input(&mut self) -> &mut Input<Bd> {
+        &mut *self.input
+    }
+
+    pub(crate) fn cursor(&mut self) -> &mut Cursor {
+        &mut *self.cursor
+    }
+
+    /// Returns the remaining path in this segments
+    #[inline]
+    pub fn remaining_path(&self) -> &EncodedStr {
+        unsafe { EncodedStr::new_unchecked(&self.input.uri().path()[self.cursor.pos..]) }
+    }
+
+    /// Advances the cursor and returns the next segment.
+    #[inline]
+    pub fn next_segment(&mut self) -> Option<&EncodedStr> {
+        let path = &self.input.uri().path();
+        if self.cursor.pos == path.len() {
+            return None;
+        }
+
+        let s = if let Some(offset) = path[self.cursor.pos..].find('/') {
+            let s = &path[self.cursor.pos..(self.cursor.pos + offset)];
+            self.cursor.pos += offset + 1;
+            self.cursor.popped += 1;
+            s
+        } else {
+            let s = &path[self.cursor.pos..];
+            self.cursor.pos = path.len();
+            self.cursor.popped += 1;
+            s
+        };
+
+        Some(unsafe { EncodedStr::new_unchecked(s) })
+    }
+}
+
+impl<'a, Bd> std::ops::Deref for ApplyContext<'a, Bd> {
+    type Target = Input<Bd>;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &*self.input
+    }
+}
+
+impl<'a, Bd> std::ops::DerefMut for ApplyContext<'a, Bd> {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.input()
+    }
+}
+
 impl<'a, E, Bd> Endpoint<Bd> for &'a E
 where
     E: Endpoint<Bd>,
 {
     type Output = E::Output;
-    type Future = E::Future;
+    type Action = E::Action;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
         (**self).apply(ecx)
     }
 }
@@ -81,9 +171,9 @@ where
     E: Endpoint<Bd>,
 {
     type Output = E::Output;
-    type Future = E::Future;
+    type Action = E::Action;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
         (**self).apply(ecx)
     }
 }
@@ -93,9 +183,9 @@ where
     E: Endpoint<Bd>,
 {
     type Output = E::Output;
-    type Future = E::Future;
+    type Action = E::Action;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
         (**self).apply(ecx)
     }
 }
@@ -105,9 +195,9 @@ where
     E: Endpoint<Bd>,
 {
     type Output = E::Output;
-    type Future = E::Future;
+    type Action = E::Action;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
         (**self).apply(ecx)
     }
 }
@@ -119,9 +209,13 @@ where
 /// If you want to return the result without wrapping, use `apply_raw` instead.
 pub fn apply_fn<Bd, R>(
     f: impl Fn(&mut ApplyContext<'_, Bd>) -> ApplyResult<R>,
-) -> impl Endpoint<Bd, Output = R::Output, Future = R>
+) -> impl Endpoint<
+    Bd, //
+    Output = R::Output,
+    Action = R,
+>
 where
-    R: EndpointFuture<Bd>,
+    R: EndpointAction<Bd>,
     R::Output: Tuple,
 {
     #[allow(missing_debug_implementations)]
@@ -132,14 +226,14 @@ where
     impl<F, Bd, R> Endpoint<Bd> for ApplyEndpoint<F>
     where
         F: Fn(&mut ApplyContext<'_, Bd>) -> ApplyResult<R>,
-        R: EndpointFuture<Bd>,
+        R: EndpointAction<Bd>,
         R::Output: Tuple,
     {
         type Output = R::Output;
-        type Future = R;
+        type Action = R;
 
         #[inline]
-        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
+        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
             (self.0)(cx)
         }
     }
@@ -152,13 +246,9 @@ where
 pub fn unit<Bd: 'static>() -> impl Endpoint<
     Bd, //
     Output = (),
-    Future = impl EndpointFuture<Bd, Output = ()> + Send + 'static,
+    Action = impl EndpointAction<Bd, Output = ()> + Send + 'static,
 > {
-    apply_fn(|_| {
-        Ok(crate::future::poll_fn(|_| {
-            Ok::<_, crate::util::Never>(().into())
-        }))
-    })
+    apply_fn(|_| Ok(action(|_| Ok::<_, crate::util::Never>(().into()))))
 }
 
 /// Create an endpoint which simply clones the specified value.
@@ -200,27 +290,24 @@ pub fn value<Bd, T: Clone>(
 ) -> impl Endpoint<
     Bd,
     Output = (T,),
-    Future = self::value::ValueFuture<T>, // private
+    Action = self::value::ValueAction<T>, // private
 > {
-    apply_fn(move |_| Ok(self::value::ValueFuture { x: Some(x.clone()) }))
+    apply_fn(move |_| Ok(self::value::ValueAction { x: Some(x.clone()) }))
 }
 
 mod value {
-    use crate::{
-        error::Error,
-        future::{Context, EndpointFuture, Poll},
-    };
+    use super::*;
 
     // not a public API.
     #[derive(Debug)]
-    pub struct ValueFuture<T> {
+    pub struct ValueAction<T> {
         pub(super) x: Option<T>,
     }
 
-    impl<T, Bd> EndpointFuture<Bd> for ValueFuture<T> {
+    impl<T, Bd> EndpointAction<Bd> for ValueAction<T> {
         type Output = (T,);
 
-        fn poll_endpoint(&mut self, _: &mut Context<'_, Bd>) -> Poll<Self::Output, Error> {
+        fn poll_action(&mut self, _: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
             Ok((self.x.take().expect("The value has already taken."),).into())
         }
     }
@@ -232,44 +319,130 @@ pub fn lazy<Bd, R>(
 ) -> impl Endpoint<
     Bd,
     Output = (R::Item,),
-    Future = self::lazy::LazyFuture<R::Future>, // private
+    Action = self::lazy::LazyAction<R::Future>, // private
 >
 where
     R: IntoFuture<Error = Error>,
 {
     apply_fn(move |_| {
-        Ok(self::lazy::LazyFuture {
+        Ok(self::lazy::LazyAction {
             future: f().into_future(),
         })
     })
 }
 
 mod lazy {
-    use {
-        crate::{
-            error::Error,
-            future::{Context, EndpointFuture, Poll},
-        },
-        futures::Future,
-    };
+    use super::*;
 
     #[derive(Debug)]
-    pub struct LazyFuture<F> {
+    pub struct LazyAction<F> {
         pub(super) future: F,
     }
 
-    impl<F, Bd> EndpointFuture<Bd> for LazyFuture<F>
+    impl<F, Bd> EndpointAction<Bd> for LazyAction<F>
     where
         F: Future<Error = Error>,
     {
         type Output = (F::Item,);
 
         #[inline]
-        fn poll_endpoint(&mut self, _: &mut Context<'_, Bd>) -> Poll<Self::Output, Error> {
+        fn poll_action(&mut self, _: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
             self.future.poll().map(|x| x.map(|ok| (ok,)))
         }
     }
 }
+
+// ==== EndpointAction ====
+
+/// A trait that abstracts the *action* of endpoints, returned from `Endpoint::apply`.
+pub trait EndpointAction<Bd> {
+    /// The type returned from this action.
+    type Output: Tuple;
+
+    /// Progress this action and returns the result if ready.
+    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error>;
+}
+
+impl<F, Bd> EndpointAction<Bd> for F
+where
+    F: Future,
+    F::Item: Tuple,
+    F::Error: Into<Error>,
+{
+    type Output = F::Item;
+
+    fn poll_action(&mut self, _: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
+        self.poll().map_err(Into::into)
+    }
+}
+
+/// A function to create an instance of `EndpointAction` from the specified closure.
+pub fn action<Bd, T, E>(
+    f: impl FnMut(&mut ActionContext<'_, Bd>) -> Poll<T, E>,
+) -> impl EndpointAction<Bd, Output = T>
+where
+    T: Tuple,
+    E: Into<Error>,
+{
+    #[allow(missing_debug_implementations)]
+    struct ActionFn<F>(F);
+
+    impl<F, Bd, T, E> EndpointAction<Bd> for ActionFn<F>
+    where
+        F: FnMut(&mut ActionContext<'_, Bd>) -> Poll<T, E>,
+        T: Tuple,
+        E: Into<Error>,
+    {
+        type Output = T;
+
+        fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
+            (self.0)(cx).map_err(Into::into)
+        }
+    }
+
+    ActionFn(f)
+}
+
+/// The contexual information used in the implementation of `EndpointAction::poll_action`.
+#[derive(Debug)]
+pub struct ActionContext<'a, Bd> {
+    input: &'a mut Input<Bd>,
+    cursor: &'a Cursor,
+    _marker: PhantomData<Rc<()>>,
+}
+
+impl<'a, Bd> ActionContext<'a, Bd> {
+    pub(crate) fn new(input: &'a mut Input<Bd>, cursor: &'a Cursor) -> Self {
+        Self {
+            input,
+            cursor,
+            _marker: PhantomData,
+        }
+    }
+
+    #[allow(missing_docs)]
+    pub fn input(&mut self) -> &mut Input<Bd> {
+        &mut *self.input
+    }
+}
+
+impl<'a, Bd> std::ops::Deref for ActionContext<'a, Bd> {
+    type Target = Input<Bd>;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &*self.input
+    }
+}
+
+impl<'a, Bd> std::ops::DerefMut for ActionContext<'a, Bd> {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.input()
+    }
+}
+
+// ==== EndpointExt =====
 
 /// A set of extension methods for composing multiple endpoints.
 pub trait EndpointExt: IsEndpoint + Sized {
@@ -324,3 +497,40 @@ pub trait EndpointExt: IsEndpoint + Sized {
 }
 
 impl<E: IsEndpoint> EndpointExt for E {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use http::Request;
+
+    #[test]
+    fn test_segments() {
+        let request = Request::get("/foo/bar.txt").body(()).unwrap();
+        let mut input = Input::new(request);
+        let mut cursor = Cursor::default();
+        let mut ecx = ApplyContext::new(&mut input, &mut cursor);
+
+        assert_eq!(ecx.remaining_path(), "foo/bar.txt");
+        assert_eq!(ecx.next_segment().map(|s| s.as_bytes()), Some(&b"foo"[..]));
+        assert_eq!(ecx.remaining_path(), "bar.txt");
+        assert_eq!(
+            ecx.next_segment().map(|s| s.as_bytes()),
+            Some(&b"bar.txt"[..])
+        );
+        assert_eq!(ecx.remaining_path(), "");
+        assert!(ecx.next_segment().is_none());
+        assert_eq!(ecx.remaining_path(), "");
+        assert!(ecx.next_segment().is_none());
+    }
+
+    #[test]
+    fn test_segments_from_root_path() {
+        let request = Request::get("/").body(()).unwrap();
+        let mut input = Input::new(request);
+        let mut cursor = Cursor::default();
+        let mut ecx = ApplyContext::new(&mut input, &mut cursor);
+
+        assert_eq!(ecx.remaining_path(), "");
+        assert!(ecx.next_segment().is_none());
+    }
+}

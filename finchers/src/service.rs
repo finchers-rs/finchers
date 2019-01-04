@@ -17,10 +17,8 @@ use http::header::HeaderValue;
 use http::{Request, Response};
 use izanami_service::{MakeService, Service};
 
-use crate::endpoint::context::ApplyContext;
-use crate::endpoint::{Cursor, Endpoint, IsEndpoint};
+use crate::endpoint::{ActionContext, ApplyContext, Cursor, Endpoint, EndpointAction, IsEndpoint};
 use crate::error::Error;
-use crate::future::{Context, EndpointFuture};
 use crate::input::Input;
 use crate::output::IntoResponse;
 
@@ -117,7 +115,7 @@ pub struct AppFuture<Bd, E: Endpoint<Bd>> {
 #[allow(clippy::large_enum_variant)]
 enum State<Bd, E: Endpoint<Bd>> {
     Start(Request<Bd>),
-    InFlight(Input<Bd>, E::Future, Cursor),
+    InFlight(Input<Bd>, E::Action, Cursor),
     Done(Input<Bd>),
     Gone,
 }
@@ -150,8 +148,7 @@ where
             let result = match self.state {
                 State::Start(..) => None,
                 State::InFlight(ref mut input, ref mut f, ref mut cursor) => {
-                    let mut tcx = Context::new(input, cursor);
-                    match f.poll_endpoint(&mut tcx) {
+                    match f.poll_action(&mut ActionContext::new(input, cursor)) {
                         Ok(Async::NotReady) => return Ok(Async::NotReady),
                         Ok(Async::Ready(ok)) => Some(Ok(ok)),
                         Err(err) => Some(Err(err)),

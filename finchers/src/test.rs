@@ -381,7 +381,7 @@ mod tests {
     fn test_host_useragent() {
         let mut runner = runner({
             crate::endpoint::apply_fn(|_cx| {
-                Ok(crate::future::poll_fn(|cx| {
+                Ok(crate::endpoint::action(|cx| {
                     let host = cx.headers().get(header::HOST).cloned();
                     let user_agent = cx.headers().get(header::USER_AGENT).cloned();
                     Ok::<_, crate::error::Error>((host, user_agent).into())

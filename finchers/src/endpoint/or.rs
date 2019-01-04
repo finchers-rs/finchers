@@ -1,12 +1,21 @@
-use either::Either;
-use either::Either::*;
-use http::{Request, Response};
-use std::mem;
-
-use crate::endpoint::{ApplyContext, ApplyResult, Endpoint, IsEndpoint};
-use crate::error::Error;
-use crate::future::{Context, EndpointFuture, Poll};
-use crate::output::IntoResponse;
+use {
+    crate::{
+        endpoint::{
+            ActionContext, //
+            ApplyContext,
+            ApplyResult,
+            Endpoint,
+            EndpointAction,
+            IsEndpoint,
+        },
+        error::Error,
+        output::IntoResponse,
+    },
+    either::Either::{self, *},
+    futures::Poll,
+    http::{Request, Response},
+    std::mem,
+};
 
 #[allow(missing_docs)]
 #[derive(Debug, Copy, Clone)]
@@ -23,9 +32,9 @@ where
     E2: Endpoint<Bd>,
 {
     type Output = (Wrapped<E1::Output, E2::Output>,);
-    type Future = OrFuture<E1::Future, E2::Future>;
+    type Action = OrAction<E1::Action, E2::Action>;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Future> {
+    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> ApplyResult<Self::Action> {
         let orig_cursor = ecx.cursor().clone();
         match self.e1.apply(ecx) {
             Ok(future1) => {
@@ -36,21 +45,21 @@ where
                         // (consumed) path segments is choosen.
                         if cursor1.popped() >= ecx.cursor().popped() {
                             *ecx.cursor() = cursor1;
-                            Ok(OrFuture::left(future1))
+                            Ok(OrAction::left(future1))
                         } else {
-                            Ok(OrFuture::right(future2))
+                            Ok(OrAction::right(future2))
                         }
                     }
                     Err(..) => {
                         *ecx.cursor() = cursor1;
-                        Ok(OrFuture::left(future1))
+                        Ok(OrAction::left(future1))
                     }
                 }
             }
             Err(err1) => {
                 let _ = mem::replace(ecx.cursor(), orig_cursor);
                 match self.e2.apply(ecx) {
-                    Ok(future) => Ok(OrFuture::right(future)),
+                    Ok(future) => Ok(OrAction::right(future)),
                     Err(err2) => Err(err1.merge(err2)),
                 }
             }
@@ -76,36 +85,36 @@ where
 
 #[allow(missing_docs)]
 #[derive(Debug)]
-pub struct OrFuture<L, R> {
+pub struct OrAction<L, R> {
     inner: Either<L, R>,
 }
 
-impl<L, R> OrFuture<L, R> {
+impl<L, R> OrAction<L, R> {
     fn left(l: L) -> Self {
-        OrFuture {
+        OrAction {
             inner: Either::Left(l),
         }
     }
 
     fn right(r: R) -> Self {
-        OrFuture {
+        OrAction {
             inner: Either::Right(r),
         }
     }
 }
 
-impl<L, R, Bd> EndpointFuture<Bd> for OrFuture<L, R>
+impl<L, R, Bd> EndpointAction<Bd> for OrAction<L, R>
 where
-    L: EndpointFuture<Bd>,
-    R: EndpointFuture<Bd>,
+    L: EndpointAction<Bd>,
+    R: EndpointAction<Bd>,
 {
     type Output = (Wrapped<L::Output, R::Output>,);
 
     #[inline]
-    fn poll_endpoint(&mut self, cx: &mut Context<'_, Bd>) -> Poll<Self::Output, Error> {
+    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
         match self.inner {
-            Left(ref mut t) => t.poll_endpoint(cx).map(|t| t.map(|t| (Wrapped(Left(t)),))),
-            Right(ref mut t) => t.poll_endpoint(cx).map(|t| t.map(|t| (Wrapped(Right(t)),))),
+            Left(ref mut t) => t.poll_action(cx).map(|t| t.map(|t| (Wrapped(Left(t)),))),
+            Right(ref mut t) => t.poll_action(cx).map(|t| t.map(|t| (Wrapped(Right(t)),))),
         }
     }
 }
