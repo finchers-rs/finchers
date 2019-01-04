@@ -360,7 +360,6 @@ mod tests {
     use super::*;
 
     use crate::endpoint;
-    use crate::endpoint::Endpoint;
     use matches::assert_matches;
 
     #[test]
@@ -418,10 +417,10 @@ mod tests {
     #[test]
     fn test_default_headers() {
         let mut runner = runner({
-            endpoint::unit().wrap(endpoint::wrapper::before_apply(|cx| {
+            endpoint::apply_fn(|cx| {
                 assert!(cx.headers().contains_key(header::ORIGIN));
-                Ok(())
-            }))
+                Ok(futures::future::ok::<_, crate::error::Never>(()))
+            })
         });
         runner
             .default_headers()

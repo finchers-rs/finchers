@@ -1,5 +1,4 @@
 use finchers::endpoint::syntax;
-use finchers::error::bad_request;
 use finchers::prelude::*;
 use finchers::test;
 use matches::assert_matches;
@@ -30,22 +29,4 @@ fn test_or_choose_longer_segments() {
 
     assert_matches!(runner.apply("/foo"), Ok(..));
     assert_matches!(runner.apply("/foo/bar"), Ok(..));
-}
-
-#[test]
-fn test_or_with_rejection() {
-    let mut runner = test::runner({
-        syntax::segment("foo")
-            .or(syntax::segment("bar"))
-            .wrap(endpoint::wrapper::or_reject_with(|_err, _cx| {
-                bad_request(failure::format_err!("custom rejection"))
-            }))
-    });
-
-    assert_matches!(runner.apply("/foo"), Ok(..));
-
-    assert_matches!(
-        runner.apply("/baz"),
-        Err(ref e) if e.to_string() == "custom rejection"
-    );
 }

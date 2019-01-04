@@ -4,7 +4,6 @@ mod boxed;
 pub mod context;
 pub mod error;
 pub mod syntax;
-pub mod wrapper;
 
 mod and;
 mod and_then;
@@ -17,7 +16,6 @@ pub use self::boxed::{EndpointObj, LocalEndpointObj};
 pub use self::context::ApplyContext;
 pub(crate) use self::context::Cursor;
 pub use self::error::{ApplyError, ApplyResult};
-pub use self::wrapper::Wrapper;
 
 pub use self::and::And;
 pub use self::and_then::AndThen;
@@ -63,15 +61,6 @@ pub trait Endpoint<Bd>: IsEndpoint {
         Self: Endpoint<Bd, Output = T> + Sized,
     {
         self
-    }
-
-    /// Converts `self` using the provided `Wrapper`.
-    fn wrap<W>(self, wrapper: W) -> W::Endpoint
-    where
-        Self: Sized,
-        W: Wrapper<Bd, Self>,
-    {
-        (wrapper.wrap(self)).with_output::<W::Output>()
     }
 }
 
