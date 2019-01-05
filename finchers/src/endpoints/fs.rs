@@ -4,11 +4,11 @@ use {
     crate::{
         endpoint::{
             ActionContext, //
-            Apply,
             ApplyContext,
             Endpoint,
             EndpointAction,
             IsEndpoint,
+            Preflight,
         },
         error::{BadRequest, Error},
         output::fs::{NamedFile, OpenNamedFile},
@@ -40,16 +40,18 @@ mod file {
         type Error = Error;
         type Action = FileAction;
 
-        fn apply(&self, _: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
-            Ok(FileAction {
-                opening: NamedFile::open(self.path.clone()),
-            })
+        fn action(&self) -> Self::Action {
+            FileAction {
+                path: self.path.clone(),
+                opening: None,
+            }
         }
     }
 
     #[allow(missing_debug_implementations)]
     pub struct FileAction {
-        opening: OpenNamedFile,
+        path: PathBuf,
+        opening: Option<OpenNamedFile>,
     }
 
     impl<Bd> EndpointAction<Bd> for FileAction {
@@ -60,10 +62,12 @@ mod file {
             &mut self,
             _: &mut ActionContext<'_, Bd>,
         ) -> Poll<Self::Output, Self::Error> {
-            self.opening
-                .poll()
-                .map(|x| x.map(|x| (x,)))
-                .map_err(Into::into)
+            loop {
+                if let Some(ref mut opening) = self.opening {
+                    return opening.poll().map(|x| x.map(|x| (x,))).map_err(Into::into);
+                }
+                self.opening = Some(NamedFile::open(self.path.clone()));
+            }
         }
     }
 }
@@ -91,7 +95,33 @@ mod dir {
         type Error = Error;
         type Action = DirAction;
 
-        fn apply(&self, cx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
+        fn action(&self) -> Self::Action {
+            DirAction {
+                root: self.root.clone(),
+                state: State::Init,
+            }
+        }
+    }
+
+    #[allow(missing_debug_implementations)]
+    pub struct DirAction {
+        root: PathBuf,
+        state: State,
+    }
+
+    enum State {
+        Init,
+        Opening(OpenNamedFile),
+    }
+
+    impl<Bd> EndpointAction<Bd> for DirAction {
+        type Output = (NamedFile,);
+        type Error = Error;
+
+        fn preflight(
+            &mut self,
+            cx: &mut ApplyContext<'_>,
+        ) -> Result<Preflight<Self::Output>, Self::Error> {
             let path = {
                 match cx.remaining_path().percent_decode() {
                     Ok(path) => Ok(PathBuf::from(path.into_owned())),
@@ -102,11 +132,7 @@ mod dir {
 
             let path = match path {
                 Ok(path) => path,
-                Err(e) => {
-                    return Ok(DirAction {
-                        state: State::Err(Some(BadRequest::from(e).into())),
-                    })
-                }
+                Err(e) => return Err(BadRequest::from(e).into()),
             };
 
             let mut path = self.root.join(path);
@@ -114,32 +140,16 @@ mod dir {
                 path = path.join("index.html");
             }
 
-            Ok(DirAction {
-                state: State::Opening(NamedFile::open(path)),
-            })
+            self.state = State::Opening(NamedFile::open(path));
+            Ok(Preflight::Incomplete)
         }
-    }
-
-    #[allow(missing_debug_implementations)]
-    pub struct DirAction {
-        state: State,
-    }
-
-    enum State {
-        Err(Option<Error>),
-        Opening(OpenNamedFile),
-    }
-
-    impl<Bd> EndpointAction<Bd> for DirAction {
-        type Output = (NamedFile,);
-        type Error = Error;
 
         fn poll_action(
             &mut self,
             _: &mut ActionContext<'_, Bd>,
         ) -> Poll<Self::Output, Self::Error> {
             match self.state {
-                State::Err(ref mut err) => Err(err.take().unwrap()),
+                State::Init => unreachable!(),
                 State::Opening(ref mut f) => f.poll().map(|x| x.map(|x| (x,))).map_err(Into::into),
             }
         }

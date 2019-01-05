@@ -3,17 +3,15 @@
 use {
     crate::{
         endpoint::{
-            ActionContext, //
-            Apply,
-            ApplyContext,
+            ApplyContext, //
             Endpoint,
-            EndpointAction,
             IsEndpoint,
+            Oneshot,
+            OneshotAction,
         },
         error::{BadRequest, Error},
         util::Never,
     },
-    futures::Poll,
     http::{
         header::{HeaderName, HeaderValue, ToStrError},
         HttpTryFrom,
@@ -119,17 +117,14 @@ mod parse {
     {
         type Output = (T,);
         type Error = Error;
-        type Action = ParseAction<T>;
+        type Action = Oneshot<ParseAction<T>>;
 
-        fn apply(&self, cx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
-            if cx.headers().contains_key(&self.name) {
-                Ok(ParseAction {
-                    name: self.name.clone(),
-                    _marker: PhantomData,
-                })
-            } else {
-                Err(BadRequest::from(format!("missing header: `{}'", self.name.as_str())).into())
+        fn action(&self) -> Self::Action {
+            ParseAction {
+                name: self.name.clone(),
+                _marker: PhantomData,
             }
+            .into_action()
         }
     }
 
@@ -139,23 +134,19 @@ mod parse {
         _marker: PhantomData<fn() -> T>,
     }
 
-    impl<T, Bd> EndpointAction<Bd> for ParseAction<T>
+    impl<T> OneshotAction for ParseAction<T>
     where
         T: FromHeaderValue,
     {
         type Output = (T,);
         type Error = Error;
 
-        fn poll_action(
-            &mut self,
-            cx: &mut ActionContext<'_, Bd>,
-        ) -> Poll<Self::Output, Self::Error> {
-            let h = cx
-                .headers()
-                .get(&self.name)
-                .expect("The header value should be always available inside of this Action.");
+        fn apply(self, cx: &mut ApplyContext<'_>) -> Result<Self::Output, Self::Error> {
+            let h = cx.headers().get(&self.name).ok_or_else(|| {
+                BadRequest::from(format!("missing header: `{}'", self.name.as_str()))
+            })?;
             T::from_header_value(h)
-                .map(|parsed| (parsed,).into())
+                .map(|parsed| (parsed,))
                 .map_err(BadRequest::from)
                 .map_err(Into::into)
         }
@@ -205,13 +196,14 @@ mod optional {
     {
         type Output = (Option<T>,);
         type Error = Error;
-        type Action = OptionalAction<T>;
+        type Action = Oneshot<OptionalAction<T>>;
 
-        fn apply(&self, _: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
-            Ok(OptionalAction {
+        fn action(&self) -> Self::Action {
+            OptionalAction {
                 name: self.name.clone(),
                 _marker: PhantomData,
-            })
+            }
+            .into_action()
         }
     }
 
@@ -221,20 +213,17 @@ mod optional {
         _marker: PhantomData<fn() -> T>,
     }
 
-    impl<T, Bd> EndpointAction<Bd> for OptionalAction<T>
+    impl<T> OneshotAction for OptionalAction<T>
     where
         T: FromHeaderValue,
     {
         type Output = (Option<T>,);
         type Error = Error;
 
-        fn poll_action(
-            &mut self,
-            cx: &mut ActionContext<'_, Bd>,
-        ) -> Poll<Self::Output, Self::Error> {
+        fn apply(self, cx: &mut ApplyContext<'_>) -> Result<Self::Output, Self::Error> {
             match cx.headers().get(&self.name) {
                 Some(h) => T::from_header_value(h)
-                    .map(|parsed| (Some(parsed),).into())
+                    .map(|parsed| (Some(parsed),))
                     .map_err(BadRequest::from)
                     .map_err(Into::into),
                 None => Ok((None,).into()),
@@ -295,16 +284,38 @@ mod matches {
 
     impl<T, Bd> Endpoint<Bd> for Matches<T>
     where
-        T: PartialEq<HeaderValue>,
+        T: PartialEq<HeaderValue> + Clone,
     {
         type Output = ();
-        type Error = Error;
-        type Action = futures::future::FutureResult<(), Error>;
+        type Error = http::StatusCode;
+        type Action = Oneshot<MatchesAction<T>>;
 
-        fn apply(&self, cx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
+        fn action(&self) -> Self::Action {
+            MatchesAction {
+                name: self.name.clone(),
+                value: self.value.clone(),
+            }
+            .into_action()
+        }
+    }
+
+    #[allow(missing_debug_implementations)]
+    pub struct MatchesAction<T> {
+        name: HeaderName,
+        value: T,
+    }
+
+    impl<T> OneshotAction for MatchesAction<T>
+    where
+        T: PartialEq<HeaderValue> + Clone,
+    {
+        type Output = ();
+        type Error = http::StatusCode;
+
+        fn apply(self, cx: &mut ApplyContext<'_>) -> Result<Self::Output, Self::Error> {
             match cx.headers().get(&self.name) {
-                Some(v) if self.value == *v => Ok(futures::future::ok(())),
-                _ => Err(http::StatusCode::NOT_FOUND.into()),
+                Some(v) if self.value == *v => Ok(()),
+                _ => Err(http::StatusCode::NOT_FOUND),
             }
         }
     }
@@ -337,30 +348,28 @@ mod raw {
 
     impl<Bd> Endpoint<Bd> for Raw {
         type Output = (Option<HeaderValue>,);
-        type Error = Error;
-        type Action = RawAction;
+        type Error = crate::util::Never;
+        type Action = Oneshot<RawAction>;
 
-        fn apply(&self, cx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
-            Ok(RawAction {
-                value: cx.headers().get(&self.name).cloned(),
-            })
+        fn action(&self) -> Self::Action {
+            RawAction {
+                name: self.name.clone(),
+            }
+            .into_action()
         }
     }
 
     #[allow(missing_debug_implementations)]
     pub struct RawAction {
-        value: Option<HeaderValue>,
+        name: HeaderName,
     }
 
-    impl<Bd> EndpointAction<Bd> for RawAction {
+    impl OneshotAction for RawAction {
         type Output = (Option<HeaderValue>,);
-        type Error = Error;
+        type Error = crate::util::Never;
 
-        fn poll_action(
-            &mut self,
-            _: &mut ActionContext<'_, Bd>,
-        ) -> Poll<Self::Output, Self::Error> {
-            Ok((self.value.take(),).into())
+        fn apply(self, cx: &mut ApplyContext<'_>) -> Result<Self::Output, Self::Error> {
+            Ok((cx.headers().get(&self.name).cloned(),))
         }
     }
 }

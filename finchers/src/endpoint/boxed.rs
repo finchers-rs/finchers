@@ -3,11 +3,11 @@ use {
         common::Tuple,
         endpoint::{
             ActionContext, //
-            Apply,
             ApplyContext,
             Endpoint,
             EndpointAction,
             IsEndpoint,
+            Preflight,
         },
         error::Error,
     },
@@ -19,10 +19,7 @@ trait BoxedEndpoint<Bd> {
     type Output: Tuple;
     type Error: Into<Error>;
 
-    fn apply_obj(
-        &self,
-        ecx: &mut ApplyContext<'_>,
-    ) -> Result<EndpointActionObj<Bd, Self::Output, Self::Error>, Self::Error>;
+    fn action(&self) -> EndpointActionObj<Bd, Self::Output, Self::Error>;
 }
 
 impl<Bd, E> BoxedEndpoint<Bd> for E
@@ -33,15 +30,10 @@ where
     type Output = E::Output;
     type Error = E::Error;
 
-    #[inline]
-    fn apply_obj(
-        &self,
-        ecx: &mut ApplyContext<'_>,
-    ) -> Result<EndpointActionObj<Bd, Self::Output, Self::Error>, Self::Error> {
-        let future = self.apply(ecx)?;
-        Ok(EndpointActionObj {
-            inner: Box::new(future),
-        })
+    fn action(&self) -> EndpointActionObj<Bd, Self::Output, Self::Error> {
+        EndpointActionObj {
+            inner: Box::new(self.action()),
+        }
     }
 }
 
@@ -103,8 +95,8 @@ where
     type Action = EndpointActionObj<Bd, T, E>;
 
     #[inline]
-    fn apply(&self, ecx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
-        self.inner.apply_obj(ecx)
+    fn action(&self) -> Self::Action {
+        self.inner.action()
     }
 }
 
@@ -126,6 +118,14 @@ where
     type Error = E;
 
     #[inline]
+    fn preflight(
+        &mut self,
+        cx: &mut ApplyContext<'_>,
+    ) -> Result<Preflight<Self::Output>, Self::Error> {
+        self.inner.preflight(cx)
+    }
+
+    #[inline]
     fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error> {
         self.inner.poll_action(cx)
     }
@@ -137,10 +137,7 @@ trait LocalBoxedEndpoint<Bd> {
     type Output: Tuple;
     type Error: Into<Error>;
 
-    fn apply_local_obj(
-        &self,
-        ecx: &mut ApplyContext<'_>,
-    ) -> Result<LocalEndpointActionObj<Bd, Self::Output, Self::Error>, Self::Error>;
+    fn action(&self) -> LocalEndpointActionObj<Bd, Self::Output, Self::Error>;
 }
 
 impl<Bd, E> LocalBoxedEndpoint<Bd> for E
@@ -151,15 +148,10 @@ where
     type Output = E::Output;
     type Error = E::Error;
 
-    #[inline(always)]
-    fn apply_local_obj(
-        &self,
-        ecx: &mut ApplyContext<'_>,
-    ) -> Result<LocalEndpointActionObj<Bd, Self::Output, Self::Error>, Self::Error> {
-        let future = self.apply(ecx)?;
-        Ok(LocalEndpointActionObj {
-            inner: Box::new(future),
-        })
+    fn action(&self) -> LocalEndpointActionObj<Bd, Self::Output, Self::Error> {
+        LocalEndpointActionObj {
+            inner: Box::new(self.action()),
+        }
     }
 }
 
@@ -218,9 +210,9 @@ where
     type Error = E;
     type Action = LocalEndpointActionObj<Bd, T, E>;
 
-    #[inline(always)]
-    fn apply(&self, ecx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
-        self.inner.apply_local_obj(ecx)
+    #[inline]
+    fn action(&self) -> Self::Action {
+        self.inner.action()
     }
 }
 
@@ -240,6 +232,14 @@ where
 {
     type Output = T;
     type Error = E;
+
+    #[inline]
+    fn preflight(
+        &mut self,
+        cx: &mut ApplyContext<'_>,
+    ) -> Result<Preflight<Self::Output>, Self::Error> {
+        self.inner.preflight(cx)
+    }
 
     #[inline]
     fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error> {

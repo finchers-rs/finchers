@@ -3,11 +3,11 @@ use {
         common::Func,
         endpoint::{
             ActionContext, //
-            Apply,
             ApplyContext,
             Endpoint,
             EndpointAction,
             IsEndpoint,
+            Preflight,
         },
     },
     futures::Poll,
@@ -31,12 +31,11 @@ where
     type Error = E::Error;
     type Action = MapAction<E::Action, F>;
 
-    #[inline]
-    fn apply(&self, ecx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
-        Ok(MapAction {
-            action: self.endpoint.apply(ecx)?,
+    fn action(&self) -> Self::Action {
+        MapAction {
+            action: self.endpoint.action(),
             f: self.f.clone(),
-        })
+        }
     }
 }
 
@@ -53,6 +52,15 @@ where
 {
     type Output = (F::Out,);
     type Error = A::Error;
+
+    fn preflight(
+        &mut self,
+        cx: &mut ApplyContext<'_>,
+    ) -> Result<Preflight<Self::Output>, Self::Error> {
+        self.action
+            .preflight(cx)
+            .map(|x| x.map(|args| (self.f.call(args),)))
+    }
 
     fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error> {
         self.action

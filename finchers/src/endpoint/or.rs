@@ -2,16 +2,16 @@ use {
     crate::{
         endpoint::{
             ActionContext, //
-            Apply,
             ApplyContext,
             Endpoint,
             EndpointAction,
             IsEndpoint,
+            Preflight,
         },
         error::Error,
         output::IntoResponse,
     },
-    either::Either::{self, *},
+    either::Either,
     futures::Poll,
     http::{Request, Response},
     std::mem,
@@ -35,36 +35,9 @@ where
     type Error = Error;
     type Action = OrAction<E1::Action, E2::Action>;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
-        let orig_cursor = ecx.cursor().clone();
-        match self.e1.apply(ecx) {
-            Ok(future1) => {
-                let cursor1 = mem::replace(ecx.cursor(), orig_cursor);
-                match self.e2.apply(ecx) {
-                    Ok(future2) => {
-                        // If both endpoints are matched, the one with the larger number of
-                        // (consumed) path segments is choosen.
-                        if cursor1.popped() >= ecx.cursor().popped() {
-                            *ecx.cursor() = cursor1;
-                            Ok(OrAction::left(future1))
-                        } else {
-                            Ok(OrAction::right(future2))
-                        }
-                    }
-                    Err(..) => {
-                        *ecx.cursor() = cursor1;
-                        Ok(OrAction::left(future1))
-                    }
-                }
-            }
-            Err(..) => {
-                let _ = mem::replace(ecx.cursor(), orig_cursor);
-                match self.e2.apply(ecx) {
-                    Ok(future) => Ok(OrAction::right(future)),
-                    // FIXME: appropriate error handling
-                    Err(..) => Err(http::StatusCode::NOT_FOUND.into()),
-                }
-            }
+    fn action(&self) -> Self::Action {
+        OrAction {
+            state: State::Init(self.e1.action(), self.e2.action()),
         }
     }
 }
@@ -85,24 +58,17 @@ where
     }
 }
 
-#[allow(missing_docs)]
-#[derive(Debug)]
-pub struct OrAction<L, R> {
-    inner: Either<L, R>,
+#[allow(missing_debug_implementations)]
+enum State<L, R> {
+    Init(L, R),
+    Left(L),
+    Right(R),
+    Done,
 }
 
-impl<L, R> OrAction<L, R> {
-    fn left(l: L) -> Self {
-        OrAction {
-            inner: Either::Left(l),
-        }
-    }
-
-    fn right(r: R) -> Self {
-        OrAction {
-            inner: Either::Right(r),
-        }
-    }
+#[allow(missing_debug_implementations)]
+pub struct OrAction<L, R> {
+    state: State<L, R>,
 }
 
 impl<L, R, Bd> EndpointAction<Bd> for OrAction<L, R>
@@ -113,17 +79,78 @@ where
     type Output = (Wrapped<L::Output, R::Output>,);
     type Error = Error;
 
+    fn preflight(
+        &mut self,
+        cx: &mut ApplyContext<'_>,
+    ) -> Result<Preflight<Self::Output>, Self::Error> {
+        self.state = match std::mem::replace(&mut self.state, State::Done) {
+            State::Init(mut left, mut right) => {
+                let orig_cursor = cx.cursor().clone();
+                let left_output = left.preflight(cx);
+                let cursor1 = mem::replace(cx.cursor(), orig_cursor);
+                let right_output = right.preflight(cx);
+
+                match (left_output, right_output) {
+                    (Ok(l), Ok(r)) => {
+                        // If both endpoints are matched, the one with the larger number of
+                        // (consumed) path segments is choosen.
+                        if cursor1.popped() >= cx.cursor().popped() {
+                            *cx.cursor() = cursor1;
+                            if let Preflight::Completed(output) = l {
+                                return Ok(Preflight::Completed((Wrapped(Either::Left(output)),)));
+                            } else {
+                                State::Left(left)
+                            }
+                        } else {
+                            if let Preflight::Completed(output) = r {
+                                return Ok(Preflight::Completed((Wrapped(Either::Right(output)),)));
+                            } else {
+                                State::Right(right)
+                            }
+                        }
+                    }
+
+                    (Ok(l), Err(..)) => {
+                        *cx.cursor() = cursor1;
+                        if let Preflight::Completed(output) = l {
+                            return Ok(Preflight::Completed((Wrapped(Either::Left(output)),)));
+                        } else {
+                            State::Left(left)
+                        }
+                    }
+
+                    (Err(..), Ok(r)) => {
+                        if let Preflight::Completed(output) = r {
+                            return Ok(Preflight::Completed((Wrapped(Either::Right(output)),)));
+                        } else {
+                            State::Right(right)
+                        }
+                    }
+
+                    (Err(..), Err(..)) => {
+                        // FIXME: appropriate error handling
+                        return Err(http::StatusCode::NOT_FOUND.into());
+                    }
+                }
+            }
+            _ => panic!("unexpected condition"),
+        };
+
+        Ok(Preflight::Incomplete)
+    }
+
     #[inline]
     fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error> {
-        match self.inner {
-            Left(ref mut t) => t
+        match self.state {
+            State::Left(ref mut t) => t
                 .poll_action(cx)
-                .map(|t| t.map(|t| (Wrapped(Left(t)),)))
+                .map(|t| t.map(|t| (Wrapped(Either::Left(t)),)))
                 .map_err(Into::into),
-            Right(ref mut t) => t
+            State::Right(ref mut t) => t
                 .poll_action(cx)
-                .map(|t| t.map(|t| (Wrapped(Right(t)),)))
+                .map(|t| t.map(|t| (Wrapped(Either::Right(t)),)))
                 .map_err(Into::into),
+            _ => panic!("unexpected condition"),
         }
     }
 }

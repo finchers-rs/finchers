@@ -4,11 +4,11 @@ use {
     crate::{
         endpoint::{
             ActionContext, //
-            Apply,
             ApplyContext,
             Endpoint,
             EndpointAction,
             IsEndpoint,
+            Preflight,
         },
         error::{BadRequest, Error, InternalServerError},
     },
@@ -63,10 +63,10 @@ mod raw {
         type Error = Error;
         type Action = RawAction;
 
-        fn apply(&self, _: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
-            Ok(RawAction {
+        fn action(&self) -> Self::Action {
+            RawAction {
                 _anchor: PhantomData,
-            })
+            }
         }
     }
 
@@ -119,8 +119,8 @@ mod receive_all {
         type Error = Error;
         type Action = ReceiveAllAction<Bd>;
 
-        fn apply(&self, _: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
-            Ok(future())
+        fn action(&self) -> Self::Action {
+            new_action()
         }
     }
 
@@ -168,7 +168,7 @@ mod receive_all {
         }
     }
 
-    pub(super) fn future<Bd>() -> ReceiveAllAction<Bd>
+    pub(super) fn new_action<Bd>() -> ReceiveAllAction<Bd>
     where
         Bd: BufStream,
     {
@@ -208,19 +208,10 @@ mod text {
         type Error = Error;
         type Action = TextAction<Bd>;
 
-        fn apply(&self, cx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
-            if let Some(param) = content_type(&*cx)?
-                .as_ref()
-                .and_then(|m| m.get_param("charset"))
-            {
-                if param != "utf-8" {
-                    return Err(BadRequest::from("Only the UTF-8 charset is supported.").into());
-                }
+        fn action(&self) -> Self::Action {
+            TextAction {
+                receive_all: self.receive_all.action(),
             }
-
-            Ok(TextAction {
-                receive_all: self.receive_all.apply(cx)?,
-            })
         }
     }
 
@@ -240,6 +231,26 @@ mod text {
     {
         type Output = (String,);
         type Error = Error;
+
+        fn preflight(
+            &mut self,
+            cx: &mut ApplyContext<'_>,
+        ) -> Result<Preflight<Self::Output>, Self::Error> {
+            let x = self.receive_all.preflight(cx)?;
+            debug_assert!(x.is_incomplete());
+            drop(x);
+
+            if let Some(param) = content_type(&*cx)?
+                .as_ref()
+                .and_then(|m| m.get_param("charset"))
+            {
+                if param != "utf-8" {
+                    return Err(BadRequest::from("Only the UTF-8 charset is supported.").into());
+                }
+            }
+
+            Ok(Preflight::Incomplete)
+        }
 
         fn poll_action(
             &mut self,
@@ -294,20 +305,11 @@ mod json {
         type Error = Error;
         type Action = JsonAction<Bd, T>;
 
-        fn apply(&self, cx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
-            let mime =
-                content_type(&*cx)?.ok_or_else(|| BadRequest::from("missing content type"))?;
-            if mime != mime::APPLICATION_JSON {
-                return Err(BadRequest::from(
-                    "The value of `Content-type` must be `application/json`.",
-                )
-                .into());
-            }
-
-            Ok(JsonAction {
-                receive_all: self.receive_all.apply(cx)?,
+        fn action(&self) -> Self::Action {
+            JsonAction {
+                receive_all: self.receive_all.action(),
                 _marker: PhantomData,
-            })
+            }
         }
     }
 
@@ -329,6 +331,26 @@ mod json {
     {
         type Output = (T,);
         type Error = Error;
+
+        fn preflight(
+            &mut self,
+            cx: &mut ApplyContext<'_>,
+        ) -> Result<Preflight<Self::Output>, Self::Error> {
+            let x = self.receive_all.preflight(cx)?;
+            debug_assert!(x.is_incomplete());
+            drop(x);
+
+            let mime = content_type(&*cx)? //
+                .ok_or_else(|| BadRequest::from("missing content type"))?;
+            if mime != mime::APPLICATION_JSON {
+                return Err(BadRequest::from(
+                    "The value of `Content-type` must be `application/json`.",
+                )
+                .into());
+            }
+
+            Ok(Preflight::Incomplete)
+        }
 
         fn poll_action(
             &mut self,
@@ -385,20 +407,11 @@ mod urlencoded {
         type Error = Error;
         type Action = UrlencodedAction<Bd, T>;
 
-        fn apply(&self, cx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
-            let mime =
-                content_type(&*cx)?.ok_or_else(|| BadRequest::from("missing content type"))?;
-            if mime != mime::APPLICATION_WWW_FORM_URLENCODED {
-                return Err(BadRequest::from(
-                    "The value of `Content-type` must be `application-x-www-form-urlencoded`.",
-                )
-                .into());
-            }
-
-            Ok(UrlencodedAction {
-                receive_all: self.receive_all.apply(cx)?,
+        fn action(&self) -> Self::Action {
+            UrlencodedAction {
+                receive_all: self.receive_all.action(),
                 _marker: PhantomData,
-            })
+            }
         }
     }
 
@@ -420,6 +433,26 @@ mod urlencoded {
     {
         type Output = (T,);
         type Error = Error;
+
+        fn preflight(
+            &mut self,
+            cx: &mut ApplyContext<'_>,
+        ) -> Result<Preflight<Self::Output>, Self::Error> {
+            let x = self.receive_all.preflight(cx)?;
+            debug_assert!(x.is_incomplete());
+            drop(x);
+
+            let mime = content_type(&*cx)? //
+                .ok_or_else(|| BadRequest::from("missing content type"))?;
+            if mime != mime::APPLICATION_WWW_FORM_URLENCODED {
+                return Err(BadRequest::from(
+                    "The value of `Content-type` must be `application-x-www-form-urlencoded`.",
+                )
+                .into());
+            }
+
+            Ok(Preflight::Incomplete)
+        }
 
         fn poll_action(
             &mut self,

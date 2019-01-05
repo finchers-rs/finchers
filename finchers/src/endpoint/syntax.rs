@@ -9,18 +9,19 @@ use {
     crate::{
         endpoint::{
             ActionContext, //
-            Apply,
             ApplyContext,
             Endpoint,
             EndpointAction,
             IsEndpoint,
+            Oneshot,
+            OneshotAction,
         },
         error::{BadRequest, Error},
     },
     futures::Poll,
     http::StatusCode,
     percent_encoding::{percent_encode, DEFAULT_ENCODE_SET},
-    std::{fmt, marker::PhantomData},
+    std::{fmt, marker::PhantomData, sync::Arc},
 };
 
 #[doc(hidden)]
@@ -72,29 +73,47 @@ pub fn segment(s: impl AsRef<str>) -> MatchSegment {
     let s = s.as_ref();
     debug_assert!(!s.is_empty());
     MatchSegment {
-        encoded: percent_encode(s.as_bytes(), SEGMENT_ENCODE_SET).to_string(),
+        encoded: Arc::new(percent_encode(s.as_bytes(), SEGMENT_ENCODE_SET).to_string()),
     }
 }
 
 #[allow(missing_docs)]
 #[derive(Debug, Clone)]
 pub struct MatchSegment {
-    encoded: String,
+    encoded: Arc<String>,
 }
 
 impl IsEndpoint for MatchSegment {}
 
 impl<Bd> Endpoint<Bd> for MatchSegment {
     type Output = ();
-    type Error = Error;
-    type Action = Matched;
+    type Error = StatusCode;
+    type Action = Oneshot<MatchSegmentAction>;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
+    fn action(&self) -> Self::Action {
+        MatchSegmentAction {
+            encoded: self.encoded.clone(),
+        }
+        .into_action()
+    }
+}
+
+#[doc(hidden)]
+#[allow(missing_debug_implementations)]
+pub struct MatchSegmentAction {
+    encoded: Arc<String>,
+}
+
+impl OneshotAction for MatchSegmentAction {
+    type Output = ();
+    type Error = StatusCode;
+
+    fn apply(self, ecx: &mut ApplyContext<'_>) -> Result<Self::Output, Self::Error> {
         let s = ecx.next_segment().ok_or_else(|| StatusCode::NOT_FOUND)?;
-        if s == self.encoded {
-            Ok(Matched { _priv: () })
+        if s == &*self.encoded {
+            Ok(())
         } else {
-            Err(StatusCode::NOT_FOUND.into())
+            Err(StatusCode::NOT_FOUND)
         }
     }
 }
@@ -117,13 +136,28 @@ impl IsEndpoint for MatchEos {}
 
 impl<Bd> Endpoint<Bd> for MatchEos {
     type Output = ();
-    type Error = Error;
-    type Action = Matched;
+    type Error = StatusCode;
+    type Action = Oneshot<MatchEosAction>;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
-        match ecx.next_segment() {
-            None => Ok(Matched { _priv: () }),
-            Some(..) => Err(StatusCode::NOT_FOUND.into()),
+    fn action(&self) -> Self::Action {
+        MatchEosAction { _priv: () }.into_action()
+    }
+}
+
+#[doc(hidden)]
+#[allow(missing_debug_implementations)]
+pub struct MatchEosAction {
+    _priv: (),
+}
+
+impl OneshotAction for MatchEosAction {
+    type Output = ();
+    type Error = StatusCode;
+
+    fn apply(self, cx: &mut ApplyContext<'_>) -> Result<Self::Output, Self::Error> {
+        match cx.next_segment() {
+            None => Ok(()),
+            Some(..) => Err(StatusCode::NOT_FOUND),
         }
     }
 }
@@ -172,12 +206,33 @@ where
 {
     type Output = (T,);
     type Error = Error;
-    type Action = Extracted<T>;
+    type Action = Oneshot<ParamAction<T>>;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
-        let s = ecx.next_segment().ok_or_else(|| StatusCode::NOT_FOUND)?;
+    fn action(&self) -> Self::Action {
+        ParamAction {
+            _marker: PhantomData,
+        }
+        .into_action()
+    }
+}
+
+#[doc(hidden)]
+#[allow(missing_debug_implementations)]
+pub struct ParamAction<T> {
+    _marker: PhantomData<fn() -> T>,
+}
+
+impl<T> OneshotAction for ParamAction<T>
+where
+    T: FromEncodedStr,
+{
+    type Output = (T,);
+    type Error = Error;
+
+    fn apply(self, cx: &mut ApplyContext<'_>) -> Result<Self::Output, Self::Error> {
+        let s = cx.next_segment().ok_or_else(|| StatusCode::NOT_FOUND)?;
         let x = T::from_encoded_str(s).map_err(BadRequest::from)?;
-        Ok(Extracted(Some(x)))
+        Ok((x,))
     }
 }
 
@@ -224,14 +279,35 @@ where
 {
     type Output = (T,);
     type Error = Error;
-    type Action = Extracted<T>;
+    type Action = Oneshot<RemainsAction<T>>;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
-        let result = T::from_encoded_str(ecx.remaining_path())
+    fn action(&self) -> Self::Action {
+        RemainsAction {
+            _marker: PhantomData,
+        }
+        .into_action()
+    }
+}
+
+#[doc(hidden)]
+#[allow(missing_debug_implementations)]
+pub struct RemainsAction<T> {
+    _marker: PhantomData<fn() -> T>,
+}
+
+impl<T> OneshotAction for RemainsAction<T>
+where
+    T: FromEncodedStr,
+{
+    type Output = (T,);
+    type Error = Error;
+
+    fn apply(self, cx: &mut ApplyContext<'_>) -> Result<Self::Output, Self::Error> {
+        let result = T::from_encoded_str(cx.remaining_path())
             .map_err(BadRequest::from)
             .map_err(Into::into);
-        while let Some(..) = ecx.next_segment() {}
-        result.map(|x| Extracted(Some(x)))
+        while let Some(..) = cx.next_segment() {}
+        result.map(|x| (x,))
     }
 }
 

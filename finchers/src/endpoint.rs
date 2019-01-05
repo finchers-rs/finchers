@@ -61,12 +61,6 @@ impl<E: IsEndpoint + ?Sized> IsEndpoint for Box<E> {}
 impl<E: IsEndpoint + ?Sized> IsEndpoint for Rc<E> {}
 impl<E: IsEndpoint + ?Sized> IsEndpoint for Arc<E> {}
 
-/// Type alias that represents the return type of `Endpoint::apply`.
-pub type Apply<Bd, E> = Result<
-    <E as Endpoint<Bd>>::Action, //
-    <E as Endpoint<Bd>>::Error,
->;
-
 /// Trait representing an endpoint.
 pub trait Endpoint<Bd>: IsEndpoint {
     /// The inner type associated with this endpoint.
@@ -82,8 +76,8 @@ pub trait Endpoint<Bd>: IsEndpoint {
         Error = Self::Error,
     >;
 
-    /// Validates the incoming HTTP request and returns an instance of associated `Action` if available.
-    fn apply(&self, ecx: &mut ApplyContext<'_>) -> Apply<Bd, Self>;
+    /// Spawns an instance of `Action` applied to an incoming request.
+    fn action(&self) -> Self::Action;
 
     /// Add an annotation that the associated type `Output` is fixed to `T`.
     #[inline(always)]
@@ -94,6 +88,396 @@ pub trait Endpoint<Bd>: IsEndpoint {
         self
     }
 }
+
+impl<'a, E, Bd> Endpoint<Bd> for &'a E
+where
+    E: Endpoint<Bd>,
+{
+    type Output = E::Output;
+    type Error = E::Error;
+    type Action = E::Action;
+
+    fn action(&self) -> Self::Action {
+        (**self).action()
+    }
+}
+
+impl<E, Bd> Endpoint<Bd> for Box<E>
+where
+    E: Endpoint<Bd>,
+{
+    type Output = E::Output;
+    type Error = E::Error;
+    type Action = E::Action;
+
+    fn action(&self) -> Self::Action {
+        (**self).action()
+    }
+}
+
+impl<E, Bd> Endpoint<Bd> for Rc<E>
+where
+    E: Endpoint<Bd>,
+{
+    type Output = E::Output;
+    type Error = E::Error;
+    type Action = E::Action;
+
+    fn action(&self) -> Self::Action {
+        (**self).action()
+    }
+}
+
+impl<E, Bd> Endpoint<Bd> for Arc<E>
+where
+    E: Endpoint<Bd>,
+{
+    type Output = E::Output;
+    type Error = E::Error;
+    type Action = E::Action;
+
+    fn action(&self) -> Self::Action {
+        (**self).action()
+    }
+}
+
+/// Create an endpoint from a function which takes the reference to `ApplyContext`
+/// and returns a future.
+///
+/// The endpoint created by this function will wrap the result of future into a tuple.
+/// If you want to return the result without wrapping, use `apply_raw` instead.
+pub fn apply_fn<Bd, R>(
+    f: impl Fn() -> R,
+) -> impl Endpoint<
+    Bd, //
+    Output = R::Output,
+    Error = R::Error,
+    Action = R,
+>
+where
+    R: EndpointAction<Bd>,
+{
+    #[allow(missing_debug_implementations)]
+    struct ApplyEndpoint<F>(F);
+
+    impl<F> IsEndpoint for ApplyEndpoint<F> {}
+
+    impl<F, Bd, R> Endpoint<Bd> for ApplyEndpoint<F>
+    where
+        F: Fn() -> R,
+        R: EndpointAction<Bd>,
+    {
+        type Output = R::Output;
+        type Error = R::Error;
+        type Action = R;
+
+        fn action(&self) -> Self::Action {
+            (self.0)()
+        }
+    }
+
+    ApplyEndpoint(f)
+}
+
+/// Create an endpoint which simply returns an unit (`()`).
+#[inline]
+pub fn unit<Bd>() -> impl Endpoint<
+    Bd,
+    Output = (),
+    Error = crate::util::Never,
+    Action = Oneshot<self::unit::UnitAction>, // private
+> {
+    apply_fn(|| self::unit::UnitAction(()).into_action())
+}
+
+mod unit {
+    use super::*;
+
+    #[allow(missing_debug_implementations)]
+    pub struct UnitAction(pub(super) ());
+
+    impl OneshotAction for UnitAction {
+        type Output = ();
+        type Error = crate::util::Never;
+
+        fn apply(self, _: &mut ApplyContext<'_>) -> Result<Self::Output, Self::Error> {
+            Ok(())
+        }
+    }
+}
+
+/// Create an endpoint which simply clones the specified value.
+///
+/// # Examples
+///
+/// ```ignore
+/// # #[macro_use]
+/// # extern crate finchers;
+/// # extern crate futures;
+/// # use finchers::prelude::*;
+/// # use finchers::endpoint::value;
+/// #
+/// #[derive(Clone)]
+/// struct Conn {
+///     // ...
+/// #   _p: (),
+/// }
+///
+/// # fn main() {
+/// let conn = {
+///     // do some stuff...
+/// #   Conn { _p: () }
+/// };
+///
+/// let endpoint = path!(@get / "posts" / u32 /)
+///     .and(value(conn))
+///     .and_then(|id: u32, conn: Conn| {
+///         // ...
+/// #       drop(id);
+/// #       futures::future::ok::<_, finchers::error::Never>(conn)
+///     });
+/// # drop(endpoint);
+/// # }
+/// ```
+#[inline]
+pub fn value<Bd, T: Clone>(
+    x: T,
+) -> impl Endpoint<
+    Bd,
+    Output = (T,),
+    Error = crate::util::Never,
+    Action = Oneshot<self::value::ValueAction<T>>, // private
+> {
+    apply_fn(move || self::value::ValueAction { x: x.clone() }.into_action())
+}
+
+mod value {
+    use super::*;
+
+    // not a public API.
+    #[derive(Debug)]
+    pub struct ValueAction<T> {
+        pub(super) x: T,
+    }
+
+    impl<T> OneshotAction for ValueAction<T> {
+        type Output = (T,);
+        type Error = crate::util::Never;
+
+        fn apply(self, _: &mut ApplyContext<'_>) -> Result<Self::Output, Self::Error> {
+            Ok((self.x,))
+        }
+    }
+}
+
+/// Create an endpoint from the specified function which returns a `Future`.
+pub fn lazy<Bd, R>(
+    f: impl Fn() -> R,
+) -> impl Endpoint<
+    Bd,
+    Output = (R::Item,),
+    Error = R::Error,
+    Action = self::lazy::LazyAction<R::Future>, // private
+>
+where
+    R: IntoFuture,
+    R::Error: Into<Error>,
+{
+    apply_fn(move || self::lazy::LazyAction {
+        future: f().into_future(),
+    })
+}
+
+mod lazy {
+    use super::*;
+
+    #[derive(Debug)]
+    pub struct LazyAction<F> {
+        pub(super) future: F,
+    }
+
+    impl<F, Bd> EndpointAction<Bd> for LazyAction<F>
+    where
+        F: Future,
+        F::Error: Into<Error>,
+    {
+        type Output = (F::Item,);
+        type Error = F::Error;
+
+        #[inline]
+        fn poll_action(
+            &mut self,
+            _: &mut ActionContext<'_, Bd>,
+        ) -> Poll<Self::Output, Self::Error> {
+            self.future.poll().map(|x| x.map(|ok| (ok,)))
+        }
+    }
+}
+
+// ==== EndpointAction ====
+
+/// An enum representing the result of `EndpointAction::preflight`.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum Preflight<T> {
+    /// The action has been completed with the specified output value.
+    Completed(T),
+
+    /// The action is incomplete.
+    Incomplete,
+}
+
+impl<T> Preflight<T> {
+    /// Returns `true` if the value of this is `Completed(x)`.
+    pub fn is_completed(&self) -> bool {
+        match self {
+            Preflight::Completed(..) => true,
+            Preflight::Incomplete => false,
+        }
+    }
+
+    /// Returns `true` if the value of this is `InComplete`.
+    pub fn is_incomplete(&self) -> bool {
+        !self.is_completed()
+    }
+
+    /// Converts the contained value using the specified closure.
+    pub fn map<U>(self, op: impl FnOnce(T) -> U) -> Preflight<U> {
+        match self {
+            Preflight::Completed(x) => Preflight::Completed(op(x)),
+            Preflight::Incomplete => Preflight::Incomplete,
+        }
+    }
+}
+
+/// A trait that abstracts the *action* of endpoints.
+pub trait EndpointAction<Bd> {
+    /// The type returned from this action.
+    type Output: Tuple;
+
+    /// The error type returned from this action.
+    type Error: Into<Error>;
+
+    /// Applies an incoming request to this action and returns the result if possible.
+    ///
+    /// This method is called **only once** after the instance of `Self` is created.
+    /// The signature of this method is almost the same as `poll_action`, but there are
+    /// the following differences:
+    ///
+    /// * The return type of this method is **not** `Poll<Self::Output, Self::Error>`.
+    ///   When this method returns an `Ok(Incomplete)`, it means that the action needs to poll
+    ///   the internal resource or access `ActionContext` to complete itself. Therefore,
+    ///   it is not possible to poll any asynchronous objects that this action holds
+    ///   within this method.
+    /// * The result of this method may affect the behavior of routing. If this method will
+    ///   return an `Err`, it is possible that the combinator may ignore this error value and
+    ///   choose another `EndpointAction` without aborting the process (in contrast, the error
+    ///   values returned from `poll_action` are not ignored).
+    ///
+    /// Some limitations are added to `ApplyContext` in order to keep consistency when
+    /// another endpoint returns an error (for example, it cannot be taken the instance
+    /// of request body inside of this method).
+    #[allow(unused_variables)]
+    fn preflight(
+        &mut self,
+        cx: &mut ApplyContext<'_>,
+    ) -> Result<Preflight<Self::Output>, Self::Error> {
+        Ok(Preflight::Incomplete)
+    }
+
+    /// Progress this action and returns the result if ready.
+    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error>;
+}
+
+impl<F, Bd> EndpointAction<Bd> for F
+where
+    F: Future,
+    F::Item: Tuple,
+    F::Error: Into<Error>,
+{
+    type Output = F::Item;
+    type Error = F::Error;
+
+    fn poll_action(&mut self, _: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error> {
+        self.poll()
+    }
+}
+
+/// Trait representing a variant of `EndpointAction` that `preflight` always returns
+/// an `Ok(Preflight::Ready(x))`.
+#[allow(missing_docs)]
+pub trait OneshotAction {
+    type Output: Tuple;
+    type Error: Into<Error>;
+
+    /// Applies an incoming request to this action and returns its result.
+    fn apply(self, cx: &mut ApplyContext<'_>) -> Result<Self::Output, Self::Error>;
+
+    /// Consume `self` and convert it into an implementor of `EndpointAction`.
+    fn into_action(self) -> Oneshot<Self>
+    where
+        Self: Sized,
+    {
+        Oneshot(Some(self))
+    }
+}
+
+/// Wrapper for providing an implementation of `EndpointAction` to `OneshotAction`s.
+#[derive(Debug)]
+pub struct Oneshot<T>(Option<T>);
+
+impl<T, Bd> EndpointAction<Bd> for Oneshot<T>
+where
+    T: OneshotAction,
+{
+    type Output = T::Output;
+    type Error = T::Error;
+
+    fn preflight(
+        &mut self,
+        cx: &mut ApplyContext<'_>,
+    ) -> Result<Preflight<Self::Output>, Self::Error> {
+        let action = self.0.take().expect("cannot apply twice");
+        action.apply(cx).map(Preflight::Completed)
+    }
+
+    fn poll_action(&mut self, _: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error> {
+        debug_assert!(self.0.is_none());
+        unreachable!()
+    }
+}
+
+/// A function to create an instance of `EndpointAction` from the specified closure.
+pub fn action<Bd, T, E>(
+    f: impl FnMut(&mut ActionContext<'_, Bd>) -> Poll<T, E>,
+) -> impl EndpointAction<Bd, Output = T, Error = E>
+where
+    T: Tuple,
+    E: Into<Error>,
+{
+    #[allow(missing_debug_implementations)]
+    struct ActionFn<F>(F);
+
+    impl<F, Bd, T, E> EndpointAction<Bd> for ActionFn<F>
+    where
+        F: FnMut(&mut ActionContext<'_, Bd>) -> Poll<T, E>,
+        T: Tuple,
+        E: Into<Error>,
+    {
+        type Output = T;
+        type Error = E;
+
+        fn poll_action(
+            &mut self,
+            cx: &mut ActionContext<'_, Bd>,
+        ) -> Poll<Self::Output, Self::Error> {
+            (self.0)(cx)
+        }
+    }
+
+    ActionFn(f)
+}
+
+// ==== Context ====
 
 /// The contextual information during calling `Endpoint::apply`.
 #[derive(Debug)]
@@ -160,280 +544,6 @@ impl<'a> std::ops::Deref for ApplyContext<'a> {
     fn deref(&self) -> &Self::Target {
         &*self.request
     }
-}
-
-impl<'a, E, Bd> Endpoint<Bd> for &'a E
-where
-    E: Endpoint<Bd>,
-{
-    type Output = E::Output;
-    type Error = E::Error;
-    type Action = E::Action;
-
-    fn apply(&self, ecx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
-        (**self).apply(ecx)
-    }
-}
-
-impl<E, Bd> Endpoint<Bd> for Box<E>
-where
-    E: Endpoint<Bd>,
-{
-    type Output = E::Output;
-    type Error = E::Error;
-    type Action = E::Action;
-
-    fn apply(&self, ecx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
-        (**self).apply(ecx)
-    }
-}
-
-impl<E, Bd> Endpoint<Bd> for Rc<E>
-where
-    E: Endpoint<Bd>,
-{
-    type Output = E::Output;
-    type Error = E::Error;
-    type Action = E::Action;
-
-    fn apply(&self, ecx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
-        (**self).apply(ecx)
-    }
-}
-
-impl<E, Bd> Endpoint<Bd> for Arc<E>
-where
-    E: Endpoint<Bd>,
-{
-    type Output = E::Output;
-    type Error = E::Error;
-    type Action = E::Action;
-
-    fn apply(&self, ecx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
-        (**self).apply(ecx)
-    }
-}
-
-/// Create an endpoint from a function which takes the reference to `ApplyContext`
-/// and returns a future.
-///
-/// The endpoint created by this function will wrap the result of future into a tuple.
-/// If you want to return the result without wrapping, use `apply_raw` instead.
-pub fn apply_fn<Bd, R>(
-    f: impl Fn(&mut ApplyContext<'_>) -> Result<R, R::Error>,
-) -> impl Endpoint<
-    Bd, //
-    Output = R::Output,
-    Error = R::Error,
-    Action = R,
->
-where
-    R: EndpointAction<Bd>,
-{
-    #[allow(missing_debug_implementations)]
-    struct ApplyEndpoint<F>(F);
-
-    impl<F> IsEndpoint for ApplyEndpoint<F> {}
-
-    impl<F, Bd, R> Endpoint<Bd> for ApplyEndpoint<F>
-    where
-        F: Fn(&mut ApplyContext<'_>) -> Result<R, R::Error>,
-        R: EndpointAction<Bd>,
-    {
-        type Output = R::Output;
-        type Error = R::Error;
-        type Action = R;
-
-        #[inline]
-        fn apply(&self, cx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
-            (self.0)(cx)
-        }
-    }
-
-    ApplyEndpoint(f)
-}
-
-/// Create an endpoint which simply returns an unit (`()`).
-#[inline]
-pub fn unit<Bd: 'static>() -> impl Endpoint<
-    Bd, //
-    Output = (),
-    Error = crate::util::Never,
-    Action = impl EndpointAction<Bd, Output = (), Error = crate::util::Never> + Send + 'static,
-> {
-    apply_fn(|_| Ok(action(|_| Ok(().into()))))
-}
-
-/// Create an endpoint which simply clones the specified value.
-///
-/// # Examples
-///
-/// ```ignore
-/// # #[macro_use]
-/// # extern crate finchers;
-/// # extern crate futures;
-/// # use finchers::prelude::*;
-/// # use finchers::endpoint::value;
-/// #
-/// #[derive(Clone)]
-/// struct Conn {
-///     // ...
-/// #   _p: (),
-/// }
-///
-/// # fn main() {
-/// let conn = {
-///     // do some stuff...
-/// #   Conn { _p: () }
-/// };
-///
-/// let endpoint = path!(@get / "posts" / u32 /)
-///     .and(value(conn))
-///     .and_then(|id: u32, conn: Conn| {
-///         // ...
-/// #       drop(id);
-/// #       futures::future::ok::<_, finchers::error::Never>(conn)
-///     });
-/// # drop(endpoint);
-/// # }
-/// ```
-#[inline]
-pub fn value<Bd, T: Clone>(
-    x: T,
-) -> impl Endpoint<
-    Bd,
-    Output = (T,),
-    Error = crate::util::Never,
-    Action = self::value::ValueAction<T>, // private
-> {
-    apply_fn(move |_| Ok(self::value::ValueAction { x: Some(x.clone()) }))
-}
-
-mod value {
-    use super::*;
-
-    // not a public API.
-    #[derive(Debug)]
-    pub struct ValueAction<T> {
-        pub(super) x: Option<T>,
-    }
-
-    impl<T, Bd> EndpointAction<Bd> for ValueAction<T> {
-        type Output = (T,);
-        type Error = crate::util::Never;
-
-        fn poll_action(
-            &mut self,
-            _: &mut ActionContext<'_, Bd>,
-        ) -> Poll<Self::Output, Self::Error> {
-            Ok((self.x.take().expect("The value has already taken."),).into())
-        }
-    }
-}
-
-/// Create an endpoint from the specified function which returns a `Future`.
-pub fn lazy<Bd, R>(
-    f: impl Fn() -> R,
-) -> impl Endpoint<
-    Bd,
-    Output = (R::Item,),
-    Error = R::Error,
-    Action = self::lazy::LazyAction<R::Future>, // private
->
-where
-    R: IntoFuture,
-    R::Error: Into<Error>,
-{
-    apply_fn(move |_| {
-        Ok(self::lazy::LazyAction {
-            future: f().into_future(),
-        })
-    })
-}
-
-mod lazy {
-    use super::*;
-
-    #[derive(Debug)]
-    pub struct LazyAction<F> {
-        pub(super) future: F,
-    }
-
-    impl<F, Bd> EndpointAction<Bd> for LazyAction<F>
-    where
-        F: Future,
-        F::Error: Into<Error>,
-    {
-        type Output = (F::Item,);
-        type Error = F::Error;
-
-        #[inline]
-        fn poll_action(
-            &mut self,
-            _: &mut ActionContext<'_, Bd>,
-        ) -> Poll<Self::Output, Self::Error> {
-            self.future.poll().map(|x| x.map(|ok| (ok,)))
-        }
-    }
-}
-
-// ==== EndpointAction ====
-
-/// A trait that abstracts the *action* of endpoints, returned from `Endpoint::apply`.
-pub trait EndpointAction<Bd> {
-    /// The type returned from this action.
-    type Output: Tuple;
-
-    /// The error type which will be returned from this action.
-    type Error: Into<Error>;
-
-    /// Progress this action and returns the result if ready.
-    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error>;
-}
-
-impl<F, Bd> EndpointAction<Bd> for F
-where
-    F: Future,
-    F::Item: Tuple,
-    F::Error: Into<Error>,
-{
-    type Output = F::Item;
-    type Error = F::Error;
-
-    fn poll_action(&mut self, _: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error> {
-        self.poll()
-    }
-}
-
-/// A function to create an instance of `EndpointAction` from the specified closure.
-pub fn action<Bd, T, E>(
-    f: impl FnMut(&mut ActionContext<'_, Bd>) -> Poll<T, E>,
-) -> impl EndpointAction<Bd, Output = T, Error = E>
-where
-    T: Tuple,
-    E: Into<Error>,
-{
-    #[allow(missing_debug_implementations)]
-    struct ActionFn<F>(F);
-
-    impl<F, Bd, T, E> EndpointAction<Bd> for ActionFn<F>
-    where
-        F: FnMut(&mut ActionContext<'_, Bd>) -> Poll<T, E>,
-        T: Tuple,
-        E: Into<Error>,
-    {
-        type Output = T;
-        type Error = E;
-
-        fn poll_action(
-            &mut self,
-            cx: &mut ActionContext<'_, Bd>,
-        ) -> Poll<Self::Output, Self::Error> {
-            (self.0)(cx)
-        }
-    }
-
-    ActionFn(f)
 }
 
 /// The contexual information used in the implementation of `EndpointAction::poll_action`.

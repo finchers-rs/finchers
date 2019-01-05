@@ -28,7 +28,6 @@
 //! ```
 //! # use finchers::test;
 //! # use finchers::prelude::*;
-//! use finchers::error::Result;
 //!
 //! // A user-defined type which does not implement `Output`.
 //! struct Credential;
@@ -36,7 +35,7 @@
 //!
 //! let mut runner = test::runner(endpoint);
 //!
-//! let result: Result<Credential> = runner.apply("/");
+//! let result: Result<Credential, _> = runner.apply("/");
 //!
 //! assert!(result.is_ok());
 //! ```
@@ -379,12 +378,12 @@ mod tests {
     #[test]
     fn test_host_useragent() {
         let mut runner = runner({
-            crate::endpoint::apply_fn(|_cx| {
-                Ok(crate::endpoint::action(|cx| {
+            crate::endpoint::apply_fn(|| {
+                crate::endpoint::action(|cx| {
                     let host = cx.headers().get(header::HOST).cloned();
                     let user_agent = cx.headers().get(header::USER_AGENT).cloned();
                     Ok::<_, crate::error::Error>((host, user_agent).into())
-                }))
+                })
             })
         });
 
@@ -416,9 +415,11 @@ mod tests {
     #[test]
     fn test_default_headers() {
         let mut runner = runner({
-            endpoint::apply_fn(|cx| {
-                assert!(cx.headers().contains_key(header::ORIGIN));
-                Ok(futures::future::ok::<_, crate::util::Never>(()))
+            endpoint::apply_fn(|| {
+                endpoint::action(|cx| {
+                    assert!(cx.headers().contains_key(header::ORIGIN));
+                    Ok::<_, crate::util::Never>(().into())
+                })
             })
         });
         runner

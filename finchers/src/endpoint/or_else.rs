@@ -2,11 +2,11 @@ use {
     crate::{
         endpoint::{
             ActionContext, //
-            Apply,
             ApplyContext,
             Endpoint,
             EndpointAction,
             IsEndpoint,
+            Preflight,
         },
         error::Error,
     },
@@ -33,27 +33,20 @@ where
     type Error = R::Error;
     type Action = OrElseAction<E::Action, R::Future, F>;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
-        match self.endpoint.apply(ecx) {
-            Ok(action) => Ok(OrElseAction {
-                state: State::First(action, self.f.clone()),
-            }),
-            Err(err) => Ok(OrElseAction {
-                state: State::Second((self.f)(err).into_future()),
-            }),
+    fn action(&self) -> Self::Action {
+        OrElseAction {
+            action: self.endpoint.action(),
+            f: self.f.clone(),
+            in_flight: None,
         }
     }
 }
 
 #[allow(missing_debug_implementations)]
-enum State<F1, F2, F> {
-    First(F1, F),
-    Second(F2),
-}
-
-#[allow(missing_debug_implementations)]
 pub struct OrElseAction<Act, Fut, F> {
-    state: State<Act, Fut, F>,
+    action: Act,
+    f: F,
+    in_flight: Option<Fut>,
 }
 
 impl<Act, F, Bd, R> EndpointAction<Bd> for OrElseAction<Act, R::Future, F>
@@ -66,15 +59,26 @@ where
     type Output = (R::Item,);
     type Error = R::Error;
 
+    fn preflight(
+        &mut self,
+        cx: &mut ApplyContext<'_>,
+    ) -> Result<Preflight<Self::Output>, Self::Error> {
+        debug_assert!(self.in_flight.is_none());
+        self.action.preflight(cx).or_else(|err| {
+            self.in_flight = Some((self.f)(err).into_future());
+            Ok(Preflight::Incomplete)
+        })
+    }
+
     fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error> {
         loop {
-            self.state = match self.state {
-                State::First(ref mut action, ref f) => match action.poll_action(cx) {
-                    Ok(x) => return Ok(x),
-                    Err(err) => State::Second(f(err).into_future()),
-                },
-                State::Second(ref mut future) => return future.poll().map(|x| x.map(|out| (out,))),
-            };
+            if let Some(ref mut in_flight) = self.in_flight {
+                return in_flight.poll().map(|x| x.map(|out| (out,)));
+            }
+            match self.action.poll_action(cx) {
+                Ok(x) => return Ok(x),
+                Err(err) => self.in_flight = Some((self.f)(err).into_future()),
+            }
         }
     }
 }

@@ -1,12 +1,14 @@
 #![allow(missing_docs)]
 
 use {
-    super::Matched,
-    crate::{
-        endpoint::{Apply, ApplyContext, Endpoint, IsEndpoint},
-        error::Error,
+    crate::endpoint::{
+        ApplyContext, //
+        Endpoint,
+        IsEndpoint,
+        Oneshot,
+        OneshotAction,
     },
-    http::Method,
+    http::{Method, StatusCode},
     std::ops::{BitOr, BitOrAssign},
 };
 
@@ -26,21 +28,38 @@ impl IsEndpoint for MatchVerbs {}
 
 impl<Bd> Endpoint<Bd> for MatchVerbs {
     type Output = ();
-    type Error = Error;
-    type Action = Matched;
+    type Error = StatusCode;
+    type Action = Oneshot<MatchVerbsAction>;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
-        if self.allowed.contains(ecx.method()) {
-            Ok(Matched { _priv: () })
+    fn action(&self) -> Self::Action {
+        MatchVerbsAction {
+            allowed: self.allowed,
+        }
+        .into_action()
+    }
+}
+
+#[derive(Debug)]
+pub struct MatchVerbsAction {
+    allowed: Verbs,
+}
+
+impl OneshotAction for MatchVerbsAction {
+    type Output = ();
+    type Error = StatusCode;
+
+    fn apply(self, cx: &mut ApplyContext<'_>) -> Result<Self::Output, Self::Error> {
+        if self.allowed.contains(cx.method()) {
+            Ok(())
         } else {
-            Err(http::StatusCode::METHOD_NOT_ALLOWED.into())
+            Err(StatusCode::METHOD_NOT_ALLOWED)
         }
     }
 }
 
 macro_rules! define_verbs {
     ($(
-        ($name:ident, $METHOD:ident, $Endpoint:ident),
+        ($name:ident, $METHOD:ident, $Endpoint:ident, $Action:ident),
     )*) => {$(
 
         #[allow(missing_docs)]
@@ -61,15 +80,29 @@ macro_rules! define_verbs {
 
         impl<Bd> Endpoint<Bd> for $Endpoint {
             type Output = ();
-            type Error = Error;
-            type Action = Matched;
+            type Error = StatusCode;
+            type Action = Oneshot<$Action>;
 
             #[inline]
-            fn apply(&self, ecx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
-                if *ecx.method() == Method::$METHOD {
-                    Ok(Matched { _priv: () })
+            fn action(&self) -> Self::Action {
+                $Action(()).into_action()
+            }
+        }
+
+        #[doc(hidden)]
+        #[allow(missing_debug_implementations)]
+        pub struct $Action(());
+
+        impl OneshotAction for $Action {
+            type Output = ();
+            type Error = StatusCode;
+
+            #[inline]
+            fn apply(self, cx: &mut ApplyContext<'_>) -> Result<Self::Output, Self::Error> {
+                if *cx.method() == Method::$METHOD {
+                    Ok(())
                 } else {
-                    Err(http::StatusCode::METHOD_NOT_ALLOWED.into())
+                    Err(StatusCode::METHOD_NOT_ALLOWED)
                 }
             }
         }
@@ -77,15 +110,15 @@ macro_rules! define_verbs {
 }
 
 define_verbs! {
-    (get, GET, MatchVerbGet),
-    (post, POST, MatchVerbPost),
-    (put, PUT, MatchVerbPut),
-    (delete, DELETE, MatchVerbDelete),
-    (head, HEAD, MatchVerbHead),
-    (options, OPTIONS, MatchVerbOptions),
-    (connect, CONNECT, MatchVerbConnect),
-    (patch, PATCH, MatchVerbPatch),
-    (trace, TRACE, MatchVerbTrace),
+    (get, GET, MatchVerbGet, MatchVerbGetAction),
+    (post, POST, MatchVerbPost, MatchVerbPostAction),
+    (put, PUT, MatchVerbPut, MatchVerbPutAction),
+    (delete, DELETE, MatchVerbDelete, MatchVerbDeleteAction),
+    (head, HEAD, MatchVerbHead, MatchVerbVerbAction),
+    (options, OPTIONS, MatchVerbOptions, MatchVerbOptionsAction),
+    (connect, CONNECT, MatchVerbConnect, MatchVerbConnectAction),
+    (patch, PATCH, MatchVerbPatch, MatchVerbPatchAction),
+    (trace, TRACE, MatchVerbTrace, MatchVerbTraceAction),
 }
 
 /// A collection type which represents a set of allowed HTTP methods.

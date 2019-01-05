@@ -2,15 +2,14 @@ use {
     crate::{
         endpoint::{
             ActionContext, //
-            Apply,
             ApplyContext,
             Endpoint,
             EndpointAction,
             IsEndpoint,
+            Preflight,
         },
         error::Error,
     },
-    either::Either,
     futures::Poll,
 };
 
@@ -32,40 +31,24 @@ where
     type Error = Error;
     type Action = OrStrictAction<E1::Action, E2::Action>;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
-        let orig_cursor = ecx.cursor().clone();
-        match self.e1.apply(ecx) {
-            Ok(future1) => {
-                *ecx.cursor() = orig_cursor;
-                Ok(OrStrictAction::left(future1))
-            }
-            Err(..) => match self.e2.apply(ecx) {
-                Ok(future) => Ok(OrStrictAction::right(future)),
-                // FIXME: appropriate error handling.
-                Err(..) => Err(http::StatusCode::NOT_FOUND.into()),
-            },
+    fn action(&self) -> Self::Action {
+        OrStrictAction {
+            state: State::Init(self.e1.action(), self.e2.action()),
         }
     }
 }
 
-#[allow(missing_docs)]
-#[derive(Debug)]
+#[allow(missing_debug_implementations)]
+enum State<L, R> {
+    Init(L, R),
+    Left(L),
+    Right(R),
+    Done,
+}
+
+#[allow(missing_debug_implementations)]
 pub struct OrStrictAction<L, R> {
-    inner: Either<L, R>,
-}
-
-impl<L, R> OrStrictAction<L, R> {
-    fn left(l: L) -> Self {
-        OrStrictAction {
-            inner: Either::Left(l),
-        }
-    }
-
-    fn right(r: R) -> Self {
-        OrStrictAction {
-            inner: Either::Right(r),
-        }
-    }
+    state: State<L, R>,
 }
 
 impl<L, R, Bd> EndpointAction<Bd> for OrStrictAction<L, R>
@@ -76,11 +59,44 @@ where
     type Output = L::Output;
     type Error = Error;
 
+    fn preflight(
+        &mut self,
+        cx: &mut ApplyContext<'_>,
+    ) -> Result<Preflight<Self::Output>, Self::Error> {
+        self.state = match std::mem::replace(&mut self.state, State::Done) {
+            State::Init(mut left, mut right) => {
+                let orig_cursor = cx.cursor().clone();
+                match left.preflight(cx) {
+                    Ok(Preflight::Incomplete) => State::Left(left),
+                    Ok(Preflight::Completed(output)) => return Ok(Preflight::Completed(output)),
+                    Err(..) => {
+                        *cx.cursor() = orig_cursor;
+                        match right.preflight(cx) {
+                            Ok(Preflight::Incomplete) => State::Right(right),
+                            Ok(Preflight::Completed(output)) => {
+                                return Ok(Preflight::Completed(output))
+                            }
+                            Err(..) => {
+                                // FIXME: appropriate error handling.
+                                return Err(http::StatusCode::NOT_FOUND.into());
+                            }
+                        }
+                    }
+                }
+            }
+            _ => panic!("unexpected condition"),
+        };
+
+        Ok(Preflight::Incomplete)
+    }
+
     #[inline]
     fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error> {
-        match self.inner {
-            Either::Left(ref mut t) => t.poll_action(cx).map_err(Into::into),
-            Either::Right(ref mut t) => t.poll_action(cx).map_err(Into::into),
+        match self.state {
+            State::Init(..) => panic!(),
+            State::Left(ref mut t) => t.poll_action(cx).map_err(Into::into),
+            State::Right(ref mut t) => t.poll_action(cx).map_err(Into::into),
+            State::Done => panic!(),
         }
     }
 }

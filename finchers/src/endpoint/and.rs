@@ -1,13 +1,13 @@
 use {
     crate::{
-        common::{Combine, Tuple},
+        common::Combine,
         endpoint::{
             ActionContext, //
-            Apply,
             ApplyContext,
             Endpoint,
             EndpointAction,
             IsEndpoint,
+            Preflight,
         },
         error::Error,
     },
@@ -33,19 +33,11 @@ where
     type Error = Error;
     type Action = AndAction<Bd, E1::Action, E2::Action>;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
-        Ok(AndAction {
-            f1: self
-                .e1
-                .apply(ecx)
-                .map(MaybeDone::Pending)
-                .map_err(Into::into)?,
-            f2: self
-                .e2
-                .apply(ecx)
-                .map(MaybeDone::Pending)
-                .map_err(Into::into)?,
-        })
+    fn action(&self) -> Self::Action {
+        AndAction {
+            f1: MaybeDone::Init(Some(self.e1.action())),
+            f2: MaybeDone::Init(Some(self.e2.action())),
+        }
     }
 }
 
@@ -59,36 +51,56 @@ where
     f2: MaybeDone<Bd, F2>,
 }
 
+impl<Bd, F1, F2> AndAction<Bd, F1, F2>
+where
+    F1: EndpointAction<Bd>,
+    F2: EndpointAction<Bd>,
+    F1::Output: Combine<F2::Output>,
+{
+    fn take_item(&mut self) -> Option<<F1::Output as Combine<F2::Output>>::Out> {
+        let v1 = self.f1.take_item()?;
+        let v2 = self.f2.take_item()?;
+        Some(Combine::combine(v1, v2))
+    }
+}
+
 impl<F1, F2, Bd> EndpointAction<Bd> for AndAction<Bd, F1, F2>
 where
     F1: EndpointAction<Bd>,
     F2: EndpointAction<Bd>,
     F1::Output: Combine<F2::Output>,
-    F2::Output: Tuple,
 {
     type Output = <F1::Output as Combine<F2::Output>>::Out;
     type Error = Error;
 
+    fn preflight(
+        &mut self,
+        cx: &mut ApplyContext<'_>,
+    ) -> Result<Preflight<Self::Output>, Self::Error> {
+        let x1 = self.f1.preflight(cx).map_err(Into::into)?;
+        let x2 = self.f2.preflight(cx).map_err(Into::into)?;
+        if x1.is_completed() && x2.is_completed() {
+            let out = self.take_item().expect("the value shoud be ready.");
+            Ok(Preflight::Completed(out))
+        } else {
+            Ok(Preflight::Incomplete)
+        }
+    }
+
     fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
         futures::try_ready!(self.f1.poll_action(cx).map_err(Into::into));
         futures::try_ready!(self.f2.poll_action(cx).map_err(Into::into));
-        let v1 = self
-            .f1
-            .take_item()
-            .expect("the future has already been polled.");
-        let v2 = self
-            .f2
-            .take_item()
-            .expect("the future has already been polled.");
-        Ok(Combine::combine(v1, v2).into())
+        let out = self.take_item().expect("the value should be ready.");
+        Ok(out.into())
     }
 }
 
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled."]
 pub enum MaybeDone<Bd, F: EndpointAction<Bd>> {
+    Init(Option<F>),
+    InFlight(F),
     Ready(F::Output),
-    Pending(F),
     Gone,
 }
 
@@ -105,18 +117,36 @@ impl<Bd, F: EndpointAction<Bd>> EndpointAction<Bd> for MaybeDone<Bd, F> {
     type Output = ();
     type Error = F::Error;
 
-    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error> {
-        let polled = match self {
-            MaybeDone::Ready(..) => return Ok(Async::Ready(())),
-            MaybeDone::Pending(ref mut future) => future.poll_action(cx)?,
-            MaybeDone::Gone => panic!("This future has already polled"),
-        };
-        match polled {
-            Async::Ready(output) => {
-                *self = MaybeDone::Ready(output);
-                Ok(Async::Ready(()))
+    fn preflight(
+        &mut self,
+        cx: &mut ApplyContext<'_>,
+    ) -> Result<Preflight<Self::Output>, Self::Error> {
+        *self = match self {
+            MaybeDone::Init(ref mut action) => {
+                let mut action = action.take().unwrap();
+                if let Preflight::Completed(output) = action.preflight(cx)? {
+                    MaybeDone::Ready(output)
+                } else {
+                    MaybeDone::InFlight(action)
+                }
             }
-            Async::NotReady => Ok(Async::NotReady),
+            _ => panic!("unexpected condition"),
+        };
+
+        Ok(Preflight::Incomplete)
+    }
+
+    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error> {
+        loop {
+            *self = match self {
+                MaybeDone::Init(..) => panic!("The action has not yet initialized."),
+                MaybeDone::Ready(..) => return Ok(Async::Ready(())),
+                MaybeDone::InFlight(ref mut future) => {
+                    let output = futures::try_ready!(future.poll_action(cx));
+                    MaybeDone::Ready(output)
+                }
+                MaybeDone::Gone => panic!("The action has already been polled."),
+            };
         }
     }
 }

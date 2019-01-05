@@ -14,7 +14,15 @@ use http::header::{self, HeaderValue};
 use http::{Request, Response};
 use izanami_service::{MakeService, Service};
 
-use crate::endpoint::{ActionContext, ApplyContext, Cursor, Endpoint, EndpointAction, IsEndpoint};
+use crate::endpoint::{
+    ActionContext, //
+    ApplyContext,
+    Cursor,
+    Endpoint,
+    EndpointAction,
+    IsEndpoint,
+    Preflight,
+};
 use crate::output::IntoResponse;
 
 macro_rules! ready {
@@ -76,7 +84,7 @@ pub struct AppService<Bd, E: Endpoint<Bd>> {
 
 impl<Bd, E> AppService<Bd, E>
 where
-    E: Endpoint<Bd> + Clone,
+    E: Endpoint<Bd>,
 {
     pub(crate) fn new(endpoint: E) -> Self {
         AppService {
@@ -88,8 +96,7 @@ where
     pub(crate) fn dispatch(&self, request: Request<Bd>) -> AppFuture<Bd, E> {
         let (parts, body) = request.into_parts();
         AppFuture {
-            endpoint: self.endpoint.clone(),
-            state: State::Start,
+            state: State::Start(Some(self.endpoint.action())),
             request: Request::from_parts(parts, ()),
             body: Some(body),
         }
@@ -116,7 +123,6 @@ where
 
 #[derive(Debug)]
 pub struct AppFuture<Bd, E: Endpoint<Bd>> {
-    endpoint: E,
     state: State<Bd, E>,
     request: Request<()>,
     body: Option<Bd>,
@@ -124,7 +130,7 @@ pub struct AppFuture<Bd, E: Endpoint<Bd>> {
 
 #[allow(clippy::large_enum_variant)]
 enum State<Bd, E: Endpoint<Bd>> {
-    Start,
+    Start(Option<E::Action>),
     InFlight(E::Action),
 }
 
@@ -135,11 +141,8 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            State::Start => f.debug_struct("Start").finish(),
-            State::InFlight(..) => f
-                .debug_struct("InFlight")
-                .field("action", &"<action>")
-                .finish(),
+            State::Start(..) => f.debug_struct("Start").finish(),
+            State::InFlight(..) => f.debug_struct("InFlight").finish(),
         }
     }
 }
@@ -151,10 +154,14 @@ where
     pub(crate) fn poll_apply(&mut self) -> Poll<E::Output, E::Error> {
         loop {
             self.state = match self.state {
-                State::Start => {
+                State::Start(ref mut action) => {
+                    let mut action = action.take().unwrap();
                     let mut cursor = Cursor::default();
                     let mut ecx = ApplyContext::new(&self.request, &mut cursor);
-                    self.endpoint.apply(&mut ecx).map(State::InFlight)?
+                    if let Preflight::Completed(output) = action.preflight(&mut ecx)? {
+                        return Ok(Async::Ready(output));
+                    }
+                    State::InFlight(action)
                 }
                 State::InFlight(ref mut action) => {
                     let mut acx = ActionContext::new(&self.request, &mut self.body);

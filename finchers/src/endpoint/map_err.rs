@@ -2,11 +2,11 @@ use {
     crate::{
         endpoint::{
             ActionContext, //
-            Apply,
             ApplyContext,
             Endpoint,
             EndpointAction,
             IsEndpoint,
+            Preflight,
         },
         error::Error,
     },
@@ -32,12 +32,11 @@ where
     type Error = U;
     type Action = MapErrAction<E::Action, F>;
 
-    #[inline]
-    fn apply(&self, ecx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
-        Ok(MapErrAction {
-            action: self.endpoint.apply(ecx).map_err(|e| (self.f)(e))?,
+    fn action(&self) -> Self::Action {
+        MapErrAction {
+            action: self.endpoint.action(),
             f: self.f.clone(),
-        })
+        }
     }
 }
 
@@ -55,6 +54,13 @@ where
 {
     type Output = A::Output;
     type Error = U;
+
+    fn preflight(
+        &mut self,
+        cx: &mut ApplyContext<'_>,
+    ) -> Result<Preflight<Self::Output>, Self::Error> {
+        self.action.preflight(cx).map_err(|e| (self.f)(e))
+    }
 
     fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error> {
         self.action.poll_action(cx).map_err(|e| (self.f)(e))

@@ -3,17 +3,15 @@
 use {
     crate::{
         endpoint::{
-            ActionContext, //
-            Apply,
-            ApplyContext,
+            ApplyContext, //
             Endpoint,
-            EndpointAction,
             IsEndpoint,
+            Oneshot,
+            OneshotAction,
         },
         error::{BadRequest, Error},
     },
     failure::SyncFailure,
-    futures::Poll,
     serde::de::DeserializeOwned,
     std::marker::PhantomData,
 };
@@ -74,16 +72,13 @@ mod required {
     {
         type Output = (T,);
         type Error = Error;
-        type Action = RequiredAction<T>;
+        type Action = Oneshot<RequiredAction<T>>;
 
-        fn apply(&self, cx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
-            if cx.uri().query().is_some() {
-                Ok(RequiredAction {
-                    _marker: PhantomData,
-                })
-            } else {
-                Err(BadRequest::from("missing query").into())
+        fn action(&self) -> Self::Action {
+            RequiredAction {
+                _marker: PhantomData,
             }
+            .into_action()
         }
     }
 
@@ -92,23 +87,20 @@ mod required {
         _marker: PhantomData<fn() -> T>,
     }
 
-    impl<T, Bd> EndpointAction<Bd> for RequiredAction<T>
+    impl<T> OneshotAction for RequiredAction<T>
     where
         T: DeserializeOwned,
     {
         type Output = (T,);
         type Error = Error;
 
-        fn poll_action(
-            &mut self,
-            cx: &mut ActionContext<'_, Bd>,
-        ) -> Poll<Self::Output, Self::Error> {
+        fn apply(self, cx: &mut ApplyContext<'_>) -> Result<Self::Output, Self::Error> {
             let query = cx
                 .uri()
                 .query()
-                .expect("The query string should be available inside of this future.");
+                .ok_or_else(|| BadRequest::from("missing query"))?;
             serde_qs::from_str(query)
-                .map(|x| (x,).into())
+                .map(|x| (x,))
                 .map_err(SyncFailure::new)
                 .map_err(BadRequest::from)
                 .map_err(Into::into)
@@ -172,12 +164,13 @@ mod optional {
     {
         type Output = (Option<T>,);
         type Error = Error;
-        type Action = OptionalAction<T>;
+        type Action = Oneshot<OptionalAction<T>>;
 
-        fn apply(&self, _: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
-            Ok(OptionalAction {
+        fn action(&self) -> Self::Action {
+            OptionalAction {
                 _marker: PhantomData,
-            })
+            }
+            .into_action()
         }
     }
 
@@ -186,20 +179,17 @@ mod optional {
         _marker: PhantomData<fn() -> T>,
     }
 
-    impl<T, Bd> EndpointAction<Bd> for OptionalAction<T>
+    impl<T> OneshotAction for OptionalAction<T>
     where
         T: DeserializeOwned,
     {
         type Output = (Option<T>,);
         type Error = Error;
 
-        fn poll_action(
-            &mut self,
-            cx: &mut ActionContext<'_, Bd>,
-        ) -> Poll<Self::Output, Self::Error> {
+        fn apply(self, cx: &mut ApplyContext<'_>) -> Result<Self::Output, Self::Error> {
             match cx.uri().query() {
                 Some(query) => serde_qs::from_str(query)
-                    .map(|x| (Some(x),).into())
+                    .map(|x| (Some(x),))
                     .map_err(|err| BadRequest::from(SyncFailure::new(err)))
                     .map_err(Into::into),
                 None => Ok((None,).into()),
@@ -226,26 +216,23 @@ mod raw {
     impl<Bd> Endpoint<Bd> for Raw {
         type Output = (Option<String>,);
         type Error = Error;
-        type Action = RawAction;
+        type Action = Oneshot<RawAction>;
 
-        fn apply(&self, _: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
-            Ok(RawAction(()))
+        fn action(&self) -> Self::Action {
+            RawAction(()).into_action()
         }
     }
 
     #[allow(missing_debug_implementations)]
     pub struct RawAction(());
 
-    impl<Bd> EndpointAction<Bd> for RawAction {
+    impl OneshotAction for RawAction {
         type Output = (Option<String>,);
         type Error = Error;
 
-        fn poll_action(
-            &mut self,
-            cx: &mut ActionContext<'_, Bd>,
-        ) -> Poll<Self::Output, Self::Error> {
+        fn apply(self, cx: &mut ApplyContext<'_>) -> Result<Self::Output, Self::Error> {
             let raw = cx.uri().query().map(ToOwned::to_owned);
-            Ok((raw,).into())
+            Ok((raw,))
         }
     }
 }
