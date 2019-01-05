@@ -1,7 +1,9 @@
 //! Components for building endpoints which matches to a specific HTTP path.
 
-#[allow(missing_docs)]
+mod encoded;
 pub mod verb;
+
+pub use self::encoded::{EncodedStr, FromEncodedStr};
 
 use {
     crate::{
@@ -14,7 +16,6 @@ use {
             IsEndpoint,
         },
         error::{BadRequest, Error},
-        input::FromEncodedStr,
     },
     futures::Poll,
     http::StatusCode,

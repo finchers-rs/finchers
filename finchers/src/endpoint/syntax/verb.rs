@@ -1,11 +1,13 @@
-use std::ops::{BitOr, BitOrAssign};
+#![allow(missing_docs)]
 
-use http::Method;
-
-use super::Matched;
-use crate::{
-    endpoint::{Apply, ApplyContext, Endpoint, IsEndpoint},
-    error::Error,
+use {
+    super::Matched,
+    crate::{
+        endpoint::{Apply, ApplyContext, Endpoint, IsEndpoint},
+        error::Error,
+    },
+    http::Method,
+    std::ops::{BitOr, BitOrAssign},
 };
 
 /// Create an endpoint which checks if the verb of current request

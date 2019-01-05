@@ -49,7 +49,6 @@ mod common;
 pub mod endpoint;
 pub mod endpoints;
 pub mod error;
-pub mod input;
 pub mod output;
 pub mod service;
 pub mod test;

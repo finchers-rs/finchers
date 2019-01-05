@@ -84,41 +84,6 @@ impl EncodedStr {
     pub fn percent_decode_lossy(&self) -> Cow<'_, str> {
         percent_decode(&self.0).decode_utf8_lossy()
     }
-
-    /// Decode this encoded string as an UTF-8 string.
-    ///
-    /// This method will replace the plus ('+') character with a half-width space
-    /// before decoding.
-    #[inline]
-    pub fn url_decode(&self) -> Result<Cow<'_, str>, Utf8Error> {
-        let replaced = replace_plus(&self.0);
-        let v = match percent_decode(&*replaced).if_any() {
-            Some(v) => v,
-            None => match replaced {
-                Cow::Borrowed(b) => return str::from_utf8(b).map(Cow::Borrowed),
-                Cow::Owned(v) => v,
-            },
-        };
-        String::from_utf8(v)
-            .map(Cow::Owned)
-            .map_err(|e| e.utf8_error())
-    }
-}
-
-fn replace_plus(input: &[u8]) -> Cow<'_, [u8]> {
-    match input.iter().position(|&b| b == b'+') {
-        None => Cow::Borrowed(input),
-        Some(pos) => {
-            let mut replaced = input.to_owned();
-            replaced[pos] = b' ';
-            replaced[pos + 1..].iter_mut().for_each(|b| {
-                if *b == b'+' {
-                    *b = b' ';
-                }
-            });
-            Cow::Owned(replaced)
-        }
-    }
 }
 
 /// Trait representing the conversion from an encoded string.

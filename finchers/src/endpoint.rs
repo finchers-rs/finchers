@@ -28,7 +28,8 @@ pub use self::{
 // ====
 
 use {
-    crate::{common::Tuple, error::Error, input::EncodedStr},
+    self::syntax::EncodedStr,
+    crate::{common::Tuple, error::Error},
     futures::{Future, IntoFuture, Poll},
     http::Request,
     std::{marker::PhantomData, rc::Rc, sync::Arc},
