@@ -32,7 +32,7 @@ where
     type Action = MapAction<E::Action, F>;
 
     #[inline]
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
+    fn apply(&self, ecx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
         Ok(MapAction {
             action: self.endpoint.apply(ecx)?,
             f: self.f.clone(),

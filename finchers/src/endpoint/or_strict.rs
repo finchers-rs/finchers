@@ -32,7 +32,7 @@ where
     type Error = Error;
     type Action = OrStrictAction<E1::Action, E2::Action>;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
+    fn apply(&self, ecx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
         let orig_cursor = ecx.cursor().clone();
         match self.e1.apply(ecx) {
             Ok(future1) => {

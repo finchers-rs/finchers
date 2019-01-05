@@ -28,12 +28,9 @@ pub use self::{
 // ====
 
 use {
-    crate::{
-        common::Tuple,
-        error::Error,
-        input::{EncodedStr, Input},
-    },
+    crate::{common::Tuple, error::Error, input::EncodedStr},
     futures::{Future, IntoFuture, Poll},
+    http::Request,
     std::{marker::PhantomData, rc::Rc, sync::Arc},
 };
 
@@ -63,20 +60,29 @@ impl<E: IsEndpoint + ?Sized> IsEndpoint for Box<E> {}
 impl<E: IsEndpoint + ?Sized> IsEndpoint for Rc<E> {}
 impl<E: IsEndpoint + ?Sized> IsEndpoint for Arc<E> {}
 
-pub type Apply<Bd, E> = Result<<E as Endpoint<Bd>>::Action, <E as Endpoint<Bd>>::Error>;
+/// Type alias that represents the return type of `Endpoint::apply`.
+pub type Apply<Bd, E> = Result<
+    <E as Endpoint<Bd>>::Action, //
+    <E as Endpoint<Bd>>::Error,
+>;
 
 /// Trait representing an endpoint.
 pub trait Endpoint<Bd>: IsEndpoint {
     /// The inner type associated with this endpoint.
     type Output: Tuple;
 
+    /// The error type associated with this endpoint.
     type Error: Into<Error>;
 
     /// The type of `Action` which will be returned from `Self::apply`.
-    type Action: EndpointAction<Bd, Output = Self::Output, Error = Self::Error>;
+    type Action: EndpointAction<
+        Bd, //
+        Output = Self::Output,
+        Error = Self::Error,
+    >;
 
     /// Validates the incoming HTTP request and returns an instance of associated `Action` if available.
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self>;
+    fn apply(&self, ecx: &mut ApplyContext<'_>) -> Apply<Bd, Self>;
 
     /// Add an annotation that the associated type `Output` is fixed to `T`.
     #[inline(always)]
@@ -90,17 +96,17 @@ pub trait Endpoint<Bd>: IsEndpoint {
 
 /// The contextual information during calling `Endpoint::apply`.
 #[derive(Debug)]
-pub struct ApplyContext<'a, Bd> {
-    input: &'a mut Input<Bd>,
+pub struct ApplyContext<'a> {
+    pub(super) request: &'a Request<()>,
     cursor: &'a mut Cursor,
     _marker: PhantomData<Rc<()>>,
 }
 
-impl<'a, Bd> ApplyContext<'a, Bd> {
+impl<'a> ApplyContext<'a> {
     #[inline]
-    pub(crate) fn new(input: &'a mut Input<Bd>, cursor: &'a mut Cursor) -> Self {
+    pub(crate) fn new(request: &'a Request<()>, cursor: &'a mut Cursor) -> Self {
         ApplyContext {
-            input,
+            request,
             cursor,
             _marker: PhantomData,
         }
@@ -108,8 +114,8 @@ impl<'a, Bd> ApplyContext<'a, Bd> {
 
     /// Returns a mutable reference to the value of `Input`.
     #[inline]
-    pub fn input(&mut self) -> &mut Input<Bd> {
-        &mut *self.input
+    pub fn request(&self) -> &Request<()> {
+        &*self.request
     }
 
     pub(crate) fn cursor(&mut self) -> &mut Cursor {
@@ -119,13 +125,13 @@ impl<'a, Bd> ApplyContext<'a, Bd> {
     /// Returns the remaining path in this segments
     #[inline]
     pub fn remaining_path(&self) -> &EncodedStr {
-        unsafe { EncodedStr::new_unchecked(&self.input.uri().path()[self.cursor.pos..]) }
+        unsafe { EncodedStr::new_unchecked(&self.request.uri().path()[self.cursor.pos..]) }
     }
 
     /// Advances the cursor and returns the next segment.
     #[inline]
     pub fn next_segment(&mut self) -> Option<&EncodedStr> {
-        let path = &self.input.uri().path();
+        let path = &self.request.uri().path();
         if self.cursor.pos == path.len() {
             return None;
         }
@@ -146,19 +152,12 @@ impl<'a, Bd> ApplyContext<'a, Bd> {
     }
 }
 
-impl<'a, Bd> std::ops::Deref for ApplyContext<'a, Bd> {
-    type Target = Input<Bd>;
+impl<'a> std::ops::Deref for ApplyContext<'a> {
+    type Target = Request<()>;
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        &*self.input
-    }
-}
-
-impl<'a, Bd> std::ops::DerefMut for ApplyContext<'a, Bd> {
-    #[inline]
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        self.input()
+        &*self.request
     }
 }
 
@@ -170,7 +169,7 @@ where
     type Error = E::Error;
     type Action = E::Action;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
+    fn apply(&self, ecx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
         (**self).apply(ecx)
     }
 }
@@ -183,7 +182,7 @@ where
     type Error = E::Error;
     type Action = E::Action;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
+    fn apply(&self, ecx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
         (**self).apply(ecx)
     }
 }
@@ -196,7 +195,7 @@ where
     type Error = E::Error;
     type Action = E::Action;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
+    fn apply(&self, ecx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
         (**self).apply(ecx)
     }
 }
@@ -209,7 +208,7 @@ where
     type Error = E::Error;
     type Action = E::Action;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
+    fn apply(&self, ecx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
         (**self).apply(ecx)
     }
 }
@@ -220,7 +219,7 @@ where
 /// The endpoint created by this function will wrap the result of future into a tuple.
 /// If you want to return the result without wrapping, use `apply_raw` instead.
 pub fn apply_fn<Bd, R>(
-    f: impl Fn(&mut ApplyContext<'_, Bd>) -> Result<R, R::Error>,
+    f: impl Fn(&mut ApplyContext<'_>) -> Result<R, R::Error>,
 ) -> impl Endpoint<
     Bd, //
     Output = R::Output,
@@ -237,7 +236,7 @@ where
 
     impl<F, Bd, R> Endpoint<Bd> for ApplyEndpoint<F>
     where
-        F: Fn(&mut ApplyContext<'_, Bd>) -> Result<R, R::Error>,
+        F: Fn(&mut ApplyContext<'_>) -> Result<R, R::Error>,
         R: EndpointAction<Bd>,
     {
         type Output = R::Output;
@@ -245,7 +244,7 @@ where
         type Action = R;
 
         #[inline]
-        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
+        fn apply(&self, cx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
             (self.0)(cx)
         }
     }
@@ -384,6 +383,7 @@ pub trait EndpointAction<Bd> {
     /// The type returned from this action.
     type Output: Tuple;
 
+    /// The error type which will be returned from this action.
     type Error: Into<Error>;
 
     /// Progress this action and returns the result if ready.
@@ -438,39 +438,37 @@ where
 /// The contexual information used in the implementation of `EndpointAction::poll_action`.
 #[derive(Debug)]
 pub struct ActionContext<'a, Bd> {
-    input: &'a mut Input<Bd>,
-    cursor: &'a Cursor,
+    request: &'a Request<()>,
+    body: &'a mut Option<Bd>,
     _marker: PhantomData<Rc<()>>,
 }
 
 impl<'a, Bd> ActionContext<'a, Bd> {
-    pub(crate) fn new(input: &'a mut Input<Bd>, cursor: &'a Cursor) -> Self {
+    pub(crate) fn new(request: &'a Request<()>, body: &'a mut Option<Bd>) -> Self {
         Self {
-            input,
-            cursor,
+            request,
+            body,
             _marker: PhantomData,
         }
     }
 
     #[allow(missing_docs)]
-    pub fn input(&mut self) -> &mut Input<Bd> {
-        &mut *self.input
+    pub fn request(&self) -> &Request<()> {
+        &*self.request
+    }
+
+    #[allow(missing_docs)]
+    pub fn body(&mut self) -> &mut Option<Bd> {
+        &mut *self.body
     }
 }
 
 impl<'a, Bd> std::ops::Deref for ActionContext<'a, Bd> {
-    type Target = Input<Bd>;
+    type Target = Request<()>;
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        &*self.input
-    }
-}
-
-impl<'a, Bd> std::ops::DerefMut for ActionContext<'a, Bd> {
-    #[inline]
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        self.input()
+        &*self.request
     }
 }
 
@@ -554,9 +552,8 @@ mod tests {
     #[test]
     fn test_segments() {
         let request = Request::get("/foo/bar.txt").body(()).unwrap();
-        let mut input = Input::new(request);
         let mut cursor = Cursor::default();
-        let mut ecx = ApplyContext::new(&mut input, &mut cursor);
+        let mut ecx = ApplyContext::new(&request, &mut cursor);
 
         assert_eq!(ecx.remaining_path(), "foo/bar.txt");
         assert_eq!(ecx.next_segment().map(|s| s.as_bytes()), Some(&b"foo"[..]));
@@ -574,9 +571,8 @@ mod tests {
     #[test]
     fn test_segments_from_root_path() {
         let request = Request::get("/").body(()).unwrap();
-        let mut input = Input::new(request);
         let mut cursor = Cursor::default();
-        let mut ecx = ApplyContext::new(&mut input, &mut cursor);
+        let mut ecx = ApplyContext::new(&request, &mut cursor);
 
         assert_eq!(ecx.remaining_path(), "");
         assert!(ecx.next_segment().is_none());

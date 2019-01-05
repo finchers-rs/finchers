@@ -40,7 +40,7 @@ mod file {
         type Error = Error;
         type Action = FileAction;
 
-        fn apply(&self, _: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
+        fn apply(&self, _: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
             Ok(FileAction {
                 opening: NamedFile::open(self.path.clone()),
             })
@@ -91,7 +91,7 @@ mod dir {
         type Error = Error;
         type Action = DirAction;
 
-        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
+        fn apply(&self, cx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
             let path = {
                 match cx.remaining_path().percent_decode() {
                     Ok(path) => Ok(PathBuf::from(path.into_owned())),

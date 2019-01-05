@@ -13,7 +13,9 @@ use {
         error::{BadRequest, Error, InternalServerError},
     },
     futures::Poll,
+    http::Request,
     izanami_service::http::BufStream,
+    mime::Mime,
     serde::de::DeserializeOwned,
     std::{cell::UnsafeCell, marker::PhantomData},
 };
@@ -23,6 +25,19 @@ fn stolen_payload() -> Error {
         "The instance of request body has already been stolen by another endpoint.",
     )
     .into()
+}
+
+fn content_type<T>(request: &Request<T>) -> crate::error::Result<Option<Mime>> {
+    if let Some(h) = request.headers().get(http::header::CONTENT_TYPE) {
+        let mime = h
+            .to_str()
+            .map_err(BadRequest::from)?
+            .parse()
+            .map_err(BadRequest::from)?;
+        Ok(Some(mime))
+    } else {
+        Ok(None)
+    }
 }
 
 /// Creates an endpoint which takes the instance of request body from the context.
@@ -48,7 +63,7 @@ mod raw {
         type Error = Error;
         type Action = RawAction;
 
-        fn apply(&self, _: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
+        fn apply(&self, _: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
             Ok(RawAction {
                 _anchor: PhantomData,
             })
@@ -104,7 +119,7 @@ mod receive_all {
         type Error = Error;
         type Action = ReceiveAllAction<Bd>;
 
-        fn apply(&self, _: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
+        fn apply(&self, _: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
             Ok(future())
         }
     }
@@ -193,14 +208,14 @@ mod text {
         type Error = Error;
         type Action = TextAction<Bd>;
 
-        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
-            let content_type = cx.content_type()?;
-            match content_type.and_then(|m| m.get_param("charset")) {
-                Some(ref val) if *val == "utf-8" => {}
-                Some(_val) => {
+        fn apply(&self, cx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
+            if let Some(param) = content_type(&*cx)?
+                .as_ref()
+                .and_then(|m| m.get_param("charset"))
+            {
+                if param != "utf-8" {
                     return Err(BadRequest::from("Only the UTF-8 charset is supported.").into());
                 }
-                None => {}
             }
 
             Ok(TextAction {
@@ -279,10 +294,10 @@ mod json {
         type Error = Error;
         type Action = JsonAction<Bd, T>;
 
-        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
-            let content_type = cx.content_type()?;
-            let m = content_type.ok_or_else(|| BadRequest::from("missing content type"))?;
-            if *m != mime::APPLICATION_JSON {
+        fn apply(&self, cx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
+            let mime =
+                content_type(&*cx)?.ok_or_else(|| BadRequest::from("missing content type"))?;
+            if mime != mime::APPLICATION_JSON {
                 return Err(BadRequest::from(
                     "The value of `Content-type` must be `application/json`.",
                 )
@@ -370,10 +385,10 @@ mod urlencoded {
         type Error = Error;
         type Action = UrlencodedAction<Bd, T>;
 
-        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
-            let content_type = cx.content_type()?;
-            let m = content_type.ok_or_else(|| BadRequest::from("missing content type"))?;
-            if *m != mime::APPLICATION_WWW_FORM_URLENCODED {
+        fn apply(&self, cx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
+            let mime =
+                content_type(&*cx)?.ok_or_else(|| BadRequest::from("missing content type"))?;
+            if mime != mime::APPLICATION_WWW_FORM_URLENCODED {
                 return Err(BadRequest::from(
                     "The value of `Content-type` must be `application-x-www-form-urlencoded`.",
                 )

@@ -88,7 +88,7 @@ impl<Bd> Endpoint<Bd> for MatchSegment {
     type Error = Error;
     type Action = Matched;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
+    fn apply(&self, ecx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
         let s = ecx.next_segment().ok_or_else(|| StatusCode::NOT_FOUND)?;
         if s == self.encoded {
             Ok(Matched { _priv: () })
@@ -119,7 +119,7 @@ impl<Bd> Endpoint<Bd> for MatchEos {
     type Error = Error;
     type Action = Matched;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
+    fn apply(&self, ecx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
         match ecx.next_segment() {
             None => Ok(Matched { _priv: () }),
             Some(..) => Err(StatusCode::NOT_FOUND.into()),
@@ -173,7 +173,7 @@ where
     type Error = Error;
     type Action = Extracted<T>;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
+    fn apply(&self, ecx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
         let s = ecx.next_segment().ok_or_else(|| StatusCode::NOT_FOUND)?;
         let x = T::from_encoded_str(s).map_err(BadRequest::from)?;
         Ok(Extracted(Some(x)))
@@ -225,7 +225,7 @@ where
     type Error = Error;
     type Action = Extracted<T>;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
+    fn apply(&self, ecx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
         let result = T::from_encoded_str(ecx.remaining_path())
             .map_err(BadRequest::from)
             .map_err(Into::into);

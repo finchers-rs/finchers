@@ -33,7 +33,7 @@ where
     type Error = Error;
     type Action = AndAction<Bd, E1::Action, E2::Action>;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
+    fn apply(&self, ecx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
         Ok(AndAction {
             f1: self
                 .e1

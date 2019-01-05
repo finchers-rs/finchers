@@ -78,8 +78,8 @@ mod parse {
         type Error = Error;
         type Action = ParseAction<T>;
 
-        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
-            if cx.input().headers().contains_key(&self.name) {
+        fn apply(&self, cx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
+            if cx.headers().contains_key(&self.name) {
                 Ok(ParseAction {
                     name: self.name.clone(),
                     _marker: PhantomData,
@@ -164,7 +164,7 @@ mod optional {
         type Error = Error;
         type Action = OptionalAction<T>;
 
-        fn apply(&self, _: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
+        fn apply(&self, _: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
             Ok(OptionalAction {
                 name: self.name.clone(),
                 _marker: PhantomData,
@@ -258,7 +258,7 @@ mod matches {
         type Error = Error;
         type Action = futures::future::FutureResult<(), Error>;
 
-        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
+        fn apply(&self, cx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
             match cx.headers().get(&self.name) {
                 Some(v) if self.value == *v => Ok(futures::future::ok(())),
                 _ => Err(http::StatusCode::NOT_FOUND.into()),
@@ -297,7 +297,7 @@ mod raw {
         type Error = Error;
         type Action = RawAction;
 
-        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
+        fn apply(&self, cx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
             Ok(RawAction {
                 value: cx.headers().get(&self.name).cloned(),
             })

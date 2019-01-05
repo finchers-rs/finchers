@@ -21,7 +21,7 @@ trait BoxedEndpoint<Bd> {
 
     fn apply_obj(
         &self,
-        ecx: &mut ApplyContext<'_, Bd>,
+        ecx: &mut ApplyContext<'_>,
     ) -> Result<EndpointActionObj<Bd, Self::Output, Self::Error>, Self::Error>;
 }
 
@@ -36,7 +36,7 @@ where
     #[inline]
     fn apply_obj(
         &self,
-        ecx: &mut ApplyContext<'_, Bd>,
+        ecx: &mut ApplyContext<'_>,
     ) -> Result<EndpointActionObj<Bd, Self::Output, Self::Error>, Self::Error> {
         let future = self.apply(ecx)?;
         Ok(EndpointActionObj {
@@ -103,7 +103,7 @@ where
     type Action = EndpointActionObj<Bd, T, E>;
 
     #[inline]
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
+    fn apply(&self, ecx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
         self.inner.apply_obj(ecx)
     }
 }
@@ -139,7 +139,7 @@ trait LocalBoxedEndpoint<Bd> {
 
     fn apply_local_obj(
         &self,
-        ecx: &mut ApplyContext<'_, Bd>,
+        ecx: &mut ApplyContext<'_>,
     ) -> Result<LocalEndpointActionObj<Bd, Self::Output, Self::Error>, Self::Error>;
 }
 
@@ -154,7 +154,7 @@ where
     #[inline(always)]
     fn apply_local_obj(
         &self,
-        ecx: &mut ApplyContext<'_, Bd>,
+        ecx: &mut ApplyContext<'_>,
     ) -> Result<LocalEndpointActionObj<Bd, Self::Output, Self::Error>, Self::Error> {
         let future = self.apply(ecx)?;
         Ok(LocalEndpointActionObj {
@@ -219,7 +219,7 @@ where
     type Action = LocalEndpointActionObj<Bd, T, E>;
 
     #[inline(always)]
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
+    fn apply(&self, ecx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
         self.inner.apply_local_obj(ecx)
     }
 }

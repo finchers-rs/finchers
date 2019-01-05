@@ -34,7 +34,7 @@ where
     type Action = ErrIntoAction<E::Action, U>;
 
     #[inline]
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
+    fn apply(&self, ecx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
         Ok(ErrIntoAction {
             action: self.endpoint.apply(ecx).map_err(Into::into)?,
             _marker: PhantomData,

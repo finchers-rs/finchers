@@ -44,7 +44,6 @@
 use {
     crate::{
         endpoint::Endpoint,
-        error,
         service::{AppFuture, AppService},
     },
     bytes::Bytes,
@@ -189,7 +188,7 @@ where
     /// This method is available only if the output of endpoint is a tuple with a single element.
     /// If the output type is an unit or the tuple contains more than one element, use `apply_raw` instead.
     #[inline]
-    pub fn apply<T>(&mut self, request: impl TestRequest) -> error::Result<T>
+    pub fn apply<T>(&mut self, request: impl TestRequest) -> Result<T, E::Error>
     where
         E: Endpoint<ReqBody, Output = (T,)>,
     {
@@ -198,7 +197,7 @@ where
 
     /// Applies the given request to the inner endpoint and retrieves the result of returned future
     /// *without peeling tuples*.
-    pub fn apply_raw(&mut self, request: impl TestRequest) -> error::Result<E::Output> {
+    pub fn apply_raw(&mut self, request: impl TestRequest) -> Result<E::Output, E::Error> {
         self.apply_inner(request, |mut future, rt| {
             rt.block_on(future::poll_fn(|| future.poll_apply()))
         })

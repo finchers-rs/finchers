@@ -33,7 +33,7 @@ where
     type Action = MapErrAction<E::Action, F>;
 
     #[inline]
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
+    fn apply(&self, ecx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
         Ok(MapErrAction {
             action: self.endpoint.apply(ecx).map_err(|e| (self.f)(e))?,
             f: self.f.clone(),

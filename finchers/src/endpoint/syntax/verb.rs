@@ -27,8 +27,8 @@ impl<Bd> Endpoint<Bd> for MatchVerbs {
     type Error = Error;
     type Action = Matched;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
-        if self.allowed.contains(ecx.input().method()) {
+    fn apply(&self, ecx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
+        if self.allowed.contains(ecx.method()) {
             Ok(Matched { _priv: () })
         } else {
             Err(http::StatusCode::METHOD_NOT_ALLOWED.into())
@@ -63,8 +63,8 @@ macro_rules! define_verbs {
             type Action = Matched;
 
             #[inline]
-            fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
-                if *ecx.input().method() == Method::$METHOD {
+            fn apply(&self, ecx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
+                if *ecx.method() == Method::$METHOD {
                     Ok(Matched { _priv: () })
                 } else {
                     Err(http::StatusCode::METHOD_NOT_ALLOWED.into())

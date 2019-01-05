@@ -33,7 +33,7 @@ where
     type Error = R::Error;
     type Action = OrElseAction<E::Action, R::Future, F>;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
+    fn apply(&self, ecx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
         match self.endpoint.apply(ecx) {
             Ok(action) => Ok(OrElseAction {
                 state: State::First(action, self.f.clone()),

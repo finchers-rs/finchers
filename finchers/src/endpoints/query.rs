@@ -76,7 +76,7 @@ mod required {
         type Error = Error;
         type Action = RequiredAction<T>;
 
-        fn apply(&self, cx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
+        fn apply(&self, cx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
             if cx.uri().query().is_some() {
                 Ok(RequiredAction {
                     _marker: PhantomData,
@@ -174,7 +174,7 @@ mod optional {
         type Error = Error;
         type Action = OptionalAction<T>;
 
-        fn apply(&self, _: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
+        fn apply(&self, _: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
             Ok(OptionalAction {
                 _marker: PhantomData,
             })
@@ -228,7 +228,7 @@ mod raw {
         type Error = Error;
         type Action = RawAction;
 
-        fn apply(&self, _: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
+        fn apply(&self, _: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
             Ok(RawAction(()))
         }
     }

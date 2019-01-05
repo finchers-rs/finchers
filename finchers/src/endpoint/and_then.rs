@@ -32,7 +32,7 @@ where
     type Error = R::Error;
     type Action = AndThenAction<E::Action, R::Future, F>;
 
-    fn apply(&self, ecx: &mut ApplyContext<'_, Bd>) -> Apply<Bd, Self> {
+    fn apply(&self, ecx: &mut ApplyContext<'_>) -> Apply<Bd, Self> {
         let future = self.endpoint.apply(ecx)?;
         Ok(AndThenAction {
             state: State::First(future, self.f.clone()),
