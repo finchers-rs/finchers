@@ -65,12 +65,12 @@ where
     ) -> Result<Preflight<Self::Output>, Self::Error> {
         self.state = match std::mem::replace(&mut self.state, State::Done) {
             State::Init(mut left, mut right) => {
-                let orig_cursor = cx.cursor().clone();
+                let orig_cx = cx.clone();
                 match left.preflight(cx) {
                     Ok(Preflight::Incomplete) => State::Left(left),
                     Ok(Preflight::Completed(output)) => return Ok(Preflight::Completed(output)),
                     Err(..) => {
-                        *cx.cursor() = orig_cursor;
+                        *cx = orig_cx;
                         match right.preflight(cx) {
                             Ok(Preflight::Incomplete) => State::Right(right),
                             Ok(Preflight::Completed(output)) => {

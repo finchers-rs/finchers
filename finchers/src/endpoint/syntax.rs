@@ -109,7 +109,7 @@ impl OneshotAction for MatchSegmentAction {
     type Error = StatusCode;
 
     fn apply(self, ecx: &mut ApplyContext<'_>) -> Result<Self::Output, Self::Error> {
-        let s = ecx.next_segment().ok_or_else(|| StatusCode::NOT_FOUND)?;
+        let s = ecx.next().ok_or_else(|| StatusCode::NOT_FOUND)?;
         if s == &*self.encoded {
             Ok(())
         } else {
@@ -155,7 +155,7 @@ impl OneshotAction for MatchEosAction {
     type Error = StatusCode;
 
     fn apply(self, cx: &mut ApplyContext<'_>) -> Result<Self::Output, Self::Error> {
-        match cx.next_segment() {
+        match cx.next() {
             None => Ok(()),
             Some(..) => Err(StatusCode::NOT_FOUND),
         }
@@ -230,7 +230,7 @@ where
     type Error = Error;
 
     fn apply(self, cx: &mut ApplyContext<'_>) -> Result<Self::Output, Self::Error> {
-        let s = cx.next_segment().ok_or_else(|| StatusCode::NOT_FOUND)?;
+        let s = cx.next().ok_or_else(|| StatusCode::NOT_FOUND)?;
         let x = T::from_encoded_str(s).map_err(BadRequest::from)?;
         Ok((x,))
     }
@@ -306,7 +306,7 @@ where
         let result = T::from_encoded_str(cx.remaining_path())
             .map_err(BadRequest::from)
             .map_err(Into::into);
-        while let Some(..) = cx.next_segment() {}
+        drop(cx.by_ref().count());
         result.map(|x| (x,))
     }
 }

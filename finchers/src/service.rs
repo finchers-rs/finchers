@@ -17,7 +17,6 @@ use izanami_service::{MakeService, Service};
 use crate::endpoint::{
     ActionContext, //
     ApplyContext,
-    Cursor,
     Endpoint,
     EndpointAction,
     IsEndpoint,
@@ -156,8 +155,7 @@ where
             self.state = match self.state {
                 State::Start(ref mut action) => {
                     let mut action = action.take().unwrap();
-                    let mut cursor = Cursor::default();
-                    let mut ecx = ApplyContext::new(&self.request, &mut cursor);
+                    let mut ecx = ApplyContext::new(&self.request);
                     if let Preflight::Completed(output) = action.preflight(&mut ecx)? {
                         return Ok(Async::Ready(output));
                     }

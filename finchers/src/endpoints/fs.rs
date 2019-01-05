@@ -128,7 +128,7 @@ mod dir {
                     Err(e) => Err(e),
                 }
             };
-            while let Some(..) = cx.next_segment() {}
+            drop(cx.by_ref().count());
 
             let path = match path {
                 Ok(path) => path,

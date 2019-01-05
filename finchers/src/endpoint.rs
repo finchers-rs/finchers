@@ -35,24 +35,6 @@ use {
     std::{marker::PhantomData, rc::Rc, sync::Arc},
 };
 
-#[derive(Debug, Clone)]
-pub(crate) struct Cursor {
-    pos: usize,
-    popped: usize,
-}
-
-impl Default for Cursor {
-    fn default() -> Self {
-        Cursor { pos: 1, popped: 0 }
-    }
-}
-
-impl Cursor {
-    pub(crate) fn popped(&self) -> usize {
-        self.popped
-    }
-}
-
 /// A marker trait indicating that the implementor has an implementation of `Endpoint<Bd>`.
 pub trait IsEndpoint {}
 
@@ -480,21 +462,29 @@ where
 // ==== Context ====
 
 /// The contextual information during calling `Endpoint::apply`.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ApplyContext<'a> {
     pub(super) request: &'a Request<()>,
-    cursor: &'a mut Cursor,
-    _marker: PhantomData<Rc<()>>,
+    pos: usize,
+    popped: usize,
+    _anchor: PhantomData<Rc<()>>,
 }
 
 impl<'a> ApplyContext<'a> {
     #[inline]
-    pub(crate) fn new(request: &'a Request<()>, cursor: &'a mut Cursor) -> Self {
+    pub(crate) fn new(request: &'a Request<()>) -> Self {
         ApplyContext {
             request,
-            cursor,
-            _marker: PhantomData,
+            pos: 1,
+            popped: 0,
+            _anchor: PhantomData,
         }
+    }
+
+    #[allow(missing_docs)]
+    #[inline]
+    pub fn by_ref(&mut self) -> &mut Self {
+        self
     }
 
     /// Returns a mutable reference to the value of `Input`.
@@ -503,37 +493,14 @@ impl<'a> ApplyContext<'a> {
         &*self.request
     }
 
-    pub(crate) fn cursor(&mut self) -> &mut Cursor {
-        &mut *self.cursor
+    pub(crate) fn num_popped_segments(&self) -> usize {
+        self.popped
     }
 
     /// Returns the remaining path in this segments
     #[inline]
     pub fn remaining_path(&self) -> &EncodedStr {
-        unsafe { EncodedStr::new_unchecked(&self.request.uri().path()[self.cursor.pos..]) }
-    }
-
-    /// Advances the cursor and returns the next segment.
-    #[inline]
-    pub fn next_segment(&mut self) -> Option<&EncodedStr> {
-        let path = &self.request.uri().path();
-        if self.cursor.pos == path.len() {
-            return None;
-        }
-
-        let s = if let Some(offset) = path[self.cursor.pos..].find('/') {
-            let s = &path[self.cursor.pos..(self.cursor.pos + offset)];
-            self.cursor.pos += offset + 1;
-            self.cursor.popped += 1;
-            s
-        } else {
-            let s = &path[self.cursor.pos..];
-            self.cursor.pos = path.len();
-            self.cursor.popped += 1;
-            s
-        };
-
-        Some(unsafe { EncodedStr::new_unchecked(s) })
+        unsafe { EncodedStr::new_unchecked(&self.request.uri().path()[self.pos..]) }
     }
 }
 
@@ -543,6 +510,33 @@ impl<'a> std::ops::Deref for ApplyContext<'a> {
     #[inline]
     fn deref(&self) -> &Self::Target {
         &*self.request
+    }
+}
+
+impl<'a> Iterator for ApplyContext<'a> {
+    type Item = &'a EncodedStr;
+
+    /// Advances the cursor and returns the next segment.
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        let path = &self.request.uri().path();
+        if self.pos == path.len() {
+            return None;
+        }
+
+        let s = if let Some(offset) = path[self.pos..].find('/') {
+            let s = &path[self.pos..(self.pos + offset)];
+            self.pos += offset + 1;
+            self.popped += 1;
+            s
+        } else {
+            let s = &path[self.pos..];
+            self.pos = path.len();
+            self.popped += 1;
+            s
+        };
+
+        Some(unsafe { EncodedStr::new_unchecked(s) })
     }
 }
 
@@ -663,29 +657,24 @@ mod tests {
     #[test]
     fn test_segments() {
         let request = Request::get("/foo/bar.txt").body(()).unwrap();
-        let mut cursor = Cursor::default();
-        let mut ecx = ApplyContext::new(&request, &mut cursor);
+        let mut ecx = ApplyContext::new(&request);
 
         assert_eq!(ecx.remaining_path(), "foo/bar.txt");
-        assert_eq!(ecx.next_segment().map(|s| s.as_bytes()), Some(&b"foo"[..]));
+        assert_eq!(ecx.next().map(|s| s.as_bytes()), Some(&b"foo"[..]));
         assert_eq!(ecx.remaining_path(), "bar.txt");
-        assert_eq!(
-            ecx.next_segment().map(|s| s.as_bytes()),
-            Some(&b"bar.txt"[..])
-        );
+        assert_eq!(ecx.next().map(|s| s.as_bytes()), Some(&b"bar.txt"[..]));
         assert_eq!(ecx.remaining_path(), "");
-        assert!(ecx.next_segment().is_none());
+        assert!(ecx.next().is_none());
         assert_eq!(ecx.remaining_path(), "");
-        assert!(ecx.next_segment().is_none());
+        assert!(ecx.next().is_none());
     }
 
     #[test]
     fn test_segments_from_root_path() {
         let request = Request::get("/").body(()).unwrap();
-        let mut cursor = Cursor::default();
-        let mut ecx = ApplyContext::new(&request, &mut cursor);
+        let mut ecx = ApplyContext::new(&request);
 
         assert_eq!(ecx.remaining_path(), "");
-        assert!(ecx.next_segment().is_none());
+        assert!(ecx.next().is_none());
     }
 }

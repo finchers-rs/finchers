@@ -85,17 +85,17 @@ where
     ) -> Result<Preflight<Self::Output>, Self::Error> {
         self.state = match std::mem::replace(&mut self.state, State::Done) {
             State::Init(mut left, mut right) => {
-                let orig_cursor = cx.cursor().clone();
+                let orig_cx = cx.clone();
                 let left_output = left.preflight(cx);
-                let cursor1 = mem::replace(cx.cursor(), orig_cursor);
+                let cx1 = mem::replace(cx, orig_cx);
                 let right_output = right.preflight(cx);
 
                 match (left_output, right_output) {
                     (Ok(l), Ok(r)) => {
                         // If both endpoints are matched, the one with the larger number of
                         // (consumed) path segments is choosen.
-                        if cursor1.popped() >= cx.cursor().popped() {
-                            *cx.cursor() = cursor1;
+                        if cx1.num_popped_segments() >= cx.num_popped_segments() {
+                            *cx = cx1;
                             if let Preflight::Completed(output) = l {
                                 return Ok(Preflight::Completed((Wrapped(Either::Left(output)),)));
                             } else {
@@ -111,7 +111,7 @@ where
                     }
 
                     (Ok(l), Err(..)) => {
-                        *cx.cursor() = cursor1;
+                        *cx = cx1;
                         if let Preflight::Completed(output) = l {
                             return Ok(Preflight::Completed((Wrapped(Either::Left(output)),)));
                         } else {
