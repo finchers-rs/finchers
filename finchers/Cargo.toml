@@ -46,6 +46,9 @@ url = "1.7.1"
 
 izanami-service = "0.1.0-preview.1"
 
+[dependencies.finchers-macros]
+version = "0.14.0-dev"
+
 [build-dependencies]
 version_check = "0.1.5"
 

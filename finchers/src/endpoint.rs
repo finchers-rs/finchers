@@ -11,7 +11,7 @@ pub use self::{
 };
 
 use {
-    self::syntax::EncodedStr,
+    self::syntax::encoded::EncodedStr,
     crate::{common::Tuple, error::Error},
     futures::{Future, Poll},
     http::Request,
