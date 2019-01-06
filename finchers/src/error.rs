@@ -11,6 +11,7 @@ use {
 ///
 /// The types which implements this trait will be implicitly converted to an HTTP response
 /// by the runtime.
+#[allow(missing_docs)]
 pub trait HttpError: fmt::Debug + fmt::Display + Send + Sync + 'static {
     type Body: Into<Bytes>;
 
@@ -102,6 +103,7 @@ impl<E> BadRequest<E>
 where
     E: fmt::Display + fmt::Debug + Send + Sync + 'static,
 {
+    #[allow(missing_docs)]
     #[inline]
     pub fn into_inner(self) -> E {
         self.0
@@ -151,6 +153,7 @@ impl<E> InternalServerError<E>
 where
     E: fmt::Display + fmt::Debug + Send + Sync + 'static,
 {
+    #[allow(missing_docs)]
     #[inline]
     pub fn into_inner(self) -> E {
         self.0
@@ -249,6 +252,7 @@ impl IntoResponse for Error {
 }
 
 impl Error {
+    #[allow(missing_docs)]
     pub fn new<E>(err: E) -> Self
     where
         E: HttpError,
@@ -331,6 +335,7 @@ impl Error {
         }
     }
 
+    #[allow(missing_docs)]
     pub fn status_code(&self) -> StatusCode {
         (self.status_code_fn)(&*self.inner)
     }

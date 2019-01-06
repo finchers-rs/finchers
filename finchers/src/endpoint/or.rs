@@ -101,12 +101,10 @@ where
                             } else {
                                 State::Left(left)
                             }
+                        } else if let Preflight::Completed(output) = r {
+                            return Ok(Preflight::Completed((Wrapped(Either::Right(output)),)));
                         } else {
-                            if let Preflight::Completed(output) = r {
-                                return Ok(Preflight::Completed((Wrapped(Either::Right(output)),)));
-                            } else {
-                                State::Right(right)
-                            }
+                            State::Right(right)
                         }
                     }
 

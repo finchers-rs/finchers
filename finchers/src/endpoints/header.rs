@@ -226,7 +226,7 @@ mod optional {
                     .map(|parsed| (Some(parsed),))
                     .map_err(BadRequest::from)
                     .map_err(Into::into),
-                None => Ok((None,).into()),
+                None => Ok((None,)),
             }
         }
     }

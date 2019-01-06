@@ -192,7 +192,7 @@ mod optional {
                     .map(|x| (Some(x),))
                     .map_err(|err| BadRequest::from(SyncFailure::new(err)))
                     .map_err(Into::into),
-                None => Ok((None,).into()),
+                None => Ok((None,)),
             }
         }
     }

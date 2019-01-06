@@ -110,7 +110,7 @@ impl OneshotAction for MatchSegmentAction {
 
     fn apply(self, ecx: &mut ApplyContext<'_>) -> Result<Self::Output, Self::Error> {
         let s = ecx.next().ok_or_else(|| StatusCode::NOT_FOUND)?;
-        if s == &*self.encoded {
+        if s == *self.encoded {
             Ok(())
         } else {
             Err(StatusCode::NOT_FOUND)
@@ -306,7 +306,7 @@ where
         let result = T::from_encoded_str(cx.remaining_path())
             .map_err(BadRequest::from)
             .map_err(Into::into);
-        drop(cx.by_ref().count());
+        let _ = cx.by_ref().count();
         result.map(|x| (x,))
     }
 }

@@ -22,6 +22,7 @@ pub trait HList: Sized {
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct HNil;
 
+#[allow(clippy::unused_unit)]
 impl HList for HNil {
     type Tuple = ();
 

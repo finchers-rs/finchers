@@ -128,7 +128,7 @@ mod dir {
                     Err(e) => Err(e),
                 }
             };
-            drop(cx.by_ref().count());
+            let _ = cx.by_ref().count();
 
             let path = match path {
                 Ok(path) => path,

@@ -46,6 +46,7 @@ pub struct MapErrAction<A, F> {
     f: F,
 }
 
+#[allow(clippy::redundant_closure)]
 impl<A, F, Bd, U> EndpointAction<Bd> for MapErrAction<A, F>
 where
     A: EndpointAction<Bd>,

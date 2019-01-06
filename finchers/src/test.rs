@@ -116,6 +116,7 @@ pub struct TestRunner<E> {
     default_headers: Option<HeaderMap>,
 }
 
+#[allow(clippy::new_ret_no_self)]
 impl<E> TestRunner<E>
 where
     E: Endpoint<ReqBody>,
@@ -169,7 +170,7 @@ where
         Ok(request)
     }
 
-    fn apply_inner<'a, F, R>(&'a mut self, request: impl TestRequest, f: F) -> R
+    fn apply_inner<F, R>(&mut self, request: impl TestRequest, f: F) -> R
     where
         F: FnOnce(AppFuture<ReqBody, &E>, &mut Runtime) -> R,
     {
