@@ -87,7 +87,7 @@ where
         }
     }
 
-    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
+    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error> {
         futures::try_ready!(self.f1.poll_action(cx).map_err(Into::into));
         futures::try_ready!(self.f2.poll_action(cx).map_err(Into::into));
         let out = self.take_item().expect("the value should be ready.");

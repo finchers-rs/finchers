@@ -11,6 +11,7 @@ use {
         error::Error,
     },
     futures::Poll,
+    http::StatusCode,
 };
 
 #[allow(missing_docs)]
@@ -69,16 +70,24 @@ where
                 match left.preflight(cx) {
                     Ok(Preflight::Incomplete) => State::Left(left),
                     Ok(Preflight::Completed(output)) => return Ok(Preflight::Completed(output)),
-                    Err(..) => {
+                    Err(e1) => {
                         *cx = orig_cx;
                         match right.preflight(cx) {
                             Ok(Preflight::Incomplete) => State::Right(right),
                             Ok(Preflight::Completed(output)) => {
                                 return Ok(Preflight::Completed(output))
                             }
-                            Err(..) => {
-                                // FIXME: appropriate error handling.
-                                return Err(http::StatusCode::NOT_FOUND.into());
+                            Err(e2) => {
+                                let e1 = e1.into();
+                                let e2 = e2.into();
+                                return Err(match (e1.status_code(), e2.status_code()) {
+                                    (_, StatusCode::NOT_FOUND)
+                                    | (_, StatusCode::METHOD_NOT_ALLOWED) => e1,
+                                    (StatusCode::NOT_FOUND, _)
+                                    | (StatusCode::METHOD_NOT_ALLOWED, _) => e2,
+                                    (status1, status2) if status1 >= status2 => e1,
+                                    _ => e2,
+                                });
                             }
                         }
                     }

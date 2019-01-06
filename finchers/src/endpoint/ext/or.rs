@@ -9,11 +9,10 @@ use {
             PreflightContext,
         },
         error::Error,
-        output::IntoResponse,
     },
     either::Either,
     futures::Poll,
-    http::{Request, Response},
+    http::StatusCode,
 };
 
 #[allow(missing_docs)]
@@ -25,12 +24,12 @@ pub struct Or<E1, E2> {
 
 impl<E1: IsEndpoint, E2: IsEndpoint> IsEndpoint for Or<E1, E2> {}
 
-impl<E1, E2, Bd> Endpoint<Bd> for Or<E1, E2>
+impl<E1, E2, T1, T2, Bd> Endpoint<Bd> for Or<E1, E2>
 where
-    E1: Endpoint<Bd>,
-    E2: Endpoint<Bd>,
+    E1: Endpoint<Bd, Output = (T1,)>,
+    E2: Endpoint<Bd, Output = (T2,)>,
 {
-    type Output = (Wrapped<E1::Output, E2::Output>,);
+    type Output = (Either<T1, T2>,);
     type Error = Error;
     type Action = OrAction<E1::Action, E2::Action>;
 
@@ -38,22 +37,6 @@ where
         OrAction {
             state: State::Init(self.e1.action(), self.e2.action()),
         }
-    }
-}
-
-#[derive(Debug)]
-pub struct Wrapped<L, R>(Either<L, R>);
-
-impl<L, R> IntoResponse for Wrapped<L, R>
-where
-    L: IntoResponse,
-    R: IntoResponse,
-{
-    type Body = Either<L::Body, R::Body>;
-
-    #[inline]
-    fn into_response(self, request: &Request<()>) -> Response<Self::Body> {
-        self.0.into_response(request)
     }
 }
 
@@ -70,12 +53,12 @@ pub struct OrAction<L, R> {
     state: State<L, R>,
 }
 
-impl<L, R, Bd> EndpointAction<Bd> for OrAction<L, R>
+impl<E1, E2, T1, T2, Bd> EndpointAction<Bd> for OrAction<E1, E2>
 where
-    L: EndpointAction<Bd>,
-    R: EndpointAction<Bd>,
+    E1: EndpointAction<Bd, Output = (T1,)>,
+    E2: EndpointAction<Bd, Output = (T2,)>,
 {
-    type Output = (Wrapped<L::Output, R::Output>,);
+    type Output = (Either<T1, T2>,);
     type Error = Error;
 
     fn preflight(
@@ -95,13 +78,13 @@ where
                         // (consumed) path segments is choosen.
                         if cx1.num_popped_segments() >= cx.num_popped_segments() {
                             *cx = cx1;
-                            if let Preflight::Completed(output) = l {
-                                return Ok(Preflight::Completed((Wrapped(Either::Left(output)),)));
+                            if let Preflight::Completed((output,)) = l {
+                                return Ok(Preflight::Completed((Either::Left(output),)));
                             } else {
                                 State::Left(left)
                             }
-                        } else if let Preflight::Completed(output) = r {
-                            return Ok(Preflight::Completed((Wrapped(Either::Right(output)),)));
+                        } else if let Preflight::Completed((output,)) = r {
+                            return Ok(Preflight::Completed((Either::Right(output),)));
                         } else {
                             State::Right(right)
                         }
@@ -109,24 +92,30 @@ where
 
                     (Ok(l), Err(..)) => {
                         *cx = cx1;
-                        if let Preflight::Completed(output) = l {
-                            return Ok(Preflight::Completed((Wrapped(Either::Left(output)),)));
+                        if let Preflight::Completed((output,)) = l {
+                            return Ok(Preflight::Completed((Either::Left(output),)));
                         } else {
                             State::Left(left)
                         }
                     }
 
                     (Err(..), Ok(r)) => {
-                        if let Preflight::Completed(output) = r {
-                            return Ok(Preflight::Completed((Wrapped(Either::Right(output)),)));
+                        if let Preflight::Completed((output,)) = r {
+                            return Ok(Preflight::Completed((Either::Right(output),)));
                         } else {
                             State::Right(right)
                         }
                     }
 
-                    (Err(..), Err(..)) => {
-                        // FIXME: appropriate error handling
-                        return Err(http::StatusCode::NOT_FOUND.into());
+                    (Err(e1), Err(e2)) => {
+                        let e1 = e1.into();
+                        let e2 = e2.into();
+                        return Err(match (e1.status_code(), e2.status_code()) {
+                            (_, StatusCode::NOT_FOUND) | (_, StatusCode::METHOD_NOT_ALLOWED) => e1,
+                            (StatusCode::NOT_FOUND, _) | (StatusCode::METHOD_NOT_ALLOWED, _) => e2,
+                            (status1, status2) if status1 >= status2 => e1,
+                            _ => e2,
+                        });
                     }
                 }
             }
@@ -141,11 +130,11 @@ where
         match self.state {
             State::Left(ref mut t) => t
                 .poll_action(cx)
-                .map(|t| t.map(|t| (Wrapped(Either::Left(t)),)))
+                .map(|x| x.map(|(out,)| (Either::Left(out),)))
                 .map_err(Into::into),
             State::Right(ref mut t) => t
                 .poll_action(cx)
-                .map(|t| t.map(|t| (Wrapped(Either::Right(t)),)))
+                .map(|x| x.map(|(out,)| (Either::Right(out),)))
                 .map_err(Into::into),
             _ => panic!("unexpected condition"),
         }
