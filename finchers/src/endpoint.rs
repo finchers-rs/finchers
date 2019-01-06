@@ -461,18 +461,19 @@ where
 
 // ==== Context ====
 
-/// The contextual information during calling `Endpoint::apply`.
+/// A set of contextual values used by `EndpointAction::preflight`.
 #[derive(Debug, Clone)]
 pub struct ApplyContext<'a> {
-    pub(super) request: &'a Request<()>,
+    request: &'a Request<()>,
     pos: usize,
     popped: usize,
     _anchor: PhantomData<Rc<()>>,
 }
 
 impl<'a> ApplyContext<'a> {
+    /// Creates a new `ApplyContext` with the specified reference to a `Request<()>`.
     #[inline]
-    pub(crate) fn new(request: &'a Request<()>) -> Self {
+    pub fn new(request: &'a Request<()>) -> Self {
         ApplyContext {
             request,
             pos: 1,
@@ -481,44 +482,20 @@ impl<'a> ApplyContext<'a> {
         }
     }
 
-    #[allow(missing_docs)]
-    #[inline]
-    pub fn by_ref(&mut self) -> &mut Self {
-        self
-    }
-
-    /// Returns a mutable reference to the value of `Input`.
+    /// Returns a reference to the inner `Request<()>`.
     #[inline]
     pub fn request(&self) -> &Request<()> {
         &*self.request
     }
 
-    pub(crate) fn num_popped_segments(&self) -> usize {
+    /// Returns the number of segments already popped.
+    pub fn num_popped_segments(&self) -> usize {
         self.popped
     }
 
-    /// Returns the remaining path in this segments
+    /// Advances the inner state and returns the next segment if possible.
     #[inline]
-    pub fn remaining_path(&self) -> &EncodedStr {
-        unsafe { EncodedStr::new_unchecked(&self.request.uri().path()[self.pos..]) }
-    }
-}
-
-impl<'a> std::ops::Deref for ApplyContext<'a> {
-    type Target = Request<()>;
-
-    #[inline]
-    fn deref(&self) -> &Self::Target {
-        &*self.request
-    }
-}
-
-impl<'a> Iterator for ApplyContext<'a> {
-    type Item = &'a EncodedStr;
-
-    /// Advances the cursor and returns the next segment.
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
+    pub fn next_segment(&mut self) -> Option<&'a EncodedStr> {
         let path = &self.request.uri().path();
         if self.pos == path.len() {
             return None;
@@ -538,31 +515,61 @@ impl<'a> Iterator for ApplyContext<'a> {
 
         Some(unsafe { EncodedStr::new_unchecked(s) })
     }
+
+    /// Returns the part of remaining path that is not extracted.
+    #[inline]
+    pub fn remaining_path(&self) -> &'a EncodedStr {
+        unsafe { EncodedStr::new_unchecked(&self.request.uri().path()[self.pos..]) }
+    }
 }
 
-/// The contexual information used in the implementation of `EndpointAction::poll_action`.
+impl<'a> std::ops::Deref for ApplyContext<'a> {
+    type Target = Request<()>;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        self.request()
+    }
+}
+
+impl<'a> Iterator for ApplyContext<'a> {
+    type Item = &'a EncodedStr;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        self.next_segment()
+    }
+}
+
+/// A set for contextual values used by `EndpointAction::poll_action`.
 #[derive(Debug)]
 pub struct ActionContext<'a, Bd> {
-    request: &'a Request<()>,
+    request: &'a mut Request<()>,
     body: &'a mut Option<Bd>,
-    _marker: PhantomData<Rc<()>>,
+    _anchor: PhantomData<Rc<()>>,
 }
 
 impl<'a, Bd> ActionContext<'a, Bd> {
-    pub(crate) fn new(request: &'a Request<()>, body: &'a mut Option<Bd>) -> Self {
+    /// Creates a new `ActionContext` with the specified components.
+    pub fn new(request: &'a mut Request<()>, body: &'a mut Option<Bd>) -> Self {
         Self {
             request,
             body,
-            _marker: PhantomData,
+            _anchor: PhantomData,
         }
     }
 
-    #[allow(missing_docs)]
+    /// Returns a reference to the inner `Request<()>`.
     pub fn request(&self) -> &Request<()> {
         &*self.request
     }
 
-    #[allow(missing_docs)]
+    /// Returns a mutable reference to the inner `Request<()>`.
+    pub fn request_mut(&mut self) -> &mut Request<()> {
+        &mut *self.request
+    }
+
+    /// Returns a mutable reference to the instance of request body.
     pub fn body(&mut self) -> &mut Option<Bd> {
         &mut *self.body
     }
@@ -573,7 +580,14 @@ impl<'a, Bd> std::ops::Deref for ActionContext<'a, Bd> {
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        &*self.request
+        self.request()
+    }
+}
+
+impl<'a, Bd> std::ops::DerefMut for ActionContext<'a, Bd> {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.request_mut()
     }
 }
 

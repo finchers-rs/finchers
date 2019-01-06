@@ -14,7 +14,6 @@ use {
     either::Either,
     futures::Poll,
     http::{Request, Response},
-    std::mem,
 };
 
 #[allow(missing_docs)]
@@ -87,7 +86,7 @@ where
             State::Init(mut left, mut right) => {
                 let orig_cx = cx.clone();
                 let left_output = left.preflight(cx);
-                let cx1 = mem::replace(cx, orig_cx);
+                let cx1 = std::mem::replace(cx, orig_cx);
                 let right_output = right.preflight(cx);
 
                 match (left_output, right_output) {

@@ -162,7 +162,7 @@ where
                     State::InFlight(action)
                 }
                 State::InFlight(ref mut action) => {
-                    let mut acx = ActionContext::new(&self.request, &mut self.body);
+                    let mut acx = ActionContext::new(&mut self.request, &mut self.body);
                     return action.poll_action(&mut acx);
                 }
             };
