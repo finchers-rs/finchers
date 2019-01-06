@@ -21,6 +21,8 @@ izanami-service = "0.1.0-preview.1"
 [workspace]
 members = [
   "finchers",
+  "finchers/macros",
+
   #"finchers-cors",
   #"finchers-headers",
   #"finchers-juniper",
@@ -44,6 +46,8 @@ members = [
 
 [patch.crates-io]
 finchers = { version = "0.14.0-dev", path = "finchers" }
+finchers-macros = { version = "0.14.0-dev", path = "finchers/macros" }
+
 #finchers-headers = { version = "0.1.0", path = "finchers-headers" }
 #finchers-juniper = { version = "0.2.1", path = "finchers-juniper" }
 #finchers-session = { version = "0.2.1-dev", path = "finchers-session" }

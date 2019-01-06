@@ -1,4 +1,4 @@
-#![allow(missing_docs)]
+//! A collection of endpoints that validates the HTTP method.
 
 use {
     crate::endpoint::{
@@ -39,6 +39,7 @@ impl<Bd> Endpoint<Bd> for MatchVerbs {
     }
 }
 
+#[doc(hidden)]
 #[derive(Debug)]
 pub struct MatchVerbsAction {
     allowed: Verbs,

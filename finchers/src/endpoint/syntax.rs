@@ -1,25 +1,144 @@
 //! Components for building endpoints which matches to a specific HTTP path.
 
-mod encoded;
+pub mod encoded;
 pub mod verb;
 
-pub use self::encoded::{EncodedStr, FromEncodedStr};
+pub use {
+    crate::path, //
+    finchers_macros::ExtractPath,
+};
 
 use {
+    self::encoded::FromEncodedStr,
     crate::{
+        common::Tuple,
         endpoint::{
-            Endpoint,
+            Endpoint, //
             IsEndpoint,
             Oneshot,
             OneshotAction,
-            PreflightContext, //
+            PreflightContext,
         },
-        error::{BadRequest, Error},
+        error::Error,
     },
     http::StatusCode,
-    percent_encoding::{percent_encode, DEFAULT_ENCODE_SET},
-    std::{fmt, marker::PhantomData, sync::Arc},
+    percent_encoding::{
+        percent_encode, //
+        DEFAULT_ENCODE_SET,
+    },
+    std::{
+        fmt, //
+        marker::PhantomData,
+        sync::Arc,
+    },
 };
+
+// ==== ExtractPath ====
+
+/// A macro for creating an endpoint that matches to the specific HTTP path.
+#[macro_export]
+macro_rules! path {
+    ($path:expr) => {{
+        #[derive($crate::endpoint::syntax::ExtractPath)]
+        #[path = $path]
+        struct __DerivedExtractPath(());
+
+        $crate::endpoint::syntax::path::<__DerivedExtractPath>()
+    }};
+
+    (@$verb:ident $path:expr) => {
+        $crate::endpoint::ext::EndpointExt::and(
+            $crate::endpoint::syntax::verb::$verb(),
+            $crate::endpoint::syntax::path!($path),
+        )
+    };
+}
+
+/// A trait that abstracts the extraction of values from HTTP path.
+#[allow(missing_docs)]
+pub trait ExtractPath {
+    type Output: Tuple;
+
+    fn extract(cx: &mut PreflightContext<'_>) -> Result<Self::Output, ExtractPathError>;
+}
+
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct ExtractPathError(Error);
+
+impl Into<Error> for ExtractPathError {
+    fn into(self) -> Error {
+        self.0
+    }
+}
+
+impl ExtractPathError {
+    #[allow(missing_docs)]
+    pub fn new(cause: impl Into<Error>) -> Self {
+        ExtractPathError(cause.into())
+    }
+
+    #[allow(missing_docs)]
+    pub fn not_matched() -> Self {
+        Self::new(StatusCode::NOT_FOUND)
+    }
+}
+
+/// Creates an endpoint that matches to the specific HTTP path.
+pub fn path<T>() -> Path<T>
+where
+    T: ExtractPath,
+{
+    Path {
+        _marker: PhantomData,
+    }
+}
+
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct Path<T> {
+    _marker: PhantomData<T>,
+}
+
+mod path {
+    use super::*;
+
+    impl<T> IsEndpoint for Path<T> where T: ExtractPath {}
+
+    impl<T, Bd> Endpoint<Bd> for Path<T>
+    where
+        T: ExtractPath,
+    {
+        type Output = T::Output;
+        type Error = ExtractPathError;
+        type Action = Oneshot<PathAction<T>>;
+
+        fn action(&self) -> Self::Action {
+            PathAction {
+                _marker: PhantomData,
+            }
+            .into_action()
+        }
+    }
+
+    #[allow(missing_debug_implementations)]
+    pub struct PathAction<T> {
+        _marker: PhantomData<T>,
+    }
+
+    impl<T> OneshotAction for PathAction<T>
+    where
+        T: ExtractPath,
+    {
+        type Output = T::Output;
+        type Error = ExtractPathError;
+
+        #[inline]
+        fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Self::Error> {
+            <T as ExtractPath>::extract(cx)
+        }
+    }
+}
 
 // ==== MatchSegment =====
 
@@ -195,7 +314,7 @@ where
 
     fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Self::Error> {
         let s = cx.next().ok_or_else(|| StatusCode::NOT_FOUND)?;
-        let x = T::from_encoded_str(s).map_err(BadRequest::from)?;
+        let x = T::from_encoded_str(s).map_err(Into::into)?;
         Ok((x,))
     }
 }
@@ -267,77 +386,8 @@ where
     type Error = Error;
 
     fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Self::Error> {
-        let result = T::from_encoded_str(cx.remaining_path())
-            .map_err(BadRequest::from)
-            .map_err(Into::into);
+        let result = T::from_encoded_str(cx.remaining_path());
         let _ = cx.by_ref().count();
-        result.map(|x| (x,))
+        result.map(|x| (x,)).map_err(Into::into)
     }
 }
-
-// /// A helper macro for creating an endpoint which matches to the specified HTTP path.
-// ///
-// /// # Example
-// ///
-// /// The following macro call
-// ///
-// /// ```
-// /// # #[macro_use]
-// /// # extern crate finchers;
-// /// # fn main() {
-// /// # drop(|| {
-// /// path!(@get / "api" / "v1" / "posts" / i32)
-// /// # });
-// /// # }
-// /// ```
-// ///
-// /// will be expanded to the following code:
-// ///
-// /// ```
-// /// # use finchers::prelude::*;
-// /// use finchers::endpoint::syntax;
-// /// # fn main() {
-// /// # drop(|| {
-// /// syntax::verb::get()
-// ///     .and("api")
-// ///     .and("v1")
-// ///     .and("posts")
-// ///     .and(syntax::param::<i32>())
-// /// # });
-// /// # }
-// /// ```
-// #[macro_export(local_inner_macros)]
-// macro_rules! path {
-//     // with method
-//     (@$method:ident $($t:tt)*) => (
-//         $crate::endpoint::IntoEndpointExt::and(
-//             $crate::endpoint::syntax::verb::$method(),
-//             path_impl!(@start $($t)*)
-//         )
-//     );
-
-//     // without method
-//     (/ $($t:tt)*) => ( path_impl!(@start / $($t)*) );
-// }
-
-// #[doc(hidden)]
-// #[macro_export(local_inner_macros)]
-// macro_rules! path_impl {
-//     (@start / $head:tt $(/ $tail:tt)*) => {{
-//         let __p = path_impl!(@segment $head);
-//         $(
-//             let __p = $crate::endpoint::IntoEndpointExt::and(__p, path_impl!(@segment $tail));
-//         )*
-//         __p
-//     }};
-//     (@start / $head:tt $(/ $tail:tt)* /) => {
-//         $crate::endpoint::IntoEndpointExt::and(
-//             path_impl!(@start / $head $(/ $tail)*),
-//             $crate::endpoint::syntax::eos(),
-//         )
-//     };
-//     (@start /) => ( $crate::endpoint::syntax::eos() );
-
-//     (@segment $t:ty) => ( $crate::endpoint::syntax::param::<$t>() );
-//     (@segment $s:expr) => ( $crate::endpoint::IntoEndpoint::into_endpoint($s) );
-// }

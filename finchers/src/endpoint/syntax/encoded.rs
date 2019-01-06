@@ -1,11 +1,16 @@
-use failure::Fail;
-use std::borrow::Cow;
-use std::fmt;
-use std::net;
-use std::path::PathBuf;
-use std::str::{self, FromStr, Utf8Error};
+#![allow(missing_docs)]
 
-use percent_encoding::percent_decode;
+use {
+    crate::error::{Error, HttpError},
+    http::{Request, Response, StatusCode},
+    percent_encoding::percent_decode,
+    std::{
+        borrow::Cow,
+        fmt, net,
+        path::PathBuf,
+        str::{self, FromStr, Utf8Error},
+    },
+};
 
 /// A percent-encoded string.
 #[repr(C)]
@@ -89,30 +94,21 @@ impl EncodedStr {
 /// Trait representing the conversion from an encoded string.
 pub trait FromEncodedStr: Sized + 'static {
     /// The error type which will be returned from `from_encoded_str`.
-    type Error: Fail;
+    type Error: Into<Error>;
 
     /// Converts an `EncodedStr` to a value of `Self`.
     fn from_encoded_str(s: &EncodedStr) -> Result<Self, Self::Error>;
 }
 
-#[allow(missing_docs)]
-#[derive(Debug, Fail)]
-pub enum FromEncodedStrError<E: Fail> {
-    #[fail(display = "{}", cause)]
-    Decode { cause: Utf8Error },
-    #[fail(display = "{}", cause)]
-    Parse { cause: E },
-}
-
 macro_rules! impl_from_segment_from_str {
     ($($t:ty,)*) => {$(
         impl FromEncodedStr for $t {
-            type Error = FromEncodedStrError<<$t as FromStr>::Err>;
+            type Error = Error;
 
             #[inline]
             fn from_encoded_str(s: &EncodedStr) -> Result<Self, Self::Error> {
-                let s = s.percent_decode().map_err(|cause| FromEncodedStrError::Decode{cause})?;
-                FromStr::from_str(&*s).map_err(|cause| FromEncodedStrError::Parse{cause})
+                let s = s.percent_decode().map_err(DecodeEncodedStrError)?;
+                Ok(FromStr::from_str(&*s).map_err(ParseEncodedStrError)?)
             }
         }
     )*};
@@ -131,19 +127,74 @@ impl_from_segment_from_str! {
 }
 
 impl FromEncodedStr for String {
-    type Error = Utf8Error;
+    type Error = DecodeEncodedStrError;
 
     #[inline]
     fn from_encoded_str(s: &EncodedStr) -> Result<Self, Self::Error> {
-        s.percent_decode().map(Cow::into_owned)
+        s.percent_decode()
+            .map(Cow::into_owned)
+            .map_err(DecodeEncodedStrError)
     }
 }
 
 impl FromEncodedStr for PathBuf {
-    type Error = Utf8Error;
+    type Error = DecodeEncodedStrError;
 
     #[inline]
     fn from_encoded_str(s: &EncodedStr) -> Result<Self, Self::Error> {
-        s.percent_decode().map(|s| PathBuf::from(s.into_owned()))
+        s.percent_decode()
+            .map(|s| std::path::PathBuf::from(s.into_owned()))
+            .map_err(DecodeEncodedStrError)
+    }
+}
+
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct DecodeEncodedStrError(Utf8Error);
+
+impl fmt::Display for DecodeEncodedStrError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "failed to decode a percent-encoded str: {}", self.0)
+    }
+}
+
+impl HttpError for DecodeEncodedStrError {
+    type Body = String;
+
+    fn status_code(&self) -> StatusCode {
+        StatusCode::BAD_REQUEST
+    }
+
+    fn to_response(&self, _: &Request<()>) -> Response<Self::Body> {
+        let mut response = Response::new(self.to_string());
+        *response.status_mut() = self.status_code();
+        response
+    }
+}
+
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct ParseEncodedStrError<E>(E);
+
+impl<E: fmt::Display> fmt::Display for ParseEncodedStrError<E> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "failed to parse a percent encoded str: {}", self.0)
+    }
+}
+
+impl<E> HttpError for ParseEncodedStrError<E>
+where
+    E: fmt::Debug + fmt::Display + Send + Sync + 'static,
+{
+    type Body = String;
+
+    fn status_code(&self) -> StatusCode {
+        StatusCode::BAD_REQUEST
+    }
+
+    fn to_response(&self, _: &Request<()>) -> Response<Self::Body> {
+        let mut response = Response::new(self.to_string());
+        *response.status_mut() = self.status_code();
+        response
     }
 }
