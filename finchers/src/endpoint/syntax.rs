@@ -8,54 +8,18 @@ pub use self::encoded::{EncodedStr, FromEncodedStr};
 use {
     crate::{
         endpoint::{
-            ActionContext, //
-            ApplyContext,
+            ApplyContext, //
             Endpoint,
-            EndpointAction,
             IsEndpoint,
             Oneshot,
             OneshotAction,
         },
         error::{BadRequest, Error},
     },
-    futures::Poll,
     http::StatusCode,
     percent_encoding::{percent_encode, DEFAULT_ENCODE_SET},
     std::{fmt, marker::PhantomData, sync::Arc},
 };
-
-#[doc(hidden)]
-#[derive(Debug)]
-#[must_use = "futures does not anything unless polled."]
-pub struct Matched {
-    _priv: (),
-}
-
-impl<Bd> EndpointAction<Bd> for Matched {
-    type Output = ();
-    type Error = Error;
-
-    #[inline]
-    fn poll_action(&mut self, _: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error> {
-        Ok(().into())
-    }
-}
-
-#[doc(hidden)]
-#[derive(Debug)]
-#[must_use = "futures does not anything unless polled."]
-pub struct Extracted<T>(Option<T>);
-
-impl<T, Bd> EndpointAction<Bd> for Extracted<T> {
-    type Output = (T,);
-    type Error = Error;
-
-    #[inline]
-    fn poll_action(&mut self, _: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error> {
-        let x = self.0.take().expect("This future has already polled");
-        Ok((x,).into())
-    }
-}
 
 // ==== MatchSegment =====
 
