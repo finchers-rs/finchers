@@ -3,11 +3,11 @@ use {
         common::Combine,
         endpoint::{
             ActionContext, //
-            ApplyContext,
             Endpoint,
             EndpointAction,
             IsEndpoint,
             Preflight,
+            PreflightContext,
         },
         error::Error,
     },
@@ -75,7 +75,7 @@ where
 
     fn preflight(
         &mut self,
-        cx: &mut ApplyContext<'_>,
+        cx: &mut PreflightContext<'_>,
     ) -> Result<Preflight<Self::Output>, Self::Error> {
         let x1 = self.f1.preflight(cx).map_err(Into::into)?;
         let x2 = self.f2.preflight(cx).map_err(Into::into)?;
@@ -119,7 +119,7 @@ impl<Bd, F: EndpointAction<Bd>> EndpointAction<Bd> for MaybeDone<Bd, F> {
 
     fn preflight(
         &mut self,
-        cx: &mut ApplyContext<'_>,
+        cx: &mut PreflightContext<'_>,
     ) -> Result<Preflight<Self::Output>, Self::Error> {
         *self = match self {
             MaybeDone::Init(ref mut action) => {

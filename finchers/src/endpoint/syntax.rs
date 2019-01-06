@@ -8,11 +8,11 @@ pub use self::encoded::{EncodedStr, FromEncodedStr};
 use {
     crate::{
         endpoint::{
-            ApplyContext, //
             Endpoint,
             IsEndpoint,
             Oneshot,
             OneshotAction,
+            PreflightContext, //
         },
         error::{BadRequest, Error},
     },
@@ -72,7 +72,7 @@ impl OneshotAction for MatchSegmentAction {
     type Output = ();
     type Error = StatusCode;
 
-    fn apply(self, ecx: &mut ApplyContext<'_>) -> Result<Self::Output, Self::Error> {
+    fn preflight(self, ecx: &mut PreflightContext<'_>) -> Result<Self::Output, Self::Error> {
         let s = ecx.next().ok_or_else(|| StatusCode::NOT_FOUND)?;
         if s == *self.encoded {
             Ok(())
@@ -118,7 +118,7 @@ impl OneshotAction for MatchEosAction {
     type Output = ();
     type Error = StatusCode;
 
-    fn apply(self, cx: &mut ApplyContext<'_>) -> Result<Self::Output, Self::Error> {
+    fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Self::Error> {
         match cx.next() {
             None => Ok(()),
             Some(..) => Err(StatusCode::NOT_FOUND),
@@ -193,7 +193,7 @@ where
     type Output = (T,);
     type Error = Error;
 
-    fn apply(self, cx: &mut ApplyContext<'_>) -> Result<Self::Output, Self::Error> {
+    fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Self::Error> {
         let s = cx.next().ok_or_else(|| StatusCode::NOT_FOUND)?;
         let x = T::from_encoded_str(s).map_err(BadRequest::from)?;
         Ok((x,))
@@ -266,7 +266,7 @@ where
     type Output = (T,);
     type Error = Error;
 
-    fn apply(self, cx: &mut ApplyContext<'_>) -> Result<Self::Output, Self::Error> {
+    fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Self::Error> {
         let result = T::from_encoded_str(cx.remaining_path())
             .map_err(BadRequest::from)
             .map_err(Into::into);

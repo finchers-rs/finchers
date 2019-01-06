@@ -2,11 +2,11 @@
 
 use {
     crate::endpoint::{
-        ApplyContext, //
         Endpoint,
         IsEndpoint,
         Oneshot,
         OneshotAction,
+        PreflightContext, //
     },
     http::{Method, StatusCode},
     std::ops::{BitOr, BitOrAssign},
@@ -48,7 +48,7 @@ impl OneshotAction for MatchVerbsAction {
     type Output = ();
     type Error = StatusCode;
 
-    fn apply(self, cx: &mut ApplyContext<'_>) -> Result<Self::Output, Self::Error> {
+    fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Self::Error> {
         if self.allowed.contains(cx.method()) {
             Ok(())
         } else {
@@ -98,7 +98,7 @@ macro_rules! define_verbs {
             type Error = StatusCode;
 
             #[inline]
-            fn apply(self, cx: &mut ApplyContext<'_>) -> Result<Self::Output, Self::Error> {
+            fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Self::Error> {
                 if *cx.method() == Method::$METHOD {
                     Ok(())
                 } else {

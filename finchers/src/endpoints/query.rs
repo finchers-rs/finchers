@@ -3,11 +3,11 @@
 use {
     crate::{
         endpoint::{
-            ApplyContext, //
             Endpoint,
             IsEndpoint,
             Oneshot,
             OneshotAction,
+            PreflightContext, //
         },
         error::{BadRequest, Error},
     },
@@ -94,7 +94,7 @@ mod required {
         type Output = (T,);
         type Error = Error;
 
-        fn apply(self, cx: &mut ApplyContext<'_>) -> Result<Self::Output, Self::Error> {
+        fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Self::Error> {
             let query = cx
                 .uri()
                 .query()
@@ -186,7 +186,7 @@ mod optional {
         type Output = (Option<T>,);
         type Error = Error;
 
-        fn apply(self, cx: &mut ApplyContext<'_>) -> Result<Self::Output, Self::Error> {
+        fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Self::Error> {
             match cx.uri().query() {
                 Some(query) => serde_qs::from_str(query)
                     .map(|x| (Some(x),))
@@ -230,7 +230,7 @@ mod raw {
         type Output = (Option<String>,);
         type Error = Error;
 
-        fn apply(self, cx: &mut ApplyContext<'_>) -> Result<Self::Output, Self::Error> {
+        fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Self::Error> {
             let raw = cx.uri().query().map(ToOwned::to_owned);
             Ok((raw,))
         }

@@ -379,12 +379,26 @@ mod tests {
     #[test]
     fn test_host_useragent() {
         let mut runner = runner({
-            crate::endpoint::apply_fn(|| {
-                crate::endpoint::action(|cx| {
-                    let host = cx.headers().get(header::HOST).cloned();
-                    let user_agent = cx.headers().get(header::USER_AGENT).cloned();
-                    Ok::<_, crate::error::Error>((host, user_agent).into())
-                })
+            crate::endpoint::endpoint(|| {
+                use crate::endpoint::{OneshotAction, PreflightContext};
+
+                struct MyAction;
+
+                impl OneshotAction for MyAction {
+                    type Output = (Option<HeaderValue>, Option<HeaderValue>);
+                    type Error = crate::util::Never;
+
+                    fn preflight(
+                        self,
+                        cx: &mut PreflightContext<'_>,
+                    ) -> Result<Self::Output, Self::Error> {
+                        let host = cx.headers().get(header::HOST).cloned();
+                        let user_agent = cx.headers().get(header::USER_AGENT).cloned();
+                        Ok((host, user_agent))
+                    }
+                }
+
+                MyAction.into_action()
             })
         });
 
@@ -416,11 +430,24 @@ mod tests {
     #[test]
     fn test_default_headers() {
         let mut runner = runner({
-            endpoint::apply_fn(|| {
-                endpoint::action(|cx| {
-                    assert!(cx.headers().contains_key(header::ORIGIN));
-                    Ok::<_, crate::util::Never>(().into())
-                })
+            endpoint::endpoint(|| {
+                use crate::endpoint::{OneshotAction, PreflightContext};
+
+                struct MyAction;
+
+                impl OneshotAction for MyAction {
+                    type Output = ();
+                    type Error = crate::util::Never;
+                    fn preflight(
+                        self,
+                        cx: &mut PreflightContext<'_>,
+                    ) -> Result<Self::Output, Self::Error> {
+                        assert!(cx.headers().contains_key(header::ORIGIN));
+                        Ok(())
+                    }
+                }
+
+                MyAction.into_action()
             })
         });
         runner

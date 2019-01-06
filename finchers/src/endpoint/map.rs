@@ -3,11 +3,11 @@ use {
         common::Func,
         endpoint::{
             ActionContext, //
-            ApplyContext,
             Endpoint,
             EndpointAction,
             IsEndpoint,
             Preflight,
+            PreflightContext,
         },
     },
     futures::Poll,
@@ -55,7 +55,7 @@ where
 
     fn preflight(
         &mut self,
-        cx: &mut ApplyContext<'_>,
+        cx: &mut PreflightContext<'_>,
     ) -> Result<Preflight<Self::Output>, Self::Error> {
         self.action
             .preflight(cx)

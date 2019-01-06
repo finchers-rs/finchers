@@ -3,11 +3,11 @@
 use {
     crate::{
         endpoint::{
-            ApplyContext, //
             Endpoint,
             IsEndpoint,
             Oneshot,
             OneshotAction,
+            PreflightContext, //
         },
         error::{BadRequest, Error},
         util::Never,
@@ -141,7 +141,7 @@ mod parse {
         type Output = (T,);
         type Error = Error;
 
-        fn apply(self, cx: &mut ApplyContext<'_>) -> Result<Self::Output, Self::Error> {
+        fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Self::Error> {
             let h = cx.headers().get(&self.name).ok_or_else(|| {
                 BadRequest::from(format!("missing header: `{}'", self.name.as_str()))
             })?;
@@ -220,7 +220,7 @@ mod optional {
         type Output = (Option<T>,);
         type Error = Error;
 
-        fn apply(self, cx: &mut ApplyContext<'_>) -> Result<Self::Output, Self::Error> {
+        fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Self::Error> {
             match cx.headers().get(&self.name) {
                 Some(h) => T::from_header_value(h)
                     .map(|parsed| (Some(parsed),))
@@ -312,7 +312,7 @@ mod matches {
         type Output = ();
         type Error = http::StatusCode;
 
-        fn apply(self, cx: &mut ApplyContext<'_>) -> Result<Self::Output, Self::Error> {
+        fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Self::Error> {
             match cx.headers().get(&self.name) {
                 Some(v) if self.value == *v => Ok(()),
                 _ => Err(http::StatusCode::NOT_FOUND),
@@ -368,7 +368,7 @@ mod raw {
         type Output = (Option<HeaderValue>,);
         type Error = crate::util::Never;
 
-        fn apply(self, cx: &mut ApplyContext<'_>) -> Result<Self::Output, Self::Error> {
+        fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Self::Error> {
             Ok((cx.headers().get(&self.name).cloned(),))
         }
     }

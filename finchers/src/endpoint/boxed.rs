@@ -3,11 +3,11 @@ use {
         common::Tuple,
         endpoint::{
             ActionContext, //
-            ApplyContext,
             Endpoint,
             EndpointAction,
             IsEndpoint,
             Preflight,
+            PreflightContext,
         },
         error::Error,
     },
@@ -120,7 +120,7 @@ where
     #[inline]
     fn preflight(
         &mut self,
-        cx: &mut ApplyContext<'_>,
+        cx: &mut PreflightContext<'_>,
     ) -> Result<Preflight<Self::Output>, Self::Error> {
         self.inner.preflight(cx)
     }
@@ -236,7 +236,7 @@ where
     #[inline]
     fn preflight(
         &mut self,
-        cx: &mut ApplyContext<'_>,
+        cx: &mut PreflightContext<'_>,
     ) -> Result<Preflight<Self::Output>, Self::Error> {
         self.inner.preflight(cx)
     }

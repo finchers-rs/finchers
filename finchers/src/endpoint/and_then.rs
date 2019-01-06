@@ -3,11 +3,11 @@ use {
         common::Func,
         endpoint::{
             ActionContext, //
-            ApplyContext,
             Endpoint,
             EndpointAction,
             IsEndpoint,
             Preflight,
+            PreflightContext,
         },
     },
     futures::{Future, IntoFuture, Poll},
@@ -59,7 +59,7 @@ where
 
     fn preflight(
         &mut self,
-        cx: &mut ApplyContext<'_>,
+        cx: &mut PreflightContext<'_>,
     ) -> Result<Preflight<Self::Output>, Self::Error> {
         debug_assert!(self.in_flight.is_none());
         if let Preflight::Completed(output) = self.action.preflight(cx)? {

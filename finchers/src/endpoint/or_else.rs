@@ -2,11 +2,11 @@ use {
     crate::{
         endpoint::{
             ActionContext, //
-            ApplyContext,
             Endpoint,
             EndpointAction,
             IsEndpoint,
             Preflight,
+            PreflightContext,
         },
         error::Error,
     },
@@ -61,7 +61,7 @@ where
 
     fn preflight(
         &mut self,
-        cx: &mut ApplyContext<'_>,
+        cx: &mut PreflightContext<'_>,
     ) -> Result<Preflight<Self::Output>, Self::Error> {
         debug_assert!(self.in_flight.is_none());
         self.action.preflight(cx).or_else(|err| {

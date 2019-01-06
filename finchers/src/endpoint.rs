@@ -30,7 +30,7 @@ pub use self::{
 use {
     self::syntax::EncodedStr,
     crate::{common::Tuple, error::Error},
-    futures::{Future, IntoFuture, Poll},
+    futures::{Future, Poll},
     http::Request,
     std::{marker::PhantomData, rc::Rc, sync::Arc},
 };
@@ -43,7 +43,14 @@ impl<E: IsEndpoint + ?Sized> IsEndpoint for Box<E> {}
 impl<E: IsEndpoint + ?Sized> IsEndpoint for Rc<E> {}
 impl<E: IsEndpoint + ?Sized> IsEndpoint for Arc<E> {}
 
-/// Trait representing an endpoint.
+/// Trait representing an endpoint, the main trait for abstracting
+/// HTTP services in Finchers.
+///
+/// The endpoint behaves as an *asynchronous converter* that takes
+/// an HTTP request and convert it into a value of the associated type.
+/// The process that handles an request is abstracted by `EndpointAction`,
+/// and that instances are constructed by the implementors of `Endpoint`
+/// for each request.
 pub trait Endpoint<Bd>: IsEndpoint {
     /// The inner type associated with this endpoint.
     type Output: Tuple;
@@ -51,14 +58,14 @@ pub trait Endpoint<Bd>: IsEndpoint {
     /// The error type associated with this endpoint.
     type Error: Into<Error>;
 
-    /// The type of `Action` which will be returned from `Self::apply`.
+    /// The type of `EndpointAction` associated with this endpoint.
     type Action: EndpointAction<
         Bd, //
         Output = Self::Output,
         Error = Self::Error,
     >;
 
-    /// Spawns an instance of `Action` applied to an incoming request.
+    /// Spawns an instance of `Action` that applies to an request.
     fn action(&self) -> Self::Action;
 
     /// Add an annotation that the associated type `Output` is fixed to `T`.
@@ -123,12 +130,8 @@ where
     }
 }
 
-/// Create an endpoint from a function which takes the reference to `ApplyContext`
-/// and returns a future.
-///
-/// The endpoint created by this function will wrap the result of future into a tuple.
-/// If you want to return the result without wrapping, use `apply_raw` instead.
-pub fn apply_fn<Bd, R>(
+/// Create an endpoint from the specified closure that returns an `EndpointAction`.
+pub fn endpoint<Bd, R>(
     f: impl Fn() -> R,
 ) -> impl Endpoint<
     Bd, //
@@ -169,7 +172,7 @@ pub fn unit<Bd>() -> impl Endpoint<
     Error = crate::util::Never,
     Action = Oneshot<self::unit::UnitAction>, // private
 > {
-    apply_fn(|| self::unit::UnitAction(()).into_action())
+    endpoint(|| self::unit::UnitAction(()).into_action())
 }
 
 mod unit {
@@ -182,7 +185,7 @@ mod unit {
         type Output = ();
         type Error = crate::util::Never;
 
-        fn apply(self, _: &mut ApplyContext<'_>) -> Result<Self::Output, Self::Error> {
+        fn preflight(self, _: &mut PreflightContext<'_>) -> Result<Self::Output, Self::Error> {
             Ok(())
         }
     }
@@ -230,7 +233,7 @@ pub fn value<Bd, T: Clone>(
     Error = crate::util::Never,
     Action = Oneshot<self::value::ValueAction<T>>, // private
 > {
-    apply_fn(move || self::value::ValueAction { x: x.clone() }.into_action())
+    endpoint(move || self::value::ValueAction { x: x.clone() }.into_action())
 }
 
 mod value {
@@ -246,52 +249,8 @@ mod value {
         type Output = (T,);
         type Error = crate::util::Never;
 
-        fn apply(self, _: &mut ApplyContext<'_>) -> Result<Self::Output, Self::Error> {
+        fn preflight(self, _: &mut PreflightContext<'_>) -> Result<Self::Output, Self::Error> {
             Ok((self.x,))
-        }
-    }
-}
-
-/// Create an endpoint from the specified function which returns a `Future`.
-pub fn lazy<Bd, R>(
-    f: impl Fn() -> R,
-) -> impl Endpoint<
-    Bd,
-    Output = (R::Item,),
-    Error = R::Error,
-    Action = self::lazy::LazyAction<R::Future>, // private
->
-where
-    R: IntoFuture,
-    R::Error: Into<Error>,
-{
-    apply_fn(move || self::lazy::LazyAction {
-        future: f().into_future(),
-    })
-}
-
-mod lazy {
-    use super::*;
-
-    #[derive(Debug)]
-    pub struct LazyAction<F> {
-        pub(super) future: F,
-    }
-
-    impl<F, Bd> EndpointAction<Bd> for LazyAction<F>
-    where
-        F: Future,
-        F::Error: Into<Error>,
-    {
-        type Output = (F::Item,);
-        type Error = F::Error;
-
-        #[inline]
-        fn poll_action(
-            &mut self,
-            _: &mut ActionContext<'_, Bd>,
-        ) -> Poll<Self::Output, Self::Error> {
-            self.future.poll().map(|x| x.map(|ok| (ok,)))
         }
     }
 }
@@ -355,44 +314,28 @@ pub trait EndpointAction<Bd> {
     ///   choose another `EndpointAction` without aborting the process (in contrast, the error
     ///   values returned from `poll_action` are not ignored).
     ///
-    /// Some limitations are added to `ApplyContext` in order to keep consistency when
+    /// Some limitations are added to `PreflightContext` in order to keep consistency when
     /// another endpoint returns an error (for example, it cannot be taken the instance
     /// of request body inside of this method).
-    #[allow(unused_variables)]
     fn preflight(
         &mut self,
-        cx: &mut ApplyContext<'_>,
-    ) -> Result<Preflight<Self::Output>, Self::Error> {
-        Ok(Preflight::Incomplete)
-    }
+        cx: &mut PreflightContext<'_>,
+    ) -> Result<Preflight<Self::Output>, Self::Error>;
 
     /// Progress this action and returns the result if ready.
     fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error>;
 }
 
-impl<F, Bd> EndpointAction<Bd> for F
-where
-    F: Future,
-    F::Item: Tuple,
-    F::Error: Into<Error>,
-{
-    type Output = F::Item;
-    type Error = F::Error;
-
-    fn poll_action(&mut self, _: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error> {
-        self.poll()
-    }
-}
-
-/// Trait representing a variant of `EndpointAction` that `preflight` always returns
-/// an `Ok(Preflight::Ready(x))`.
+/// A variant of `EndpointAction` representing that `preflight` will
+/// *never* return `Ok(Preflight::Incomplete)` and the action always
+/// returns its result from `preflight`.
 #[allow(missing_docs)]
 pub trait OneshotAction {
     type Output: Tuple;
     type Error: Into<Error>;
 
     /// Applies an incoming request to this action and returns its result.
-    fn apply(self, cx: &mut ApplyContext<'_>) -> Result<Self::Output, Self::Error>;
+    fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Self::Error>;
 
     /// Consume `self` and convert it into an implementor of `EndpointAction`.
     fn into_action(self) -> Oneshot<Self>
@@ -416,10 +359,10 @@ where
 
     fn preflight(
         &mut self,
-        cx: &mut ApplyContext<'_>,
+        cx: &mut PreflightContext<'_>,
     ) -> Result<Preflight<Self::Output>, Self::Error> {
         let action = self.0.take().expect("cannot apply twice");
-        action.apply(cx).map(Preflight::Completed)
+        action.preflight(cx).map(Preflight::Completed)
     }
 
     fn poll_action(&mut self, _: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error> {
@@ -428,53 +371,81 @@ where
     }
 }
 
-/// A function to create an instance of `EndpointAction` from the specified closure.
-pub fn action<Bd, T, E>(
-    f: impl FnMut(&mut ActionContext<'_, Bd>) -> Poll<T, E>,
-) -> impl EndpointAction<Bd, Output = T, Error = E>
-where
-    T: Tuple,
-    E: Into<Error>,
-{
-    #[allow(missing_debug_implementations)]
-    struct ActionFn<F>(F);
+/// A variant of `EndpointAction` representing that `preflight` do nothing
+/// and always returns an `Ok(Preflight::Incomplete)`.
+///
+/// The error values returned from this kind of action do not affect the result
+/// of routing.
+#[allow(missing_docs)]
+pub trait AsyncAction<Bd> {
+    type Output: Tuple;
+    type Error: Into<Error>;
 
-    impl<F, Bd, T, E> EndpointAction<Bd> for ActionFn<F>
+    /// Progress this action and returns the result if ready.
+    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error>;
+
+    /// Consume `self` and convert it into an implementor of `EndpointAction`.
+    fn into_action(self) -> Async<Self>
     where
-        F: FnMut(&mut ActionContext<'_, Bd>) -> Poll<T, E>,
-        T: Tuple,
-        E: Into<Error>,
+        Self: Sized,
     {
-        type Output = T;
-        type Error = E;
+        Async(self)
+    }
+}
 
-        fn poll_action(
-            &mut self,
-            cx: &mut ActionContext<'_, Bd>,
-        ) -> Poll<Self::Output, Self::Error> {
-            (self.0)(cx)
-        }
+impl<F, Bd> AsyncAction<Bd> for F
+where
+    F: Future,
+    F::Item: Tuple,
+    F::Error: Into<Error>,
+{
+    type Output = F::Item;
+    type Error = F::Error;
+
+    fn poll_action(&mut self, _: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error> {
+        self.poll()
+    }
+}
+
+/// Wrapper for providing an implementation of `EndpointAction` to `AsyncAction`s.
+#[derive(Debug)]
+pub struct Async<T>(T);
+
+impl<T, Bd> EndpointAction<Bd> for Async<T>
+where
+    T: AsyncAction<Bd>,
+{
+    type Output = T::Output;
+    type Error = T::Error;
+
+    fn preflight(
+        &mut self,
+        _: &mut PreflightContext<'_>,
+    ) -> Result<Preflight<Self::Output>, Self::Error> {
+        Ok(Preflight::Incomplete)
     }
 
-    ActionFn(f)
+    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error> {
+        self.0.poll_action(cx)
+    }
 }
 
 // ==== Context ====
 
 /// A set of contextual values used by `EndpointAction::preflight`.
 #[derive(Debug, Clone)]
-pub struct ApplyContext<'a> {
+pub struct PreflightContext<'a> {
     request: &'a Request<()>,
     pos: usize,
     popped: usize,
     _anchor: PhantomData<Rc<()>>,
 }
 
-impl<'a> ApplyContext<'a> {
-    /// Creates a new `ApplyContext` with the specified reference to a `Request<()>`.
+impl<'a> PreflightContext<'a> {
+    /// Creates a new `PreflightContext` with the specified reference to a `Request<()>`.
     #[inline]
     pub fn new(request: &'a Request<()>) -> Self {
-        ApplyContext {
+        PreflightContext {
             request,
             pos: 1,
             popped: 0,
@@ -523,7 +494,7 @@ impl<'a> ApplyContext<'a> {
     }
 }
 
-impl<'a> std::ops::Deref for ApplyContext<'a> {
+impl<'a> std::ops::Deref for PreflightContext<'a> {
     type Target = Request<()>;
 
     #[inline]
@@ -532,7 +503,7 @@ impl<'a> std::ops::Deref for ApplyContext<'a> {
     }
 }
 
-impl<'a> Iterator for ApplyContext<'a> {
+impl<'a> Iterator for PreflightContext<'a> {
     type Item = &'a EncodedStr;
 
     #[inline]
@@ -671,7 +642,7 @@ mod tests {
     #[test]
     fn test_segments() {
         let request = Request::get("/foo/bar.txt").body(()).unwrap();
-        let mut ecx = ApplyContext::new(&request);
+        let mut ecx = PreflightContext::new(&request);
 
         assert_eq!(ecx.remaining_path(), "foo/bar.txt");
         assert_eq!(ecx.next().map(|s| s.as_bytes()), Some(&b"foo"[..]));
@@ -686,7 +657,7 @@ mod tests {
     #[test]
     fn test_segments_from_root_path() {
         let request = Request::get("/").body(()).unwrap();
-        let mut ecx = ApplyContext::new(&request);
+        let mut ecx = PreflightContext::new(&request);
 
         assert_eq!(ecx.remaining_path(), "");
         assert!(ecx.next().is_none());

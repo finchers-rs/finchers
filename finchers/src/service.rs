@@ -16,11 +16,11 @@ use izanami_service::{MakeService, Service};
 
 use crate::endpoint::{
     ActionContext, //
-    ApplyContext,
     Endpoint,
     EndpointAction,
     IsEndpoint,
     Preflight,
+    PreflightContext,
 };
 use crate::output::IntoResponse;
 
@@ -155,7 +155,7 @@ where
             self.state = match self.state {
                 State::Start(ref mut action) => {
                     let mut action = action.take().unwrap();
-                    let mut ecx = ApplyContext::new(&self.request);
+                    let mut ecx = PreflightContext::new(&self.request);
                     if let Preflight::Completed(output) = action.preflight(&mut ecx)? {
                         return Ok(Async::Ready(output));
                     }

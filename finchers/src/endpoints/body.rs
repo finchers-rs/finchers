@@ -4,11 +4,13 @@ use {
     crate::{
         endpoint::{
             ActionContext, //
-            ApplyContext,
+            Async,
+            AsyncAction,
             Endpoint,
             EndpointAction,
             IsEndpoint,
             Preflight,
+            PreflightContext,
         },
         error::{BadRequest, Error, InternalServerError},
     },
@@ -61,21 +63,22 @@ mod raw {
     impl<Bd> Endpoint<Bd> for Raw {
         type Output = (Bd,);
         type Error = Error;
-        type Action = RawAction;
+        type Action = Async<RawAction<Bd>>;
 
         fn action(&self) -> Self::Action {
             RawAction {
-                _anchor: PhantomData,
+                _marker: PhantomData,
             }
+            .into_action()
         }
     }
 
-    #[allow(missing_debug_implementations)]
-    pub struct RawAction {
-        _anchor: PhantomData<UnsafeCell<()>>,
+    #[allow(missing_debug_implementations, clippy::type_complexity)]
+    pub struct RawAction<Bd> {
+        _marker: PhantomData<(UnsafeCell<()>, fn(Bd))>,
     }
 
-    impl<Bd> EndpointAction<Bd> for RawAction {
+    impl<Bd> AsyncAction<Bd> for RawAction<Bd> {
         type Output = (Bd,);
         type Error = Error;
 
@@ -117,10 +120,10 @@ mod receive_all {
     {
         type Output = (Vec<u8>,);
         type Error = Error;
-        type Action = ReceiveAllAction<Bd>;
+        type Action = Async<ReceiveAllAction<Bd>>;
 
         fn action(&self) -> Self::Action {
-            new_action()
+            new_action().into_action()
         }
     }
 
@@ -135,7 +138,7 @@ mod receive_all {
         Receiving(Bd, Vec<u8>),
     }
 
-    impl<Bd> EndpointAction<Bd> for ReceiveAllAction<Bd>
+    impl<Bd> AsyncAction<Bd> for ReceiveAllAction<Bd>
     where
         Bd: BufStream,
         Bd::Error: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
@@ -210,7 +213,7 @@ mod text {
 
         fn action(&self) -> Self::Action {
             TextAction {
-                receive_all: self.receive_all.action(),
+                receive_all: super::receive_all::new_action(),
             }
         }
     }
@@ -221,7 +224,7 @@ mod text {
         Bd: BufStream,
         Bd::Error: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
     {
-        receive_all: <ReceiveAll as Endpoint<Bd>>::Action,
+        receive_all: super::receive_all::ReceiveAllAction<Bd>,
     }
 
     impl<Bd> EndpointAction<Bd> for TextAction<Bd>
@@ -234,12 +237,8 @@ mod text {
 
         fn preflight(
             &mut self,
-            cx: &mut ApplyContext<'_>,
+            cx: &mut PreflightContext<'_>,
         ) -> Result<Preflight<Self::Output>, Self::Error> {
-            let x = self.receive_all.preflight(cx)?;
-            debug_assert!(x.is_incomplete());
-            drop(x);
-
             if let Some(param) = content_type(&*cx)?
                 .as_ref()
                 .and_then(|m| m.get_param("charset"))
@@ -272,14 +271,12 @@ where
     T: DeserializeOwned,
 {
     Json {
-        receive_all: receive_all(),
         _marker: PhantomData,
     }
 }
 
 #[allow(missing_docs)]
 pub struct Json<T> {
-    receive_all: ReceiveAll,
     _marker: PhantomData<fn() -> T>,
 }
 
@@ -307,7 +304,7 @@ mod json {
 
         fn action(&self) -> Self::Action {
             JsonAction {
-                receive_all: self.receive_all.action(),
+                receive_all: super::receive_all::new_action(),
                 _marker: PhantomData,
             }
         }
@@ -319,7 +316,7 @@ mod json {
         Bd: BufStream,
         Bd::Error: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
     {
-        receive_all: <ReceiveAll as Endpoint<Bd>>::Action,
+        receive_all: super::receive_all::ReceiveAllAction<Bd>,
         _marker: PhantomData<fn() -> T>,
     }
 
@@ -334,12 +331,8 @@ mod json {
 
         fn preflight(
             &mut self,
-            cx: &mut ApplyContext<'_>,
+            cx: &mut PreflightContext<'_>,
         ) -> Result<Preflight<Self::Output>, Self::Error> {
-            let x = self.receive_all.preflight(cx)?;
-            debug_assert!(x.is_incomplete());
-            drop(x);
-
             let mime = content_type(&*cx)? //
                 .ok_or_else(|| BadRequest::from("missing content type"))?;
             if mime != mime::APPLICATION_JSON {
@@ -374,14 +367,12 @@ where
     T: DeserializeOwned,
 {
     Urlencoded {
-        receive_all: receive_all(),
         _marker: PhantomData,
     }
 }
 
 #[allow(missing_docs)]
 pub struct Urlencoded<T> {
-    receive_all: ReceiveAll,
     _marker: PhantomData<fn() -> T>,
 }
 
@@ -409,7 +400,7 @@ mod urlencoded {
 
         fn action(&self) -> Self::Action {
             UrlencodedAction {
-                receive_all: self.receive_all.action(),
+                receive_all: super::receive_all::new_action(),
                 _marker: PhantomData,
             }
         }
@@ -421,7 +412,7 @@ mod urlencoded {
         Bd: BufStream,
         Bd::Error: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
     {
-        receive_all: <ReceiveAll as Endpoint<Bd>>::Action,
+        receive_all: super::receive_all::ReceiveAllAction<Bd>,
         _marker: PhantomData<fn() -> T>,
     }
 
@@ -436,12 +427,8 @@ mod urlencoded {
 
         fn preflight(
             &mut self,
-            cx: &mut ApplyContext<'_>,
+            cx: &mut PreflightContext<'_>,
         ) -> Result<Preflight<Self::Output>, Self::Error> {
-            let x = self.receive_all.preflight(cx)?;
-            debug_assert!(x.is_incomplete());
-            drop(x);
-
             let mime = content_type(&*cx)? //
                 .ok_or_else(|| BadRequest::from("missing content type"))?;
             if mime != mime::APPLICATION_WWW_FORM_URLENCODED {

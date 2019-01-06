@@ -2,11 +2,11 @@ use {
     crate::{
         endpoint::{
             ActionContext, //
-            ApplyContext,
             Endpoint,
             EndpointAction,
             IsEndpoint,
             Preflight,
+            PreflightContext,
         },
         error::Error,
         output::IntoResponse,
@@ -80,7 +80,7 @@ where
 
     fn preflight(
         &mut self,
-        cx: &mut ApplyContext<'_>,
+        cx: &mut PreflightContext<'_>,
     ) -> Result<Preflight<Self::Output>, Self::Error> {
         self.state = match std::mem::replace(&mut self.state, State::Done) {
             State::Init(mut left, mut right) => {

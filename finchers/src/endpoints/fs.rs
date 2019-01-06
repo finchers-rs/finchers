@@ -4,11 +4,13 @@ use {
     crate::{
         endpoint::{
             ActionContext, //
-            ApplyContext,
+            Async,
+            AsyncAction,
             Endpoint,
             EndpointAction,
             IsEndpoint,
             Preflight,
+            PreflightContext,
         },
         error::{BadRequest, Error},
         output::fs::{NamedFile, OpenNamedFile},
@@ -32,29 +34,33 @@ pub struct File {
 mod file {
     use super::*;
     use futures::Future as _Future;
+    use std::marker::PhantomData;
 
     impl IsEndpoint for File {}
 
     impl<Bd> Endpoint<Bd> for File {
         type Output = (NamedFile,);
         type Error = Error;
-        type Action = FileAction;
+        type Action = Async<FileAction<Bd>>;
 
         fn action(&self) -> Self::Action {
             FileAction {
                 path: self.path.clone(),
                 opening: None,
+                _marker: PhantomData,
             }
+            .into_action()
         }
     }
 
     #[allow(missing_debug_implementations)]
-    pub struct FileAction {
+    pub struct FileAction<Bd> {
         path: PathBuf,
         opening: Option<OpenNamedFile>,
+        _marker: PhantomData<fn(Bd)>,
     }
 
-    impl<Bd> EndpointAction<Bd> for FileAction {
+    impl<Bd> AsyncAction<Bd> for FileAction<Bd> {
         type Output = (NamedFile,);
         type Error = Error;
 
@@ -120,7 +126,7 @@ mod dir {
 
         fn preflight(
             &mut self,
-            cx: &mut ApplyContext<'_>,
+            cx: &mut PreflightContext<'_>,
         ) -> Result<Preflight<Self::Output>, Self::Error> {
             let path = {
                 match cx.remaining_path().percent_decode() {
