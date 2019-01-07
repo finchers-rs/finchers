@@ -17,9 +17,8 @@ use {
 
 trait BoxedEndpoint<Bd> {
     type Output: Tuple;
-    type Error: Into<Error>;
 
-    fn action(&self) -> EndpointActionObj<Bd, Self::Output, Self::Error>;
+    fn action(&self) -> EndpointActionObj<Bd, Self::Output>;
 }
 
 impl<Bd, E> BoxedEndpoint<Bd> for E
@@ -28,9 +27,8 @@ where
     E::Action: Send + 'static,
 {
     type Output = E::Output;
-    type Error = E::Error;
 
-    fn action(&self) -> EndpointActionObj<Bd, Self::Output, Self::Error> {
+    fn action(&self) -> EndpointActionObj<Bd, Self::Output> {
         EndpointActionObj {
             inner: Box::new(self.action()),
         }
@@ -38,61 +36,46 @@ where
 }
 
 #[allow(missing_docs)]
-pub struct EndpointObj<Bd, T, E>
+pub struct EndpointObj<Bd, T>
 where
     T: Tuple,
-    E: Into<Error>,
 {
-    inner: Box<dyn BoxedEndpoint<Bd, Output = T, Error = E> + Send + Sync + 'static>,
+    inner: Box<dyn BoxedEndpoint<Bd, Output = T> + Send + Sync + 'static>,
 }
 
-impl<Bd, T, E> EndpointObj<Bd, T, E>
+impl<Bd, T> EndpointObj<Bd, T>
 where
     T: Tuple,
-    E: Into<Error>,
 {
     #[allow(missing_docs)]
-    pub fn new(
-        endpoint: impl Endpoint<
-                Bd,
-                Output = T,
-                Error = E,
-                Action = impl EndpointAction<Bd, Output = T, Error = E> + Send + 'static,
-            > + Send
-            + Sync
-            + 'static,
-    ) -> Self {
+    pub fn new<E>(endpoint: E) -> Self
+    where
+        E: Endpoint<Bd, Output = T> + Send + Sync + 'static,
+        E::Action: Send + 'static,
+    {
         EndpointObj {
             inner: Box::new(endpoint),
         }
     }
 }
 
-impl<Bd, T, E> fmt::Debug for EndpointObj<Bd, T, E>
+impl<Bd, T> fmt::Debug for EndpointObj<Bd, T>
 where
     T: Tuple,
-    E: Into<Error>,
 {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.debug_struct("EndpointObj").finish()
     }
 }
 
-impl<Bd, T, E> IsEndpoint for EndpointObj<Bd, T, E>
-where
-    T: Tuple,
-    E: Into<Error>,
-{
-}
+impl<Bd, T> IsEndpoint for EndpointObj<Bd, T> where T: Tuple {}
 
-impl<Bd, T, E> Endpoint<Bd> for EndpointObj<Bd, T, E>
+impl<Bd, T> Endpoint<Bd> for EndpointObj<Bd, T>
 where
     T: Tuple,
-    E: Into<Error>,
 {
     type Output = T;
-    type Error = E;
-    type Action = EndpointActionObj<Bd, T, E>;
+    type Action = EndpointActionObj<Bd, T>;
 
     #[inline]
     fn action(&self) -> Self::Action {
@@ -101,32 +84,29 @@ where
 }
 
 #[allow(missing_debug_implementations)]
-pub struct EndpointActionObj<Bd, T, E>
+pub struct EndpointActionObj<Bd, T>
 where
     T: Tuple,
-    E: Into<Error>,
 {
-    inner: Box<dyn EndpointAction<Bd, Output = T, Error = E> + Send + 'static>,
+    inner: Box<dyn EndpointAction<Bd, Output = T> + Send + 'static>,
 }
 
-impl<Bd, T, E> EndpointAction<Bd> for EndpointActionObj<Bd, T, E>
+impl<Bd, T> EndpointAction<Bd> for EndpointActionObj<Bd, T>
 where
     T: Tuple,
-    E: Into<Error>,
 {
     type Output = T;
-    type Error = E;
 
     #[inline]
     fn preflight(
         &mut self,
         cx: &mut PreflightContext<'_>,
-    ) -> Result<Preflight<Self::Output>, Self::Error> {
+    ) -> Result<Preflight<Self::Output>, Error> {
         self.inner.preflight(cx)
     }
 
     #[inline]
-    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error> {
+    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
         self.inner.poll_action(cx)
     }
 }
@@ -135,9 +115,8 @@ where
 
 trait LocalBoxedEndpoint<Bd> {
     type Output: Tuple;
-    type Error: Into<Error>;
 
-    fn action(&self) -> LocalEndpointActionObj<Bd, Self::Output, Self::Error>;
+    fn action(&self) -> LocalEndpointActionObj<Bd, Self::Output>;
 }
 
 impl<Bd, E> LocalBoxedEndpoint<Bd> for E
@@ -146,9 +125,8 @@ where
     E::Action: 'static,
 {
     type Output = E::Output;
-    type Error = E::Error;
 
-    fn action(&self) -> LocalEndpointActionObj<Bd, Self::Output, Self::Error> {
+    fn action(&self) -> LocalEndpointActionObj<Bd, Self::Output> {
         LocalEndpointActionObj {
             inner: Box::new(self.action()),
         }
@@ -156,59 +134,46 @@ where
 }
 
 #[allow(missing_docs)]
-pub struct LocalEndpointObj<Bd, T, E>
+pub struct LocalEndpointObj<Bd, T>
 where
     T: Tuple,
-    E: Into<Error>,
 {
-    inner: Box<dyn LocalBoxedEndpoint<Bd, Output = T, Error = E> + 'static>,
+    inner: Box<dyn LocalBoxedEndpoint<Bd, Output = T> + 'static>,
 }
 
-impl<Bd, T, E> LocalEndpointObj<Bd, T, E>
+impl<Bd, T> LocalEndpointObj<Bd, T>
 where
     T: Tuple,
-    E: Into<Error>,
 {
     #[allow(missing_docs)]
-    pub fn new(
-        endpoint: impl Endpoint<
-                Bd,
-                Output = T,
-                Error = E,
-                Action = impl EndpointAction<Bd, Output = T, Error = E> + 'static,
-            > + 'static,
-    ) -> Self {
+    pub fn new<E>(endpoint: E) -> Self
+    where
+        E: Endpoint<Bd, Output = T> + 'static,
+        E::Action: 'static,
+    {
         LocalEndpointObj {
             inner: Box::new(endpoint),
         }
     }
 }
 
-impl<Bd, T, E> fmt::Debug for LocalEndpointObj<Bd, T, E>
+impl<Bd, T> fmt::Debug for LocalEndpointObj<Bd, T>
 where
     T: Tuple,
-    E: Into<Error>,
 {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.debug_struct("LocalEndpointObj").finish()
     }
 }
 
-impl<Bd, T, E> IsEndpoint for LocalEndpointObj<Bd, T, E>
-where
-    T: Tuple,
-    E: Into<Error>,
-{
-}
+impl<Bd, T> IsEndpoint for LocalEndpointObj<Bd, T> where T: Tuple {}
 
-impl<Bd, T, E> Endpoint<Bd> for LocalEndpointObj<Bd, T, E>
+impl<Bd, T> Endpoint<Bd> for LocalEndpointObj<Bd, T>
 where
     T: Tuple,
-    E: Into<Error>,
 {
     type Output = T;
-    type Error = E;
-    type Action = LocalEndpointActionObj<Bd, T, E>;
+    type Action = LocalEndpointActionObj<Bd, T>;
 
     #[inline]
     fn action(&self) -> Self::Action {
@@ -217,32 +182,29 @@ where
 }
 
 #[allow(missing_debug_implementations)]
-pub struct LocalEndpointActionObj<Bd, T, E>
+pub struct LocalEndpointActionObj<Bd, T>
 where
     T: Tuple,
-    E: Into<Error>,
 {
-    inner: Box<dyn EndpointAction<Bd, Output = T, Error = E> + 'static>,
+    inner: Box<dyn EndpointAction<Bd, Output = T> + 'static>,
 }
 
-impl<Bd, T, E> EndpointAction<Bd> for LocalEndpointActionObj<Bd, T, E>
+impl<Bd, T> EndpointAction<Bd> for LocalEndpointActionObj<Bd, T>
 where
     T: Tuple,
-    E: Into<Error>,
 {
     type Output = T;
-    type Error = E;
 
     #[inline]
     fn preflight(
         &mut self,
         cx: &mut PreflightContext<'_>,
-    ) -> Result<Preflight<Self::Output>, Self::Error> {
+    ) -> Result<Preflight<Self::Output>, Error> {
         self.inner.preflight(cx)
     }
 
     #[inline]
-    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error> {
+    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
         self.inner.poll_action(cx)
     }
 }

@@ -9,6 +9,7 @@ use {
             Preflight,
             PreflightContext,
         },
+        error::Error,
     },
     futures::Poll,
 };
@@ -28,7 +29,6 @@ where
     F: Func<E::Output> + Clone,
 {
     type Output = (F::Out,);
-    type Error = E::Error;
     type Action = MapAction<E::Action, F>;
 
     fn action(&self) -> Self::Action {
@@ -51,18 +51,17 @@ where
     F: Func<A::Output>,
 {
     type Output = (F::Out,);
-    type Error = A::Error;
 
     fn preflight(
         &mut self,
         cx: &mut PreflightContext<'_>,
-    ) -> Result<Preflight<Self::Output>, Self::Error> {
+    ) -> Result<Preflight<Self::Output>, Error> {
         self.action
             .preflight(cx)
             .map(|x| x.map(|args| (self.f.call(args),)))
     }
 
-    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error> {
+    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
         self.action
             .poll_action(cx)
             .map(|x| x.map(|args| (self.f.call(args),)))

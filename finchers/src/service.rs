@@ -22,6 +22,7 @@ use crate::endpoint::{
     Preflight,
     PreflightContext,
 };
+use crate::error::Error;
 use crate::output::IntoResponse;
 
 macro_rules! ready {
@@ -150,7 +151,7 @@ impl<Bd, E> AppFuture<Bd, E>
 where
     E: Endpoint<Bd>,
 {
-    pub(crate) fn poll_apply(&mut self) -> Poll<E::Output, E::Error> {
+    pub(crate) fn poll_apply(&mut self) -> Poll<E::Output, Error> {
         loop {
             self.state = match self.state {
                 State::Start(ref mut action) => {
@@ -183,7 +184,7 @@ where
 
         let mut response = match output {
             Ok(output) => output.into_response(&self.request).map(Either::Right),
-            Err(err) => err.into().into_response(&self.request).map(Either::Left),
+            Err(err) => err.into_response(&self.request).map(Either::Left),
         };
 
         response

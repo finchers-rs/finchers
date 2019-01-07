@@ -1,12 +1,15 @@
 //! A collection of endpoints that validates the HTTP method.
 
 use {
-    crate::endpoint::{
-        Endpoint,
-        IsEndpoint,
-        Oneshot,
-        OneshotAction,
-        PreflightContext, //
+    crate::{
+        endpoint::{
+            Endpoint,
+            IsEndpoint,
+            Oneshot,
+            OneshotAction,
+            PreflightContext, //
+        },
+        error::Error,
     },
     http::{Method, StatusCode},
     std::ops::{BitOr, BitOrAssign},
@@ -28,7 +31,6 @@ impl IsEndpoint for MatchVerbs {}
 
 impl<Bd> Endpoint<Bd> for MatchVerbs {
     type Output = ();
-    type Error = StatusCode;
     type Action = Oneshot<MatchVerbsAction>;
 
     fn action(&self) -> Self::Action {
@@ -47,13 +49,12 @@ pub struct MatchVerbsAction {
 
 impl OneshotAction for MatchVerbsAction {
     type Output = ();
-    type Error = StatusCode;
 
-    fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Self::Error> {
+    fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Error> {
         if self.allowed.contains(cx.method()) {
             Ok(())
         } else {
-            Err(StatusCode::METHOD_NOT_ALLOWED)
+            Err(StatusCode::METHOD_NOT_ALLOWED.into())
         }
     }
 }
@@ -81,7 +82,6 @@ macro_rules! define_verbs {
 
         impl<Bd> Endpoint<Bd> for $Endpoint {
             type Output = ();
-            type Error = StatusCode;
             type Action = Oneshot<$Action>;
 
             #[inline]
@@ -96,14 +96,13 @@ macro_rules! define_verbs {
 
         impl OneshotAction for $Action {
             type Output = ();
-            type Error = StatusCode;
 
             #[inline]
-            fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Self::Error> {
+            fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Error> {
                 if *cx.method() == Method::$METHOD {
                     Ok(())
                 } else {
-                    Err(StatusCode::METHOD_NOT_ALLOWED)
+                    Err(StatusCode::METHOD_NOT_ALLOWED.into())
                 }
             }
         }

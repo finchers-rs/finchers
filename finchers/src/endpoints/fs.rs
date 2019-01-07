@@ -40,7 +40,6 @@ mod file {
 
     impl<Bd> Endpoint<Bd> for File {
         type Output = (NamedFile,);
-        type Error = Error;
         type Action = Async<FileAction<Bd>>;
 
         fn action(&self) -> Self::Action {
@@ -62,12 +61,8 @@ mod file {
 
     impl<Bd> AsyncAction<Bd> for FileAction<Bd> {
         type Output = (NamedFile,);
-        type Error = Error;
 
-        fn poll_action(
-            &mut self,
-            _: &mut ActionContext<'_, Bd>,
-        ) -> Poll<Self::Output, Self::Error> {
+        fn poll_action(&mut self, _: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
             loop {
                 if let Some(ref mut opening) = self.opening {
                     return opening.poll().map(|x| x.map(|x| (x,))).map_err(Into::into);
@@ -98,7 +93,6 @@ mod dir {
 
     impl<Bd> Endpoint<Bd> for Dir {
         type Output = (NamedFile,);
-        type Error = Error;
         type Action = DirAction;
 
         fn action(&self) -> Self::Action {
@@ -122,12 +116,11 @@ mod dir {
 
     impl<Bd> EndpointAction<Bd> for DirAction {
         type Output = (NamedFile,);
-        type Error = Error;
 
         fn preflight(
             &mut self,
             cx: &mut PreflightContext<'_>,
-        ) -> Result<Preflight<Self::Output>, Self::Error> {
+        ) -> Result<Preflight<Self::Output>, Error> {
             let path = {
                 match cx.remaining_path().percent_decode() {
                     Ok(path) => Ok(PathBuf::from(path.into_owned())),
@@ -150,10 +143,7 @@ mod dir {
             Ok(Preflight::Incomplete)
         }
 
-        fn poll_action(
-            &mut self,
-            _: &mut ActionContext<'_, Bd>,
-        ) -> Poll<Self::Output, Self::Error> {
+        fn poll_action(&mut self, _: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
             match self.state {
                 State::Init => unreachable!(),
                 State::Opening(ref mut f) => f.poll().map(|x| x.map(|x| (x,))).map_err(Into::into),

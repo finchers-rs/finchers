@@ -38,15 +38,8 @@ pub trait Endpoint<Bd>: IsEndpoint {
     /// The inner type associated with this endpoint.
     type Output: Tuple;
 
-    /// The error type associated with this endpoint.
-    type Error: Into<Error>;
-
     /// The type of `EndpointAction` associated with this endpoint.
-    type Action: EndpointAction<
-        Bd, //
-        Output = Self::Output,
-        Error = Self::Error,
-    >;
+    type Action: EndpointAction<Bd, Output = Self::Output>;
 
     /// Spawns an instance of `Action` that applies to an request.
     fn action(&self) -> Self::Action;
@@ -66,7 +59,6 @@ where
     E: Endpoint<Bd>,
 {
     type Output = E::Output;
-    type Error = E::Error;
     type Action = E::Action;
 
     fn action(&self) -> Self::Action {
@@ -79,7 +71,6 @@ where
     E: Endpoint<Bd>,
 {
     type Output = E::Output;
-    type Error = E::Error;
     type Action = E::Action;
 
     fn action(&self) -> Self::Action {
@@ -92,7 +83,6 @@ where
     E: Endpoint<Bd>,
 {
     type Output = E::Output;
-    type Error = E::Error;
     type Action = E::Action;
 
     fn action(&self) -> Self::Action {
@@ -105,7 +95,6 @@ where
     E: Endpoint<Bd>,
 {
     type Output = E::Output;
-    type Error = E::Error;
     type Action = E::Action;
 
     fn action(&self) -> Self::Action {
@@ -119,7 +108,6 @@ pub fn endpoint<Bd, R>(
 ) -> impl Endpoint<
     Bd, //
     Output = R::Output,
-    Error = R::Error,
     Action = R,
 >
 where
@@ -136,7 +124,6 @@ where
         R: EndpointAction<Bd>,
     {
         type Output = R::Output;
-        type Error = R::Error;
         type Action = R;
 
         fn action(&self) -> Self::Action {
@@ -152,7 +139,6 @@ where
 pub fn unit<Bd>() -> impl Endpoint<
     Bd,
     Output = (),
-    Error = crate::util::Never,
     Action = Oneshot<self::unit::UnitAction>, // private
 > {
     endpoint(|| self::unit::UnitAction(()).into_action())
@@ -166,9 +152,8 @@ mod unit {
 
     impl OneshotAction for UnitAction {
         type Output = ();
-        type Error = crate::util::Never;
 
-        fn preflight(self, _: &mut PreflightContext<'_>) -> Result<Self::Output, Self::Error> {
+        fn preflight(self, _: &mut PreflightContext<'_>) -> Result<Self::Output, Error> {
             Ok(())
         }
     }
@@ -213,7 +198,6 @@ pub fn value<Bd, T: Clone>(
 ) -> impl Endpoint<
     Bd,
     Output = (T,),
-    Error = crate::util::Never,
     Action = Oneshot<self::value::ValueAction<T>>, // private
 > {
     endpoint(move || self::value::ValueAction { x: x.clone() }.into_action())
@@ -230,9 +214,8 @@ mod value {
 
     impl<T> OneshotAction for ValueAction<T> {
         type Output = (T,);
-        type Error = crate::util::Never;
 
-        fn preflight(self, _: &mut PreflightContext<'_>) -> Result<Self::Output, Self::Error> {
+        fn preflight(self, _: &mut PreflightContext<'_>) -> Result<Self::Output, Error> {
             Ok((self.x,))
         }
     }
@@ -278,9 +261,6 @@ pub trait EndpointAction<Bd> {
     /// The type returned from this action.
     type Output: Tuple;
 
-    /// The error type returned from this action.
-    type Error: Into<Error>;
-
     /// Applies an incoming request to this action and returns the result if possible.
     ///
     /// This method is called **only once** after the instance of `Self` is created.
@@ -303,10 +283,10 @@ pub trait EndpointAction<Bd> {
     fn preflight(
         &mut self,
         cx: &mut PreflightContext<'_>,
-    ) -> Result<Preflight<Self::Output>, Self::Error>;
+    ) -> Result<Preflight<Self::Output>, Error>;
 
     /// Progress this action and returns the result if ready.
-    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error>;
+    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error>;
 }
 
 /// A variant of `EndpointAction` representing that `preflight` will
@@ -315,10 +295,9 @@ pub trait EndpointAction<Bd> {
 #[allow(missing_docs)]
 pub trait OneshotAction {
     type Output: Tuple;
-    type Error: Into<Error>;
 
     /// Applies an incoming request to this action and returns its result.
-    fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Self::Error>;
+    fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Error>;
 
     /// Consume `self` and convert it into an implementor of `EndpointAction`.
     fn into_action(self) -> Oneshot<Self>
@@ -338,17 +317,16 @@ where
     T: OneshotAction,
 {
     type Output = T::Output;
-    type Error = T::Error;
 
     fn preflight(
         &mut self,
         cx: &mut PreflightContext<'_>,
-    ) -> Result<Preflight<Self::Output>, Self::Error> {
+    ) -> Result<Preflight<Self::Output>, Error> {
         let action = self.0.take().expect("cannot apply twice");
         action.preflight(cx).map(Preflight::Completed)
     }
 
-    fn poll_action(&mut self, _: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error> {
+    fn poll_action(&mut self, _: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
         debug_assert!(self.0.is_none());
         unreachable!()
     }
@@ -362,10 +340,9 @@ where
 #[allow(missing_docs)]
 pub trait AsyncAction<Bd> {
     type Output: Tuple;
-    type Error: Into<Error>;
 
     /// Progress this action and returns the result if ready.
-    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error>;
+    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error>;
 
     /// Consume `self` and convert it into an implementor of `EndpointAction`.
     fn into_action(self) -> Async<Self>
@@ -383,10 +360,9 @@ where
     F::Error: Into<Error>,
 {
     type Output = F::Item;
-    type Error = F::Error;
 
-    fn poll_action(&mut self, _: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error> {
-        self.poll()
+    fn poll_action(&mut self, _: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
+        self.poll().map_err(Into::into)
     }
 }
 
@@ -399,16 +375,15 @@ where
     T: AsyncAction<Bd>,
 {
     type Output = T::Output;
-    type Error = T::Error;
 
     fn preflight(
         &mut self,
         _: &mut PreflightContext<'_>,
-    ) -> Result<Preflight<Self::Output>, Self::Error> {
+    ) -> Result<Preflight<Self::Output>, Error> {
         Ok(Preflight::Incomplete)
     }
 
-    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error> {
+    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
         self.0.poll_action(cx)
     }
 }

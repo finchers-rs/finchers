@@ -116,7 +116,6 @@ mod parse {
         T: FromHeaderValue,
     {
         type Output = (T,);
-        type Error = Error;
         type Action = Oneshot<ParseAction<T>>;
 
         fn action(&self) -> Self::Action {
@@ -139,9 +138,8 @@ mod parse {
         T: FromHeaderValue,
     {
         type Output = (T,);
-        type Error = Error;
 
-        fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Self::Error> {
+        fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Error> {
             let h = cx.headers().get(&self.name).ok_or_else(|| {
                 BadRequest::from(format!("missing header: `{}'", self.name.as_str()))
             })?;
@@ -195,7 +193,6 @@ mod optional {
         T: FromHeaderValue,
     {
         type Output = (Option<T>,);
-        type Error = Error;
         type Action = Oneshot<OptionalAction<T>>;
 
         fn action(&self) -> Self::Action {
@@ -218,9 +215,8 @@ mod optional {
         T: FromHeaderValue,
     {
         type Output = (Option<T>,);
-        type Error = Error;
 
-        fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Self::Error> {
+        fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Error> {
             match cx.headers().get(&self.name) {
                 Some(h) => T::from_header_value(h)
                     .map(|parsed| (Some(parsed),))
@@ -287,7 +283,6 @@ mod matches {
         T: PartialEq<HeaderValue> + Clone,
     {
         type Output = ();
-        type Error = http::StatusCode;
         type Action = Oneshot<MatchesAction<T>>;
 
         fn action(&self) -> Self::Action {
@@ -310,12 +305,11 @@ mod matches {
         T: PartialEq<HeaderValue> + Clone,
     {
         type Output = ();
-        type Error = http::StatusCode;
 
-        fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Self::Error> {
+        fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Error> {
             match cx.headers().get(&self.name) {
                 Some(v) if self.value == *v => Ok(()),
-                _ => Err(http::StatusCode::NOT_FOUND),
+                _ => Err(http::StatusCode::NOT_FOUND.into()),
             }
         }
     }
@@ -348,7 +342,6 @@ mod raw {
 
     impl<Bd> Endpoint<Bd> for Raw {
         type Output = (Option<HeaderValue>,);
-        type Error = crate::util::Never;
         type Action = Oneshot<RawAction>;
 
         fn action(&self) -> Self::Action {
@@ -366,9 +359,8 @@ mod raw {
 
     impl OneshotAction for RawAction {
         type Output = (Option<HeaderValue>,);
-        type Error = crate::util::Never;
 
-        fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Self::Error> {
+        fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Error> {
             Ok((cx.headers().get(&self.name).cloned(),))
         }
     }

@@ -71,7 +71,6 @@ mod required {
         T: DeserializeOwned,
     {
         type Output = (T,);
-        type Error = Error;
         type Action = Oneshot<RequiredAction<T>>;
 
         fn action(&self) -> Self::Action {
@@ -92,9 +91,8 @@ mod required {
         T: DeserializeOwned,
     {
         type Output = (T,);
-        type Error = Error;
 
-        fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Self::Error> {
+        fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Error> {
             let query = cx
                 .uri()
                 .query()
@@ -163,7 +161,6 @@ mod optional {
         T: DeserializeOwned,
     {
         type Output = (Option<T>,);
-        type Error = Error;
         type Action = Oneshot<OptionalAction<T>>;
 
         fn action(&self) -> Self::Action {
@@ -184,9 +181,8 @@ mod optional {
         T: DeserializeOwned,
     {
         type Output = (Option<T>,);
-        type Error = Error;
 
-        fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Self::Error> {
+        fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Error> {
             match cx.uri().query() {
                 Some(query) => serde_qs::from_str(query)
                     .map(|x| (Some(x),))
@@ -215,7 +211,6 @@ mod raw {
 
     impl<Bd> Endpoint<Bd> for Raw {
         type Output = (Option<String>,);
-        type Error = Error;
         type Action = Oneshot<RawAction>;
 
         fn action(&self) -> Self::Action {
@@ -228,9 +223,8 @@ mod raw {
 
     impl OneshotAction for RawAction {
         type Output = (Option<String>,);
-        type Error = Error;
 
-        fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Self::Error> {
+        fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Error> {
             let raw = cx.uri().query().map(ToOwned::to_owned);
             Ok((raw,))
         }

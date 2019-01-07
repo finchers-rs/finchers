@@ -2,28 +2,21 @@
 
 mod and;
 mod and_then;
-mod err_into;
 mod map;
-mod map_err;
 mod or;
-mod or_else;
+//mod or_else;
 mod or_strict;
 
 pub use self::{
     and::And, //
     and_then::AndThen,
-    err_into::ErrInto,
     map::Map,
-    map_err::MapErr,
     or::Or,
-    or_else::OrElse,
+    //or_else::OrElse,
     or_strict::OrStrict,
 };
 
-use {
-    super::IsEndpoint, //
-    crate::error::Error,
-};
+use super::IsEndpoint;
 
 /// A set of extension methods for combining the multiple endpoints.
 pub trait EndpointExt: IsEndpoint + Sized {
@@ -76,21 +69,10 @@ pub trait EndpointExt: IsEndpoint + Sized {
         AndThen { endpoint: self, f }
     }
 
-    #[allow(missing_docs)]
-    fn or_else<F>(self, f: F) -> OrElse<Self, F> {
-        OrElse { endpoint: self, f }
-    }
-
-    #[allow(missing_docs)]
-    fn err_into<E>(self) -> ErrInto<Self, E>
-    where
-        E: Into<Error>,
-    {
-        ErrInto {
-            endpoint: self,
-            _marker: std::marker::PhantomData,
-        }
-    }
+    // #[allow(missing_docs)]
+    // fn or_else<F>(self, f: F) -> OrElse<Self, F> {
+    //     OrElse { endpoint: self, f }
+    // }
 }
 
 impl<E: IsEndpoint> EndpointExt for E {}

@@ -43,6 +43,7 @@
 use {
     crate::{
         endpoint::Endpoint,
+        error::Error,
         service::{AppFuture, AppService},
     },
     bytes::Bytes,
@@ -188,7 +189,7 @@ where
     /// This method is available only if the output of endpoint is a tuple with a single element.
     /// If the output type is an unit or the tuple contains more than one element, use `apply_raw` instead.
     #[inline]
-    pub fn apply<T>(&mut self, request: impl TestRequest) -> Result<T, E::Error>
+    pub fn apply<T>(&mut self, request: impl TestRequest) -> Result<T, Error>
     where
         E: Endpoint<ReqBody, Output = (T,)>,
     {
@@ -197,7 +198,7 @@ where
 
     /// Applies the given request to the inner endpoint and retrieves the result of returned future
     /// *without peeling tuples*.
-    pub fn apply_raw(&mut self, request: impl TestRequest) -> Result<E::Output, E::Error> {
+    pub fn apply_raw(&mut self, request: impl TestRequest) -> Result<E::Output, Error> {
         self.apply_inner(request, |mut future, rt| {
             rt.block_on(future::poll_fn(|| future.poll_apply()))
         })
@@ -386,12 +387,11 @@ mod tests {
 
                 impl OneshotAction for MyAction {
                     type Output = (Option<HeaderValue>, Option<HeaderValue>);
-                    type Error = crate::util::Never;
 
                     fn preflight(
                         self,
                         cx: &mut PreflightContext<'_>,
-                    ) -> Result<Self::Output, Self::Error> {
+                    ) -> Result<Self::Output, Error> {
                         let host = cx.headers().get(header::HOST).cloned();
                         let user_agent = cx.headers().get(header::USER_AGENT).cloned();
                         Ok((host, user_agent))
@@ -437,11 +437,10 @@ mod tests {
 
                 impl OneshotAction for MyAction {
                     type Output = ();
-                    type Error = crate::util::Never;
                     fn preflight(
                         self,
                         cx: &mut PreflightContext<'_>,
-                    ) -> Result<Self::Output, Self::Error> {
+                    ) -> Result<Self::Output, Error> {
                         assert!(cx.headers().contains_key(header::ORIGIN));
                         Ok(())
                     }

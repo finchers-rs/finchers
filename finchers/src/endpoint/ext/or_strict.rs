@@ -29,7 +29,6 @@ where
     E2: Endpoint<Bd, Output = E1::Output>,
 {
     type Output = E1::Output;
-    type Error = Error;
     type Action = OrStrictAction<E1::Action, E2::Action>;
 
     fn action(&self) -> Self::Action {
@@ -58,12 +57,11 @@ where
     R: EndpointAction<Bd, Output = L::Output>,
 {
     type Output = L::Output;
-    type Error = Error;
 
     fn preflight(
         &mut self,
         cx: &mut PreflightContext<'_>,
-    ) -> Result<Preflight<Self::Output>, Self::Error> {
+    ) -> Result<Preflight<Self::Output>, Error> {
         self.state = match std::mem::replace(&mut self.state, State::Done) {
             State::Init(mut left, mut right) => {
                 let orig_cx = cx.clone();
@@ -78,8 +76,6 @@ where
                                 return Ok(Preflight::Completed(output))
                             }
                             Err(e2) => {
-                                let e1 = e1.into();
-                                let e2 = e2.into();
                                 return Err(match (e1.status_code(), e2.status_code()) {
                                     (_, StatusCode::NOT_FOUND)
                                     | (_, StatusCode::METHOD_NOT_ALLOWED) => e1,
@@ -100,7 +96,7 @@ where
     }
 
     #[inline]
-    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Self::Error> {
+    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
         match self.state {
             State::Init(..) => panic!(),
             State::Left(ref mut t) => t.poll_action(cx).map_err(Into::into),

@@ -110,7 +110,6 @@ mod path {
         T: ExtractPath,
     {
         type Output = T::Output;
-        type Error = ExtractPathError;
         type Action = Oneshot<PathAction<T>>;
 
         fn action(&self) -> Self::Action {
@@ -131,11 +130,10 @@ mod path {
         T: ExtractPath,
     {
         type Output = T::Output;
-        type Error = ExtractPathError;
 
         #[inline]
-        fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Self::Error> {
-            <T as ExtractPath>::extract(cx)
+        fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Error> {
+            <T as ExtractPath>::extract(cx).map_err(Into::into)
         }
     }
 }
@@ -170,7 +168,6 @@ impl IsEndpoint for MatchSegment {}
 
 impl<Bd> Endpoint<Bd> for MatchSegment {
     type Output = ();
-    type Error = StatusCode;
     type Action = Oneshot<MatchSegmentAction>;
 
     fn action(&self) -> Self::Action {
@@ -189,14 +186,13 @@ pub struct MatchSegmentAction {
 
 impl OneshotAction for MatchSegmentAction {
     type Output = ();
-    type Error = StatusCode;
 
-    fn preflight(self, ecx: &mut PreflightContext<'_>) -> Result<Self::Output, Self::Error> {
+    fn preflight(self, ecx: &mut PreflightContext<'_>) -> Result<Self::Output, Error> {
         let s = ecx.next().ok_or_else(|| StatusCode::NOT_FOUND)?;
         if s == *self.encoded {
             Ok(())
         } else {
-            Err(StatusCode::NOT_FOUND)
+            Err(StatusCode::NOT_FOUND.into())
         }
     }
 }
@@ -219,7 +215,6 @@ impl IsEndpoint for MatchEos {}
 
 impl<Bd> Endpoint<Bd> for MatchEos {
     type Output = ();
-    type Error = StatusCode;
     type Action = Oneshot<MatchEosAction>;
 
     fn action(&self) -> Self::Action {
@@ -235,12 +230,11 @@ pub struct MatchEosAction {
 
 impl OneshotAction for MatchEosAction {
     type Output = ();
-    type Error = StatusCode;
 
-    fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Self::Error> {
+    fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Error> {
         match cx.next() {
             None => Ok(()),
-            Some(..) => Err(StatusCode::NOT_FOUND),
+            Some(..) => Err(StatusCode::NOT_FOUND.into()),
         }
     }
 }
@@ -288,7 +282,6 @@ where
     T: FromEncodedStr,
 {
     type Output = (T,);
-    type Error = Error;
     type Action = Oneshot<ParamAction<T>>;
 
     fn action(&self) -> Self::Action {
@@ -310,9 +303,8 @@ where
     T: FromEncodedStr,
 {
     type Output = (T,);
-    type Error = Error;
 
-    fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Self::Error> {
+    fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Error> {
         let s = cx.next().ok_or_else(|| StatusCode::NOT_FOUND)?;
         let x = T::from_encoded_str(s).map_err(Into::into)?;
         Ok((x,))
@@ -361,7 +353,6 @@ where
     T: FromEncodedStr,
 {
     type Output = (T,);
-    type Error = Error;
     type Action = Oneshot<RemainsAction<T>>;
 
     fn action(&self) -> Self::Action {
@@ -383,9 +374,8 @@ where
     T: FromEncodedStr,
 {
     type Output = (T,);
-    type Error = Error;
 
-    fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Self::Error> {
+    fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Error> {
         let result = T::from_encoded_str(cx.remaining_path());
         let _ = cx.by_ref().count();
         result.map(|x| (x,)).map_err(Into::into)

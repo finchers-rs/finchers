@@ -62,7 +62,6 @@ mod raw {
 
     impl<Bd> Endpoint<Bd> for Raw {
         type Output = (Bd,);
-        type Error = Error;
         type Action = Async<RawAction<Bd>>;
 
         fn action(&self) -> Self::Action {
@@ -80,12 +79,8 @@ mod raw {
 
     impl<Bd> AsyncAction<Bd> for RawAction<Bd> {
         type Output = (Bd,);
-        type Error = Error;
 
-        fn poll_action(
-            &mut self,
-            cx: &mut ActionContext<'_, Bd>,
-        ) -> Poll<Self::Output, Self::Error> {
+        fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
             cx.body()
                 .take()
                 .map(|x| (x,).into())
@@ -119,7 +114,6 @@ mod receive_all {
         Bd::Error: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
     {
         type Output = (Vec<u8>,);
-        type Error = Error;
         type Action = Async<ReceiveAllAction<Bd>>;
 
         fn action(&self) -> Self::Action {
@@ -144,12 +138,8 @@ mod receive_all {
         Bd::Error: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
     {
         type Output = (Vec<u8>,);
-        type Error = Error;
 
-        fn poll_action(
-            &mut self,
-            cx: &mut ActionContext<'_, Bd>,
-        ) -> Poll<Self::Output, Self::Error> {
+        fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
             loop {
                 self.state = match self.state {
                     State::Start => {
@@ -208,7 +198,6 @@ mod text {
         Bd::Error: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
     {
         type Output = (String,);
-        type Error = Error;
         type Action = TextAction<Bd>;
 
         fn action(&self) -> Self::Action {
@@ -233,12 +222,11 @@ mod text {
         Bd::Error: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
     {
         type Output = (String,);
-        type Error = Error;
 
         fn preflight(
             &mut self,
             cx: &mut PreflightContext<'_>,
-        ) -> Result<Preflight<Self::Output>, Self::Error> {
+        ) -> Result<Preflight<Self::Output>, Error> {
             if let Some(param) = content_type(&*cx)?
                 .as_ref()
                 .and_then(|m| m.get_param("charset"))
@@ -251,10 +239,7 @@ mod text {
             Ok(Preflight::Incomplete)
         }
 
-        fn poll_action(
-            &mut self,
-            cx: &mut ActionContext<'_, Bd>,
-        ) -> Poll<Self::Output, Self::Error> {
+        fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
             let (data,) = futures::try_ready!(self.receive_all.poll_action(cx));
             String::from_utf8(data.to_vec())
                 .map(|x| (x,).into())
@@ -299,7 +284,6 @@ mod json {
         T: DeserializeOwned,
     {
         type Output = (T,);
-        type Error = Error;
         type Action = JsonAction<Bd, T>;
 
         fn action(&self) -> Self::Action {
@@ -327,12 +311,11 @@ mod json {
         T: DeserializeOwned,
     {
         type Output = (T,);
-        type Error = Error;
 
         fn preflight(
             &mut self,
             cx: &mut PreflightContext<'_>,
-        ) -> Result<Preflight<Self::Output>, Self::Error> {
+        ) -> Result<Preflight<Self::Output>, Error> {
             let mime = content_type(&*cx)? //
                 .ok_or_else(|| BadRequest::from("missing content type"))?;
             if mime != mime::APPLICATION_JSON {
@@ -345,10 +328,7 @@ mod json {
             Ok(Preflight::Incomplete)
         }
 
-        fn poll_action(
-            &mut self,
-            cx: &mut ActionContext<'_, Bd>,
-        ) -> Poll<Self::Output, Self::Error> {
+        fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
             let (data,) = futures::try_ready!(self.receive_all.poll_action(cx));
             serde_json::from_slice(&*data)
                 .map(|x| (x,).into())
@@ -395,7 +375,6 @@ mod urlencoded {
         T: DeserializeOwned,
     {
         type Output = (T,);
-        type Error = Error;
         type Action = UrlencodedAction<Bd, T>;
 
         fn action(&self) -> Self::Action {
@@ -423,12 +402,11 @@ mod urlencoded {
         T: DeserializeOwned,
     {
         type Output = (T,);
-        type Error = Error;
 
         fn preflight(
             &mut self,
             cx: &mut PreflightContext<'_>,
-        ) -> Result<Preflight<Self::Output>, Self::Error> {
+        ) -> Result<Preflight<Self::Output>, Error> {
             let mime = content_type(&*cx)? //
                 .ok_or_else(|| BadRequest::from("missing content type"))?;
             if mime != mime::APPLICATION_WWW_FORM_URLENCODED {
@@ -441,10 +419,7 @@ mod urlencoded {
             Ok(Preflight::Incomplete)
         }
 
-        fn poll_action(
-            &mut self,
-            cx: &mut ActionContext<'_, Bd>,
-        ) -> Poll<Self::Output, Self::Error> {
+        fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
             let (data,) = futures::try_ready!(self.receive_all.poll_action(cx));
             let s = std::str::from_utf8(&*data).map_err(BadRequest::from)?;
             serde_qs::from_str(s)
