@@ -4,16 +4,16 @@ mod and;
 mod and_then;
 mod map;
 mod or;
-//mod or_else;
 mod or_strict;
+mod recover;
 
 pub use self::{
     and::And, //
     and_then::AndThen,
     map::Map,
     or::Or,
-    //or_else::OrElse,
     or_strict::OrStrict,
+    recover::Recover,
 };
 
 use super::IsEndpoint;
@@ -69,10 +69,10 @@ pub trait EndpointExt: IsEndpoint + Sized {
         AndThen { endpoint: self, f }
     }
 
-    // #[allow(missing_docs)]
-    // fn or_else<F>(self, f: F) -> OrElse<Self, F> {
-    //     OrElse { endpoint: self, f }
-    // }
+    #[allow(missing_docs)]
+    fn recover<F>(self, f: F) -> Recover<Self, F> {
+        Recover { endpoint: self, f }
+    }
 }
 
 impl<E: IsEndpoint> EndpointExt for E {}

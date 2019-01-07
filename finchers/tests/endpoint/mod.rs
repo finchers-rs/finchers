@@ -5,4 +5,5 @@ mod macros;
 mod map;
 mod or;
 mod or_strict;
+mod recover;
 mod syntax;

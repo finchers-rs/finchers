@@ -121,29 +121,25 @@ where
     }
 }
 
-#[derive(Debug)]
 pub struct AppFuture<Bd, E: Endpoint<Bd>> {
-    state: State<Bd, E>,
+    state: State<E::Action>,
     request: Request<()>,
     body: Option<Bd>,
 }
 
 #[allow(clippy::large_enum_variant)]
-enum State<Bd, E: Endpoint<Bd>> {
-    Start(Option<E::Action>),
-    InFlight(E::Action),
+#[derive(Debug)]
+enum State<A> {
+    Start(Option<A>),
+    InFlight(A),
 }
 
-impl<Bd, E> fmt::Debug for State<Bd, E>
+impl<Bd, E> fmt::Debug for AppFuture<Bd, E>
 where
-    Bd: fmt::Debug,
     E: Endpoint<Bd>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            State::Start(..) => f.debug_struct("Start").finish(),
-            State::InFlight(..) => f.debug_struct("InFlight").finish(),
-        }
+        f.debug_struct("AppFuture").finish()
     }
 }
 
