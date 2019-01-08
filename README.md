@@ -29,20 +29,20 @@ finchers = "0.13.5"
 
 # Example
 
-```rust,ignore
-#[macro_use]
-extern crate finchers;
-use finchers::prelude::*;
+```rust,no_run
+use finchers::{
+    prelude::*,
+    endpoint::syntax::path,
+};
+use izanami::Server;
 
-fn main() {
-    let endpoint = path!(@get / "greeting" / String)
+fn main() -> izanami::Result<()> {
+    let endpoint = path!(@get "/greeting/<String>")
         .map(|name: String| {
             format!("Hello, {}!\n", name)
         });
 
-    finchers::server::start(endpoint)
-        .serve("127.0.0.1:4000")
-        .expect("failed to start the server");
+    Server::new(endpoint.into_service()).run()
 }
 ```
 
