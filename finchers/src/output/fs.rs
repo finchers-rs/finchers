@@ -7,7 +7,7 @@ use std::mem;
 use std::path::PathBuf;
 
 use futures::{try_ready, Async, Future, Poll};
-use izanami_service::http::BufStream;
+use izanami_http::BufStream;
 use tokio::fs::file::{File, MetadataFuture, OpenFuture};
 use tokio::io::AsyncRead;
 
@@ -85,7 +85,7 @@ impl Future for OpenNamedFile {
 }
 
 impl IntoResponse for NamedFile {
-    type Body = super::body::Payload<FileStream>;
+    type Body = FileStream;
 
     fn into_response(self, _: &Request<()>) -> Response<Self::Body> {
         let NamedFile { file, meta, path } = self;
@@ -97,7 +97,7 @@ impl IntoResponse for NamedFile {
         Response::builder()
             .header(header::CONTENT_LENGTH, meta.len())
             .header(header::CONTENT_TYPE, content_type.as_ref())
-            .body(body.into())
+            .body(body)
             .unwrap()
     }
 }
@@ -151,10 +151,6 @@ impl BufStream for FileStream {
         }
 
         Ok(Async::Ready(Some(io::Cursor::new(chunk))))
-    }
-
-    fn is_end_stream(&self) -> bool {
-        false
     }
 }
 

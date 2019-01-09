@@ -55,4 +55,5 @@ finchers-macros = { version = "0.14.0-dev", path = "finchers/macros" }
 #finchers-tungstenite = { version = "0.2.1-dev", path = "finchers-tungstenite" }
 
 izanami = { git = "https://github.com/ubnt-intrepid/izanami.git" }
+izanami-http = { git = "https://github.com/ubnt-intrepid/izanami.git" }
 izanami-service = { git = "https://github.com/ubnt-intrepid/izanami.git" }

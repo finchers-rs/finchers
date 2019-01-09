@@ -44,6 +44,7 @@ serde_qs = "0.4.1"
 tokio = "0.1.8"
 url = "1.7.1"
 
+izanami-http = "0.1.0-preview.1"
 izanami-service = "0.1.0-preview.1"
 
 [dependencies.finchers-macros]

@@ -34,7 +34,6 @@ use finchers::{
     prelude::*,
     endpoint::syntax::path,
 };
-use izanami::Server;
 
 fn main() -> izanami::Result<()> {
     let endpoint = path!(@get "/greeting/<String>")
@@ -42,7 +41,8 @@ fn main() -> izanami::Result<()> {
             format!("Hello, {}!\n", name)
         });
 
-    Server::new(endpoint.into_service()).run()
+    izanami::Server::build()
+        .start(endpoint.into_service())
 }
 ```
 

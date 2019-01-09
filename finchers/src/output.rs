@@ -1,6 +1,5 @@
 //! Components for constructing HTTP responses.
 
-pub mod body;
 pub mod fs;
 pub mod status;
 
@@ -60,12 +59,12 @@ where
     L: IntoResponse,
     R: IntoResponse,
 {
-    type Body = Either<L::Body, R::Body>;
+    type Body = izanami_http::Either<L::Body, R::Body>;
 
     fn into_response(self, request: &Request<()>) -> Response<Self::Body> {
         match self {
-            Either::Left(l) => l.into_response(request).map(Either::Left),
-            Either::Right(r) => r.into_response(request).map(Either::Right),
+            Either::Left(l) => l.into_response(request).map(izanami_http::Either::Left),
+            Either::Right(r) => r.into_response(request).map(izanami_http::Either::Right),
         }
     }
 }

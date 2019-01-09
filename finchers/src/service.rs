@@ -8,7 +8,6 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 
 use bytes::Bytes;
-use either::Either;
 use futures::{future, Async, Future, Poll};
 use http::header::{self, HeaderValue};
 use http::{Request, Response};
@@ -179,8 +178,12 @@ where
         let output = ready!(self.poll_apply());
 
         let mut response = match output {
-            Ok(output) => output.into_response(&self.request).map(Either::Right),
-            Err(err) => err.into_response(&self.request).map(Either::Left),
+            Ok(output) => output
+                .into_response(&self.request)
+                .map(izanami_http::Either::Right),
+            Err(err) => err
+                .into_response(&self.request)
+                .map(izanami_http::Either::Left),
         };
 
         response
@@ -195,4 +198,5 @@ where
     }
 }
 
-pub type ResponseBody<Bd, E> = Either<Bytes, <<E as Endpoint<Bd>>::Output as IntoResponse>::Body>;
+pub type ResponseBody<Bd, E> =
+    izanami_http::Either<Bytes, <<E as Endpoint<Bd>>::Output as IntoResponse>::Body>;

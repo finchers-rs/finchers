@@ -52,7 +52,7 @@ use {
         header::{self, HeaderMap, HeaderName, HeaderValue},
         Request, Uri,
     },
-    izanami_service::http::BufStream,
+    izanami_http::BufStream,
     mime::Mime,
     std::io,
     tokio::runtime::current_thread::Runtime,
@@ -90,11 +90,6 @@ impl BufStream for ReqBody {
     #[inline]
     fn poll_buf(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
         Ok(self.0.take().map(io::Cursor::new).into())
-    }
-
-    #[inline]
-    fn is_end_stream(&self) -> bool {
-        self.0.is_none()
     }
 }
 
