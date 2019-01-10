@@ -5,11 +5,11 @@ use http::{Request, Response, StatusCode};
 use super::IntoResponse;
 
 impl IntoResponse for StatusCode {
-    type Body = ();
+    type Body = &'static [u8];
 
     #[inline]
     fn into_response(self, _: &Request<()>) -> Response<Self::Body> {
-        let mut response = Response::new(());
+        let mut response = Response::new(&[] as &[u8]);
         *response.status_mut() = self;
         response
     }

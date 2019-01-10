@@ -7,7 +7,7 @@ use std::mem;
 use std::path::PathBuf;
 
 use futures::{try_ready, Async, Future, Poll};
-use izanami_http::BufStream;
+use izanami_http::buf_stream::BufStream;
 use tokio::fs::file::{File, MetadataFuture, OpenFuture};
 use tokio::io::AsyncRead;
 

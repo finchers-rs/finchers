@@ -57,3 +57,5 @@ finchers-macros = { version = "0.14.0-dev", path = "finchers/macros" }
 izanami = { git = "https://github.com/ubnt-intrepid/izanami.git" }
 izanami-http = { git = "https://github.com/ubnt-intrepid/izanami.git" }
 izanami-service = { git = "https://github.com/ubnt-intrepid/izanami.git" }
+
+version-sync = { git = "https://github.com/ubnt-intrepid/version-sync.git", branch = "bump-version" }

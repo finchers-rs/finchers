@@ -36,10 +36,10 @@ impl<T> IntoResponse for Response<T> {
 }
 
 impl IntoResponse for () {
-    type Body = ();
+    type Body = &'static [u8];
 
     fn into_response(self, _: &Request<()>) -> Response<Self::Body> {
-        let mut response = Response::new(());
+        let mut response = Response::new(&[] as &[u8]);
         *response.status_mut() = StatusCode::NO_CONTENT;
         response
     }
@@ -59,12 +59,16 @@ where
     L: IntoResponse,
     R: IntoResponse,
 {
-    type Body = izanami_http::Either<L::Body, R::Body>;
+    type Body = izanami_http::buf_stream::Either<L::Body, R::Body>;
 
     fn into_response(self, request: &Request<()>) -> Response<Self::Body> {
         match self {
-            Either::Left(l) => l.into_response(request).map(izanami_http::Either::Left),
-            Either::Right(r) => r.into_response(request).map(izanami_http::Either::Right),
+            Either::Left(l) => l
+                .into_response(request)
+                .map(izanami_http::buf_stream::Either::Left),
+            Either::Right(r) => r
+                .into_response(request)
+                .map(izanami_http::buf_stream::Either::Right),
         }
     }
 }
