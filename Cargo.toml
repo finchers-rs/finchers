@@ -45,14 +45,14 @@ members = [
 ]
 
 [patch.crates-io]
-finchers = { version = "0.14.0-dev", path = "finchers" }
-finchers-macros = { version = "0.14.0-dev", path = "finchers/macros" }
+finchers = { path = "finchers" }
+finchers-macros = { path = "finchers/macros" }
 
-#finchers-headers = { version = "0.1.0", path = "finchers-headers" }
-#finchers-juniper = { version = "0.2.1", path = "finchers-juniper" }
-#finchers-session = { version = "0.2.1-dev", path = "finchers-session" }
-#finchers-template = { version = "0.2.0-dev", path = "finchers-template" }
-finchers-tungstenite = { version = "0.3.0-dev", path = "finchers-tungstenite" }
+#finchers-headers = { path = "finchers-headers" }
+#finchers-juniper = { path = "finchers-juniper" }
+#finchers-session = { path = "finchers-session" }
+#finchers-template = { path = "finchers-template" }
+finchers-tungstenite = { path = "finchers-tungstenite" }
 
 izanami = { git = "https://github.com/ubnt-intrepid/izanami.git" }
 izanami-http = { git = "https://github.com/ubnt-intrepid/izanami.git" }
