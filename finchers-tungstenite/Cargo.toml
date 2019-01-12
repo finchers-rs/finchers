@@ -28,13 +28,12 @@ base64 = "0.10"
 failure = "0.1.3"
 futures = "0.1.24"
 http = "0.1.13"
+izanami-http = "0.1.0-preview.1"
+izanami-rt = "0.1.0-preview.1"
 log = "0.4"
 sha1 = "0.6.0"
 tokio-tungstenite = { version = "0.6.0", default-features = false }
 tungstenite = "0.6.0"
-
-izanami-http = "0.1.0-preview.1"
-izanami-rt = "0.1.0-preview.1"
 
 [dev-dependencies]
 izanami = "0.1.0-preview.1"
