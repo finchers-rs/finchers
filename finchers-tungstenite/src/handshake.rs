@@ -1,12 +1,11 @@
 //! The implementation of WebSocket handshake process.
 
-use base64;
-use http::header;
-use http::StatusCode;
-use sha1::Sha1;
-
-use finchers::error::HttpError;
-use finchers::input::Input;
+use {
+    failure::Fail,
+    finchers::error::HttpError,
+    http::{header, Request, Response, StatusCode},
+    sha1::Sha1,
+};
 
 #[derive(Debug)]
 pub(crate) struct Accept {
@@ -17,7 +16,7 @@ pub(crate) struct Accept {
 /// Check if the specified HTTP response is a valid WebSocket handshake request.
 ///
 /// If successful, it returns a SHA1 hash used as `Sec-WebSocket-Accept` header in the response.
-pub(crate) fn handshake(request: &Input) -> Result<Accept, HandshakeError> {
+pub(crate) fn handshake(request: &Request<()>) -> Result<Accept, HandshakeError> {
     let h = request
         .headers()
         .get(header::CONNECTION)
@@ -78,8 +77,16 @@ impl From<HandshakeErrorKind> for HandshakeError {
 }
 
 impl HttpError for HandshakeError {
+    type Body = String;
+
     fn status_code(&self) -> StatusCode {
         StatusCode::BAD_REQUEST
+    }
+
+    fn to_response(&self, _: &Request<()>) -> Response<Self::Body> {
+        let mut response = Response::new(self.to_string());
+        *response.status_mut() = self.status_code();
+        response
     }
 }
 

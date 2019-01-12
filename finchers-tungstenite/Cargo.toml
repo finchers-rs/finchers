@@ -1,6 +1,7 @@
 [package]
 name = "finchers-tungstenite"
-version = "0.2.1-dev"
+version = "0.3.0-dev"
+edition = "2018"
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 description = """
 WebSocket support for Finchers, based on tungstenite.
@@ -20,24 +21,23 @@ include = [
   "LICENSE-APACHE",
 ]
 
-[package.metadata.docs.rs]
-rustc-args = [
-  # FIXME: remove it as soon as the rustc version used in docs.rs is updated
-  "--cfg", "finchers_inject_extern_prelude",
-]
-
 [dependencies]
-finchers = "0.13"
+finchers = "0.14.0-dev"
 
-base64 = "0.9.3"
-failure = "0.1.2"
+base64 = "0.10"
+failure = "0.1.3"
 futures = "0.1.24"
 http = "0.1.13"
+log = "0.4"
 sha1 = "0.6.0"
-tokio-tungstenite = "0.6.0"
+tokio-tungstenite = { version = "0.6.0", default-features = false }
 tungstenite = "0.6.0"
 
+izanami-http = "0.1.0-preview.1"
+izanami-rt = "0.1.0-preview.1"
+
 [dev-dependencies]
+izanami = "0.1.0-preview.1"
 log = "0.4.5"
 matches = "0.1.8"
-pretty_env_logger = "0.2.4"
+pretty_env_logger = "0.3.0"

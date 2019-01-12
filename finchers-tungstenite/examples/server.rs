@@ -1,41 +1,13 @@
-#[macro_use]
-extern crate finchers;
-extern crate finchers_tungstenite;
-extern crate futures;
-extern crate http;
-extern crate pretty_env_logger;
-#[macro_use]
-extern crate log;
-
 use finchers::prelude::*;
+use finchers_tungstenite::{Message, WsError, WsTransport};
 use futures::prelude::*;
 use http::Response;
 
-use finchers_tungstenite::{Message, Ws, WsError, WsTransport};
-
-fn on_upgrade(stream: WsTransport) -> impl Future<Item = (), Error = ()> {
-    let (tx, rx) = stream.split();
-    rx.filter_map(|m| {
-        info!("Message from client: {:?}", m);
-        match m {
-            Message::Ping(p) => Some(Message::Pong(p)),
-            Message::Pong(..) => None,
-            m => Some(m),
-        }
-    })
-    .forward(tx)
-    .map(|_| ())
-    .map_err(|e| match e {
-        WsError::ConnectionClosed(..) => info!("connection is closed"),
-        e => error!("error during handling WebSocket connection: {}", e),
-    })
-}
-
-fn main() {
+fn main() -> izanami::Result<()> {
     std::env::set_var("RUST_LOG", "server=info");
     pretty_env_logger::init();
 
-    let index = path!(/).map(|| {
+    let index = finchers::path!("/").map(|| {
         Response::builder()
             .header("content-type", "text/html; charset=utf-8")
             .body(
@@ -53,17 +25,30 @@ fn main() {
             .unwrap()
     });
 
-    let ws_endpoint = path!(/ "ws" /)
-        .and(finchers_tungstenite::ws())
-        .map(|ws: Ws| {
-            info!("accepted a WebSocket request");
-            ws.on_upgrade(on_upgrade)
-        });
+    let ws_endpoint = finchers::path!(@get "/ws") //
+        .and(finchers_tungstenite::ws(
+            |stream: WsTransport<izanami::RequestBody>| {
+                let (tx, rx) = stream.split();
+                rx.filter_map(|m| {
+                    log::info!("Message from client: {:?}", m);
+                    match m {
+                        Message::Ping(p) => Some(Message::Pong(p)),
+                        Message::Pong(..) => None,
+                        m => Some(m),
+                    }
+                })
+                .forward(tx)
+                .map(|_| ())
+                .map_err(|e| match e {
+                    WsError::ConnectionClosed(..) => log::info!("connection is closed"),
+                    e => log::error!("error during handling WebSocket connection: {}", e),
+                })
+            },
+        ));
 
     let endpoint = index.or(ws_endpoint);
 
-    info!("Listening on http://127.0.0.1:5000");
-    finchers::server::start(endpoint)
-        .serve("127.0.0.1:5000")
-        .unwrap_or_else(|err| error!("{}", err))
+    log::info!("Listening on http://127.0.0.1:5000");
+    izanami::Server::bind(std::net::SocketAddr::from(([127, 0, 0, 1], 5000)))
+        .start(endpoint.into_service())
 }

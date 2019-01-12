@@ -1,173 +1,163 @@
-// FIXME: remove it as soon as the rustc version used in docs.rs is updated
-#![cfg_attr(finchers_inject_extern_prelude, feature(extern_prelude))]
-
 //! WebSocket support for Finchers based on tungstenite.
 //!
 //! # Example
 //!
 //! ```
-//! #[macro_use]
-//! extern crate finchers;
-//! extern crate finchers_tungstenite;
-//! # extern crate futures;
+//! # use finchers::prelude::*;
+//! type Transport = finchers_tungstenite::WsTransport<izanami::RequestBody>;
 //!
-//! use finchers::prelude::*;
-//! use finchers_tungstenite::{
-//!   Ws,
-//!   WsTransport,
-//! };
-//!
-//! # fn main() {
-//! let endpoint = path!(@get / "ws" /)
-//!     .and(finchers_tungstenite::ws())
-//!     .map(|ws: Ws| {
-//!         ws.on_upgrade(|ws: WsTransport| {
+//! # fn main() -> izanami::Result<()> {
+//! let endpoint = finchers::path!(@get "/ws")
+//!     .and(finchers_tungstenite::ws(|ws: Transport| {
 //!             // ...
 //! #           drop(ws);
 //! #           futures::future::ok(())
-//!         })
-//!     });
+//!     }));
 //! # drop(|| {
-//! # finchers::server::start(endpoint)
-//! #     .serve("127.0.0.1:4000")
-//! #     .unwrap();
+//! # izanami::Server::build().start(endpoint.into_service())
 //! # });
+//! # Ok(())
 //! # }
 //! ```
 
-#![doc(html_root_url = "https://docs.rs/finchers-tungstenite/0.2.0")]
-#![warn(
+#![doc(html_root_url = "https://docs.rs/finchers-tungstenite/0.3.0-dev")]
+#![deny(
     missing_docs,
     missing_debug_implementations,
     nonstandard_style,
+    rust_2018_compatibility,
     rust_2018_idioms,
     unused
 )]
-//#![warn(rust_2018_compatibility)]
-#![cfg_attr(test, deny(warnings))]
+#![forbid(clippy::unimplemented)]
 #![cfg_attr(test, doc(test(attr(deny(warnings)))))]
-
-extern crate base64;
-#[macro_use]
-extern crate failure;
-extern crate finchers;
-extern crate futures;
-extern crate http;
-extern crate sha1;
-extern crate tokio_tungstenite;
-
-pub extern crate tungstenite;
 
 mod handshake;
 
-// re-exports
-pub use self::handshake::{HandshakeError, HandshakeErrorKind};
-pub use self::imp::{ws, Ws, WsEndpoint, WsTransport};
+#[doc(no_inline)]
+pub use tungstenite::{
+    self,
+    error::Error as WsError,
+    protocol::{Message, WebSocketConfig},
+};
 
-#[doc(no_inline)]
-pub use tungstenite::error::Error as WsError;
-#[doc(no_inline)]
-pub use tungstenite::protocol::{Message, WebSocketConfig};
+// re-exports
+pub use crate::{
+    handshake::{HandshakeError, HandshakeErrorKind},
+    imp::{ws, WsEndpoint, WsTransport},
+};
 
 mod imp {
-    use finchers;
-    use finchers::endpoint::{ApplyContext, ApplyResult, Endpoint};
-    use finchers::endpoints::upgrade::{Builder, UpgradedIo};
-    use finchers::output::Output;
-
-    use tungstenite::protocol::{Role, WebSocketConfig};
-
-    use futures::{Async, Future, Poll};
-    use http::header;
-    use tokio_tungstenite::WebSocketStream;
-
-    use handshake::{handshake, Accept};
+    use {
+        crate::handshake::handshake,
+        finchers::{
+            endpoint::{
+                ActionContext, //
+                Endpoint,
+                EndpointAction,
+                IsEndpoint,
+                Preflight,
+                PreflightContext,
+            },
+            error::Error,
+        },
+        futures::{Async, Future, IntoFuture, Poll},
+        http::{header, Response},
+        izanami_http::upgrade::Upgrade,
+        izanami_rt::{DefaultExecutor, Executor},
+        tokio_tungstenite::WebSocketStream,
+        tungstenite::protocol::Role,
+    };
 
     #[allow(missing_docs)]
-    pub type WsTransport = WebSocketStream<UpgradedIo>;
+    pub type WsTransport<Bd> = WebSocketStream<<Bd as Upgrade>::Upgraded>;
 
     /// Create an endpoint which handles the WebSocket handshake request.
-    pub fn ws() -> WsEndpoint {
-        (WsEndpoint { _priv: () }).with_output::<(Ws,)>()
+    pub fn ws<F>(on_upgrade: F) -> WsEndpoint<F> {
+        WsEndpoint { on_upgrade }
     }
 
     /// An instance of `Endpoint` which handles the WebSocket handshake request.
     #[derive(Debug, Copy, Clone)]
-    pub struct WsEndpoint {
-        _priv: (),
+    pub struct WsEndpoint<F> {
+        on_upgrade: F,
     }
 
-    impl<'a> Endpoint<'a> for WsEndpoint {
-        type Output = (Ws,);
-        type Future = WsFuture;
+    impl<F> IsEndpoint for WsEndpoint<F> {}
 
-        fn apply(&'a self, _: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
-            Ok(WsFuture { _priv: () })
-        }
-    }
+    impl<F, Bd, R> Endpoint<Bd> for WsEndpoint<F>
+    where
+        F: Fn(WsTransport<Bd>) -> R + Clone + Send + 'static,
+        R: IntoFuture<Item = (), Error = ()>,
+        R::Future: Send + 'static,
+        Bd: Upgrade + Send + 'static,
+        Bd::Upgraded: Send + 'static,
+    {
+        type Output = (Response<&'static str>,);
+        type Action = WsAction<F>;
 
-    #[derive(Debug)]
-    pub struct WsFuture {
-        _priv: (),
-    }
-
-    impl Future for WsFuture {
-        type Item = (Ws,);
-        type Error = finchers::error::Error;
-
-        fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-            let accept = finchers::endpoint::with_get_cx(|cx| handshake(cx))?;
-            Ok(Async::Ready((Ws {
-                builder: Builder::new(),
-                accept,
-                config: None,
-            },)))
-        }
-    }
-
-    /// A type representing the result of handshake handling.
-    ///
-    /// The value of this type is used to build a WebSocket process
-    /// after upgrading the protocol.
-    #[derive(Debug)]
-    pub struct Ws {
-        builder: Builder,
-        accept: Accept,
-        config: Option<WebSocketConfig>,
-    }
-
-    impl Ws {
-        /// Sets the configuration for upgraded WebSocket connection.
-        pub fn config(self, config: WebSocketConfig) -> Ws {
-            Ws {
-                config: Some(config),
-                ..self
+        fn action(&self) -> Self::Action {
+            WsAction {
+                on_upgrade: Some(self.on_upgrade.clone()),
             }
         }
+    }
 
-        /// Creates an `Output` with the specified function which constructs
-        /// a `Future` representing the task after upgrading the protocol to
-        /// WebSocket.
-        pub fn on_upgrade<F, R>(self, upgrade: F) -> impl Output
-        where
-            F: FnOnce(WsTransport) -> R + Send + 'static,
-            R: Future<Item = (), Error = ()> + Send + 'static,
-        {
-            let Self {
-                builder,
-                accept,
-                config,
-            } = self;
+    #[derive(Debug)]
+    pub struct WsAction<F> {
+        on_upgrade: Option<F>,
+    }
 
-            builder
+    impl<F, Bd, R> EndpointAction<Bd> for WsAction<F>
+    where
+        F: Fn(WsTransport<Bd>) -> R + Send + 'static,
+        R: IntoFuture<Item = (), Error = ()>,
+        R::Future: Send + 'static,
+        Bd: Upgrade + Send + 'static,
+        Bd::Upgraded: Send + 'static,
+    {
+        type Output = (Response<&'static str>,);
+
+        fn preflight(
+            &mut self,
+            _: &mut PreflightContext<'_>,
+        ) -> Result<Preflight<Self::Output>, Error> {
+            Ok(Preflight::Incomplete)
+        }
+
+        fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
+            let accept = handshake(cx)?;
+
+            let on_upgrade = self
+                .on_upgrade
+                .take()
+                .expect("the action has already been polled");
+            let body = cx.body().take().ok_or_else(|| {
+                finchers::error::InternalServerError::from(
+                    "the instance of request body has already been stolen by someone.",
+                )
+            })?;
+            let upgrade_task = body
+                .on_upgrade()
+                .map_err(|_e| log::error!("upgrade error"))
+                .and_then(move |upgraded| {
+                    let ws_stream = WebSocketStream::from_raw_socket(upgraded, Role::Server, None);
+                    on_upgrade(ws_stream).into_future()
+                });
+
+            DefaultExecutor::current()
+                .spawn(Box::new(upgrade_task))
+                .map_err(finchers::error::InternalServerError::from)?;
+
+            let response = Response::builder()
+                .status(http::StatusCode::SWITCHING_PROTOCOLS)
                 .header(header::CONNECTION, "upgrade")
                 .header(header::UPGRADE, "websocket")
                 .header(header::SEC_WEBSOCKET_ACCEPT, &*accept.hash)
-                .finish(move |upgraded| {
-                    let ws_stream =
-                        WebSocketStream::from_raw_socket(upgraded, Role::Server, config);
-                    upgrade(ws_stream)
-                })
+                .body("")
+                .unwrap();
+
+            Ok(Async::Ready((response,)))
         }
     }
 }

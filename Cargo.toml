@@ -28,7 +28,7 @@ members = [
   #"finchers-juniper",
   #"finchers-session",
   #"finchers-template",
-  #"finchers-tungstenite",
+  "finchers-tungstenite",
 
   #"examples/custom-logging",
   #"examples/diesel",
@@ -52,10 +52,11 @@ finchers-macros = { version = "0.14.0-dev", path = "finchers/macros" }
 #finchers-juniper = { version = "0.2.1", path = "finchers-juniper" }
 #finchers-session = { version = "0.2.1-dev", path = "finchers-session" }
 #finchers-template = { version = "0.2.0-dev", path = "finchers-template" }
-#finchers-tungstenite = { version = "0.2.1-dev", path = "finchers-tungstenite" }
+finchers-tungstenite = { version = "0.3.0-dev", path = "finchers-tungstenite" }
 
 izanami = { git = "https://github.com/ubnt-intrepid/izanami.git" }
 izanami-http = { git = "https://github.com/ubnt-intrepid/izanami.git" }
+izanami-rt = { git = "https://github.com/ubnt-intrepid/izanami.git" }
 izanami-service = { git = "https://github.com/ubnt-intrepid/izanami.git" }
 
 version-sync = { git = "https://github.com/ubnt-intrepid/version-sync.git", branch = "bump-version" }
