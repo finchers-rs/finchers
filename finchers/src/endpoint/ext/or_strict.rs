@@ -1,4 +1,5 @@
 use {
+    super::NotMatched,
     crate::{
         action::{
             ActionContext, //
@@ -10,7 +11,6 @@ use {
         error::Error,
     },
     futures::Poll,
-    http::StatusCode,
 };
 
 #[allow(missing_docs)]
@@ -75,14 +75,12 @@ where
                                 return Ok(Preflight::Completed(output))
                             }
                             Err(e2) => {
-                                return Err(match (e1.status_code(), e2.status_code()) {
-                                    (_, StatusCode::NOT_FOUND)
-                                    | (_, StatusCode::METHOD_NOT_ALLOWED) => e1,
-                                    (StatusCode::NOT_FOUND, _)
-                                    | (StatusCode::METHOD_NOT_ALLOWED, _) => e2,
-                                    (status1, status2) if status1 >= status2 => e1,
-                                    _ => e2,
-                                });
+                                return Err(NotMatched {
+                                    left: e1,
+                                    right: e2,
+                                    _priv: (),
+                                }
+                                .into())
                             }
                         }
                     }

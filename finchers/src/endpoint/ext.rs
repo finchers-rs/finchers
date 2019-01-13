@@ -3,6 +3,7 @@
 mod and;
 mod and_then;
 mod map;
+mod map_err;
 mod or;
 mod or_strict;
 mod recover;
@@ -11,12 +12,17 @@ pub use self::{
     and::And, //
     and_then::AndThen,
     map::Map,
+    map_err::MapErr,
     or::Or,
     or_strict::OrStrict,
     recover::Recover,
 };
 
-use super::IsEndpoint;
+use {
+    super::IsEndpoint, //
+    crate::error::{Error, HttpError},
+    std::fmt,
+};
 
 /// A set of extension methods for combining the multiple endpoints.
 pub trait EndpointExt: IsEndpoint + Sized {
@@ -70,9 +76,48 @@ pub trait EndpointExt: IsEndpoint + Sized {
     }
 
     #[allow(missing_docs)]
+    fn map_err<F>(self, f: F) -> MapErr<Self, F> {
+        MapErr { endpoint: self, f }
+    }
+
+    #[allow(missing_docs)]
     fn recover<F>(self, f: F) -> Recover<Self, F> {
         Recover { endpoint: self, f }
     }
 }
 
 impl<E: IsEndpoint> EndpointExt for E {}
+
+/// An `HttpError` indicating that the endpoint could not determine the route.
+///
+/// The value of this error is typically thrown from `Or` or `OrStrict`.
+#[derive(Debug)]
+pub struct NotMatched {
+    /// The error value returned from the first endpoint.
+    pub left: Error,
+
+    /// The error value returned from the second endpoint.
+    pub right: Error,
+
+    _priv: (),
+}
+
+impl fmt::Display for NotMatched {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("not matched")
+    }
+}
+
+impl HttpError for NotMatched {
+    type Body = String;
+
+    fn status_code(&self) -> http::StatusCode {
+        http::StatusCode::NOT_FOUND
+    }
+
+    fn to_response(&self, _: &http::Request<()>) -> http::Response<Self::Body> {
+        let mut response = http::Response::new(self.to_string());
+        *response.status_mut() = self.status_code();
+        response
+    }
+}

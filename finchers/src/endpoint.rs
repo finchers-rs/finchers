@@ -24,8 +24,31 @@ use {
     std::{rc::Rc, sync::Arc},
 };
 
-/// A marker trait indicating that the implementor has an implementation of `Endpoint<Bd>`.
-pub trait IsEndpoint {}
+/// A trait indicating that the type has an implementation of `Endpoint<Bd>`.
+///
+/// The purpose of this trait is to implement the extension methods to `Endpoint`s
+/// in situation when the type of request body is unknown.
+pub trait IsEndpoint {
+    /// Converts this endpoint into an `EndpointObj`.
+    fn boxed<Bd, T>(self) -> EndpointObj<Bd, T>
+    where
+        Self: Endpoint<Bd, Output = T> + Send + Sync + 'static + Sized,
+        Self::Action: Send + 'static,
+        T: Tuple,
+    {
+        EndpointObj::new(self)
+    }
+
+    /// Converts this endpoint into a `LocalEndpointObj`.
+    fn boxed_local<Bd, T>(self) -> LocalEndpointObj<Bd, T>
+    where
+        Self: Endpoint<Bd, Output = T> + 'static + Sized,
+        Self::Action: 'static,
+        T: Tuple,
+    {
+        LocalEndpointObj::new(self)
+    }
+}
 
 impl<'a, E: IsEndpoint + ?Sized> IsEndpoint for &'a E {}
 impl<E: IsEndpoint + ?Sized> IsEndpoint for Box<E> {}
@@ -35,13 +58,12 @@ impl<E: IsEndpoint + ?Sized> IsEndpoint for Arc<E> {}
 /// Trait representing an endpoint, the main trait for abstracting
 /// HTTP services in Finchers.
 ///
-/// The endpoint behaves as an *asynchronous converter* that takes
+/// The endpoint behaves as an *asynchronous* process that takes
 /// an HTTP request and convert it into a value of the associated type.
 /// The process that handles an request is abstracted by `EndpointAction`,
-/// and that instances are constructed by the implementors of `Endpoint`
-/// for each request.
+/// and that instances are constructed by `Endpoint` for each request.
 pub trait Endpoint<Bd>: IsEndpoint {
-    /// The inner type associated with this endpoint.
+    /// The type of value that will be returned from `Action`.
     type Output: Tuple;
 
     /// The type of `EndpointAction` associated with this endpoint.

@@ -34,11 +34,10 @@ where
     }
 }
 
-#[allow(missing_docs)]
-pub struct EndpointObj<Bd, T>
-where
-    T: Tuple,
-{
+/// A type that holds an instance of `Endpoint<Bd>` as type-erased form.
+///
+/// This type guarantees the thread safety.
+pub struct EndpointObj<Bd, T: Tuple> {
     inner: Box<dyn BoxedEndpoint<Bd, Output = T> + Send + Sync + 'static>,
 }
 
@@ -46,8 +45,7 @@ impl<Bd, T> EndpointObj<Bd, T>
 where
     T: Tuple,
 {
-    #[allow(missing_docs)]
-    pub fn new<E>(endpoint: E) -> Self
+    pub(super) fn new<E>(endpoint: E) -> Self
     where
         E: Endpoint<Bd, Output = T> + Send + Sync + 'static,
         E::Action: Send + 'static,
@@ -132,7 +130,9 @@ where
     }
 }
 
-#[allow(missing_docs)]
+/// A type that holds an instance of `Endpoint<Bd>` as type-erased form.
+///
+/// Unlike `EndpointObj`, this type does not guarantee the thread safety.
 pub struct LocalEndpointObj<Bd, T>
 where
     T: Tuple,
@@ -144,8 +144,7 @@ impl<Bd, T> LocalEndpointObj<Bd, T>
 where
     T: Tuple,
 {
-    #[allow(missing_docs)]
-    pub fn new<E>(endpoint: E) -> Self
+    pub(super) fn new<E>(endpoint: E) -> Self
     where
         E: Endpoint<Bd, Output = T> + 'static,
         E::Action: 'static,
