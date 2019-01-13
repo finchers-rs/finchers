@@ -2,27 +2,22 @@
 
 #![allow(missing_docs)]
 
-use std::fmt;
-use std::io;
-use std::marker::PhantomData;
-use std::sync::Arc;
-
-use bytes::Bytes;
-use futures::{future, Async, Future, Poll};
-use http::header::{self, HeaderValue};
-use http::{Request, Response};
-use izanami_service::{MakeService, Service};
-
-use crate::endpoint::{
-    ActionContext, //
-    Endpoint,
-    EndpointAction,
-    IsEndpoint,
-    Preflight,
-    PreflightContext,
+use {
+    crate::{
+        action::{ActionContext, EndpointAction, Preflight, PreflightContext},
+        endpoint::{Endpoint, IsEndpoint},
+        error::Error,
+        output::IntoResponse,
+    },
+    bytes::Bytes,
+    futures::{future, Async, Future, Poll},
+    http::{
+        header::{self, HeaderValue},
+        Request, Response,
+    },
+    izanami_service::{MakeService, Service},
+    std::{fmt, io, marker::PhantomData, sync::Arc},
 };
-use crate::error::Error;
-use crate::output::IntoResponse;
 
 macro_rules! ready {
     ($e:expr) => {

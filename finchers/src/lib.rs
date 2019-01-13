@@ -46,6 +46,7 @@
 
 mod common;
 
+pub mod action;
 pub mod endpoint;
 pub mod endpoints;
 pub mod error;

@@ -68,7 +68,7 @@ pub fn ExtractPath(input: TokenStream) -> TokenStream {
         syn::parse_quote!(finchers::endpoint::syntax::ExtractPathError);
     let FromEncodedStr: syn::Path =
         syn::parse_quote!(finchers::endpoint::syntax::encoded::FromEncodedStr);
-    let PreflightContext: syn::Path = syn::parse_quote!(finchers::endpoint::PreflightContext);
+    let PreflightContext: syn::Path = syn::parse_quote!(finchers::action::PreflightContext);
 
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 

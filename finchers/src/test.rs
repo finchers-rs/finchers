@@ -376,7 +376,7 @@ mod tests {
     fn test_host_useragent() {
         let mut runner = runner({
             crate::endpoint::endpoint(|| {
-                use crate::endpoint::{OneshotAction, PreflightContext};
+                use crate::action::{OneshotAction, PreflightContext};
 
                 struct MyAction;
 
@@ -426,7 +426,7 @@ mod tests {
     fn test_default_headers() {
         let mut runner = runner({
             endpoint::endpoint(|| {
-                use crate::endpoint::{OneshotAction, PreflightContext};
+                use crate::action::{OneshotAction, PreflightContext};
 
                 struct MyAction;
 

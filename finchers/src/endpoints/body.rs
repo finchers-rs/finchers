@@ -2,16 +2,15 @@
 
 use {
     crate::{
-        endpoint::{
+        action::{
             ActionContext, //
             Async,
             AsyncAction,
-            Endpoint,
             EndpointAction,
-            IsEndpoint,
             Preflight,
             PreflightContext,
         },
+        endpoint::{Endpoint, IsEndpoint},
         error::{BadRequest, Error, InternalServerError},
     },
     futures::Poll,

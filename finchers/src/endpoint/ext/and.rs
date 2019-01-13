@@ -1,14 +1,13 @@
 use {
     crate::{
-        common::Combine,
-        endpoint::{
+        action::{
             ActionContext, //
-            Endpoint,
             EndpointAction,
-            IsEndpoint,
             Preflight,
             PreflightContext,
         },
+        common::Combine,
+        endpoint::{Endpoint, IsEndpoint},
         error::Error,
     },
     futures::{Async, Poll},

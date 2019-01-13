@@ -1,13 +1,12 @@
 use {
     crate::{
-        endpoint::{
+        action::{
             ActionContext, //
-            Endpoint,
             EndpointAction,
-            IsEndpoint,
             Preflight,
             PreflightContext,
         },
+        endpoint::{Endpoint, IsEndpoint},
         error::Error,
     },
     futures::Poll,

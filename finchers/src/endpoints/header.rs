@@ -2,13 +2,12 @@
 
 use {
     crate::{
-        endpoint::{
-            Endpoint,
-            IsEndpoint,
+        action::{
             Oneshot,
             OneshotAction,
             PreflightContext, //
         },
+        endpoint::{Endpoint, IsEndpoint},
         error::{BadRequest, Error},
         util::Never,
     },

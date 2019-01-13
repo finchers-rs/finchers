@@ -1,14 +1,13 @@
 use {
     crate::{
-        common::Func,
-        endpoint::{
+        action::{
             ActionContext, //
-            Endpoint,
             EndpointAction,
-            IsEndpoint,
             Preflight,
             PreflightContext,
         },
+        common::Func,
+        endpoint::{Endpoint, IsEndpoint},
         error::Error,
     },
     futures::Poll,

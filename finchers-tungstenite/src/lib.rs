@@ -51,14 +51,13 @@ mod imp {
     use {
         crate::handshake::handshake,
         finchers::{
-            endpoint::{
+            action::{
                 ActionContext, //
-                Endpoint,
                 EndpointAction,
-                IsEndpoint,
                 Preflight,
                 PreflightContext,
             },
+            endpoint::{Endpoint, IsEndpoint},
             error::Error,
         },
         futures::{Async, Future, IntoFuture, Poll},

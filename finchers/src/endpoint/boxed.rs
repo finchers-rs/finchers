@@ -1,14 +1,13 @@
 use {
     crate::{
-        common::Tuple,
-        endpoint::{
+        action::{
             ActionContext, //
-            Endpoint,
             EndpointAction,
-            IsEndpoint,
             Preflight,
             PreflightContext,
         },
+        common::Tuple,
+        endpoint::{Endpoint, IsEndpoint},
         error::Error,
     },
     futures::Poll,
