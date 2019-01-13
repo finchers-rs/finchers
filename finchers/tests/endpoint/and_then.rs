@@ -1,4 +1,3 @@
-use finchers::error::BadRequest;
 use finchers::prelude::*;
 use finchers::test;
 use futures::future;
@@ -20,7 +19,7 @@ fn test_and_then_1() {
 fn test_and_then_2() {
     let mut runner = test::runner(
         endpoint::value("Foo") //
-            .and_then(|_| future::err::<(), _>(BadRequest::from("Bar"))),
+            .and_then(|_| future::err::<(), _>(finchers::error::bad_request("Bar"))),
     );
     assert_matches!(runner.apply("/"), Err(..))
 }

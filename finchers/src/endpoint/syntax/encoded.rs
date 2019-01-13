@@ -2,7 +2,8 @@
 
 use {
     crate::error::{Error, HttpError},
-    http::{Request, Response, StatusCode},
+    failure::Fail,
+    http::StatusCode,
     percent_encoding::percent_decode,
     std::{
         borrow::Cow,
@@ -107,8 +108,8 @@ macro_rules! impl_from_segment_from_str {
 
             #[inline]
             fn from_encoded_str(s: &EncodedStr) -> Result<Self, Self::Error> {
-                let s = s.percent_decode().map_err(DecodeEncodedStrError)?;
-                Ok(FromStr::from_str(&*s).map_err(ParseEncodedStrError)?)
+                let s = s.percent_decode().map_err(|cause| DecodeEncodedStrError{cause})?;
+                Ok(FromStr::from_str(&*s).map_err(|cause| ParseEncodedStrError{cause})?)
             }
         }
     )*};
@@ -133,7 +134,7 @@ impl FromEncodedStr for String {
     fn from_encoded_str(s: &EncodedStr) -> Result<Self, Self::Error> {
         s.percent_decode()
             .map(Cow::into_owned)
-            .map_err(DecodeEncodedStrError)
+            .map_err(|cause| DecodeEncodedStrError { cause })
     }
 }
 
@@ -144,57 +145,40 @@ impl FromEncodedStr for PathBuf {
     fn from_encoded_str(s: &EncodedStr) -> Result<Self, Self::Error> {
         s.percent_decode()
             .map(|s| std::path::PathBuf::from(s.into_owned()))
-            .map_err(DecodeEncodedStrError)
+            .map_err(|cause| DecodeEncodedStrError { cause })
     }
 }
 
 #[allow(missing_docs)]
-#[derive(Debug)]
-pub struct DecodeEncodedStrError(Utf8Error);
-
-impl fmt::Display for DecodeEncodedStrError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "failed to decode a percent-encoded str: {}", self.0)
-    }
+#[derive(Debug, Fail)]
+#[fail(display = "failed to decode a percent encoded string to UTF-8")]
+pub struct DecodeEncodedStrError {
+    #[fail(source)]
+    cause: Utf8Error,
 }
 
 impl HttpError for DecodeEncodedStrError {
-    type Body = String;
-
     fn status_code(&self) -> StatusCode {
         StatusCode::BAD_REQUEST
-    }
-
-    fn to_response(&self, _: &Request<()>) -> Response<Self::Body> {
-        let mut response = Response::new(self.to_string());
-        *response.status_mut() = self.status_code();
-        response
     }
 }
 
 #[allow(missing_docs)]
-#[derive(Debug)]
-pub struct ParseEncodedStrError<E>(E);
-
-impl<E: fmt::Display> fmt::Display for ParseEncodedStrError<E> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "failed to parse a percent encoded str: {}", self.0)
-    }
+#[derive(Debug, Fail)]
+#[fail(display = "{}", cause)]
+pub struct ParseEncodedStrError<E>
+where
+    E: Fail + Send + Sync + 'static,
+{
+    #[fail(cause)]
+    cause: E,
 }
 
 impl<E> HttpError for ParseEncodedStrError<E>
 where
-    E: fmt::Debug + fmt::Display + Send + Sync + 'static,
+    E: Fail + Send + Sync + 'static,
 {
-    type Body = String;
-
     fn status_code(&self) -> StatusCode {
         StatusCode::BAD_REQUEST
-    }
-
-    fn to_response(&self, _: &Request<()>) -> Response<Self::Body> {
-        let mut response = Response::new(self.to_string());
-        *response.status_mut() = self.status_code();
-        response
     }
 }

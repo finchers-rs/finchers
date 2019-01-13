@@ -132,8 +132,9 @@ mod imp {
                 .take()
                 .expect("the action has already been polled");
             let body = cx.body().take().ok_or_else(|| {
-                finchers::error::InternalServerError::from(
-                    "the instance of request body has already been stolen by someone.",
+                finchers::error::internal_server_error(
+                    "the instance of request body has \
+                     already been stolen by someone.",
                 )
             })?;
             let upgrade_task = body
@@ -146,7 +147,7 @@ mod imp {
 
             DefaultExecutor::current()
                 .spawn(Box::new(upgrade_task))
-                .map_err(finchers::error::InternalServerError::from)?;
+                .map_err(finchers::error::internal_server_error)?;
 
             let response = Response::builder()
                 .status(http::StatusCode::SWITCHING_PROTOCOLS)

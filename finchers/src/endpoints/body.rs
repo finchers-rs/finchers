@@ -11,7 +11,7 @@ use {
             PreflightContext,
         },
         endpoint::{Endpoint, IsEndpoint},
-        error::{BadRequest, Error, InternalServerError},
+        error::{self, Error},
     },
     futures::Poll,
     http::Request,
@@ -22,19 +22,19 @@ use {
 };
 
 fn stolen_payload() -> Error {
-    InternalServerError::from(
-        "The instance of request body has already been stolen by another endpoint.",
+    error::internal_server_error(
+        "The instance of request body has already been \
+         stolen by another endpoint.",
     )
-    .into()
 }
 
 fn content_type<T>(request: &Request<T>) -> crate::error::Result<Option<Mime>> {
     if let Some(h) = request.headers().get(http::header::CONTENT_TYPE) {
         let mime = h
             .to_str()
-            .map_err(BadRequest::from)?
+            .map_err(error::bad_request)?
             .parse()
-            .map_err(BadRequest::from)?;
+            .map_err(error::bad_request)?;
         Ok(Some(mime))
     } else {
         Ok(None)
@@ -231,7 +231,7 @@ mod text {
                 .and_then(|m| m.get_param("charset"))
             {
                 if param != "utf-8" {
-                    return Err(BadRequest::from("Only the UTF-8 charset is supported.").into());
+                    return Err(error::bad_request("Only the UTF-8 charset is supported."));
                 }
             }
 
@@ -242,7 +242,7 @@ mod text {
             let (data,) = futures::try_ready!(self.receive_all.poll_action(cx));
             String::from_utf8(data.to_vec())
                 .map(|x| (x,).into())
-                .map_err(BadRequest::from)
+                .map_err(error::bad_request)
                 .map_err(Into::into)
         }
     }
@@ -316,12 +316,11 @@ mod json {
             cx: &mut PreflightContext<'_>,
         ) -> Result<Preflight<Self::Output>, Error> {
             let mime = content_type(&*cx)? //
-                .ok_or_else(|| BadRequest::from("missing content type"))?;
+                .ok_or_else(|| error::bad_request("missing content type"))?;
             if mime != mime::APPLICATION_JSON {
-                return Err(BadRequest::from(
+                return Err(error::bad_request(
                     "The value of `Content-type` must be `application/json`.",
-                )
-                .into());
+                ));
             }
 
             Ok(Preflight::Incomplete)
@@ -331,8 +330,7 @@ mod json {
             let (data,) = futures::try_ready!(self.receive_all.poll_action(cx));
             serde_json::from_slice(&*data)
                 .map(|x| (x,).into())
-                .map_err(BadRequest::from)
-                .map_err(Into::into)
+                .map_err(error::bad_request)
         }
     }
 }
@@ -407,12 +405,11 @@ mod urlencoded {
             cx: &mut PreflightContext<'_>,
         ) -> Result<Preflight<Self::Output>, Error> {
             let mime = content_type(&*cx)? //
-                .ok_or_else(|| BadRequest::from("missing content type"))?;
+                .ok_or_else(|| error::bad_request("missing content type"))?;
             if mime != mime::APPLICATION_WWW_FORM_URLENCODED {
-                return Err(BadRequest::from(
+                return Err(error::bad_request(
                     "The value of `Content-type` must be `application-x-www-form-urlencoded`.",
-                )
-                .into());
+                ));
             }
 
             Ok(Preflight::Incomplete)
@@ -420,10 +417,10 @@ mod urlencoded {
 
         fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
             let (data,) = futures::try_ready!(self.receive_all.poll_action(cx));
-            let s = std::str::from_utf8(&*data).map_err(BadRequest::from)?;
+            let s = std::str::from_utf8(&*data).map_err(error::bad_request)?;
             serde_qs::from_str(s)
                 .map(|x| (x,).into())
-                .map_err(|err| BadRequest::from(SyncFailure::new(err)).into())
+                .map_err(|err| error::bad_request(SyncFailure::new(err)))
         }
     }
 }

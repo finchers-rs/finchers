@@ -3,7 +3,7 @@
 use {
     failure::Fail,
     finchers::error::HttpError,
-    http::{header, Request, Response, StatusCode},
+    http::{header, Request, StatusCode},
     sha1::Sha1,
 };
 
@@ -77,16 +77,8 @@ impl From<HandshakeErrorKind> for HandshakeError {
 }
 
 impl HttpError for HandshakeError {
-    type Body = String;
-
     fn status_code(&self) -> StatusCode {
         StatusCode::BAD_REQUEST
-    }
-
-    fn to_response(&self, _: &Request<()>) -> Response<Self::Body> {
-        let mut response = Response::new(self.to_string());
-        *response.status_mut() = self.status_code();
-        response
     }
 }
 
