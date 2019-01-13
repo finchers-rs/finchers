@@ -21,7 +21,6 @@ use {
         },
         error::Error,
     },
-    http::StatusCode,
     percent_encoding::{
         percent_encode, //
         DEFAULT_ENCODE_SET,
@@ -80,7 +79,7 @@ impl ExtractPathError {
 
     #[allow(missing_docs)]
     pub fn not_matched() -> Self {
-        Self::new(StatusCode::NOT_FOUND)
+        Self::new(crate::error::not_found("not matched"))
     }
 }
 
@@ -188,11 +187,13 @@ impl OneshotAction for MatchSegmentAction {
     type Output = ();
 
     fn preflight(self, ecx: &mut PreflightContext<'_>) -> Result<Self::Output, Error> {
-        let s = ecx.next().ok_or_else(|| StatusCode::NOT_FOUND)?;
+        let s = ecx
+            .next()
+            .ok_or_else(|| crate::error::not_found("not matched"))?;
         if s == *self.encoded {
             Ok(())
         } else {
-            Err(StatusCode::NOT_FOUND.into())
+            Err(crate::error::not_found("not matched"))
         }
     }
 }
@@ -234,7 +235,7 @@ impl OneshotAction for MatchEosAction {
     fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Error> {
         match cx.next() {
             None => Ok(()),
-            Some(..) => Err(StatusCode::NOT_FOUND.into()),
+            Some(..) => Err(crate::error::not_found("not matched")),
         }
     }
 }
@@ -305,7 +306,9 @@ where
     type Output = (T,);
 
     fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Error> {
-        let s = cx.next().ok_or_else(|| StatusCode::NOT_FOUND)?;
+        let s = cx
+            .next()
+            .ok_or_else(|| crate::error::not_found("not matched"))?;
         let x = T::from_encoded_str(s).map_err(Into::into)?;
         Ok((x,))
     }

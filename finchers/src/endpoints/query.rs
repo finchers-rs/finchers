@@ -8,7 +8,7 @@ use {
             PreflightContext, //
         },
         endpoint::{Endpoint, IsEndpoint},
-        error::{BadRequest, Error},
+        error::{self, Error},
     },
     failure::SyncFailure,
     serde::de::DeserializeOwned,
@@ -95,12 +95,10 @@ mod required {
             let query = cx
                 .uri()
                 .query()
-                .ok_or_else(|| BadRequest::from("missing query"))?;
+                .ok_or_else(|| error::bad_request("missing query"))?;
             serde_qs::from_str(query)
                 .map(|x| (x,))
-                .map_err(SyncFailure::new)
-                .map_err(BadRequest::from)
-                .map_err(Into::into)
+                .map_err(|e| error::bad_request(SyncFailure::new(e)))
         }
     }
 }
@@ -185,7 +183,7 @@ mod optional {
             match cx.uri().query() {
                 Some(query) => serde_qs::from_str(query)
                     .map(|x| (Some(x),))
-                    .map_err(|err| BadRequest::from(SyncFailure::new(err)))
+                    .map_err(|err| error::bad_request(SyncFailure::new(err)))
                     .map_err(Into::into),
                 None => Ok((None,)),
             }

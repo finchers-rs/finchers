@@ -9,7 +9,6 @@ use {
         error::Error,
         output::IntoResponse,
     },
-    bytes::Bytes,
     futures::{future, Async, Future, Poll},
     http::{
         header::{self, HeaderValue},
@@ -194,6 +193,6 @@ where
 }
 
 pub type ResponseBody<Bd, E> = izanami_http::buf_stream::Either<
-    Bytes, //
+    String, //
     <<E as Endpoint<Bd>>::Output as IntoResponse>::Body,
 >;

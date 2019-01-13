@@ -21,7 +21,6 @@ pub use self::{
 use {
     super::IsEndpoint, //
     crate::error::{Error, HttpError},
-    std::fmt,
 };
 
 /// A set of extension methods for combining the multiple endpoints.
@@ -91,7 +90,8 @@ impl<E: IsEndpoint> EndpointExt for E {}
 /// An `HttpError` indicating that the endpoint could not determine the route.
 ///
 /// The value of this error is typically thrown from `Or` or `OrStrict`.
-#[derive(Debug)]
+#[derive(Debug, failure::Fail)]
+#[fail(display = "not matched")]
 pub struct NotMatched {
     /// The error value returned from the first endpoint.
     pub left: Error,
@@ -102,22 +102,8 @@ pub struct NotMatched {
     _priv: (),
 }
 
-impl fmt::Display for NotMatched {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("not matched")
-    }
-}
-
 impl HttpError for NotMatched {
-    type Body = String;
-
     fn status_code(&self) -> http::StatusCode {
         http::StatusCode::NOT_FOUND
-    }
-
-    fn to_response(&self, _: &http::Request<()>) -> http::Response<Self::Body> {
-        let mut response = http::Response::new(self.to_string());
-        *response.status_mut() = self.status_code();
-        response
     }
 }

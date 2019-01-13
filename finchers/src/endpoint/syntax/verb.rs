@@ -11,7 +11,7 @@ use {
         },
         error::Error,
     },
-    http::{Method, StatusCode},
+    http::Method,
     std::ops::{BitOr, BitOrAssign},
 };
 
@@ -54,7 +54,7 @@ impl OneshotAction for MatchVerbsAction {
         if self.allowed.contains(cx.method()) {
             Ok(())
         } else {
-            Err(StatusCode::METHOD_NOT_ALLOWED.into())
+            Err(crate::error::method_not_allowed("invalid method"))
         }
     }
 }
@@ -102,7 +102,7 @@ macro_rules! define_verbs {
                 if *cx.method() == Method::$METHOD {
                     Ok(())
                 } else {
-                    Err(StatusCode::METHOD_NOT_ALLOWED.into())
+                    Err(crate::error::method_not_allowed("invalid method"))
                 }
             }
         }

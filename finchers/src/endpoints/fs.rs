@@ -11,7 +11,7 @@ use {
             PreflightContext,
         },
         endpoint::{Endpoint, IsEndpoint},
-        error::{BadRequest, Error},
+        error::{self, Error},
         output::fs::{NamedFile, OpenNamedFile},
     },
     futures::Poll,
@@ -120,18 +120,12 @@ mod dir {
             &mut self,
             cx: &mut PreflightContext<'_>,
         ) -> Result<Preflight<Self::Output>, Error> {
-            let path = {
-                match cx.remaining_path().percent_decode() {
-                    Ok(path) => Ok(PathBuf::from(path.into_owned())),
-                    Err(e) => Err(e),
-                }
-            };
+            let path = cx
+                .remaining_path()
+                .percent_decode()
+                .map(|path| PathBuf::from(path.into_owned()));
             let _ = cx.by_ref().count();
-
-            let path = match path {
-                Ok(path) => path,
-                Err(e) => return Err(BadRequest::from(e).into()),
-            };
+            let path = path.map_err(error::bad_request)?;
 
             let mut path = self.root.join(path);
             if path.is_dir() {

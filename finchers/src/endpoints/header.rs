@@ -8,7 +8,7 @@ use {
             PreflightContext, //
         },
         endpoint::{Endpoint, IsEndpoint},
-        error::{BadRequest, Error},
+        error::{self, Error},
         util::Never,
     },
     http::{
@@ -140,12 +140,11 @@ mod parse {
 
         fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Error> {
             let h = cx.headers().get(&self.name).ok_or_else(|| {
-                BadRequest::from(format!("missing header: `{}'", self.name.as_str()))
+                error::bad_request(format!("missing header: `{}'", self.name.as_str()))
             })?;
             T::from_header_value(h)
                 .map(|parsed| (parsed,))
-                .map_err(BadRequest::from)
-                .map_err(Into::into)
+                .map_err(error::bad_request)
         }
     }
 }
@@ -219,8 +218,7 @@ mod optional {
             match cx.headers().get(&self.name) {
                 Some(h) => T::from_header_value(h)
                     .map(|parsed| (Some(parsed),))
-                    .map_err(BadRequest::from)
-                    .map_err(Into::into),
+                    .map_err(error::bad_request),
                 None => Ok((None,)),
             }
         }
@@ -308,7 +306,7 @@ mod matches {
         fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Error> {
             match cx.headers().get(&self.name) {
                 Some(v) if self.value == *v => Ok(()),
-                _ => Err(http::StatusCode::NOT_FOUND.into()),
+                _ => Err(crate::error::not_found("invalid header")),
             }
         }
     }
