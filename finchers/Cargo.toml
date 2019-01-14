@@ -50,6 +50,7 @@ url = "1.7.1"
 
 [dev-dependencies]
 matches = "0.1.8"
+izanami = "0.1.0-preview.1"
 
 [features]
 default = []

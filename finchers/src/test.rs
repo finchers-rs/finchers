@@ -2,29 +2,6 @@
 //!
 //! # Example
 //!
-//! ```ignore
-//! # #[macro_use]
-//! # extern crate finchers;
-//! # use finchers::test;
-//! # use finchers::prelude::*;
-//! # fn main() {
-//! let endpoint = path!(@get / "greeting" / String)
-//!     .map(|name: String| format!("Hello, {}.", name));
-//!
-//! // Create an instance of TestRunner from an endpoint.
-//! let mut runner = test::runner(endpoint);
-//!
-//! let response = runner
-//!     .perform("http://www.example.com/greeting/Alice")
-//!     .unwrap();
-//! assert_eq!(response.status().as_u16(), 200);
-//! assert!(response.headers().contains_key("content-type"));
-//! assert_eq!(response.body().to_utf8().unwrap(), "Hello, Alice.");
-//! # }
-//! ```
-//!
-//! Validates the result of the endpoint without converting to HTTP response.
-//!
 //! ```
 //! # use finchers::test;
 //! # use finchers::prelude::*;

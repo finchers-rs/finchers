@@ -10,26 +10,27 @@
 //!
 //! # Example
 //!
-//! ```ignore
-//! #[macro_use]
-//! extern crate finchers;
-//!
+//! ```
 //! use finchers::prelude::*;
+//! use finchers::endpoint::syntax::path;
 //!
-//! fn main() -> finchers::server::ServerResult<()> {
-//!     let get_post = path!(@get / u64 /)
-//!         .map(|id: u64| format!("GET: id={}", id));
+//! # fn main() -> izanami::Result<()> {
+//! let get_post = path!(@get "/<u64>")
+//!     .map(|id: u64| format!("GET: id={}", id));
 //!
-//!     let create_post = path!(@post /)
-//!         .and(endpoints::body::text())
-//!         .map(|data: String| format!("POST: body={}", data));
+//! let create_post = path!(@post "/")
+//!     .and(endpoints::body::text())
+//!     .map(|data: String| format!("POST: body={}", data));
 //!
-//!     let post_api = path!(/ "posts")
-//!         .and(get_post.or(create_post));
+//! let endpoint = path!("/posts")
+//!     .and(get_post.or(create_post));
 //!
-//!     finchers::server::start(post_api)
-//!         .serve("127.0.0.1:4000")
-//! }
+//! # drop(move || {
+//! izanami::Server::build()
+//!     .start(endpoint.into_service())
+//! # });
+//! # Ok(())
+//! # }
 //! ```
 
 #![doc(html_root_url = "https://docs.rs/finchers/0.14.0-dev")]

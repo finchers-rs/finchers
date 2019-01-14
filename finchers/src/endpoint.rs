@@ -189,14 +189,12 @@ mod unit {
 
 /// Create an endpoint which simply clones the specified value.
 ///
-/// # Examples
+/// # Example
 ///
-/// ```ignore
-/// # #[macro_use]
-/// # extern crate finchers;
-/// # extern crate futures;
+/// ```
 /// # use finchers::prelude::*;
 /// # use finchers::endpoint::value;
+/// # use finchers::endpoint::syntax::path;
 /// #
 /// #[derive(Clone)]
 /// struct Conn {
@@ -204,20 +202,23 @@ mod unit {
 /// #   _p: (),
 /// }
 ///
-/// # fn main() {
+/// # fn endpoint<Bd>() -> impl Endpoint<Bd> {
 /// let conn = {
 ///     // do some stuff...
 /// #   Conn { _p: () }
 /// };
 ///
-/// let endpoint = path!(@get / "posts" / u32 /)
+/// let endpoint = path!(@get "/posts/<u32>")
 ///     .and(value(conn))
 ///     .and_then(|id: u32, conn: Conn| {
 ///         // ...
 /// #       drop(id);
-/// #       futures::future::ok::<_, finchers::error::Never>(conn)
+/// #       futures::future::ok::<_, finchers::util::Never>(conn)
 ///     });
-/// # drop(endpoint);
+/// # endpoint
+/// # }
+/// # fn main() {
+/// # drop(endpoint::<()>());
 /// # }
 /// ```
 #[inline]
