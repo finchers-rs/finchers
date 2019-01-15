@@ -186,8 +186,9 @@ pub struct MatchSegmentAction {
 impl OneshotAction for MatchSegmentAction {
     type Output = ();
 
-    fn preflight(self, ecx: &mut PreflightContext<'_>) -> Result<Self::Output, Error> {
-        let s = ecx
+    fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Error> {
+        let s = cx
+            .cursor()
             .next()
             .ok_or_else(|| crate::error::not_found("not matched"))?;
         if s == *self.encoded {
@@ -233,7 +234,7 @@ impl OneshotAction for MatchEosAction {
     type Output = ();
 
     fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Error> {
-        match cx.next() {
+        match cx.cursor().next() {
             None => Ok(()),
             Some(..) => Err(crate::error::not_found("not matched")),
         }
@@ -307,6 +308,7 @@ where
 
     fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Error> {
         let s = cx
+            .cursor()
             .next()
             .ok_or_else(|| crate::error::not_found("not matched"))?;
         let x = T::from_encoded_str(s).map_err(Into::into)?;
@@ -379,8 +381,8 @@ where
     type Output = (T,);
 
     fn preflight(self, cx: &mut PreflightContext<'_>) -> Result<Self::Output, Error> {
-        let result = T::from_encoded_str(cx.remaining_path());
-        let _ = cx.by_ref().count();
+        let result = T::from_encoded_str(cx.cursor().remaining_path());
+        let _ = cx.cursor().count();
         result.map(|x| (x,)).map_err(Into::into)
     }
 }

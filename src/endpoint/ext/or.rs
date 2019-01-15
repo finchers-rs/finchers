@@ -66,14 +66,14 @@ where
             State::Init(mut left, mut right) => {
                 let orig_cx = cx.clone();
                 let left_output = left.preflight(cx);
-                let cx1 = std::mem::replace(cx, orig_cx);
+                let mut cx1 = std::mem::replace(cx, orig_cx);
                 let right_output = right.preflight(cx);
 
                 match (left_output, right_output) {
                     (Ok(l), Ok(r)) => {
                         // If both endpoints are matched, the one with the larger number of
                         // (consumed) path segments is choosen.
-                        if cx1.num_popped_segments() >= cx.num_popped_segments() {
+                        if cx1.cursor().num_popped_segments() >= cx.cursor().num_popped_segments() {
                             *cx = cx1;
                             if let Preflight::Completed((output,)) = l {
                                 return Ok(Preflight::Completed((Either::Left(output),)));

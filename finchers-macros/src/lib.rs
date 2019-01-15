@@ -103,7 +103,7 @@ pub fn ExtractPath(input: TokenStream) -> TokenStream {
         match component {
             Component::Static(s) => {
                 extracts.push(syn::parse_quote! {
-                    match cx.next() {
+                    match cx.cursor().next() {
                         Some(s) if s == #s => (),
                         _ => return Err(#ExtractPathError::not_matched()),
                     }
@@ -113,7 +113,7 @@ pub fn ExtractPath(input: TokenStream) -> TokenStream {
             Component::SingleParam(ty) => {
                 let ident = Ident::new(&format!("__x_{}", output_idents.len()), Span::call_site());
                 extracts.push(syn::parse_quote! {
-                    let #ident = match cx.next() {
+                    let #ident = match cx.cursor().next() {
                         Some(s) => <#ty as #FromEncodedStr>::from_encoded_str(s)
                             .map_err(#ExtractPathError::new)?,
                         None => return Err(#ExtractPathError::not_matched()),
@@ -126,8 +126,8 @@ pub fn ExtractPath(input: TokenStream) -> TokenStream {
                 let ident = Ident::new(&format!("__x_{}", output_idents.len()), Span::call_site());
                 extracts.push(syn::parse_quote! {
                     let #ident = {
-                        let result = <#ty as #FromEncodedStr>::from_encoded_str(cx.remaining_path());
-                        let _ = cx.by_ref().count();
+                        let result = <#ty as #FromEncodedStr>::from_encoded_str(cx.cursor().remaining_path());
+                        let _ = cx.cursor().count();
                         result.map_err(#ExtractPathError::new)?
                     };
                 });

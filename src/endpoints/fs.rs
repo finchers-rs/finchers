@@ -118,10 +118,11 @@ mod dir {
             cx: &mut PreflightContext<'_>,
         ) -> Result<Preflight<Self::Output>, Error> {
             let path = cx
+                .cursor()
                 .remaining_path()
                 .percent_decode()
                 .map(|path| PathBuf::from(path.into_owned()));
-            let _ = cx.by_ref().count();
+            let _ = cx.cursor().count();
             let path = path.map_err(error::bad_request)?;
 
             let mut path = self.root.join(path);

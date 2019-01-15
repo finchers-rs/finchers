@@ -162,38 +162,10 @@ impl<'a> PreflightContext<'a> {
         &*self.request
     }
 
-    /// Returns the number of segments already popped.
-    pub fn num_popped_segments(&self) -> usize {
-        self.popped
-    }
-
-    /// Advances the inner state and returns the next segment if possible.
+    /// Creates a `Cursor` to traverse the path segments.
     #[inline]
-    pub fn next_segment(&mut self) -> Option<&'a EncodedStr> {
-        let path = &self.request.uri().path();
-        if self.pos == path.len() {
-            return None;
-        }
-
-        let s = if let Some(offset) = path[self.pos..].find('/') {
-            let s = &path[self.pos..(self.pos + offset)];
-            self.pos += offset + 1;
-            self.popped += 1;
-            s
-        } else {
-            let s = &path[self.pos..];
-            self.pos = path.len();
-            self.popped += 1;
-            s
-        };
-
-        Some(unsafe { EncodedStr::new_unchecked(s) })
-    }
-
-    /// Returns the part of remaining path that is not extracted.
-    #[inline]
-    pub fn remaining_path(&self) -> &'a EncodedStr {
-        unsafe { EncodedStr::new_unchecked(&self.request.uri().path()[self.pos..]) }
+    pub fn cursor(&mut self) -> Cursor<'a, '_> {
+        Cursor { cx: self }
     }
 }
 
@@ -206,7 +178,49 @@ impl<'a> std::ops::Deref for PreflightContext<'a> {
     }
 }
 
-impl<'a> Iterator for PreflightContext<'a> {
+/// A proxy type that traverses the path segments.
+#[derive(Debug)]
+pub struct Cursor<'a, 'cx> {
+    cx: &'cx mut PreflightContext<'a>,
+}
+
+impl<'a, 'cx> Cursor<'a, 'cx> {
+    /// Returns the number of segments already popped.
+    pub fn num_popped_segments(&self) -> usize {
+        self.cx.popped
+    }
+
+    /// Advances the inner state and returns the next segment if possible.
+    #[inline]
+    pub fn next_segment(&mut self) -> Option<&'a EncodedStr> {
+        let path = &self.cx.request.uri().path();
+        if self.cx.pos == path.len() {
+            return None;
+        }
+
+        let s = if let Some(offset) = path[self.cx.pos..].find('/') {
+            let s = &path[self.cx.pos..(self.cx.pos + offset)];
+            self.cx.pos += offset + 1;
+            self.cx.popped += 1;
+            s
+        } else {
+            let s = &path[self.cx.pos..];
+            self.cx.pos = path.len();
+            self.cx.popped += 1;
+            s
+        };
+
+        Some(unsafe { EncodedStr::new_unchecked(s) })
+    }
+
+    /// Returns the part of remaining path that is not extracted.
+    #[inline]
+    pub fn remaining_path(&self) -> &'a EncodedStr {
+        unsafe { EncodedStr::new_unchecked(&self.cx.request.uri().path()[self.cx.pos..]) }
+    }
+}
+
+impl<'a, 'cx> Iterator for Cursor<'a, 'cx> {
     type Item = &'a EncodedStr;
 
     #[inline]
@@ -275,14 +289,17 @@ mod tests {
         let request = Request::get("/foo/bar.txt").body(()).unwrap();
         let mut ecx = PreflightContext::new(&request);
 
-        assert_eq!(ecx.remaining_path(), "foo/bar.txt");
-        assert_eq!(ecx.next().map(|s| s.as_bytes()), Some(&b"foo"[..]));
-        assert_eq!(ecx.remaining_path(), "bar.txt");
-        assert_eq!(ecx.next().map(|s| s.as_bytes()), Some(&b"bar.txt"[..]));
-        assert_eq!(ecx.remaining_path(), "");
-        assert!(ecx.next().is_none());
-        assert_eq!(ecx.remaining_path(), "");
-        assert!(ecx.next().is_none());
+        assert_eq!(ecx.cursor().remaining_path(), "foo/bar.txt");
+        assert_eq!(ecx.cursor().next().map(|s| s.as_bytes()), Some(&b"foo"[..]));
+        assert_eq!(ecx.cursor().remaining_path(), "bar.txt");
+        assert_eq!(
+            ecx.cursor().next().map(|s| s.as_bytes()),
+            Some(&b"bar.txt"[..])
+        );
+        assert_eq!(ecx.cursor().remaining_path(), "");
+        assert!(ecx.cursor().next().is_none());
+        assert_eq!(ecx.cursor().remaining_path(), "");
+        assert!(ecx.cursor().next().is_none());
     }
 
     #[test]
@@ -290,7 +307,7 @@ mod tests {
         let request = Request::get("/").body(()).unwrap();
         let mut ecx = PreflightContext::new(&request);
 
-        assert_eq!(ecx.remaining_path(), "");
-        assert!(ecx.next().is_none());
+        assert_eq!(ecx.cursor().remaining_path(), "");
+        assert!(ecx.cursor().next().is_none());
     }
 }
