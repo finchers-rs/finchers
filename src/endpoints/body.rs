@@ -4,8 +4,6 @@ use {
     crate::{
         action::{
             ActionContext, //
-            Async,
-            AsyncAction,
             EndpointAction,
             Preflight,
             PreflightContext,
@@ -61,13 +59,12 @@ mod raw {
 
     impl<Bd> Endpoint<Bd> for Raw {
         type Output = (Bd,);
-        type Action = Async<RawAction<Bd>>;
+        type Action = RawAction<Bd>;
 
         fn action(&self) -> Self::Action {
             RawAction {
                 _marker: PhantomData,
             }
-            .into_action()
         }
     }
 
@@ -76,7 +73,7 @@ mod raw {
         _marker: PhantomData<(UnsafeCell<()>, fn(Bd))>,
     }
 
-    impl<Bd> AsyncAction<Bd> for RawAction<Bd> {
+    impl<Bd> EndpointAction<Bd> for RawAction<Bd> {
         type Output = (Bd,);
 
         fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
@@ -113,10 +110,10 @@ mod receive_all {
         Bd::Error: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
     {
         type Output = (Vec<u8>,);
-        type Action = Async<ReceiveAllAction<Bd>>;
+        type Action = ReceiveAllAction<Bd>;
 
         fn action(&self) -> Self::Action {
-            new_action().into_action()
+            new_action()
         }
     }
 
@@ -131,7 +128,7 @@ mod receive_all {
         Receiving(Bd, Vec<u8>),
     }
 
-    impl<Bd> AsyncAction<Bd> for ReceiveAllAction<Bd>
+    impl<Bd> EndpointAction<Bd> for ReceiveAllAction<Bd>
     where
         Bd: BufStream,
         Bd::Error: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,

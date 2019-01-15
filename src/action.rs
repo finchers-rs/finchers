@@ -64,18 +64,22 @@ pub trait EndpointAction<Bd> {
     /// Some limitations are added to `PreflightContext` in order to keep consistency when
     /// another endpoint returns an error (for example, it cannot be taken the instance
     /// of request body inside of this method).
+    ///
+    /// By default, this method does nothing and immediately returns an `Ok(Preflight::Incomplete)`.
+    #[allow(unused_variables)]
     fn preflight(
         &mut self,
         cx: &mut PreflightContext<'_>,
-    ) -> Result<Preflight<Self::Output>, Error>;
+    ) -> Result<Preflight<Self::Output>, Error> {
+        Ok(Preflight::Incomplete)
+    }
 
     /// Progress this action and returns the result if ready.
     fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error>;
 }
 
-/// A variant of `EndpointAction` representing that `preflight` will
-/// *never* return `Ok(Preflight::Incomplete)` and the action always
-/// returns its result from `preflight`.
+/// A variant of `EndpointAction` that the implementor always returns its
+/// result from `preflight`.
 #[allow(missing_docs)]
 pub trait OneshotAction {
     type Output: Tuple;
@@ -116,28 +120,7 @@ where
     }
 }
 
-/// A variant of `EndpointAction` representing that `preflight` do nothing
-/// and always returns an `Ok(Preflight::Incomplete)`.
-///
-/// The error values returned from this kind of action do not affect the result
-/// of routing.
-#[allow(missing_docs)]
-pub trait AsyncAction<Bd> {
-    type Output: Tuple;
-
-    /// Progress this action and returns the result if ready.
-    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error>;
-
-    /// Consume `self` and convert it into an implementor of `EndpointAction`.
-    fn into_action(self) -> Async<Self>
-    where
-        Self: Sized,
-    {
-        Async(self)
-    }
-}
-
-impl<F, Bd> AsyncAction<Bd> for F
+impl<F, Bd> EndpointAction<Bd> for F
 where
     F: Future,
     F::Item: Tuple,
@@ -147,28 +130,6 @@ where
 
     fn poll_action(&mut self, _: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
         self.poll().map_err(Into::into)
-    }
-}
-
-/// Wrapper for providing an implementation of `EndpointAction` to `AsyncAction`s.
-#[derive(Debug)]
-pub struct Async<T>(T);
-
-impl<T, Bd> EndpointAction<Bd> for Async<T>
-where
-    T: AsyncAction<Bd>,
-{
-    type Output = T::Output;
-
-    fn preflight(
-        &mut self,
-        _: &mut PreflightContext<'_>,
-    ) -> Result<Preflight<Self::Output>, Error> {
-        Ok(Preflight::Incomplete)
-    }
-
-    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
-        self.0.poll_action(cx)
     }
 }
 

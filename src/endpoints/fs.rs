@@ -4,8 +4,6 @@ use {
     crate::{
         action::{
             ActionContext, //
-            Async,
-            AsyncAction,
             EndpointAction,
             Preflight,
             PreflightContext,
@@ -39,7 +37,7 @@ mod file {
 
     impl<Bd> Endpoint<Bd> for File {
         type Output = (NamedFile,);
-        type Action = Async<FileAction<Bd>>;
+        type Action = FileAction<Bd>;
 
         fn action(&self) -> Self::Action {
             FileAction {
@@ -47,7 +45,6 @@ mod file {
                 opening: None,
                 _marker: PhantomData,
             }
-            .into_action()
         }
     }
 
@@ -58,7 +55,7 @@ mod file {
         _marker: PhantomData<fn(Bd)>,
     }
 
-    impl<Bd> AsyncAction<Bd> for FileAction<Bd> {
+    impl<Bd> EndpointAction<Bd> for FileAction<Bd> {
         type Output = (NamedFile,);
 
         fn poll_action(&mut self, _: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
