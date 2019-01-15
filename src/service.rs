@@ -10,10 +10,7 @@ use {
         output::IntoResponse,
     },
     futures::{future, Async, Future, Poll},
-    http::{
-        header::{self, HeaderValue},
-        Request, Response,
-    },
+    http::{Request, Response},
     izanami_service::{MakeService, Service},
     std::{fmt, io, marker::PhantomData, sync::Arc},
 };
@@ -169,9 +166,7 @@ where
     type Error = io::Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let output = ready!(self.poll_apply());
-
-        let mut response = match output {
+        let response = match ready!(self.poll_apply()) {
             Ok(output) => output
                 .into_response(&self.request)
                 .map(izanami_util::buf_stream::Either::Right),
@@ -179,14 +174,6 @@ where
                 .into_response(&self.request)
                 .map(izanami_util::buf_stream::Either::Left),
         };
-
-        response
-            .headers_mut()
-            .entry(header::SERVER)
-            .unwrap()
-            .or_insert_with(|| {
-                HeaderValue::from_static(concat!("finchers/", env!("CARGO_PKG_VERSION")))
-            });
 
         Ok(Async::Ready(response))
     }
