@@ -145,9 +145,8 @@ pub struct PreflightContext<'a> {
 }
 
 impl<'a> PreflightContext<'a> {
-    /// Creates a new `PreflightContext` with the specified reference to a `Request<()>`.
     #[inline]
-    pub fn new(request: &'a Request<()>) -> Self {
+    pub(crate) fn new(request: &'a Request<()>) -> Self {
         PreflightContext {
             request,
             pos: 1,
@@ -238,8 +237,7 @@ pub struct ActionContext<'a, Bd> {
 }
 
 impl<'a, Bd> ActionContext<'a, Bd> {
-    /// Creates a new `ActionContext` with the specified components.
-    pub fn new(request: &'a mut Request<()>, body: &'a mut Option<Bd>) -> Self {
+    pub(crate) fn new(request: &'a mut Request<()>, body: &'a mut Option<Bd>) -> Self {
         Self {
             request,
             body,
