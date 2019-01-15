@@ -1,6 +1,12 @@
 mod endpoint;
 mod endpoints;
 
+#[test]
+fn version_sync() {
+    version_sync::assert_html_root_url_updated!("src/lib.rs");
+    version_sync::assert_markdown_deps_updated!("README.md");
+}
+
 // #[test]
 // fn test_path_macro() {
 //     let _ = path!(@get /);

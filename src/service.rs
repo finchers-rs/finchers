@@ -174,10 +174,10 @@ where
         let mut response = match output {
             Ok(output) => output
                 .into_response(&self.request)
-                .map(izanami_http::buf_stream::Either::Right),
+                .map(izanami_util::buf_stream::Either::Right),
             Err(err) => err
                 .into_response(&self.request)
-                .map(izanami_http::buf_stream::Either::Left),
+                .map(izanami_util::buf_stream::Either::Left),
         };
 
         response
@@ -192,7 +192,7 @@ where
     }
 }
 
-pub type ResponseBody<Bd, E> = izanami_http::buf_stream::Either<
+pub type ResponseBody<Bd, E> = izanami_util::buf_stream::Either<
     String, //
     <<E as Endpoint<Bd>>::Output as IntoResponse>::Body,
 >;

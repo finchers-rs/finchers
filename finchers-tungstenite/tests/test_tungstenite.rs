@@ -1,6 +1,11 @@
 use {finchers::prelude::*, http::Request, matches::assert_matches};
 
 #[test]
+fn version_sync() {
+    version_sync::assert_html_root_url_updated!("src/lib.rs");
+}
+
+#[test]
 fn test_handshake() -> izanami::Result<()> {
     let mut server = izanami::test::server({
         finchers_tungstenite::ws(|stream| {

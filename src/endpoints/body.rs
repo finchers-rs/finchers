@@ -15,7 +15,7 @@ use {
     },
     futures::Poll,
     http::Request,
-    izanami_http::buf_stream::BufStream,
+    izanami_util::buf_stream::BufStream,
     mime::Mime,
     serde::de::DeserializeOwned,
     std::{cell::UnsafeCell, marker::PhantomData},

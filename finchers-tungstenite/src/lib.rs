@@ -1,24 +1,4 @@
 //! WebSocket support for Finchers based on tungstenite.
-//!
-//! # Example
-//!
-//! ```
-//! # use finchers::prelude::*;
-//! type Transport = finchers_tungstenite::WsTransport<izanami::RequestBody>;
-//!
-//! # fn main() -> izanami::Result<()> {
-//! let endpoint = finchers::path!(@get "/ws")
-//!     .and(finchers_tungstenite::ws(|ws: Transport| {
-//!             // ...
-//! #           drop(ws);
-//! #           futures::future::ok(())
-//!     }));
-//! # drop(|| {
-//! # izanami::Server::build().start(endpoint.into_service())
-//! # });
-//! # Ok(())
-//! # }
-//! ```
 
 #![doc(html_root_url = "https://docs.rs/finchers-tungstenite/0.3.0-dev")]
 #![deny(
@@ -62,8 +42,8 @@ mod imp {
         },
         futures::{Async, Future, IntoFuture, Poll},
         http::{header, Response},
-        izanami_http::upgrade::Upgrade,
-        izanami_rt::{DefaultExecutor, Executor},
+        izanami_util::http::Upgrade,
+        izanami_util::rt::{DefaultExecutor, Executor},
         tokio_tungstenite::WebSocketStream,
         tungstenite::protocol::Role,
     };

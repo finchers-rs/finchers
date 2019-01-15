@@ -29,7 +29,7 @@ use {
         header::{self, HeaderMap, HeaderName, HeaderValue},
         Request, Uri,
     },
-    izanami_http::buf_stream::BufStream,
+    izanami_util::buf_stream::BufStream,
     mime::Mime,
     std::io,
     tokio::runtime::current_thread::Runtime,

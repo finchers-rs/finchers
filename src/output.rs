@@ -59,16 +59,16 @@ where
     L: IntoResponse,
     R: IntoResponse,
 {
-    type Body = izanami_http::buf_stream::Either<L::Body, R::Body>;
+    type Body = izanami_util::buf_stream::Either<L::Body, R::Body>;
 
     fn into_response(self, request: &Request<()>) -> Response<Self::Body> {
         match self {
             Either::Left(l) => l
                 .into_response(request)
-                .map(izanami_http::buf_stream::Either::Left),
+                .map(izanami_util::buf_stream::Either::Left),
             Either::Right(r) => r
                 .into_response(request)
-                .map(izanami_http::buf_stream::Either::Right),
+                .map(izanami_util::buf_stream::Either::Right),
         }
     }
 }

@@ -27,7 +27,7 @@ fn main() -> izanami::Result<()> {
 
     let ws_endpoint = finchers::path!(@get "/ws") //
         .and(finchers_tungstenite::ws(
-            |stream: WsTransport<izanami::RequestBody>| {
+            |stream: WsTransport<izanami::server::RequestBody>| {
                 let (tx, rx) = stream.split();
                 rx.filter_map(|m| {
                     log::info!("Message from client: {:?}", m);
@@ -48,7 +48,7 @@ fn main() -> izanami::Result<()> {
 
     let endpoint = index.or(ws_endpoint);
 
-    log::info!("Listening on http://127.0.0.1:5000");
-    izanami::Server::bind(std::net::SocketAddr::from(([127, 0, 0, 1], 5000)))
-        .start(endpoint.into_service())
+    let addr: std::net::SocketAddr = ([127, 0, 0, 1], 5000).into();
+    log::info!("Listening on http://{}", addr);
+    izanami::Server::bind_tcp(&addr)?.start(endpoint.into_service())
 }

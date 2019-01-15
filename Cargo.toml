@@ -1,28 +1,70 @@
 [package]
-name = "finchers-workspace"
-version = "0.0.0"
+name = "finchers"
+version = "0.14.0-dev"
 edition = "2018"
-publish = false
+description = "A combinator library for builidng asynchronous HTTP services"
+authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+homepage = "https://finchers-rs.github.io"
+repository = "https://github.com/finchers-rs/finchers.git"
+keywords = ["finchers", "web", "framework", "server"]
+categories = ["web-programming::http-server"]
 
-[dependencies.doubter]
-version = "0.1"
-default-features = false
+include = [
+  "/Cargo.toml",
+  "/build.rs",
+  "/src/**/*",
+  "/tests/**/*",
+  "/examples/**/*",
+  "/benches/**/*",
+  "/LICENSE-MIT",
+  "/LICENSE-APACHE",
+  "/README.md"
+]
 
-[dependencies.cargo-husky]
+[badges]
+maintenance = { status = "actively-developed" }
+
+[features]
+default = []
+secure = ["cookie/secure"]
+
+[dependencies]
+finchers-macros = { version = "0.14.0-dev", path = "finchers-macros" }
+
+bitflags = "1.0.4"
+bytes = { version = "0.4.9", features = ["either"] }
+cookie = { version = "0.11.0", features = ["percent-encode"] }
+either = "1.5.0"
+failure = "0.1.2"
+futures = "0.1.23"
+http = "0.1.10"
+izanami-service = "0.1.0-preview.1"
+izanami-util = "0.1.0-preview.1"
+log = "0.4.3"
+mime = "0.3.8"
+mime_guess = "2.0.0-alpha.6"
+percent-encoding = "1.0.1"
+serde = { version = "1.0.71", features = ["derive"] }
+serde_json = "1.0.24"
+serde_qs = "0.4.1"
+tokio = "0.1.8"
+url = "1.7.1"
+
+[dev-dependencies]
+matches = "0.1.8"
+izanami = "0.1.0-preview.1"
+version-sync = "0.7"
+
+[dev-dependencies.cargo-husky]
 version = "1"
 default-features = false
 features = ["user-hooks"]
 
-[dev-dependencies]
-finchers = { path = "finchers" }
-izanami = "0.1.0-preview.1"
-izanami-service = "0.1.0-preview.1"
-
 [workspace]
 members = [
-  "finchers",
-  "finchers/macros",
-
+  "finchers-macros",
   #"finchers-cors",
   #"finchers-headers",
   #"finchers-juniper",
@@ -30,6 +72,7 @@ members = [
   #"finchers-template",
   "finchers-tungstenite",
 
+  "doctest",
   #"examples/custom-logging",
   #"examples/diesel",
   #"examples/juniper",
@@ -45,18 +88,6 @@ members = [
 ]
 
 [patch.crates-io]
-finchers = { path = "finchers" }
-finchers-macros = { path = "finchers/macros" }
-
-#finchers-headers = { path = "finchers-headers" }
-#finchers-juniper = { path = "finchers-juniper" }
-#finchers-session = { path = "finchers-session" }
-#finchers-template = { path = "finchers-template" }
-finchers-tungstenite = { path = "finchers-tungstenite" }
-
-izanami = { git = "https://github.com/ubnt-intrepid/izanami.git" }
-izanami-http = { git = "https://github.com/ubnt-intrepid/izanami.git" }
-izanami-rt = { git = "https://github.com/ubnt-intrepid/izanami.git" }
-izanami-service = { git = "https://github.com/ubnt-intrepid/izanami.git" }
-
-version-sync = { git = "https://github.com/ubnt-intrepid/version-sync.git", branch = "bump-version" }
+#izanami = { git = "https://github.com/ubnt-intrepid/izanami.git" }
+#izanami-util = { git = "https://github.com/ubnt-intrepid/izanami.git" }
+#izanami-service = { git = "https://github.com/ubnt-intrepid/izanami.git" }
