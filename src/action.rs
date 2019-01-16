@@ -2,8 +2,9 @@
 
 use {
     crate::{common::Tuple, endpoint::syntax::encoded::EncodedStr, error::Error},
+    cookie::{Cookie, CookieJar},
     futures::{Future, Poll},
-    http::Request,
+    http::{header::HeaderMap, Request},
     std::{marker::PhantomData, rc::Rc},
 };
 
@@ -233,14 +234,23 @@ impl<'a, 'cx> Iterator for Cursor<'a, 'cx> {
 pub struct ActionContext<'a, Bd> {
     request: &'a mut Request<()>,
     body: &'a mut Option<Bd>,
+    cookies: &'a mut Option<CookieJar>,
+    response_headers: &'a mut Option<HeaderMap>,
     _anchor: PhantomData<Rc<()>>,
 }
 
 impl<'a, Bd> ActionContext<'a, Bd> {
-    pub(crate) fn new(request: &'a mut Request<()>, body: &'a mut Option<Bd>) -> Self {
+    pub(crate) fn new(
+        request: &'a mut Request<()>,
+        body: &'a mut Option<Bd>,
+        cookies: &'a mut Option<CookieJar>,
+        response_headers: &'a mut Option<HeaderMap>,
+    ) -> Self {
         Self {
             request,
             body,
+            cookies,
+            response_headers,
             _anchor: PhantomData,
         }
     }
@@ -258,6 +268,30 @@ impl<'a, Bd> ActionContext<'a, Bd> {
     /// Returns a mutable reference to the instance of request body.
     pub fn body(&mut self) -> &mut Option<Bd> {
         &mut *self.body
+    }
+
+    /// Initializes the inner `CookieJar` and returns a mutable reference to its instance.
+    pub fn cookies(&mut self) -> Result<&mut CookieJar, Error> {
+        if let Some(ref mut cookies) = *self.cookies {
+            Ok(cookies)
+        } else {
+            let cookies = self.cookies.get_or_insert_with(CookieJar::new);
+            for raw_cookie in self.request.headers().get_all(http::header::COOKIE) {
+                let raw_cookie_str = raw_cookie.to_str().map_err(crate::error::bad_request)?;
+                for s in raw_cookie_str.split(';').map(|s| s.trim()) {
+                    let cookie = Cookie::parse_encoded(s)
+                        .map_err(crate::error::bad_request)?
+                        .into_owned();
+                    cookies.add_original(cookie);
+                }
+            }
+            Ok(cookies)
+        }
+    }
+
+    /// Returns a mutable reference to a `HeaderMap` which contains the supplemental response headers.
+    pub fn response_headers(&mut self) -> &mut HeaderMap {
+        self.response_headers.get_or_insert_with(Default::default)
     }
 }
 

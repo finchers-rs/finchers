@@ -9,8 +9,13 @@ use {
         error::Error,
         output::IntoResponse,
     },
+    bytes::{BufMut, BytesMut},
+    cookie::{Cookie, CookieJar},
     futures::{future, Async, Future, Poll},
-    http::{Request, Response},
+    http::{
+        header::{HeaderMap, HeaderValue},
+        Request, Response,
+    },
     izanami_service::{MakeService, Service},
     std::{fmt, io, marker::PhantomData, sync::Arc},
 };
@@ -89,6 +94,8 @@ where
             state: State::Start(Some(self.endpoint.action())),
             request: Request::from_parts(parts, ()),
             body: Some(body),
+            cookies: None,
+            response_headers: None,
         }
     }
 }
@@ -115,6 +122,8 @@ pub struct AppFuture<Bd, E: Endpoint<Bd>> {
     state: State<E::Action>,
     request: Request<()>,
     body: Option<Bd>,
+    cookies: Option<CookieJar>,
+    response_headers: Option<HeaderMap>,
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -149,7 +158,12 @@ where
                     State::InFlight(action)
                 }
                 State::InFlight(ref mut action) => {
-                    let mut acx = ActionContext::new(&mut self.request, &mut self.body);
+                    let mut acx = ActionContext::new(
+                        &mut self.request, //
+                        &mut self.body,
+                        &mut self.cookies,
+                        &mut self.response_headers,
+                    );
                     return action.poll_action(&mut acx);
                 }
             };
@@ -166,7 +180,7 @@ where
     type Error = io::Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let response = match ready!(self.poll_apply()) {
+        let mut response = match ready!(self.poll_apply()) {
             Ok(output) => output
                 .into_response(&self.request)
                 .map(izanami_util::buf_stream::Either::Right),
@@ -174,6 +188,24 @@ where
                 .into_response(&self.request)
                 .map(izanami_util::buf_stream::Either::Left),
         };
+
+        if let Some(cookies) = &self.cookies {
+            for cookie in cookies.delta() {
+                response
+                    .headers_mut()
+                    .append(http::header::SET_COOKIE, encode_cookie(cookie));
+            }
+        }
+
+        if let Some(mut hdrs) = self.response_headers.take() {
+            for (name, values) in hdrs.drain() {
+                response.headers_mut().extend(
+                    values //
+                        .into_iter()
+                        .map(|value| (name.clone(), value)),
+                );
+            }
+        }
 
         Ok(Async::Ready(response))
     }
@@ -183,3 +215,15 @@ pub type ResponseBody<Bd, E> = izanami_util::buf_stream::Either<
     String, //
     <<E as Endpoint<Bd>>::Output as IntoResponse>::Body,
 >;
+
+/// Encode a Cookie value into a `HeaderValue`
+fn encode_cookie(cookie: &Cookie<'_>) -> HeaderValue {
+    use std::io::Write;
+
+    let estimated_capacity = cookie.name().len() + cookie.value().len() + 1; // name=value
+    let mut value = BytesMut::with_capacity(estimated_capacity);
+    let _ = write!((&mut value).writer(), "{}", cookie.encoded());
+
+    // safety: the bytes genereted by EncodedCookie is a valid header value.
+    unsafe { HeaderValue::from_shared_unchecked(value.freeze()) }
+}
