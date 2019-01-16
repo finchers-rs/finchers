@@ -111,13 +111,8 @@ mod imp {
                 .on_upgrade
                 .take()
                 .expect("the action has already been polled");
-            let body = cx.body().take().ok_or_else(|| {
-                finchers::error::internal_server_error(
-                    "the instance of request body has \
-                     already been stolen by someone.",
-                )
-            })?;
-            let upgrade_task = body
+            let upgrade_task = cx
+                .take_body()?
                 .on_upgrade()
                 .map_err(|_e| log::error!("upgrade error"))
                 .and_then(move |upgraded| {

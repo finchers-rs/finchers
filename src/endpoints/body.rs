@@ -19,13 +19,6 @@ use {
     std::{cell::UnsafeCell, marker::PhantomData},
 };
 
-fn stolen_payload() -> Error {
-    error::internal_server_error(
-        "The instance of request body has already been \
-         stolen by another endpoint.",
-    )
-}
-
 fn content_type<T>(request: &Request<T>) -> crate::error::Result<Option<Mime>> {
     if let Some(h) = request.headers().get(http::header::CONTENT_TYPE) {
         let mime = h
@@ -77,10 +70,7 @@ mod raw {
         type Output = (Bd,);
 
         fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
-            cx.body()
-                .take()
-                .map(|x| (x,).into())
-                .ok_or_else(stolen_payload)
+            cx.take_body().map(|x| (x,).into())
         }
     }
 }
@@ -139,7 +129,7 @@ mod receive_all {
             loop {
                 self.state = match self.state {
                     State::Start => {
-                        let payload = cx.body().take().ok_or_else(super::stolen_payload)?;
+                        let payload = cx.take_body()?;
                         State::Receiving(payload, Vec::new())
                     }
                     State::Receiving(ref mut body, ref mut buf) => {

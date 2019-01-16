@@ -1,10 +1,13 @@
 //! Definition of `EndpointAction` and related components.
 
 use {
-    crate::{common::Tuple, endpoint::syntax::encoded::EncodedStr, error::Error},
-    cookie::{Cookie, CookieJar},
+    crate::{
+        common::Tuple, //
+        endpoint::syntax::encoded::EncodedStr,
+        error::Error,
+        service::Context,
+    },
     futures::{Future, Poll},
-    http::{header::HeaderMap, Request},
     std::{marker::PhantomData, rc::Rc},
 };
 
@@ -129,8 +132,8 @@ where
 {
     type Output = F::Item;
 
-    fn poll_action(&mut self, _: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
-        self.poll().map_err(Into::into)
+    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
+        cx.context_mut().set(|| self.poll()).map_err(Into::into)
     }
 }
 
@@ -139,74 +142,81 @@ where
 /// A set of contextual values used by `EndpointAction::preflight`.
 #[derive(Debug, Clone)]
 pub struct PreflightContext<'a> {
-    request: &'a Request<()>,
-    pos: usize,
-    popped: usize,
+    context: &'a Context,
+    cursor: CursorInner,
     _anchor: PhantomData<Rc<()>>,
 }
 
 impl<'a> PreflightContext<'a> {
     #[inline]
-    pub(crate) fn new(request: &'a Request<()>) -> Self {
+    pub(crate) fn new(context: &'a Context) -> Self {
         PreflightContext {
-            request,
-            pos: 1,
-            popped: 0,
+            context,
+            cursor: CursorInner { pos: 1, popped: 0 },
             _anchor: PhantomData,
         }
     }
 
-    /// Returns a reference to the inner `Request<()>`.
+    /// Returns a reference to the request context.
     #[inline]
-    pub fn request(&self) -> &Request<()> {
-        &*self.request
+    pub fn context(&self) -> &Context {
+        &*self.context
     }
 
     /// Creates a `Cursor` to traverse the path segments.
     #[inline]
-    pub fn cursor(&mut self) -> Cursor<'a, '_> {
-        Cursor { cx: self }
+    pub fn cursor(&mut self) -> Cursor<'_> {
+        Cursor {
+            inner: &mut self.cursor,
+            path: self.context.uri().path(),
+        }
     }
 }
 
 impl<'a> std::ops::Deref for PreflightContext<'a> {
-    type Target = Request<()>;
+    type Target = Context;
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        self.request()
+        self.context()
     }
 }
 
 /// A proxy type that traverses the path segments.
 #[derive(Debug)]
-pub struct Cursor<'a, 'cx> {
-    cx: &'cx mut PreflightContext<'a>,
+pub struct Cursor<'cx> {
+    inner: &'cx mut CursorInner,
+    path: &'cx str,
 }
 
-impl<'a, 'cx> Cursor<'a, 'cx> {
+#[derive(Debug, Clone)]
+struct CursorInner {
+    pos: usize,
+    popped: usize,
+}
+
+impl<'cx> Cursor<'cx> {
     /// Returns the number of segments already popped.
     pub fn num_popped_segments(&self) -> usize {
-        self.cx.popped
+        self.inner.popped
     }
 
     /// Advances the inner state and returns the next segment if possible.
     #[inline]
-    pub fn next_segment(&mut self) -> Option<&'a EncodedStr> {
-        let path = &self.cx.request.uri().path();
-        if self.cx.pos == path.len() {
+    pub fn next_segment(&mut self) -> Option<&'cx EncodedStr> {
+        if self.inner.pos == self.path.len() {
             return None;
         }
 
-        let s = if let Some(offset) = path[self.cx.pos..].find('/') {
-            let s = &path[self.cx.pos..(self.cx.pos + offset)];
-            self.cx.pos += offset + 1;
-            self.cx.popped += 1;
+        let s = if let Some(offset) = self.path[self.inner.pos..].find('/') {
+            let s = &self.path[self.inner.pos..(self.inner.pos + offset)];
+            self.inner.pos += offset + 1;
+            self.inner.popped += 1;
             s
         } else {
-            let s = &path[self.cx.pos..];
-            self.cx.pos = path.len();
-            self.cx.popped += 1;
+            let s = &self.path[self.inner.pos..];
+            self.inner.pos = self.path.len();
+            self.inner.popped += 1;
             s
         };
 
@@ -215,13 +225,13 @@ impl<'a, 'cx> Cursor<'a, 'cx> {
 
     /// Returns the part of remaining path that is not extracted.
     #[inline]
-    pub fn remaining_path(&self) -> &'a EncodedStr {
-        unsafe { EncodedStr::new_unchecked(&self.cx.request.uri().path()[self.cx.pos..]) }
+    pub fn remaining_path(&self) -> &'cx EncodedStr {
+        unsafe { EncodedStr::new_unchecked(&self.path[self.inner.pos..]) }
     }
 }
 
-impl<'a, 'cx> Iterator for Cursor<'a, 'cx> {
-    type Item = &'a EncodedStr;
+impl<'cx> Iterator for Cursor<'cx> {
+    type Item = &'cx EncodedStr;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -232,82 +242,65 @@ impl<'a, 'cx> Iterator for Cursor<'a, 'cx> {
 /// A set for contextual values used by `EndpointAction::poll_action`.
 #[derive(Debug)]
 pub struct ActionContext<'a, Bd> {
-    request: &'a mut Request<()>,
+    context: &'a mut Context,
     body: &'a mut Option<Bd>,
-    cookies: &'a mut Option<CookieJar>,
-    response_headers: &'a mut Option<HeaderMap>,
     _anchor: PhantomData<Rc<()>>,
 }
 
 impl<'a, Bd> ActionContext<'a, Bd> {
-    pub(crate) fn new(
-        request: &'a mut Request<()>,
-        body: &'a mut Option<Bd>,
-        cookies: &'a mut Option<CookieJar>,
-        response_headers: &'a mut Option<HeaderMap>,
-    ) -> Self {
+    pub(crate) fn new(context: &'a mut Context, body: &'a mut Option<Bd>) -> Self {
         Self {
-            request,
+            context,
             body,
-            cookies,
-            response_headers,
             _anchor: PhantomData,
         }
     }
 
-    /// Returns a reference to the inner `Request<()>`.
-    pub fn request(&self) -> &Request<()> {
-        &*self.request
+    /// Returns a reference to the request context.
+    pub fn context(&self) -> &Context {
+        &*self.context
     }
 
-    /// Returns a mutable reference to the inner `Request<()>`.
-    pub fn request_mut(&mut self) -> &mut Request<()> {
-        &mut *self.request
+    /// Returns a mutable reference to the request context.
+    pub fn context_mut(&mut self) -> &mut Context {
+        &mut *self.context
     }
 
-    /// Returns a mutable reference to the instance of request body.
-    pub fn body(&mut self) -> &mut Option<Bd> {
-        &mut *self.body
+    /// Returns a reference to the instance of request body if exists.
+    pub fn body(&self) -> Option<&Bd> {
+        self.body.as_ref()
     }
 
-    /// Initializes the inner `CookieJar` and returns a mutable reference to its instance.
-    pub fn cookies(&mut self) -> Result<&mut CookieJar, Error> {
-        if let Some(ref mut cookies) = *self.cookies {
-            Ok(cookies)
-        } else {
-            let cookies = self.cookies.get_or_insert_with(CookieJar::new);
-            for raw_cookie in self.request.headers().get_all(http::header::COOKIE) {
-                let raw_cookie_str = raw_cookie.to_str().map_err(crate::error::bad_request)?;
-                for s in raw_cookie_str.split(';').map(|s| s.trim()) {
-                    let cookie = Cookie::parse_encoded(s)
-                        .map_err(crate::error::bad_request)?
-                        .into_owned();
-                    cookies.add_original(cookie);
-                }
-            }
-            Ok(cookies)
-        }
+    /// Returns a mutable reference to the instance of request body if exists.
+    pub fn body_mut(&mut self) -> Option<&mut Bd> {
+        self.body.as_mut()
     }
 
-    /// Returns a mutable reference to a `HeaderMap` which contains the supplemental response headers.
-    pub fn response_headers(&mut self) -> &mut HeaderMap {
-        self.response_headers.get_or_insert_with(Default::default)
+    /// Takes the instance of request body from this context.
+    ///
+    /// This method will return an `Err` if the body has already taken by someone.
+    pub fn take_body(&mut self) -> Result<Bd, Error> {
+        self.body.take().ok_or_else(|| {
+            crate::error::internal_server_error(
+                "the request body has already been stolen by someone",
+            )
+        })
     }
 }
 
 impl<'a, Bd> std::ops::Deref for ActionContext<'a, Bd> {
-    type Target = Request<()>;
+    type Target = Context;
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        self.request()
+        self.context()
     }
 }
 
 impl<'a, Bd> std::ops::DerefMut for ActionContext<'a, Bd> {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.request_mut()
+        self.context_mut()
     }
 }
 
@@ -319,7 +312,8 @@ mod tests {
     #[test]
     fn test_segments() {
         let request = Request::get("/foo/bar.txt").body(()).unwrap();
-        let mut ecx = PreflightContext::new(&request);
+        let context = Context::new(request);
+        let mut ecx = PreflightContext::new(&context);
 
         assert_eq!(ecx.cursor().remaining_path(), "foo/bar.txt");
         assert_eq!(ecx.cursor().next().map(|s| s.as_bytes()), Some(&b"foo"[..]));
@@ -337,7 +331,8 @@ mod tests {
     #[test]
     fn test_segments_from_root_path() {
         let request = Request::get("/").body(()).unwrap();
-        let mut ecx = PreflightContext::new(&request);
+        let context = Context::new(request);
+        let mut ecx = PreflightContext::new(&context);
 
         assert_eq!(ecx.cursor().remaining_path(), "");
         assert!(ecx.cursor().next().is_none());
