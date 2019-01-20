@@ -1,42 +1,33 @@
-//! A set of components which provides the support for CORS in Finchers.
+//! CORS support in Finchers.
 
-// master
-#![doc(html_root_url = "https://finchers-rs.github.io/finchers-cors")]
-// released
-//#![doc(html_root_url = "https://docs.rs/finchers-cors/0.1.0-alpha.1")]
-#![warn(
+#![doc(html_root_url = "https://docs.rs/finchers-cors/0.1.0-dev")]
+#![deny(
     missing_docs,
     missing_debug_implementations,
     nonstandard_style,
+    rust_2018_compatibility,
     rust_2018_idioms,
-    unused,
+    unused
 )]
-//#![warn(rust_2018_compatibility)]
-#![cfg_attr(feature = "strict", deny(warnings))]
-#![cfg_attr(feature = "strict", doc(test(attr(deny(warnings)))))]
+#![forbid(clippy::unimplemented)]
+#![doc(test(attr(deny(warnings))))]
 
-extern crate either;
-#[macro_use]
-extern crate failure;
-extern crate finchers;
-extern crate futures; // 0.1
-extern crate http;
-
-use std::collections::HashSet;
-use std::time::Duration;
-
-use finchers::endpoint::with_get_cx;
-use finchers::endpoint::{ApplyContext, ApplyResult, Endpoint, Wrapper};
-use finchers::error::{Error, HttpError};
-use finchers::input::Input;
-use finchers::output::{Output, OutputContext};
-
-use futures::{Async, Future, Poll};
-
-use either::Either;
-use http::header;
-use http::header::{HeaderName, HeaderValue};
-use http::{Method, Response, StatusCode, Uri};
+use {
+    either::Either,
+    failure::Fail,
+    finchers::{
+        action::{ActionContext, EndpointAction, Preflight, PreflightContext},
+        endpoint::{Endpoint, IsEndpoint},
+        error::{Error, HttpError},
+        output::IntoResponse,
+    },
+    futures::Poll,
+    http::{
+        header::{self, HeaderName, HeaderValue},
+        Method, Request, Response, StatusCode, Uri,
+    },
+    std::{collections::HashSet, sync::Arc, time::Duration},
+};
 
 /// A `Wrapper` for building an endpoint with CORS.
 #[derive(Debug, Default)]
@@ -117,13 +108,12 @@ impl CorsFilter {
             ..self
         }
     }
-}
 
-impl<'a, E: Endpoint<'a>> Wrapper<'a, E> for CorsFilter {
-    type Output = (CorsResponse<E::Output>,);
-    type Endpoint = CorsEndpoint<E>;
-
-    fn wrap(self, endpoint: E) -> Self::Endpoint {
+    #[allow(missing_docs)]
+    pub fn apply<E>(self, endpoint: E) -> CorsEndpoint<E>
+    where
+        E: IsEndpoint,
+    {
         let methods = self.methods.unwrap_or_else(|| {
             vec![
                 Method::GET,
@@ -133,7 +123,8 @@ impl<'a, E: Endpoint<'a>> Wrapper<'a, E> for CorsFilter {
                 Method::DELETE,
                 Method::PATCH,
                 Method::OPTIONS,
-            ].into_iter()
+            ]
+            .into_iter()
             .collect()
         });
 
@@ -147,8 +138,10 @@ impl<'a, E: Endpoint<'a>> Wrapper<'a, E> for CorsFilter {
                     }
                     acc += m.as_str();
                     acc
-                }).into(),
-        ).expect("should be a valid header value");
+                })
+                .into(),
+        )
+        .expect("should be a valid header value");
 
         let headers_value = self.headers.as_ref().map(|hdrs| {
             HeaderValue::from_shared(
@@ -160,19 +153,23 @@ impl<'a, E: Endpoint<'a>> Wrapper<'a, E> for CorsFilter {
                         }
                         acc += hdr.as_str();
                         acc
-                    }).into(),
-            ).expect("should be a valid header value")
+                    })
+                    .into(),
+            )
+            .expect("should be a valid header value")
         });
 
         CorsEndpoint {
             endpoint,
-            origins: self.origins,
-            methods,
-            methods_value,
-            headers: self.headers,
-            headers_value,
-            max_age: self.max_age,
-            allow_credentials: self.allow_credentials,
+            inner: Arc::new(Inner {
+                origins: self.origins,
+                methods,
+                methods_value,
+                headers: self.headers,
+                headers_value,
+                max_age: self.max_age,
+                allow_credentials: self.allow_credentials,
+            }),
         }
     }
 }
@@ -183,6 +180,11 @@ impl<'a, E: Endpoint<'a>> Wrapper<'a, E> for CorsFilter {
 #[derive(Debug)]
 pub struct CorsEndpoint<E> {
     endpoint: E,
+    inner: Arc<Inner>,
+}
+
+#[derive(Debug)]
+struct Inner {
     origins: Option<HashSet<Uri>>,
     methods: HashSet<Method>,
     methods_value: HeaderValue,
@@ -207,9 +209,9 @@ fn parse_origin(h: &HeaderValue) -> Result<Uri, CorsError> {
     Ok(origin_uri)
 }
 
-impl<E> CorsEndpoint<E> {
-    fn validate_origin_header(&self, input: &Input) -> Result<AllowedOrigin, CorsError> {
-        let origin = input
+impl Inner {
+    fn validate_origin_header(&self, request: &Request<()>) -> Result<AllowedOrigin, CorsError> {
+        let origin = request
             .headers()
             .get(header::ORIGIN)
             .ok_or_else(|| CorsErrorKind::MissingOrigin)?;
@@ -229,8 +231,11 @@ impl<E> CorsEndpoint<E> {
         }
     }
 
-    fn validate_request_method(&self, input: &Input) -> Result<Option<HeaderValue>, CorsError> {
-        match input.headers().get(header::ACCESS_CONTROL_REQUEST_METHOD) {
+    fn validate_request_method(
+        &self,
+        request: &Request<()>,
+    ) -> Result<Option<HeaderValue>, CorsError> {
+        match request.headers().get(header::ACCESS_CONTROL_REQUEST_METHOD) {
             Some(h) => {
                 let method: Method = h
                     .to_str()
@@ -247,8 +252,14 @@ impl<E> CorsEndpoint<E> {
         }
     }
 
-    fn validate_request_headers(&self, input: &Input) -> Result<Option<HeaderValue>, CorsError> {
-        match input.headers().get(header::ACCESS_CONTROL_REQUEST_HEADERS) {
+    fn validate_request_headers(
+        &self,
+        request: &Request<()>,
+    ) -> Result<Option<HeaderValue>, CorsError> {
+        match request
+            .headers()
+            .get(header::ACCESS_CONTROL_REQUEST_HEADERS)
+        {
             Some(hdrs) => match self.headers {
                 Some(ref headers) => {
                     let mut request_headers = HashSet::new();
@@ -276,13 +287,13 @@ impl<E> CorsEndpoint<E> {
 
     fn handle_preflight_request(
         &self,
-        input: &Input,
+        request: &Request<()>,
     ) -> Result<Either<Response<()>, AllowedOrigin>, CorsError> {
-        let origin = self.validate_origin_header(input)?;
-        match *input.method() {
-            Method::OPTIONS => match self.validate_request_method(input)? {
+        let origin = self.validate_origin_header(request)?;
+        match *request.method() {
+            Method::OPTIONS => match self.validate_request_method(request)? {
                 Some(allow_methods) => {
-                    let allow_headers = self.validate_request_headers(input)?;
+                    let allow_headers = self.validate_request_headers(request)?;
 
                     let mut response = Response::new(());
                     response
@@ -314,59 +325,67 @@ impl<E> CorsEndpoint<E> {
     }
 }
 
-impl<'a, E> Endpoint<'a> for CorsEndpoint<E>
+impl<E> IsEndpoint for CorsEndpoint<E> where E: IsEndpoint {}
+
+impl<E, Bd> Endpoint<Bd> for CorsEndpoint<E>
 where
-    E: Endpoint<'a>,
+    E: Endpoint<Bd>,
 {
     type Output = (CorsResponse<E::Output>,);
-    type Future = CorsFuture<'a, E>;
+    type Action = CorsAction<Bd, E>;
 
-    fn apply(&'a self, cx: &mut ApplyContext<'_>) -> ApplyResult<Self::Future> {
-        Ok(CorsFuture {
-            future: self.endpoint.apply(cx)?,
-            endpoint: self,
-        })
+    fn action(&self) -> Self::Action {
+        CorsAction {
+            action: self.endpoint.action(),
+            inner: self.inner.clone(),
+            allowed_origin: None,
+        }
     }
 }
 
 #[doc(hidden)]
 #[derive(Debug)]
-pub struct CorsFuture<'a, E: Endpoint<'a>> {
-    future: E::Future,
-    endpoint: &'a CorsEndpoint<E>,
+pub struct CorsAction<Bd, E: Endpoint<Bd>> {
+    action: E::Action,
+    inner: Arc<Inner>,
+    allowed_origin: Option<AllowedOrigin>,
 }
 
-impl<'a, E> Future for CorsFuture<'a, E>
+impl<E, Bd> EndpointAction<Bd> for CorsAction<Bd, E>
 where
-    E: Endpoint<'a>,
+    E: Endpoint<Bd>,
 {
-    type Item = (CorsResponse<E::Output>,);
-    type Error = Error;
+    type Output = (CorsResponse<E::Output>,);
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let endpoint = self.endpoint;
-
-        match { with_get_cx(|input| endpoint.handle_preflight_request(&*input))? } {
-            Either::Left(response) => Ok(Async::Ready((CorsResponse(
+    fn preflight(
+        &mut self,
+        cx: &mut PreflightContext<'_>,
+    ) -> Result<Preflight<Self::Output>, Error> {
+        match self.inner.handle_preflight_request(cx.request())? {
+            Either::Left(response) => Ok(Preflight::Completed((CorsResponse(
                 CorsResponseKind::Preflight(response),
             ),))),
             Either::Right(allowed_origin) => {
-                with_get_cx(|input| {
-                    input
-                        .response_headers()
-                        .append(header::ACCESS_CONTROL_ALLOW_ORIGIN, allowed_origin.into());
-                    if endpoint.allow_credentials {
-                        input.response_headers().append(
-                            header::ACCESS_CONTROL_ALLOW_CREDENTIALS,
-                            HeaderValue::from_static("true"),
-                        );
-                    }
-                });
-                self.future
-                    .poll()
-                    .map(|x| x.map(|output| (CorsResponse(CorsResponseKind::Normal(output)),)))
+                self.allowed_origin = Some(allowed_origin);
+                Ok(Preflight::Incomplete)
             }
         }
+    }
+
+    fn poll_action(&mut self, cx: &mut ActionContext<'_, Bd>) -> Poll<Self::Output, Error> {
+        if let Some(allowed_origin) = self.allowed_origin.take() {
+            cx.response_headers()
+                .append(header::ACCESS_CONTROL_ALLOW_ORIGIN, allowed_origin.into());
+            if self.inner.allow_credentials {
+                cx.response_headers().append(
+                    header::ACCESS_CONTROL_ALLOW_CREDENTIALS,
+                    HeaderValue::from_static("true"),
+                );
+            }
+        }
+        self.action
+            .poll_action(cx)
+            .map(|x| x.map(|output| (CorsResponse(CorsResponseKind::Normal(output)),)))
     }
 }
 
@@ -380,16 +399,17 @@ enum CorsResponseKind<T> {
     Normal(T),
 }
 
-impl<T: Output> Output for CorsResponse<T> {
-    type Body = Option<T::Body>;
-    type Error = T::Error;
+impl<T: IntoResponse> IntoResponse for CorsResponse<T> {
+    type Body = izanami_util::buf_stream::Either<Vec<u8>, T::Body>;
 
-    fn respond(self, cx: &mut OutputContext<'_>) -> Result<Response<Self::Body>, Self::Error> {
+    fn into_response(self, request: &Request<()>) -> Response<Self::Body> {
         match self.0 {
-            CorsResponseKind::Preflight(response) => Ok(response.map(|_| None)),
-            CorsResponseKind::Normal(normal) => {
-                normal.respond(cx).map(|response| response.map(Some))
+            CorsResponseKind::Preflight(response) => {
+                response.map(|_| izanami_util::buf_stream::Either::Left(vec![]))
             }
+            CorsResponseKind::Normal(normal) => normal
+                .into_response(request)
+                .map(izanami_util::buf_stream::Either::Right),
         }
     }
 }

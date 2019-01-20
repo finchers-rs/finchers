@@ -72,7 +72,7 @@ where
                         match right.preflight(cx) {
                             Ok(Preflight::Incomplete) => State::Right(right),
                             Ok(Preflight::Completed(output)) => {
-                                return Ok(Preflight::Completed(output))
+                                return Ok(Preflight::Completed(output));
                             }
                             Err(e2) => {
                                 return Err(NotMatched {
@@ -80,7 +80,7 @@ where
                                     right: e2,
                                     _priv: (),
                                 }
-                                .into())
+                                .into());
                             }
                         }
                     }

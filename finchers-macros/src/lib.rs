@@ -31,7 +31,7 @@ pub fn ExtractPath(input: TokenStream) -> TokenStream {
                     _ => {
                         return syn::parse::Error::new_spanned(attr, "not a string literal")
                             .to_compile_error()
-                            .into()
+                            .into();
                     }
                 },
                 Ok(..) => {
@@ -40,7 +40,7 @@ pub fn ExtractPath(input: TokenStream) -> TokenStream {
                         "the attribute must be a `#[path = \"..\"]`",
                     )
                     .to_compile_error()
-                    .into()
+                    .into();
                 }
                 Err(err) => return err.to_compile_error().into(),
             }
@@ -51,7 +51,7 @@ pub fn ExtractPath(input: TokenStream) -> TokenStream {
         None => {
             return syn::parse::Error::new_spanned(&input, "missing attribute: #[path \"/path\"]")
                 .to_compile_error()
-                .into()
+                .into();
         }
     };
 
