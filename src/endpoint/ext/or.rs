@@ -110,7 +110,7 @@ where
                             right,
                             _priv: (),
                         }
-                        .into())
+                        .into());
                     }
                 }
             }
