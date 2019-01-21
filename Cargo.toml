@@ -65,8 +65,6 @@ features = ["user-hooks"]
 [workspace]
 members = [
   "finchers-macros",
-  #"finchers-cors",
-  #"finchers-headers",
   #"finchers-juniper",
   #"finchers-session",
   #"finchers-template",
