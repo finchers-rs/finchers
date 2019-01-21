@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["service_fn","Creates a `Service` from the specified closure."]],"trait":[["MakeService","A trait representing a factory of `Service`s."],["MakeServiceRef","An alias of `MakeService` receiving the context value of `Ctx` as reference."]]});

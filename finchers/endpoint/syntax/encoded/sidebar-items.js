@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["DecodeEncodedStrError",""],["EncodedStr","A percent-encoded string."],["ParseEncodedStrError",""]],"trait":[["FromEncodedStr","Trait representing the conversion from an encoded string."]]});

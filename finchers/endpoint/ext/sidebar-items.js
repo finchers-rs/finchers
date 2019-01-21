@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["And",""],["AndThen",""],["Map",""],["MapErr",""],["NotMatched","An `HttpError` indicating that the endpoint could not determine the route."],["Or",""],["OrStrict",""],["Recover",""]],"trait":[["EndpointExt","A set of extension methods for combining the multiple endpoints."]]});

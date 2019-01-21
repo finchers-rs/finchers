@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["Never","A type which has no possible values."]]});

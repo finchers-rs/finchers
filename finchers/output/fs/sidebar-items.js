@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["FileStream",""],["NamedFile","An instance of `Output` representing a file on the file system."],["OpenNamedFile",""]]});

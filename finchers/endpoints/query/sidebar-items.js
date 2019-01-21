@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["optional","Create an endpoint which parses the query string to the specified type."],["raw","Create an endpoint which extracts the query string from a request."],["required","Create an endpoint which parses the query string to the specified type."]],"struct":[["Optional",""],["Raw",""],["Required",""]]});

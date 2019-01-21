@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["App","A wrapper struct for lifting the instance of `Endpoint` to an HTTP service."],["Context","A set of miscellaneous context values used within a request handling."]],"trait":[["EndpointServiceExt",""]],"type":[["ResponseBody",""]]});
